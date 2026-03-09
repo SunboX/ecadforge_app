@@ -1,0 +1,533 @@
+.hero-grid {
+    display: grid;
+    grid-template-columns: minmax(340px, 1.25fr) minmax(320px, 0.95fr);
+    gap: 1rem;
+}
+
+.dropzone {
+    position: relative;
+    min-height: 280px;
+    padding: 1.4rem;
+    border-radius: calc(var(--radius) - 4px);
+    border: 1px dashed rgba(184, 90, 37, 0.4);
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.82),
+            rgba(255, 248, 241, 0.9)
+        ),
+        radial-gradient(
+            circle at top left,
+            rgba(15, 116, 108, 0.12),
+            transparent 45%
+        );
+    display: grid;
+    align-content: start;
+    gap: 0.85rem;
+    transition:
+        transform 140ms ease,
+        border-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.dropzone.is-dragover {
+    transform: translateY(-2px);
+    border-color: var(--brand);
+    box-shadow: 0 22px 36px rgba(184, 90, 37, 0.12);
+}
+
+.dropzone__eyebrow {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    font-size: 0.78rem;
+}
+
+.dropzone h2 {
+    margin: 0;
+    font-size: clamp(1.45rem, 2.5vw, 2.3rem);
+    line-height: 1.08;
+}
+
+.dropzone__copy {
+    margin: 0;
+    max-width: 46rem;
+    color: var(--muted);
+    line-height: 1.55;
+}
+
+.dropzone__chips {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.dropzone__chips span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(15, 116, 108, 0.1);
+    color: var(--accent);
+    font-size: 0.86rem;
+}
+
+.meta-column {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.meta-card,
+.summary-card {
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(95, 112, 124, 0.14);
+}
+
+.meta-card strong,
+.summary-card strong {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 1.02rem;
+}
+
+.meta-card__label,
+.summary-card__label {
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.view-tabs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.view-tab {
+    border: 1px solid rgba(95, 112, 124, 0.16);
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    background: rgba(255, 255, 255, 0.56);
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+        background 140ms ease,
+        color 140ms ease,
+        transform 140ms ease;
+}
+
+.view-tab[aria-selected='true'] {
+    background: linear-gradient(135deg, var(--brand), var(--accent));
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.viewer-stage {
+    min-height: 68vh;
+    overflow: hidden;
+}
+
+.viewer-empty,
+.viewer-loading {
+    min-height: 52vh;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    color: var(--muted);
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.56),
+            rgba(255, 251, 248, 0.9)
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(184, 90, 37, 0.04) 0 1px,
+            transparent 1px 46px
+        );
+    border-radius: calc(var(--radius) - 6px);
+    padding: 2rem;
+}
+
+.viewer-empty h3,
+.viewer-loading p {
+    margin: 0;
+}
+
+.viewer-loading {
+    gap: 1rem;
+}
+
+.viewer-loading__pulse {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(15, 116, 108, 0.28) 0 28%,
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at center,
+            rgba(184, 90, 37, 0.18) 0 58%,
+            transparent 60%
+        );
+    animation: pulse 1.8s ease-in-out infinite;
+}
+
+.svg-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+.svg-panel__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.svg-panel__header h3,
+.pcb-legend h4,
+.bom-panel__header h3 {
+    margin: 0;
+}
+
+.svg-panel__header p,
+.bom-panel__header p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.schematic-svg,
+.pcb-svg {
+    width: 100%;
+    min-height: 60vh;
+    border-radius: 22px;
+    background: var(--canvas);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
+}
+
+.sheet-backdrop {
+    fill: rgba(255, 250, 245, 0.96);
+    stroke: rgba(95, 112, 124, 0.12);
+}
+
+.sheet-frame,
+.sheet-title-block rect,
+.sheet-title-block line {
+    fill: none;
+    stroke: rgba(95, 112, 124, 0.48);
+    stroke-width: 1;
+}
+
+.sheet-title-label,
+.sheet-title-value,
+.sheet-zone-label {
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.sheet-title-label {
+    font-size: 7px;
+}
+
+.sheet-title-value {
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.sheet-zone-label {
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.schematic-label {
+}
+
+.schematic-pin-line {
+    stroke-width: 1;
+}
+
+.schematic-pin-name,
+.schematic-pin-number {
+}
+
+.schematic-port rect,
+.schematic-port polygon,
+.schematic-cross line,
+.schematic-power-port line {
+    stroke-width: 1;
+}
+
+.schematic-port-label {
+}
+
+.schematic-power-port-label {
+    font-family: 'Times New Roman', serif;
+}
+
+.schematic-designator {
+}
+
+.schematic-node circle {
+    fill: rgba(15, 116, 108, 0.9);
+}
+
+.pcb-layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.pcb-legend {
+    padding: 1rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(95, 112, 124, 0.14);
+}
+
+.pcb-legend ul {
+    margin: 0.8rem 0 0;
+    padding-left: 1rem;
+    color: var(--muted);
+}
+
+.board-outline {
+    fill: rgba(15, 116, 108, 0.18);
+    stroke: var(--accent);
+    stroke-width: 18;
+}
+
+.pcb-component rect {
+    fill: rgba(184, 90, 37, 0.86);
+    stroke: rgba(78, 32, 8, 0.2);
+    stroke-width: 3;
+}
+
+.pcb-component--bottom rect {
+    fill: rgba(15, 116, 108, 0.84);
+}
+
+.pcb-component text {
+    font-size: 30px;
+    text-anchor: middle;
+    fill: #22343b;
+    font-weight: 700;
+}
+
+.bom-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+.bom-table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.bom-table th,
+.bom-table td {
+    padding: 0.8rem 0.9rem;
+    border-bottom: 1px solid rgba(95, 112, 124, 0.12);
+    text-align: left;
+    vertical-align: top;
+}
+
+.bom-table th {
+    color: var(--muted);
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.diagnostics-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.diagnostic {
+    display: grid;
+    grid-template-columns: 84px 1fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 0.85rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+}
+
+.diagnostic__severity {
+    display: inline-flex;
+    justify-content: center;
+    padding: 0.3rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(15, 116, 108, 0.12);
+    color: var(--accent);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.diagnostic--warning .diagnostic__severity {
+    background: rgba(184, 90, 37, 0.12);
+    color: var(--brand-strong);
+}
+
+.diagnostic p {
+    margin: 0;
+    color: var(--text);
+}
+
+.scene-3d {
+    display: grid;
+    gap: 1.2rem;
+}
+
+.scene-3d__stage {
+    position: relative;
+    min-height: 380px;
+    border-radius: 28px;
+    overflow: hidden;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.82),
+            transparent 48%
+        ),
+        linear-gradient(180deg, #fff7f1 0%, #edf5f1 100%);
+    display: grid;
+    place-items: center;
+}
+
+.scene-3d__shadow {
+    position: absolute;
+    width: 52%;
+    height: 16%;
+    border-radius: 50%;
+    background: rgba(24, 32, 38, 0.12);
+    filter: blur(16px);
+    transform: translateY(108px);
+}
+
+.scene-3d__board {
+    position: relative;
+    width: min(56vw, 520px);
+    aspect-ratio: 1.45;
+    border-radius: 34px;
+    background:
+        linear-gradient(145deg, #1a7f72, #0b5a51),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent);
+    border: 10px solid rgba(244, 218, 196, 0.46);
+    transform: rotateX(60deg) rotateZ(-32deg);
+    box-shadow:
+        0 34px 60px rgba(11, 90, 81, 0.18),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.scene-3d__trace {
+    position: absolute;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #efc47d, #ed9951);
+}
+
+.scene-3d__trace--one {
+    width: 48%;
+    top: 24%;
+    left: 16%;
+}
+
+.scene-3d__trace--two {
+    width: 30%;
+    top: 49%;
+    left: 36%;
+}
+
+.scene-3d__trace--three {
+    width: 42%;
+    top: 70%;
+    left: 22%;
+}
+
+.scene-3d__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.scene-3d__stats div {
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+}
+
+.scene-3d__stats dt {
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.scene-3d__stats dd {
+    margin: 0.4rem 0 0;
+    font-weight: 700;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        transform: scale(0.92);
+        opacity: 0.72;
+    }
+
+    50% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 1024px) {
+    .hero-grid,
+    .pcb-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .summary-grid,
+    .scene-3d__stats {
+        grid-template-columns: 1fr;
+    }
+
+    .viewer-stage {
+        min-height: auto;
+    }
+
+    .schematic-svg,
+    .pcb-svg {
+        min-height: 420px;
+    }
+}

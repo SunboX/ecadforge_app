@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Altium Viewer</title>
+        <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+        <main class="app-shell">
+            <header class="topbar panel">
+                <div>
+                    <p class="eyebrow" data-i18n="app.kicker">
+                        Native Browser Decode
+                    </p>
+                    <h1 data-i18n="app.title">Altium Viewer</h1>
+                    <p class="subtitle" data-i18n="app.subtitle">
+                        Client-side schematic, PCB, 3D and BOM views for
+                        standalone native Altium documents.
+                    </p>
+                </div>
+                <div class="toolbar">
+                    <label class="file-pill" for="fileInput">
+                        <span data-i18n="app.open">Open native file</span>
+                    </label>
+                    <input
+                        id="fileInput"
+                        class="sr-only"
+                        type="file"
+                        accept=".SchDoc,.PcbDoc"
+                    />
+                    <label class="inline-field" for="localeSelect">
+                        <span data-i18n="app.language">Language</span>
+                        <select id="localeSelect">
+                            <option value="en" data-i18n="locale.en">
+                                English
+                            </option>
+                            <option value="de" data-i18n="locale.de">
+                                Deutsch
+                            </option>
+                        </select>
+                    </label>
+                    <span
+                        id="appVersion"
+                        class="version-pill"
+                        aria-live="polite"
+                        >v—</span
+                    >
+                </div>
+            </header>
+
+            <section class="panel hero-grid">
+                <div id="dropZone" class="dropzone">
+                    <p class="dropzone__eyebrow" data-i18n="app.dropHint">
+                        Drag SchDoc or PcbDoc here
+                    </p>
+                    <h2 data-i18n="app.dropTitle">
+                        Parse native Altium files entirely in the browser
+                    </h2>
+                    <p class="dropzone__copy" data-i18n="app.dropCopy">
+                        The parser extracts printable native records from
+                        standalone documents, normalizes them, and feeds
+                        schematic, PCB, BOM, diagnostics, and 3D summary views.
+                    </p>
+                    <div class="dropzone__chips">
+                        <span>SchDoc</span>
+                        <span>PcbDoc</span>
+                        <span>Worker offload</span>
+                        <span>Normalized model</span>
+                    </div>
+                    <p
+                        class="status"
+                        id="statusMessage"
+                        data-i18n="status.ready"
+                    >
+                        Drop a native SchDoc or PcbDoc file to begin.
+                    </p>
+                </div>
+                <div class="meta-column">
+                    <article class="meta-card">
+                        <span
+                            class="meta-card__label"
+                            data-i18n="app.activeFile"
+                            >Active file</span
+                        >
+                        <strong id="activeDocumentName">No file loaded</strong>
+                    </article>
+                    <article class="meta-card">
+                        <span
+                            class="meta-card__label"
+                            data-i18n="app.diagnostics"
+                            >Diagnostics</span
+                        >
+                        <strong
+                            ><span id="diagnosticsCount">0</span>
+                            records</strong
+                        >
+                    </article>
+                    <div
+                        id="summaryGrid"
+                        class="summary-grid"
+                        aria-live="polite"
+                    ></div>
+                </div>
+            </section>
+
+            <nav class="panel view-tabs" id="viewTabs" aria-label="Viewer tabs">
+                <button
+                    class="view-tab"
+                    type="button"
+                    data-view="schematic"
+                    aria-selected="true"
+                >
+                    Schematic
+                </button>
+                <button
+                    class="view-tab"
+                    type="button"
+                    data-view="pcb"
+                    aria-selected="false"
+                >
+                    PCB
+                </button>
+                <button
+                    class="view-tab"
+                    type="button"
+                    data-view="3d"
+                    aria-selected="false"
+                >
+                    3D
+                </button>
+                <button
+                    class="view-tab"
+                    type="button"
+                    data-view="bom"
+                    aria-selected="false"
+                >
+                    BOM
+                </button>
+                <button
+                    class="view-tab"
+                    type="button"
+                    data-view="diagnostics"
+                    aria-selected="false"
+                >
+                    Diagnostics
+                </button>
+            </nav>
+
+            <section
+                class="panel viewer-stage"
+                id="viewContent"
+                aria-live="polite"
+            ></section>
+        </main>
+
+        <script type="module" src="/main.mjs"></script>
+    </body>
+</html>

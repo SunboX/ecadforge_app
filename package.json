@@ -1,0 +1,22 @@
+{
+    "name": "altium-viewer",
+    "version": "1.1.44",
+    "description": "Browser-based viewer for native Altium schematic and PCB files",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "node src/server.mjs",
+        "test": "node --test tests",
+        "format": "prettier --write .",
+        "check:format": "prettier --check ."
+    },
+    "dependencies": {
+        "express": "^5.1.0"
+    },
+    "devDependencies": {
+        "prettier": "^3.4.2"
+    },
+    "engines": {
+        "node": ">=20"
+    }
+}
