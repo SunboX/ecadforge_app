@@ -1,0 +1,19 @@
+{
+    "app.kicker": "Nativer Browser-Decode",
+    "app.title": "Altium Viewer",
+    "app.subtitle": "Clientseitige Schaltplan-, PCB-, 3D- und BOM-Ansichten fuer eigenstaendige native Altium-Dokumente.",
+    "app.language": "Sprache",
+    "app.open": "Native Datei oeffnen",
+    "app.dropHint": "SchDoc oder PcbDoc hier ablegen",
+    "app.dropTitle": "Native Altium-Dateien komplett im Browser parsen",
+    "app.dropCopy": "Der Parser extrahiert druckbare native Records aus eigenstaendigen Dokumenten, normalisiert sie und speist Schaltplan-, PCB-, BOM-, Diagnose- und 3D-Uebersichtsansichten.",
+    "app.activeFile": "Aktive Datei",
+    "app.diagnostics": "Diagnosen",
+    "locale.en": "English",
+    "locale.de": "Deutsch",
+    "status.ready": "Native SchDoc- oder PcbDoc-Datei ablegen, um zu starten.",
+    "status.loading": "Native Altium-Datei wird im Browser geparst...",
+    "status.loaded": "Datei erfolgreich geparst.",
+    "status.invalidFile": "Bitte eine .SchDoc- oder .PcbDoc-Datei waehlen.",
+    "status.localeChanged": "Sprache aktualisiert."
+}

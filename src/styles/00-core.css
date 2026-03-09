@@ -1,0 +1,52 @@
+:root {
+    --bg:
+        radial-gradient(
+            circle at top left,
+            rgba(242, 110, 39, 0.12),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 85% 20%,
+            rgba(11, 123, 102, 0.14),
+            transparent 32%
+        ),
+        linear-gradient(165deg, #f5f1ea 0%, #f0f5f2 42%, #f6efe4 100%);
+    --panel: rgba(255, 252, 247, 0.88);
+    --panel-strong: rgba(255, 255, 255, 0.94);
+    --text: #182026;
+    --muted: #60717c;
+    --border: rgba(95, 112, 124, 0.18);
+    --brand: #b85a25;
+    --brand-strong: #944115;
+    --accent: #0f746c;
+    --accent-soft: #d9ebe8;
+    --canvas: #fdfbf8;
+    --shadow: 0 18px 44px rgba(35, 44, 50, 0.1);
+    --radius: 22px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: 'Space Grotesk', 'IBM Plex Sans', 'Segoe UI', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+}
+
+button,
+select,
+input {
+    font: inherit;
+}
+
+code {
+    font-family: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+}
