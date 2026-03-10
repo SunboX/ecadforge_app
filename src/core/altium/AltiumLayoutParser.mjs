@@ -132,6 +132,7 @@ export class AltiumLayoutParser {
      * @param {{ x: number, y: number }[]} texts
      * @param {{ x: number, y: number }[]} components
      * @param {{ x: number, y: number }[]} pins
+     * @param {{ x: number, y: number, width: number, height: number }[]} rectangles
      * @param {{ x: number, y: number, width: number, height: number }[]} ports
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ width: number, height: number, marginWidth: number, paperSize?: string }}
@@ -143,6 +144,7 @@ export class AltiumLayoutParser {
         texts,
         components,
         pins,
+        rectangles,
         ports,
         crosses
     ) {
@@ -151,6 +153,7 @@ export class AltiumLayoutParser {
             texts,
             components,
             pins,
+            rectangles,
             ports,
             crosses
         )
@@ -183,16 +186,33 @@ export class AltiumLayoutParser {
             }
         }
 
+        const resolvedWidth = AltiumLayoutParser.#pickResolvedSheetAxis(
+            sheet.width,
+            requiredWidth
+        )
+        const resolvedHeight = AltiumLayoutParser.#pickResolvedSheetAxis(
+            sheet.height,
+            requiredHeight
+        )
+        const resolvedStandardSheet =
+            AltiumLayoutParser.#resolveStandardSheetSize(
+                resolvedWidth,
+                resolvedHeight
+            )
+
+        if (resolvedStandardSheet) {
+            return {
+                ...sheet,
+                width: resolvedStandardSheet.width,
+                height: resolvedStandardSheet.height,
+                paperSize: resolvedStandardSheet.label
+            }
+        }
+
         return {
             ...sheet,
-            width: AltiumLayoutParser.#pickResolvedSheetAxis(
-                sheet.width,
-                requiredWidth
-            ),
-            height: AltiumLayoutParser.#pickResolvedSheetAxis(
-                sheet.height,
-                requiredHeight
-            ),
+            width: resolvedWidth,
+            height: resolvedHeight,
             paperSize: sheet?.paperSize
         }
     }
@@ -204,6 +224,7 @@ export class AltiumLayoutParser {
      * @param {{ x: number, y: number }[]} texts
      * @param {{ x: number, y: number }[]} components
      * @param {{ x: number, y: number }[]} pins
+     * @param {{ x: number, y: number, width: number, height: number }[]} rectangles
      * @param {{ x: number, y: number, width: number, height: number }[]} ports
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ maxX: number, maxY: number } | null}
@@ -213,6 +234,7 @@ export class AltiumLayoutParser {
         texts,
         components,
         pins,
+        rectangles,
         ports,
         crosses
     ) {
@@ -232,6 +254,13 @@ export class AltiumLayoutParser {
 
         for (const pin of pins) {
             coordinates.push([pin.x, pin.y])
+        }
+
+        for (const rectangle of rectangles) {
+            coordinates.push(
+                [rectangle.x, rectangle.y],
+                [rectangle.x + rectangle.width, rectangle.y + rectangle.height]
+            )
         }
 
         for (const port of ports) {

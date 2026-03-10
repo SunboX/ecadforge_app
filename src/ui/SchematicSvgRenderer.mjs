@@ -4,6 +4,8 @@ import { SchematicPortRenderer } from './SchematicPortRenderer.mjs'
 import { SchematicTypography } from './SchematicTypography.mjs'
 import { SchematicPowerPortRenderer } from './SchematicPowerPortRenderer.mjs'
 import { SchematicNoteRenderer } from './SchematicNoteRenderer.mjs'
+import { SchematicShapeRenderer } from './SchematicShapeRenderer.mjs'
+import { SchematicColorResolver } from './SchematicColorResolver.mjs'
 
 const {
     basename,
@@ -20,7 +22,7 @@ const {
 export class SchematicSvgRenderer {
     /**
      * Renders a normalized schematic model into SVG markup.
-     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
+     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -33,6 +35,8 @@ export class SchematicSvgRenderer {
         const height = Math.max(schematic.sheet.height || 700, 100)
         const allTexts = schematic.texts || []
         const lines = schematic.lines.slice(0, 2500)
+        const rectangles = (schematic.rectangles || []).slice(0, 500)
+        const arcs = (schematic.arcs || []).slice(0, 1000)
         const texts = allTexts
         const components = schematic.components.slice(0, 180)
         const pins = (schematic.pins || []).slice(0, 1000)
@@ -52,11 +56,19 @@ export class SchematicSvgRenderer {
             schematic.sheet,
             documentModel?.fileName
         )
+        const rectangleMarkup = rectangles
+            .map((rectangle) =>
+                SchematicShapeRenderer.buildRectangleMarkup(rectangle, height)
+            )
+            .join('')
 
         const lineMarkup = lines
             .map((line) =>
                 SchematicSvgRenderer.#buildSchematicLineMarkup(line, height)
             )
+            .join('')
+        const arcMarkup = arcs
+            .map((arc) => SchematicShapeRenderer.buildArcMarkup(arc, height))
             .join('')
 
         const textMarkup = texts
@@ -85,7 +97,7 @@ export class SchematicSvgRenderer {
                         component.x + 8,
                         projectSchematicY(height, component.y) - 8,
                         component.designator || '',
-                        '#000080',
+                        'var(--schematic-blue-color)',
                         'start',
                         SchematicTypography.buildDefaultSchematicFontOptions(
                             schematic.sheet
@@ -140,8 +152,14 @@ export class SchematicSvgRenderer {
             formatNumber(height) +
             '" rx="18" />' +
             frameMarkup +
+            '<g class="schematic-rectangles">' +
+            rectangleMarkup +
+            '</g>' +
             '<g class="schematic-lines">' +
             lineMarkup +
+            '</g>' +
+            '<g class="schematic-arcs">' +
+            arcMarkup +
             '</g>' +
             '<g class="schematic-junctions">' +
             junctionMarkup +
@@ -168,7 +186,7 @@ export class SchematicSvgRenderer {
     /**
      * Builds one schematic line segment, preserving dashed line styles when
      * the source primitive requests them.
-     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number }} line
+     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }} line
      * @param {number} sheetHeight
      * @returns {string}
      */
@@ -183,13 +201,33 @@ export class SchematicSvgRenderer {
             '" y2="' +
             formatNumber(projectSchematicY(sheetHeight, line.y2)) +
             '" stroke="' +
-            escapeHtml(line.color) +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    line.color,
+                    '--schematic-blue-color'
+                )
+            ) +
             '" stroke-width="' +
-            formatNumber(Math.max(line.width, 0.8)) +
+            formatNumber(SchematicSvgRenderer.#resolveSchematicLineWidth(line)) +
             '"' +
             SchematicSvgRenderer.#buildSchematicLineStyleAttributes(line) +
             ' />'
         )
+    }
+
+    /**
+     * Resolves the visible SVG stroke width for one schematic line primitive.
+     * @param {{ width: number, isBus?: boolean }} line
+     * @returns {number}
+     */
+    static #resolveSchematicLineWidth(line) {
+        const baseWidth = Math.max(Number(line.width || 0), 0.8)
+
+        if (line.isBus !== true) {
+            return baseWidth
+        }
+
+        return Math.max(baseWidth * 3, 3)
     }
 
     /**
@@ -372,7 +410,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.03,
                     headerY,
                     'Title',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -380,7 +418,7 @@ export class SchematicSvgRenderer {
                     numberX + titleBlockWidth * 0.03,
                     headerY,
                     'Number',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -388,7 +426,7 @@ export class SchematicSvgRenderer {
                     revisionX + titleBlockWidth * 0.02,
                     headerY,
                     'Revision',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -396,7 +434,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.05,
                     labelRowY,
                     'Size',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -404,7 +442,7 @@ export class SchematicSvgRenderer {
                     sizeX + titleBlockWidth * 0.05,
                     labelRowY,
                     'Sheet',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -412,7 +450,7 @@ export class SchematicSvgRenderer {
                     sizeX + 8,
                     footerDateY,
                     'Date:',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -420,7 +458,7 @@ export class SchematicSvgRenderer {
                     sizeX + 8,
                     footerFileY,
                     'File:',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -428,7 +466,7 @@ export class SchematicSvgRenderer {
                     drawnByX + 8,
                     footerFileY,
                     'Drawn By:',
-                    '#4f4f4f',
+                    'var(--schematic-sheet-label-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -436,7 +474,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.31,
                     titleRowY,
                     titleBlock.title || '',
-                    '#000080',
+                    'var(--schematic-blue-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -444,7 +482,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.74,
                     titleRowY,
                     titleBlock.documentNumber || '',
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -452,7 +490,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.92,
                     titleRowY,
                     titleBlock.revision || '',
-                    '#000080',
+                    'var(--schematic-blue-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -460,7 +498,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.08,
                     valueRowY,
                     sheet?.paperSize || 'A4',
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -468,7 +506,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.415,
                     valueRowY,
                     sheetValue,
-                    '#000080',
+                    'var(--schematic-blue-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -476,7 +514,7 @@ export class SchematicSvgRenderer {
                     sizeX + titleBlockWidth * 0.08,
                     footerDateY,
                     renderedDate,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'start'
                 ) +
                 createSvgText(
@@ -484,7 +522,7 @@ export class SchematicSvgRenderer {
                     sizeX + titleBlockWidth * 0.08,
                     footerFileY,
                     renderedFileName,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'start'
                 ) +
                 '</g>'
@@ -520,7 +558,7 @@ export class SchematicSvgRenderer {
                     x,
                     margin - 6,
                     label,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -528,7 +566,7 @@ export class SchematicSvgRenderer {
                     x,
                     height - 4,
                     label,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 )
         }
@@ -543,7 +581,7 @@ export class SchematicSvgRenderer {
                     8,
                     y + 2,
                     label,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -551,7 +589,7 @@ export class SchematicSvgRenderer {
                     width - 8,
                     y + 2,
                     label,
-                    '#1f1f1f',
+                    'var(--schematic-text-color)',
                     'middle'
                 )
         }
@@ -586,7 +624,7 @@ export class SchematicSvgRenderer {
             )
         }
 
-        if (text.recordType === '209') {
+        if (text.recordType === '209' || text.recordType === '28') {
             return SchematicNoteRenderer.buildMarkup(text, sheetHeight)
         }
 
@@ -602,7 +640,10 @@ export class SchematicSvgRenderer {
             placement.x,
             placement.y,
             text.text,
-            text.color,
+            SchematicColorResolver.resolveColor(
+                text.color,
+                '--schematic-text-color'
+            ),
             placement.anchor,
             {
                 fontSize: text.fontSize,
@@ -677,7 +718,10 @@ export class SchematicSvgRenderer {
         const projectedInnerY = projectSchematicY(sheetHeight, geometry.bodyY)
         const projectedOuterY = projectSchematicY(sheetHeight, geometry.outerY)
         const texts = []
-        const labelColor = pin.labelColor || pin.color
+        const labelColor = SchematicColorResolver.resolveColor(
+            pin.labelColor || pin.color,
+            '--schematic-text-color'
+        )
         const labelMode = pin.labelMode || 'name-and-number'
 
         if (pin.orientation === 'left') {
@@ -804,7 +848,12 @@ export class SchematicSvgRenderer {
             '" y2="' +
             formatNumber(projectedOuterY) +
             '" stroke="' +
-            escapeHtml(pin.color) +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    pin.color,
+                    '--schematic-bright-blue-color'
+                )
+            ) +
             '" />' +
             texts.join('') +
             '</g>'
@@ -888,7 +937,12 @@ export class SchematicSvgRenderer {
             '" y2="' +
             formatNumber(y + half) +
             '" stroke="' +
-            escapeHtml(cross.color) +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    cross.color,
+                    '--schematic-alert-color'
+                )
+            ) +
             '" /><line x1="' +
             formatNumber(x - half) +
             '" y1="' +
@@ -898,7 +952,12 @@ export class SchematicSvgRenderer {
             '" y2="' +
             formatNumber(y - half) +
             '" stroke="' +
-            escapeHtml(cross.color) +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    cross.color,
+                    '--schematic-alert-color'
+                )
+            ) +
             '" /></g>'
         )
     }
@@ -918,6 +977,6 @@ export class SchematicSvgRenderer {
         const hasResolvedDesignator =
             Boolean(component.designator) && component.designator !== 'U?'
 
-        return hasCoordinates || hasResolvedDesignator
+        return hasCoordinates && hasResolvedDesignator
     }
 }

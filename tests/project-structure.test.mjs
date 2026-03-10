@@ -76,3 +76,23 @@ test('package scripts include start and test', async () => {
     assert.equal(typeof pkg.scripts?.start, 'string')
     assert.equal(typeof pkg.scripts?.test, 'string')
 })
+
+/**
+ * Verifies app identity metadata is aligned across package and UI files.
+ */
+test('app identity metadata uses the ECAD Forge name', async () => {
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const englishRaw = await readFile(new URL('src/i18n/en.json', root), 'utf8')
+    const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
+
+    const pkg = JSON.parse(packageRaw)
+    const englishMessages = JSON.parse(englishRaw)
+    const germanMessages = JSON.parse(germanRaw)
+
+    assert.equal(pkg.name, 'ecadforge_app')
+    assert.match(indexRaw, /<title>ECAD Forge<\/title>/)
+    assert.match(indexRaw, /<h1[^>]*>ECAD Forge<\/h1>/)
+    assert.equal(englishMessages['app.title'], 'ECAD Forge')
+    assert.equal(germanMessages['app.title'], 'ECAD Forge')
+})

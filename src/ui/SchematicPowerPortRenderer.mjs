@@ -1,4 +1,5 @@
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
+import { SchematicColorResolver } from './SchematicColorResolver.mjs'
 
 const { createSvgText, escapeHtml, formatNumber, projectSchematicY } =
     SchematicSvgUtils
@@ -9,7 +10,7 @@ const { createSvgText, escapeHtml, formatNumber, projectSchematicY } =
 export class SchematicPowerPortRenderer {
     /**
      * Renders one power-port symbol and label.
-     * @param {{ x: number, y: number, text: string, color: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, anchor?: 'start' | 'middle' | 'end' }} text
+     * @param {{ x: number, y: number, text: string, color: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right' }} text
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
      * @param {number} sheetHeight
@@ -29,6 +30,10 @@ export class SchematicPowerPortRenderer {
             fontFamily: text.fontFamily,
             fontWeight: text.fontWeight
         }
+        const resolvedColor = SchematicColorResolver.resolveColor(
+            text.color,
+            '--schematic-power-color'
+        )
 
         if (Number(text.style) === 4) {
             return (
@@ -37,7 +42,7 @@ export class SchematicPowerPortRenderer {
                     x,
                     y,
                     direction,
-                    text.color
+                    resolvedColor
                 ) +
                 SchematicPowerPortRenderer.#buildDirectionalLabel(
                     text,
@@ -45,7 +50,8 @@ export class SchematicPowerPortRenderer {
                     x,
                     y,
                     fontSize,
-                    labelOptions
+                    labelOptions,
+                    resolvedColor
                 ) +
                 '</g>'
             )
@@ -57,7 +63,7 @@ export class SchematicPowerPortRenderer {
                 x,
                 y,
                 direction,
-                text.color
+                resolvedColor
             ) +
             SchematicPowerPortRenderer.#buildDirectionalLabel(
                 text,
@@ -65,7 +71,8 @@ export class SchematicPowerPortRenderer {
                 x,
                 y,
                 fontSize,
-                labelOptions
+                labelOptions,
+                resolvedColor
             ) +
             '</g>'
         )
@@ -73,12 +80,16 @@ export class SchematicPowerPortRenderer {
 
     /**
      * Picks the symbol direction away from the attached wire or pin stub.
-     * @param {{ x: number, y: number, style?: number }} text
+     * @param {{ x: number, y: number, style?: number, powerPortDirection?: 'up' | 'down' | 'left' | 'right' }} text
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
      * @returns {'up' | 'down' | 'left' | 'right'}
      */
     static #resolveOutwardDirection(text, lines, pins) {
+        if (text.powerPortDirection) {
+            return text.powerPortDirection
+        }
+
         const candidates = []
 
         for (const line of lines) {
@@ -461,12 +472,13 @@ export class SchematicPowerPortRenderer {
 
     /**
      * Places the power-port label beyond the symbol linework.
-     * @param {{ text: string, color: string }} text
+     * @param {{ text: string }} text
      * @param {'up' | 'down' | 'left' | 'right'} direction
      * @param {number} x
      * @param {number} y
      * @param {number} fontSize
      * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number }} labelOptions
+     * @param {string} color
      * @returns {string}
      */
     static #buildDirectionalLabel(
@@ -475,7 +487,8 @@ export class SchematicPowerPortRenderer {
         x,
         y,
         fontSize,
-        labelOptions
+        labelOptions,
+        color
     ) {
         if (direction === 'up') {
             return createSvgText(
@@ -483,7 +496,7 @@ export class SchematicPowerPortRenderer {
                 x,
                 y - 16,
                 text.text,
-                text.color,
+                color,
                 'middle',
                 labelOptions
             )
@@ -495,7 +508,7 @@ export class SchematicPowerPortRenderer {
                 x + 18,
                 y + fontSize * 0.36,
                 text.text,
-                text.color,
+                color,
                 'start',
                 labelOptions
             )
@@ -507,7 +520,7 @@ export class SchematicPowerPortRenderer {
                 x - 18,
                 y + fontSize * 0.36,
                 text.text,
-                text.color,
+                color,
                 'end',
                 labelOptions
             )
@@ -518,7 +531,7 @@ export class SchematicPowerPortRenderer {
             x,
             y + 25,
             text.text,
-            text.color,
+            color,
             'middle',
             labelOptions
         )

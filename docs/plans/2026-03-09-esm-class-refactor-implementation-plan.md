@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Refactor reusable `.mjs` modules to modern ESM class-based APIs with narrower exports while preserving the current Altium Viewer behavior.
+**Goal:** Refactor reusable `.mjs` modules to modern ESM class-based APIs with narrower exports while preserving the current ECAD Forge behavior.
 
 **Architecture:** Keep runtime boot modules as scripts, keep existing stateful classes intact, and convert parser and renderer function modules into one exported class per file with static methods and private static helpers. Update imports and tests to use the new class entrypoints, centralize duplicate renderer utilities, and preserve behavior through incremental verification.
 

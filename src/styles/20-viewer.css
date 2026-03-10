@@ -223,16 +223,34 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
 }
 
+.schematic-svg {
+    --schematic-blue-color: #000080;
+    --schematic-bright-blue-color: #0000ff;
+    --schematic-text-color: #1f1f1f;
+    --schematic-sheet-label-color: #4f4f4f;
+    --schematic-power-color: #800000;
+    --schematic-port-color: #8d2b2b;
+    --schematic-alert-color: #ff0000;
+    --schematic-fill-color: #ffff80;
+    --schematic-note-fill-color: #eceb94;
+    --schematic-fill-light-color: #ffffff;
+    --schematic-note-border-color: #7b7753;
+    --schematic-sheet-backdrop-fill: rgba(255, 250, 245, 0.96);
+    --schematic-sheet-backdrop-stroke: rgba(95, 112, 124, 0.12);
+    --schematic-sheet-frame-stroke: rgba(95, 112, 124, 0.48);
+    --schematic-node-fill: rgba(15, 116, 108, 0.9);
+}
+
 .sheet-backdrop {
-    fill: rgba(255, 250, 245, 0.96);
-    stroke: rgba(95, 112, 124, 0.12);
+    fill: var(--schematic-sheet-backdrop-fill);
+    stroke: var(--schematic-sheet-backdrop-stroke);
 }
 
 .sheet-frame,
 .sheet-title-block rect,
 .sheet-title-block line {
     fill: none;
-    stroke: rgba(95, 112, 124, 0.48);
+    stroke: var(--schematic-sheet-frame-stroke);
     stroke-width: 1;
 }
 
@@ -285,7 +303,7 @@
 }
 
 .schematic-node circle {
-    fill: rgba(15, 116, 108, 0.9);
+    fill: var(--schematic-node-fill);
 }
 
 .pcb-layout {

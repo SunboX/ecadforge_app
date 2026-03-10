@@ -1,6 +1,6 @@
 import { ParserUtils } from './ParserUtils.mjs'
 
-const { getField, parseNumericField } = ParserUtils
+const { getField, parseBoolean, parseNumericField } = ParserUtils
 
 /**
  * Resolves which multipart symbol section is visible for one schematic owner.
@@ -37,12 +37,16 @@ export class SchematicMultipartOwnerMatcher {
                 ownerIndex,
                 ownerPartId,
                 minX: Number.POSITIVE_INFINITY,
-                minY: Number.POSITIVE_INFINITY
+                minY: Number.POSITIVE_INFINITY,
+                maxX: Number.NEGATIVE_INFINITY,
+                maxY: Number.NEGATIVE_INFINITY
             }
 
             for (const [x, y] of points) {
                 existingBounds.minX = Math.min(existingBounds.minX, x)
                 existingBounds.minY = Math.min(existingBounds.minY, y)
+                existingBounds.maxX = Math.max(existingBounds.maxX, x)
+                existingBounds.maxY = Math.max(existingBounds.maxY, y)
             }
 
             partBounds.set(key, existingBounds)
@@ -57,6 +61,7 @@ export class SchematicMultipartOwnerMatcher {
             const partCount = parseNumericField(record.fields, 'PartCount') || 0
             const x = parseNumericField(record.fields, 'Location.X')
             const y = parseNumericField(record.fields, 'Location.Y')
+            const isMirrored = parseBoolean(record.fields.IsMirrored)
 
             if (!currentPartId || partCount <= 1 || x === null || y === null) {
                 continue
@@ -66,8 +71,13 @@ export class SchematicMultipartOwnerMatcher {
                 .filter((bounds) => bounds.ownerPartId === currentPartId)
                 .map((bounds) => ({
                     ...bounds,
-                    score:
-                        Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y)
+                    score: SchematicMultipartOwnerMatcher.#scoreBoundsAnchor(
+                        bounds,
+                        x,
+                        y,
+                        isMirrored,
+                        currentPartId
+                    )
                 }))
                 .sort((left, right) => left.score - right.score)[0]
 
@@ -138,5 +148,27 @@ export class SchematicMultipartOwnerMatcher {
         }
 
         return points
+    }
+
+    /**
+     * Scores how closely one component placement matches the corners of one
+     * multipart part bounds box. Altium mirrored units can anchor on the
+     * right-hand side instead of the default top-left corner.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @param {number} x
+     * @param {number} y
+     * @param {boolean} isMirrored
+     * @param {string} currentPartId
+     * @returns {number}
+     */
+    static #scoreBoundsAnchor(bounds, x, y, isMirrored, currentPartId) {
+        if (!isMirrored || currentPartId === '1') {
+            return Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y)
+        }
+
+        return Math.min(
+            Math.abs(bounds.maxX - x) + Math.abs(bounds.minY - y),
+            Math.abs(bounds.maxX - x) + Math.abs(bounds.maxY - y)
+        )
     }
 }
