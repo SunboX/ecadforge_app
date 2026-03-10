@@ -2,6 +2,8 @@
 
 Browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files.
 
+Open schematics, inspect PCB layouts, and explore 3D boards directly in your browser - with more ECAD formats coming soon.
+
 ## Features
 
 - Client-side parsing for native Altium files with no server-side preprocessing
