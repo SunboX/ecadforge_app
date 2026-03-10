@@ -3,6 +3,7 @@ import { SchematicJunctionRenderer } from './SchematicJunctionRenderer.mjs'
 import { SchematicPortRenderer } from './SchematicPortRenderer.mjs'
 import { SchematicTypography } from './SchematicTypography.mjs'
 import { SchematicPowerPortRenderer } from './SchematicPowerPortRenderer.mjs'
+import { SchematicNoteRenderer } from './SchematicNoteRenderer.mjs'
 
 const {
     basename,
@@ -19,7 +20,7 @@ const {
 export class SchematicSvgRenderer {
     /**
      * Renders a normalized schematic model into SVG markup.
-     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
+     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -32,7 +33,7 @@ export class SchematicSvgRenderer {
         const height = Math.max(schematic.sheet.height || 700, 100)
         const allTexts = schematic.texts || []
         const lines = schematic.lines.slice(0, 2500)
-        const texts = allTexts.slice(0, 300)
+        const texts = allTexts
         const components = schematic.components.slice(0, 180)
         const pins = (schematic.pins || []).slice(0, 1000)
         const ports = (schematic.ports || []).slice(0, 250)
@@ -53,21 +54,8 @@ export class SchematicSvgRenderer {
         )
 
         const lineMarkup = lines
-            .map(
-                (line) =>
-                    '<line x1="' +
-                    formatNumber(line.x1) +
-                    '" y1="' +
-                    formatNumber(projectSchematicY(height, line.y1)) +
-                    '" x2="' +
-                    formatNumber(line.x2) +
-                    '" y2="' +
-                    formatNumber(projectSchematicY(height, line.y2)) +
-                    '" stroke="' +
-                    escapeHtml(line.color) +
-                    '" stroke-width="' +
-                    formatNumber(Math.max(line.width, 0.8)) +
-                    '" />'
+            .map((line) =>
+                SchematicSvgRenderer.#buildSchematicLineMarkup(line, height)
             )
             .join('')
 
@@ -174,6 +162,55 @@ export class SchematicSvgRenderer {
             textMarkup +
             '</g>' +
             '</svg></section>'
+        )
+    }
+
+    /**
+     * Builds one schematic line segment, preserving dashed line styles when
+     * the source primitive requests them.
+     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number }} line
+     * @param {number} sheetHeight
+     * @returns {string}
+     */
+    static #buildSchematicLineMarkup(line, sheetHeight) {
+        return (
+            '<line x1="' +
+            formatNumber(line.x1) +
+            '" y1="' +
+            formatNumber(projectSchematicY(sheetHeight, line.y1)) +
+            '" x2="' +
+            formatNumber(line.x2) +
+            '" y2="' +
+            formatNumber(projectSchematicY(sheetHeight, line.y2)) +
+            '" stroke="' +
+            escapeHtml(line.color) +
+            '" stroke-width="' +
+            formatNumber(Math.max(line.width, 0.8)) +
+            '"' +
+            SchematicSvgRenderer.#buildSchematicLineStyleAttributes(line) +
+            ' />'
+        )
+    }
+
+    /**
+     * Returns SVG stroke attributes for one schematic line style.
+     * @param {{ width: number, lineStyle?: number }} line
+     * @returns {string}
+     */
+    static #buildSchematicLineStyleAttributes(line) {
+        if (Number(line.lineStyle || 0) !== 1) {
+            return ''
+        }
+
+        const dashLength = Math.max(Number(line.width || 1) * 8, 8)
+        const gapLength = Math.max(Number(line.width || 1) * 5, 5)
+
+        return (
+            ' stroke-dasharray="' +
+            formatNumber(dashLength) +
+            ' ' +
+            formatNumber(gapLength) +
+            '" stroke-linecap="round"'
         )
     }
 
@@ -524,7 +561,7 @@ export class SchematicSvgRenderer {
 
     /**
      * Builds one free text primitive with font metadata.
-     * @param {{ x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end' }} text
+     * @param {{ x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }} text
      * @param {number} sheetWidth
      * @param {number} sheetHeight
      * @param {{ marginWidth?: number }} sheet
@@ -547,6 +584,10 @@ export class SchematicSvgRenderer {
                 pins,
                 sheetHeight
             )
+        }
+
+        if (text.recordType === '209') {
+            return SchematicNoteRenderer.buildMarkup(text, sheetHeight)
         }
 
         const placement = SchematicSvgRenderer.#resolveSchematicTextPlacement(

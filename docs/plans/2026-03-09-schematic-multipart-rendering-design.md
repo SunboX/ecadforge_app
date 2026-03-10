@@ -4,7 +4,7 @@
 
 ## Goal
 
-Restore `GEWA-G1.01.01F.SchDoc` so the rendered schematic matches the supplied Altium screenshot instead of collapsing multipart symbols, omitting body geometry, and oversizing the page.
+Restore `AtlasControl-A1.01.01F.SchDoc` so the rendered schematic matches the supplied Altium screenshot instead of collapsing multipart symbols, omitting body geometry, and oversizing the page.
 
 ## Scope
 
@@ -12,7 +12,7 @@ Restore `GEWA-G1.01.01F.SchDoc` so the rendered schematic matches the supplied A
 
 - Filter multipart schematic owner primitives to the active `CurrentPartId`
 - Parse record type `6` schematic polylines so symbol body outlines render
-- Recompute sheet size from corrected geometry for `GEWA-G1.01.01F.SchDoc`
+- Recompute sheet size from corrected geometry for `AtlasControl-A1.01.01F.SchDoc`
 - Add parser and renderer regression tests for the real sheet F file
 - Increment the app version in `package.json`
 
@@ -82,7 +82,7 @@ The parser will build a multipart owner selection map from component records tha
 
 ## Testing Strategy
 
-- Add a parser test that loads `GEWA-G1.01.01F.SchDoc` and asserts:
+- Add a parser test that loads `AtlasControl-A1.01.01F.SchDoc` and asserts:
   - `U2` renders as separate active parts rather than merged pin clouds
   - sheet F resolves to the expected standard page size
 - Add a renderer test that loads the same file and asserts:

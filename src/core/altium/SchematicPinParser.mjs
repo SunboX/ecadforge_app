@@ -130,7 +130,7 @@ export class SchematicPinParser {
     /**
      * Expands a schematic polyline record into drawable line segments.
      * @param {Record<string, string | string[]>} fields
-     * @returns {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number }[]}
+     * @returns {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle: number }[]}
      */
     static parseSchematicPolyline(fields) {
         const locationCount = ParserUtils.parseNumericField(
@@ -156,6 +156,7 @@ export class SchematicPinParser {
         }
 
         const segments = []
+        const lineStyle = ParserUtils.parseNumericField(fields, 'LineStyle') || 0
 
         for (let index = 1; index < points.length; index += 1) {
             const previous = points[index - 1]
@@ -167,7 +168,8 @@ export class SchematicPinParser {
                 x2: current.x,
                 y2: current.y,
                 color: ParserUtils.toColor(fields.Color, '#a44a1b'),
-                width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1
+                width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1,
+                lineStyle
             })
         }
 
@@ -177,7 +179,7 @@ export class SchematicPinParser {
     /**
      * Expands a schematic polygon record into closed drawable line segments.
      * @param {Record<string, string | string[]>} fields
-     * @returns {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number }[]}
+     * @returns {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle: number }[]}
      */
     static parseSchematicPolygon(fields) {
         const locationCount = ParserUtils.parseNumericField(
@@ -207,6 +209,7 @@ export class SchematicPinParser {
         }
 
         const segments = []
+        const lineStyle = ParserUtils.parseNumericField(fields, 'LineStyle') || 0
 
         for (let index = 1; index < points.length; index += 1) {
             const previous = points[index - 1]
@@ -218,7 +221,8 @@ export class SchematicPinParser {
                 x2: current.x,
                 y2: current.y,
                 color: ParserUtils.toColor(fields.Color, '#a44a1b'),
-                width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1
+                width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1,
+                lineStyle
             })
         }
 
@@ -231,7 +235,8 @@ export class SchematicPinParser {
             x2: firstPoint.x,
             y2: firstPoint.y,
             color: ParserUtils.toColor(fields.Color, '#a44a1b'),
-            width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1
+            width: ParserUtils.parseNumericField(fields, 'LineWidth') || 1,
+            lineStyle
         })
 
         return segments

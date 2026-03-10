@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restore correct multipart schematic rendering for `GEWA-G1.01.01F.SchDoc` by selecting the active part geometry, parsing missing outline polylines, and verifying the recovered page size and SVG output.
+**Goal:** Restore correct multipart schematic rendering for `AtlasControl-A1.01.01F.SchDoc` by selecting the active part geometry, parsing missing outline polylines, and verifying the recovered page size and SVG output.
 
 **Architecture:** Extend schematic normalization to understand active multipart component parts from the component records, then feed only the selected part primitives into the existing line, pin, text, and layout pipelines. Keep the change centered in the parser so the SVG renderer benefits from corrected normalized data rather than sheet-specific heuristics.
 
@@ -18,7 +18,7 @@
 
 **Step 1: Write the failing parser test**
 
-Add a test that parses `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01F.SchDoc` and asserts the sheet resolves to `A3`, the active `U2` parts expose `USB port`, `Power`, and `System / MIDI` text exactly once, and the visible `U2` pin count stays in the expected narrowed range.
+Add a test that parses `tests/fixtures/altium/AtlasControl-A1.01.01F.SchDoc` and asserts the sheet resolves to `A3`, the active `U2` parts expose `USB port`, `Power`, and `System / MIDI` text exactly once, and the visible `U2` pin count stays in the expected narrowed range.
 
 **Step 2: Run the parser test to verify it fails**
 

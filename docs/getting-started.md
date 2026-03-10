@@ -35,9 +35,9 @@ npm test
 
 ## Sample Corpus
 
-The current parser tests are validated against the files you provided:
+The current parser tests are validated against the repo-owned fake fixtures:
 
-- `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01A.SchDoc`
-- `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.08.PcbDoc`
+- `tests/fixtures/altium/AtlasControl-A1.01.01A.SchDoc`
+- `tests/fixtures/altium/AtlasControl-A1.01.08.PcbDoc`
 
-If these files move, update `tests/core/altium-parser.test.mjs`.
+If these fixtures move, update `tests/fixtures/AltiumFixtureLoader.mjs`.
