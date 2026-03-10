@@ -3,15 +3,71 @@
  */
 export class SchematicTextPostProcessor {
     /**
+     * Removes free text labels already covered by visible off-sheet ports.
+     * @param {{ x: number, y: number, text: string, recordType?: string }[]} texts
+     * @param {{ x: number, y: number, width: number, name: string }[]} ports
+     * @returns {{ x: number, y: number, text: string, recordType?: string }[]}
+     */
+    static dropDuplicatePortLabels(texts, ports) {
+        return texts.filter(
+            (text) =>
+                !ports.some(
+                    (port) =>
+                        text.recordType === '25' &&
+                        port.name === text.text &&
+                        Math.abs(port.y - text.y) <= 2 &&
+                        text.x < port.x &&
+                        port.x - text.x <= Math.max(port.width + 20, 80)
+                )
+        )
+    }
+
+    /**
+     * Adds multipart section suffixes like A/B/J to visible designator texts
+     * when the active Altium part id is stored separately from the base
+     * designator string.
+     * @param {{ text: string, name?: string, ownerIndex?: string, recordType?: string }[]} texts
+     * @param {Map<string, string>} activeMultipartOwnerParts
+     * @returns {{ text: string, name?: string, ownerIndex?: string, recordType?: string }[]}
+     */
+    static decorateMultipartDesignators(texts, activeMultipartOwnerParts) {
+        return texts.map((text) => {
+            const ownerIndex = String(text.ownerIndex || '')
+            const suffix =
+                SchematicTextPostProcessor.#formatMultipartPartSuffix(
+                    activeMultipartOwnerParts.get(ownerIndex)
+                )
+
+            if (
+                !suffix ||
+                text.recordType !== '34' ||
+                String(text.name || '').trim().toLowerCase() !== 'designator'
+            ) {
+                return text
+            }
+
+            if (!/\d$/i.test(text.text) || text.text.endsWith(suffix)) {
+                return text
+            }
+
+            return {
+                ...text,
+                text: text.text + suffix
+            }
+        })
+    }
+
+    /**
      * Re-anchors horizontal component texts from their owner primitive bounds
      * so labels to the left of a symbol right-align and labels to the right
      * keep reading left-to-right.
      * @param {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]} texts
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
-     * @param {{ x: number, y: number, ownerIndex: string }[]} pins
+     * @param {{ x: number, y: number, ownerIndex: string, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
      * @returns {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]}
      */
-    static anchorComponentTextsFromOwnerBounds(texts, lines, pins) {
+    static anchorComponentTextsFromOwnerBounds(texts, lines, pins, ports = []) {
         const ownerBounds = SchematicTextPostProcessor.#buildOwnerBounds(
             lines,
             pins
@@ -52,6 +108,13 @@ export class SchematicTextPostProcessor {
 
             if (paddedText.x <= bounds.minX + 2) {
                 if (
+                    SchematicTextPostProcessor.#hasNearbyLeftWireLabel(
+                        paddedText,
+                        texts,
+                        lines,
+                        pins,
+                        ports
+                    ) ||
                     SchematicTextPostProcessor.#isCompactTwoPinOwner(
                         bounds,
                         ownerPinCount
@@ -118,6 +181,10 @@ export class SchematicTextPostProcessor {
                     text,
                     lines,
                     pins
+                ) ||
+                SchematicTextPostProcessor.#hasLineConnectedAtWireStart(
+                    text,
+                    lines
                 ) ||
                 SchematicTextPostProcessor.#hasPortConnectedAtWireStart(
                     text,
@@ -225,6 +292,97 @@ export class SchematicTextPostProcessor {
     }
 
     /**
+     * Returns true when a designator sits immediately to the right of a visible
+     * same-row wire label and should preserve the left-to-right flow.
+     * @param {{ x: number, y: number, recordType?: string, rotation?: number }} text
+     * @param {{ x: number, y: number, recordType?: string, rotation?: number }}[] texts
+     * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
+     * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @returns {boolean}
+     */
+    static #hasNearbyLeftWireLabel(text, texts, lines, pins, ports) {
+        return texts.some(
+            (candidate) =>
+                candidate &&
+                candidate !== text &&
+                candidate.recordType === '25' &&
+                !candidate.rotation &&
+                candidate.x < text.x &&
+                text.x - candidate.x <= 80 &&
+                Math.abs(candidate.y - text.y) <= 2 &&
+                (SchematicTextPostProcessor.#hasPinConnectedAtWireStart(
+                    candidate,
+                    lines,
+                    pins
+                ) ||
+                    SchematicTextPostProcessor.#hasLineConnectedAtWireStart(
+                        candidate,
+                        lines
+                    ) ||
+                    SchematicTextPostProcessor.#hasPortConnectedAtWireStart(
+                        candidate,
+                        lines,
+                        ports
+                    ))
+        )
+    }
+
+    /**
+     * Returns true when the left endpoint of the label's wire segment is
+     * already connected into another wire segment, such as a bus breakout.
+     * Those labels should keep reading left-to-right from the junction.
+     * @param {{ x: number, y: number }} text
+     * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
+     * @returns {boolean}
+     */
+    static #hasLineConnectedAtWireStart(text, lines) {
+        const containingSegment =
+            SchematicTextPostProcessor.#findContainingHorizontalWireSegment(
+                text,
+                lines
+            )
+
+        if (!containingSegment) {
+            return false
+        }
+
+        const leftPoint = {
+            x: Math.min(containingSegment.x1, containingSegment.x2),
+            y: text.y
+        }
+
+        return lines.some(
+            (line) =>
+                line !== containingSegment &&
+                SchematicTextPostProcessor.#pointTouchesLine(leftPoint, line)
+        )
+    }
+
+    /**
+     * Converts one numeric multipart section id into an alphabetic suffix.
+     * @param {string | undefined} partId
+     * @returns {string}
+     */
+    static #formatMultipartPartSuffix(partId) {
+        const numericPartId = Number.parseInt(String(partId || ''), 10)
+        if (!Number.isInteger(numericPartId) || numericPartId <= 0) {
+            return ''
+        }
+
+        let suffix = ''
+        let remaining = numericPartId
+
+        while (remaining > 0) {
+            remaining -= 1
+            suffix = String.fromCharCode(65 + (remaining % 26)) + suffix
+            remaining = Math.floor(remaining / 26)
+        }
+
+        return suffix
+    }
+
+    /**
      * Returns true when the horizontal wire segment under the label starts at a
      * pin endpoint, which means the label should continue reading rightward.
      * @param {{ x: number, y: number }} text
@@ -316,6 +474,49 @@ export class SchematicTextPostProcessor {
                 Math.abs(Math.min(left.x1, left.x2) - text.x) -
                 Math.abs(Math.min(right.x1, right.x2) - text.x)
         )[0]
+    }
+
+    /**
+     * Returns true when a point lands on a line segment endpoint or on an
+     * axis-aligned segment interior.
+     * @param {{ x: number, y: number }} point
+     * @param {{ x1: number, y1: number, x2: number, y2: number }} line
+     * @returns {boolean}
+     */
+    static #pointTouchesLine(point, line) {
+        const touchesStart =
+            Math.abs(line.x1 - point.x) <= 2 && Math.abs(line.y1 - point.y) <= 2
+        const touchesEnd =
+            Math.abs(line.x2 - point.x) <= 2 && Math.abs(line.y2 - point.y) <= 2
+
+        if (touchesStart || touchesEnd) {
+            return true
+        }
+
+        const minX = Math.min(line.x1, line.x2) - 2
+        const maxX = Math.max(line.x1, line.x2) + 2
+        const minY = Math.min(line.y1, line.y2) - 2
+        const maxY = Math.max(line.y1, line.y2) + 2
+
+        if (
+            Math.abs(line.x1 - line.x2) <= 2 &&
+            Math.abs(point.x - line.x1) <= 2 &&
+            point.y >= minY &&
+            point.y <= maxY
+        ) {
+            return true
+        }
+
+        if (
+            Math.abs(line.y1 - line.y2) <= 2 &&
+            Math.abs(point.y - line.y1) <= 2 &&
+            point.x >= minX &&
+            point.x <= maxX
+        ) {
+            return true
+        }
+
+        return false
     }
 
     /**

@@ -4,9 +4,9 @@ import { SchematicTextParser } from './SchematicTextParser.mjs'
 import { SchematicTextPostProcessor } from './SchematicTextPostProcessor.mjs'
 import { SchematicAnnotationParser } from './SchematicAnnotationParser.mjs'
 import { SchematicPinParser } from './SchematicPinParser.mjs'
+import { SchematicPrimitiveParser } from './SchematicPrimitiveParser.mjs'
 import { AltiumLayoutParser } from './AltiumLayoutParser.mjs'
 import { SchematicMultipartOwnerMatcher } from './SchematicMultipartOwnerMatcher.mjs'
-
 const {
     countMatchingKeys,
     getDisplayText,
@@ -46,7 +46,7 @@ export class AltiumParser {
      * fileName: string,
      * summary: Record<string, number | string>,
      * diagnostics: { severity: 'info' | 'warning', message: string }[],
-     * schematic?: { sheet: { width: number, height: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses: { x: number, y: number, size: number, color: string }[] },
+     * schematic?: { sheet: { width: number, height: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string, isBus?: boolean }[], rectangles: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses: { x: number, y: number, size: number, color: string }[] },
      * pcb?: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[] }
      * bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[]
      * }}
@@ -58,6 +58,7 @@ export class AltiumParser {
         if (fileType === 'PcbDoc') return AltiumParser.#parsePcb(fileName, records)
         throw new Error('Unsupported file type: ' + fileName)
     }
+
     /**
      * Chooses the format based on extension and content.
      * @param {string} fileName
@@ -74,7 +75,6 @@ export class AltiumParser {
         )
         return hasSchematicHeader ? 'SchDoc' : 'PcbDoc'
     }
-
     /**
      * Normalizes a schematic document.
      * @param {string} fileName
@@ -119,11 +119,26 @@ export class AltiumParser {
                     ownersWithImplicitDisplayMode,
                     activeMultipartOwnerParts
                 ) &&
+                getField(record.fields, 'RECORD') !== '14' &&
+                !AltiumParser.#hasDisplayText(record.fields) &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Corner')
         )
+        const rectangleRecords = drawableRecords.filter(
+            (record) =>
+                getField(record.fields, 'RECORD') === '14' &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Corner')
+        )
+        const arcRecords = drawableRecords.filter(
+            (record) =>
+                getField(record.fields, 'RECORD') === '12' &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
+                parseNumericField(record.fields, 'Radius') !== null
+        )
         const polylineRecords = drawableRecords.filter(
             (record) =>
+                getField(record.fields, 'RECORD') === '26' ||
                 getField(record.fields, 'RECORD') === '27' ||
                 getField(record.fields, 'RECORD') === '6'
         )
@@ -196,7 +211,9 @@ export class AltiumParser {
                 ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
             })),
             ...polylineRecords.flatMap((record) =>
-                parseSchematicPolyline(record.fields).map((line) => ({
+                parseSchematicPolyline(record.fields, {
+                    isBus: getField(record.fields, 'RECORD') === '26'
+                }).map((line) => ({
                     ...line,
                     ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
                 }))
@@ -208,11 +225,14 @@ export class AltiumParser {
                 }))
             )
         ]
+        const rectangles =
+            SchematicPrimitiveParser.parseSchematicRectangles(rectangleRecords)
+        const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
 
         const pins = parseSchematicPins(pinRecords)
-        const ports = parseSchematicPorts(portRecords)
+        const ports = parseSchematicPorts(portRecords, lines)
         const crosses = parseSchematicCrosses(crossRecords)
-        const texts = drawableTextRecords
+        let texts = drawableTextRecords
             .map((record) =>
                 normalizeSchematicTextRecord(
                     record.fields,
@@ -222,10 +242,14 @@ export class AltiumParser {
                 )
             )
             .filter(Boolean)
-            .filter(
-                (text) =>
-                    !AltiumParser.#duplicatesSchematicPortLabel(text, ports)
-            )
+        texts = SchematicTextPostProcessor.dropDuplicatePortLabels(
+            texts,
+            ports
+        )
+        texts = SchematicTextPostProcessor.decorateMultipartDesignators(
+            texts,
+            activeMultipartOwnerParts
+        )
         texts.push(
             ...buildSchematicSyntheticTexts(records, pins, schematicFonts).filter(
                 (syntheticText) =>
@@ -242,7 +266,8 @@ export class AltiumParser {
                 SchematicTextPostProcessor.anchorComponentTextsFromOwnerBounds(
                     texts,
                     lines,
-                    pins
+                    pins,
+                    ports
                 ),
                 lines,
                 pins,
@@ -285,6 +310,7 @@ export class AltiumParser {
             anchoredTexts,
             components,
             pins,
+            rectangles,
             ports,
             crosses
         )
@@ -346,6 +372,8 @@ export class AltiumParser {
             schematic: {
                 sheet: resolvedSheet,
                 lines,
+                rectangles,
+                arcs,
                 texts: anchoredTexts,
                 components,
                 pins,
@@ -570,32 +598,11 @@ export class AltiumParser {
         return (
             recordType === '2' ||
             recordType === '6' ||
+            recordType === '12' ||
             recordType === '13' ||
             recordType === '27' ||
             (AltiumParser.#hasCoordinatePair(fields, 'Location') &&
                 AltiumParser.#hasCoordinatePair(fields, 'Corner'))
-        )
-    }
-
-
-    /**
-     * Returns true when a visible text label is already rendered by an
-     * off-sheet port primitive.
-     * @param {{ x: number, y: number, text: string, recordType?: string }} text
-     * @param {{ x: number, y: number, width: number, name: string }[]} ports
-     * @returns {boolean}
-     */
-    static #duplicatesSchematicPortLabel(text, ports) {
-        if (text.recordType !== '25') {
-            return false
-        }
-
-        return ports.some(
-            (port) =>
-                port.name === text.text &&
-                Math.abs(port.y - text.y) <= 2 &&
-                text.x < port.x &&
-                port.x - text.x <= Math.max(port.width + 20, 80)
         )
     }
 

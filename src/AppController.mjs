@@ -164,7 +164,7 @@ export class AppController {
     getPublicState() {
         const snapshot = this.#state.getSnapshot()
         return {
-            app: 'Altium Viewer',
+            app: 'ECAD Forge',
             activeView: snapshot.activeView,
             locale: snapshot.locale,
             parseStatus: snapshot.parseStatus,

@@ -1,4 +1,4 @@
-# Altium Viewer Implementation Plan
+# ECAD Forge Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -38,8 +38,8 @@ Run the scaffold script in the workspace with:
 
 ```bash
 node /Users/afiedler/.codex/skills/web-app-developer/scripts/scaffold_web_app.mjs \
-  --target /Users/afiedler/Documents/privat/Andrés_Werkstatt/AltiumViewer \
-  --app-name "Altium Viewer" \
+  --target /Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app \
+  --app-name "ECAD Forge" \
   --description "Browser-based viewer for native Altium schematic and PCB files" \
   --port 3000 \
   --force
@@ -61,7 +61,7 @@ Expected: structure tests pass
 
 ```bash
 git add .
-git commit -m "feat: scaffold altium viewer app"
+git commit -m "feat: scaffold ecad forge app"
 ```
 
 ### Task 2: Add Binary Reading And OLE Container Parsing
@@ -246,7 +246,7 @@ Expected: pass
 
 ```bash
 git add src/index.html src/style.css src/styles src/ui tests/ui
-git commit -m "feat: add altium viewer shell and diagnostics panels"
+git commit -m "feat: add ecad forge shell and diagnostics panels"
 ```
 
 ### Task 6: Implement Initial Schematic, PCB, 3D, And BOM Views

@@ -1,5 +1,6 @@
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
 import { SchematicTypography } from './SchematicTypography.mjs'
+import { SchematicColorResolver } from './SchematicColorResolver.mjs'
 
 const { createSvgText, escapeHtml, formatNumber, projectSchematicY } =
     SchematicSvgUtils
@@ -52,7 +53,7 @@ export class SchematicPortRenderer {
             Math.max(firstRow.height - 2, 4),
             width / 2
         )
-        const textOptions =
+        const baseTextOptions =
             SchematicTypography.buildDefaultSchematicFontOptions(sheet)
         const outlineMarkup = rows
             .map(
@@ -69,15 +70,31 @@ export class SchematicPortRenderer {
                         )
                     ) +
                     '" fill="' +
-                    escapeHtml(row.fill) +
+                    escapeHtml(
+                        SchematicColorResolver.resolveFill(
+                            row.fill,
+                            '--schematic-fill-color'
+                        )
+                    ) +
                     '" stroke="' +
-                    escapeHtml(row.color) +
+                    escapeHtml(
+                        SchematicColorResolver.resolveColor(
+                            row.color,
+                            '--schematic-port-color'
+                        )
+                    ) +
                     '" />'
             )
             .join('')
         const labelMarkup = rows
-            .map((row) =>
-                createSvgText(
+            .map((row) => {
+                const textOptions =
+                    SchematicPortRenderer.#resolveLabelTextOptions(
+                        row,
+                        baseTextOptions
+                    )
+
+                return createSvgText(
                     'schematic-port-label',
                     SchematicPortRenderer.#resolveLabelX(
                         row.x,
@@ -85,13 +102,20 @@ export class SchematicPortRenderer {
                         tipDepth,
                         direction
                     ),
-                    row.projectedY + row.height * 0.72,
+                    SchematicPortRenderer.#resolveLabelBaselineY(
+                        row.projectedY,
+                        row.height,
+                        textOptions.fontSize
+                    ),
                     row.name,
-                    row.color,
+                    SchematicColorResolver.resolveColor(
+                        row.color,
+                        '--schematic-port-color'
+                    ),
                     'middle',
                     textOptions
                 )
-            )
+            })
             .join('')
 
         return (
@@ -156,6 +180,103 @@ export class SchematicPortRenderer {
         }
 
         return x + bodyWidth / 2
+    }
+
+    /**
+     * Returns SVG text options scaled to fit one port box.
+     * @param {{ width: number, height: number, name: string }} row
+     * @param {{ fontSize: number, fontFamily: string, fontWeight: number }} baseTextOptions
+     * @returns {{ fontSize: number, fontFamily: string, fontWeight: number }}
+     */
+    static #resolveLabelTextOptions(row, baseTextOptions) {
+        return {
+            ...baseTextOptions,
+            fontSize: SchematicPortRenderer.#resolveLabelFontSize(
+                row.name,
+                row.width,
+                row.height,
+                baseTextOptions.fontSize
+            )
+        }
+    }
+
+    /**
+     * Centers one label vertically using its scaled font size.
+     * @param {number} projectedY
+     * @param {number} height
+     * @param {number} fontSize
+     * @returns {number}
+     */
+    static #resolveLabelBaselineY(projectedY, height, fontSize) {
+        return projectedY + height / 2 + fontSize * 0.36
+    }
+
+    /**
+     * Scales one port label to fit within the recovered polygon.
+     * @param {string} name
+     * @param {number} width
+     * @param {number} height
+     * @param {number} defaultFontSize
+     * @returns {number}
+     */
+    static #resolveLabelFontSize(name, width, height, defaultFontSize) {
+        const maxFontSizeFromHeight = Math.max(Number(height || 10) * 0.75, 4)
+        const horizontalPadding = 4
+        const availableWidth = Math.max(
+            Number(width || 40) - horizontalPadding,
+            4
+        )
+        const estimatedWidthAtUnitSize =
+            SchematicPortRenderer.#estimateLabelWidth(name, 1)
+        const maxFontSizeFromWidth =
+            estimatedWidthAtUnitSize > 0
+                ? availableWidth / estimatedWidthAtUnitSize
+                : defaultFontSize
+
+        return Math.max(
+            Math.min(
+                Number(defaultFontSize || 10),
+                maxFontSizeFromHeight,
+                maxFontSizeFromWidth
+            ),
+            4
+        )
+    }
+
+    /**
+     * Approximates rendered label width for the default serif schematic font.
+     * @param {string} text
+     * @param {number} fontSize
+     * @returns {number}
+     */
+    static #estimateLabelWidth(text, fontSize) {
+        let width = 0
+
+        for (const character of String(text || '')) {
+            width +=
+                SchematicPortRenderer.#measureCharacterWidth(character) *
+                fontSize
+        }
+
+        return width
+    }
+
+    /**
+     * Returns a rough Times New Roman width factor for one character.
+     * @param {string} character
+     * @returns {number}
+     */
+    static #measureCharacterWidth(character) {
+        if (/\s/.test(character)) return 0.32
+        if (/[.,;:!|]/.test(character)) return 0.24
+        if (/[()[\]{}]/.test(character)) return 0.32
+        if (/[-+/\\]/.test(character)) return 0.36
+        if (/[MW@#%&]/.test(character)) return 0.82
+        if (/[A-Z]/.test(character)) return 0.62
+        if (/[a-z0-9]/.test(character)) return 0.5
+        if (/[^ -~]/.test(character)) return 0.92
+
+        return 0.56
     }
 
     /**

@@ -1,4 +1,4 @@
-# Altium Viewer Specification
+# ECAD Forge Specification
 
 ## 1. Goal
 

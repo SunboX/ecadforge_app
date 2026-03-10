@@ -1,4 +1,4 @@
-# Altium Viewer Design
+# ECAD Forge Design
 
 **Date:** 2026-03-06
 

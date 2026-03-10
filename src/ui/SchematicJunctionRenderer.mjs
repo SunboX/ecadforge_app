@@ -1,4 +1,5 @@
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
+import { SchematicColorResolver } from './SchematicColorResolver.mjs'
 
 const { escapeHtml, formatNumber, projectSchematicY } = SchematicSvgUtils
 
@@ -8,7 +9,7 @@ const { escapeHtml, formatNumber, projectSchematicY } = SchematicSvgUtils
 export class SchematicJunctionRenderer {
     /**
      * Builds junction-dot markup from connected wire linework.
-     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string }[]} lines
+     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
      * @param {number} sheetHeight
      * @returns {string}
@@ -22,7 +23,12 @@ export class SchematicJunctionRenderer {
                     '" cy="' +
                     formatNumber(projectSchematicY(sheetHeight, junction.y)) +
                     '" r="2" fill="' +
-                    escapeHtml(junction.color) +
+                    escapeHtml(
+                        SchematicColorResolver.resolveColor(
+                            junction.color,
+                            '--schematic-blue-color'
+                        )
+                    ) +
                     '" />'
             )
             .join('')
@@ -30,12 +36,14 @@ export class SchematicJunctionRenderer {
 
     /**
      * Resolves all wire-junction points that should display a connection dot.
-     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string }[]} lines
+     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ x: number, y: number, color: string }[]}
      */
     static #resolveJunctions(lines, crosses) {
-        const wireLines = lines.filter((line) => !line.ownerIndex)
+        const wireLines = lines.filter(
+            (line) => !line.ownerIndex && line.isBus !== true
+        )
 
         return SchematicJunctionRenderer.#collectCandidatePoints(wireLines)
             .filter(
@@ -64,7 +72,9 @@ export class SchematicJunctionRenderer {
                     {
                         x: point.x,
                         y: point.y,
-                        color: contributingLines[0]?.color || '#000080'
+                        color:
+                            contributingLines[0]?.color ||
+                            'var(--schematic-blue-color)'
                     }
                 ]
             })

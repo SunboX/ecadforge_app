@@ -66,6 +66,25 @@ export class ParserUtils {
     }
 
     /**
+     * Parses one numeric field and its optional Altium fractional companion.
+     * @param {Record<string, string | string[]> | undefined} fields
+     * @param {string} key
+     * @returns {number | null}
+     */
+    static parseNumericFieldWithFraction(fields, key) {
+        const whole = ParserUtils.parseNumericField(fields, key)
+        if (whole === null) return null
+
+        const fraction = ParserUtils.parseNumericField(fields, key + '_Frac')
+        if (fraction === null) return whole
+
+        const raw = ParserUtils.getField(fields, key).trim()
+        const sign = raw.startsWith('-') ? -1 : 1
+
+        return whole + (fraction / 100000) * sign
+    }
+
+    /**
      * Parses an Altium-style boolean flag.
      * @param {string | string[] | undefined} raw
      * @returns {boolean}

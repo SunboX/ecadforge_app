@@ -1,6 +1,6 @@
 {
     "app.kicker": "Native Browser Decode",
-    "app.title": "Altium Viewer",
+    "app.title": "ECAD Forge",
     "app.subtitle": "Client-side schematic, PCB, 3D and BOM views for standalone native Altium documents.",
     "app.language": "Language",
     "app.open": "Open native file",

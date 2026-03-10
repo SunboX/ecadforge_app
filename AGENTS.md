@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-- Repository: `Altium Viewer` web application.
+- Repository: `ECAD Forge` web application.
 - Browser app source is in `src/`.
 - Tests are in `tests/`.
 - Specifications are in `spec/`.

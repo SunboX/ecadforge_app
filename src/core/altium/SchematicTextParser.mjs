@@ -56,7 +56,7 @@ export class SchematicTextParser {
      * @param {Record<string, string>} metadata
      * @param {{ width: number, marginWidth: number }} sheet
      * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
      */
     static normalizeSchematicTextRecord(fields, metadata, sheet, fonts) {
         const x = ParserUtils.parseNumericField(fields, 'Location.X')
@@ -64,6 +64,7 @@ export class SchematicTextParser {
         const hidden = ParserUtils.parseBoolean(fields.IsHidden)
         const name = ParserUtils.getField(fields, 'Name')
         const rawText = ParserUtils.getDisplayText(fields)
+        const recordType = ParserUtils.getField(fields, 'RECORD')
         const text = SchematicTextParser.#resolveSchematicTemplateText(
             rawText,
             metadata
@@ -88,7 +89,6 @@ export class SchematicTextParser {
         const font =
             fonts[ParserUtils.getField(fields, 'FontID')] ||
             SchematicTextParser.#defaultSchematicFont()
-        const recordType = ParserUtils.getField(fields, 'RECORD')
         const rotation = SchematicTextParser.#resolveTextRotation(
             fields,
             font,
@@ -98,10 +98,10 @@ export class SchematicTextParser {
             x,
             y,
             text,
-            color:
-                recordType === '209'
-                    ? ParserUtils.toColor(fields.Color, '#000000')
-                    : ParserUtils.toColor(fields.Color, '#2c3134'),
+            color: SchematicTextParser.#resolveSchematicTextColor(
+                fields,
+                recordType
+            ),
             hidden,
             name,
             ownerIndex: ParserUtils.getField(fields, 'OwnerIndex') || undefined,
@@ -111,6 +111,11 @@ export class SchematicTextParser {
             fontFamily: font.family,
             fontWeight: font.bold ? 700 : 400,
             rotation,
+            powerPortDirection:
+                SchematicTextParser.#resolvePowerPortDirection(
+                    fields,
+                    recordType
+                ) || undefined,
             anchor: SchematicTextParser.#inferTextAnchor(
                 recordType,
                 name,
@@ -120,7 +125,7 @@ export class SchematicTextParser {
             )
         }
 
-        if (recordType === '209') {
+        if (SchematicTextParser.#isSchematicNoteRecord(recordType)) {
             return SchematicTextParser.#normalizeSchematicNoteRecord(
                 textRecord,
                 fields
@@ -266,6 +271,49 @@ export class SchematicTextParser {
     }
 
     /**
+     * Resolves one explicit Altium power-port orientation into a cardinal
+     * direction for downstream rendering.
+     * @param {Record<string, string | string[]>} fields
+     * @param {string} recordType
+     * @returns {'up' | 'down' | 'left' | 'right' | null}
+     */
+    static #resolvePowerPortDirection(fields, recordType) {
+        if (recordType !== '17') {
+            return null
+        }
+
+        // Rail-style power ports carry a stable explicit orientation in these
+        // samples. Ground-style ports do not map cleanly yet, so they still
+        // rely on connection heuristics and the renderer default.
+        if (ParserUtils.parseNumericField(fields, 'Style') === 4) {
+            return null
+        }
+
+        switch (ParserUtils.parseNumericField(fields, 'Orientation')) {
+            case 1:
+                return 'up'
+            case 2:
+                return 'left'
+            case 3:
+                return 'right'
+            case 0:
+            case 4:
+                return 'down'
+            default:
+                return null
+        }
+    }
+
+    /**
+     * Returns true when one record type represents a boxed note/comment.
+     * @param {string} recordType
+     * @returns {boolean}
+     */
+    static #isSchematicNoteRecord(recordType) {
+        return recordType === '209' || recordType === '28'
+    }
+
+    /**
      * Resolves text rotation from font and record metadata.
      * @param {Record<string, string | string[]>} fields
      * @param {{ rotation: number }} font
@@ -312,6 +360,20 @@ export class SchematicTextParser {
     }
 
     /**
+     * Resolves the visible text color for one schematic text primitive.
+     * @param {Record<string, string | string[]>} fields
+     * @param {string} recordType
+     * @returns {string}
+     */
+    static #resolveSchematicTextColor(fields, recordType) {
+        if (SchematicTextParser.#isSchematicNoteRecord(recordType)) {
+            return ParserUtils.toColor(fields.TextColor || fields.Color, '#000000')
+        }
+
+        return ParserUtils.toColor(fields.Color, '#2c3134')
+    }
+
+    /**
      * Converts Altium point sizes into approximate SVG pixels.
      * @param {number} size
      * @returns {number}
@@ -346,7 +408,10 @@ export class SchematicTextParser {
             cornerX: ParserUtils.parseNumericField(fields, 'Corner.X') || textRecord.x,
             cornerY: ParserUtils.parseNumericField(fields, 'Corner.Y') || textRecord.y,
             fill: ParserUtils.toColor(fields.AreaColor, '#eceb94'),
-            borderColor: ParserUtils.toColor(fields.Color, '#7b7753'),
+            borderColor: ParserUtils.toColor(
+                fields.Color || fields.TextColor,
+                '#7b7753'
+            ),
             isSolid: ParserUtils.parseBoolean(fields.IsSolid),
             showBorder: ParserUtils.parseBoolean(fields.ShowBorder),
             textMargin: ParserUtils.parseNumericField(fields, 'TextMargin') || 4,

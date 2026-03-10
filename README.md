@@ -1,4 +1,4 @@
-# Altium Viewer
+# ECAD Forge
 
 Browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files.
 

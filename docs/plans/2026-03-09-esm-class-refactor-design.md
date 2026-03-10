@@ -4,7 +4,7 @@
 
 ## Goal
 
-Refactor the reusable `.mjs` modules in the Altium Viewer codebase toward consistent modern ESM class-based APIs, reducing broad standalone function exports while preserving current runtime behavior.
+Refactor the reusable `.mjs` modules in the ECAD Forge codebase toward consistent modern ESM class-based APIs, reducing broad standalone function exports while preserving current runtime behavior.
 
 ## Scope
 
