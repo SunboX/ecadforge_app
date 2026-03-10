@@ -56,7 +56,7 @@ export class SchematicTextParser {
      * @param {Record<string, string>} metadata
      * @param {{ width: number, marginWidth: number }} sheet
      * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end' } | null}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
      */
     static normalizeSchematicTextRecord(fields, metadata, sheet, fonts) {
         const x = ParserUtils.parseNumericField(fields, 'Location.X')
@@ -94,12 +94,14 @@ export class SchematicTextParser {
             font,
             recordType
         )
-
-        return {
+        const textRecord = {
             x,
             y,
             text,
-            color: ParserUtils.toColor(fields.Color, '#2c3134'),
+            color:
+                recordType === '209'
+                    ? ParserUtils.toColor(fields.Color, '#000000')
+                    : ParserUtils.toColor(fields.Color, '#2c3134'),
             hidden,
             name,
             ownerIndex: ParserUtils.getField(fields, 'OwnerIndex') || undefined,
@@ -117,6 +119,15 @@ export class SchematicTextParser {
                 rotation
             )
         }
+
+        if (recordType === '209') {
+            return SchematicTextParser.#normalizeSchematicNoteRecord(
+                textRecord,
+                fields
+            )
+        }
+
+        return textRecord
     }
 
     /**
@@ -316,5 +327,43 @@ export class SchematicTextParser {
      */
     static #cleanMetadataValue(value) {
         return value && value !== '*' ? value : ''
+    }
+
+    /**
+     * Adds note box metadata to one decoded schematic note record.
+     * @param {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end' }} textRecord
+     * @param {Record<string, string | string[]>} fields
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }}
+     */
+    static #normalizeSchematicNoteRecord(textRecord, fields) {
+        const noteLines = SchematicTextParser.#decodeSchematicNoteLines(
+            textRecord.text
+        )
+
+        return {
+            ...textRecord,
+            text: noteLines.join('\n'),
+            cornerX: ParserUtils.parseNumericField(fields, 'Corner.X') || textRecord.x,
+            cornerY: ParserUtils.parseNumericField(fields, 'Corner.Y') || textRecord.y,
+            fill: ParserUtils.toColor(fields.AreaColor, '#eceb94'),
+            borderColor: ParserUtils.toColor(fields.Color, '#7b7753'),
+            isSolid: ParserUtils.parseBoolean(fields.IsSolid),
+            showBorder: ParserUtils.parseBoolean(fields.ShowBorder),
+            textMargin: ParserUtils.parseNumericField(fields, 'TextMargin') || 4,
+            noteLines
+        }
+    }
+
+    /**
+     * Decodes Altium note control codes into visible text rows.
+     * @param {string} text
+     * @returns {string[]}
+     */
+    static #decodeSchematicNoteLines(text) {
+        return String(text || '')
+            .replace(/~2/g, '|')
+            .split(/~1/g)
+            .map((line) => line.replace(/\s+$/g, ''))
+            .filter((line) => line.trim())
     }
 }

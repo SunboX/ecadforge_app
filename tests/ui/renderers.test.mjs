@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { AltiumParser } from '../../src/core/altium/AltiumParser.mjs'
+import { AltiumFixtureLoader } from '../fixtures/AltiumFixtureLoader.mjs'
 import { BomTableRenderer } from '../../src/ui/BomTableRenderer.mjs'
 import { PcbSvgRenderer } from '../../src/ui/PcbSvgRenderer.mjs'
 import { Scene3dRenderer } from '../../src/ui/Scene3dRenderer.mjs'
 import { SchematicSvgRenderer } from '../../src/ui/SchematicSvgRenderer.mjs'
-
-const schematicMidiPath =
-    '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01F.SchDoc'
 
 /**
  * Verifies schematic renderer emits an SVG scene.
@@ -87,7 +84,7 @@ test('renderSchematicSvg renders junction dots only for connected wire tees', ()
  */
 test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: 'GEWA-G1.01.01E.SchDoc',
+        fileName: AltiumFixtureLoader.wirelessSheetFileName,
         summary: { title: 'Projected schematic' },
         schematic: {
             sheet: {
@@ -99,7 +96,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 xZones: 4,
                 yZones: 4,
                 titleBlock: {
-                    title: 'GEWA-EDRUM-G1',
+                    title: 'ATLAS-CONTROL-A1',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '4',
@@ -254,14 +251,14 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     )
     assert.match(markup, /x1="90" y1="70" x2="80" y2="70"/)
     assert.doesNotMatch(markup, /class="schematic-pin-number"[^>]*>2</)
-    assert.match(markup, /GEWA-EDRUM-G1/)
+    assert.match(markup, /ATLAS-CONTROL-A1/)
     assert.match(markup, /Sheet 4 of 6/)
     assert.match(markup, /sheet-zone-label/)
     assert.match(markup, /File/)
     assert.match(markup, /Number/)
     assert.match(markup, /Date:/)
     assert.match(markup, /Drawn By:/)
-    assert.match(markup, /GEWA-G1\.01\.01E\.SchDoc/)
+    assert.match(markup, /AtlasControl-A1\.01\.01E\.SchDoc/)
     assert.match(markup, /schematic-port/)
     assert.match(markup, /schematic-cross/)
 })
@@ -272,7 +269,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
  */
 test('renderSchematicSvg renders the resolved paper size in the title block', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: 'GEWA-G1.01.01A.SchDoc',
+        fileName: AltiumFixtureLoader.powerSheetFileName,
         summary: { title: 'Power schematic' },
         schematic: {
             sheet: {
@@ -283,7 +280,7 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
                 marginWidth: 10,
                 paperSize: 'A3',
                 titleBlock: {
-                    title: 'GEWA-EDRUM-G1',
+                    title: 'ATLAS-CONTROL-A1',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '1',
@@ -593,17 +590,7 @@ test('schematic stylesheet leaves typography to recovered SVG attributes', async
  * and port primitives.
  */
 test('renderSchematicSvg renders UART off-sheet ports only once per label', async () => {
-    const samplePath =
-        '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc'
-    const buffer = await readFile(samplePath)
-    const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-    )
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        arrayBuffer
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.equal((markup.match(/>UART_CTS</g) || []).length, 1)
@@ -643,17 +630,7 @@ test('renderSchematicSvg renders UART off-sheet ports only once per label', asyn
  * restores missing U29/U31 gate pin numbers.
  */
 test('renderSchematicSvg aligns Bluetooth-sheet pin number and name columns', async () => {
-    const samplePath =
-        '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc'
-    const buffer = await readFile(samplePath)
-    const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-    )
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        arrayBuffer
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -727,17 +704,7 @@ test('renderSchematicSvg aligns Bluetooth-sheet pin number and name columns', as
  * linework from the source polygon primitive.
  */
 test('renderSchematicSvg renders the Bluetooth D16 diode triangle', async () => {
-    const samplePath =
-        '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc'
-    const buffer = await readFile(samplePath)
-    const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-    )
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        arrayBuffer
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -759,15 +726,7 @@ test('renderSchematicSvg renders the Bluetooth D16 diode triangle', async () => 
  * and includes the multipart body outlines recovered from record 6.
  */
 test('renderSchematicSvg restores multipart U2 bodies on the MIDI sheet', async () => {
-    const buffer = await readFile(schematicMidiPath)
-    const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-    )
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01F.SchDoc',
-        arrayBuffer
-    )
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.equal((markup.match(/>USB port</g) || []).length, 1)
@@ -783,6 +742,60 @@ test('renderSchematicSvg restores multipart U2 bodies on the MIDI sheet', async 
     )
     assert.match(markup, />A3</)
     assert.match(markup, />Sheet 5 of 6</)
+})
+
+/**
+ * Verifies sheet-F text records beyond the old 300-item truncation limit still
+ * render in the SVG output.
+ */
+test('renderSchematicSvg keeps late sheet-F labels beyond the old text cap', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.match(markup, />U9</)
+    assert.match(markup, />U11</)
+    assert.match(markup, />ESP_TX0</)
+    assert.match(markup, />BT_UART</)
+})
+
+/**
+ * Verifies sheet-F note/comment records render as boxed multiline callouts.
+ */
+test('renderSchematicSvg renders the sheet-F boot note as a boxed multiline callout', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.match(markup, /class="schematic-note"/)
+    assert.match(markup, />FS1 \| FS0:sensed at power up\.</)
+    assert.match(markup, />Boot ROM code to know freq on OSC1</)
+    assert.match(markup, />\| 10--&gt;11\.2896MHz \|</)
+})
+
+/**
+ * Verifies styled sheet-F border polylines keep their dashed stroke pattern.
+ */
+test('renderSchematicSvg keeps dashed sheet-F module frames dashed', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.match(markup, /stroke-dasharray=/)
+})
+
+/**
+ * Verifies the sheet-F USB boot labels keep reading rightward from the port.
+ */
+test('renderSchematicSvg keeps sheet-F boot wire labels anchored to the right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.match(
+        markup,
+        /<text class="schematic-label" x="1075" y="139" fill="#800000" text-anchor="start"[^>]*>WSBD</
+    )
+    assert.match(
+        markup,
+        /<text class="schematic-label" x="1075" y="149" fill="#800000" text-anchor="start"[^>]*>CLBD</
+    )
 })
 
 /**

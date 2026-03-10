@@ -17,7 +17,7 @@ Make schematic symbol pin labeling match the Altium-style layout shown in the pr
 
 - Fix the normalized pin label mode for small logic gates like `U29` and `U31`
 - Fix horizontal pin label placement in the SVG schematic renderer
-- Add tests that cover the provided `GEWA-G1.01.01E.SchDoc` case directly
+- Add tests that cover the provided `AtlasControl-A1.01.01E.SchDoc` case directly
 - Increment the app version in `package.json`
 
 ### Out Of Scope
@@ -91,7 +91,7 @@ This matches the visual structure in the supplied screenshots and keeps the data
 
 ## Testing Strategy
 
-- Add a parser-backed renderer test that loads `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc`
+- Add a parser-backed renderer test that loads `tests/fixtures/altium/AtlasControl-A1.01.01E.SchDoc`
 - Assert that `U29` and `U31` produce visible numeric pin labels
 - Assert that `U6` renders pin numbers in the outer column and names in the inner column
 - Run the focused renderer/parser tests first, then the full `npm test` suite

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restore correct Altium-style pin number and internal label placement for `U6`, `U29`, and `U31` in `GEWA-G1.01.01E.SchDoc`.
+**Goal:** Restore correct Altium-style pin number and internal label placement for `U6`, `U29`, and `U31` in `AtlasControl-A1.01.01E.SchDoc`.
 
 **Architecture:** Fix the root cause in the normalized pin parser so the affected five-pin gate symbols preserve `name-and-number` labeling, then update the schematic SVG renderer to place horizontal pin numbers outside the symbol body and pin names inside the body. Verify the behavior against the real source file and keep the change limited to parser label-mode selection and SVG pin text placement.
 
@@ -19,7 +19,7 @@
 
 **Step 1: Write the failing test**
 
-Add tests that parse `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc` and assert:
+Add tests that parse `tests/fixtures/altium/AtlasControl-A1.01.01E.SchDoc` and assert:
 
 - `U29` and `U31` pins are not normalized as `name-only`
 - rendered SVG contains numeric pin labels for those symbols

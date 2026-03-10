@@ -46,7 +46,7 @@ export class AltiumParser {
      * fileName: string,
      * summary: Record<string, number | string>,
      * diagnostics: { severity: 'info' | 'warning', message: string }[],
-     * schematic?: { sheet: { width: number, height: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end' }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string }[], crosses: { x: number, y: number, size: number, color: string }[] },
+     * schematic?: { sheet: { width: number, height: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses: { x: number, y: number, size: number, color: string }[] },
      * pcb?: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[] }
      * bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[]
      * }}
@@ -192,6 +192,7 @@ export class AltiumParser {
                 y2: parseNumericField(record.fields, 'Corner.Y') || 0,
                 color: toColor(record.fields.Color, '#a44a1b'),
                 width: parseNumericField(record.fields, 'LineWidth') || 1,
+                lineStyle: parseNumericField(record.fields, 'LineStyle') || 0,
                 ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
             })),
             ...polylineRecords.flatMap((record) =>
@@ -244,7 +245,8 @@ export class AltiumParser {
                     pins
                 ),
                 lines,
-                pins
+                pins,
+                ports
             )
 
         const components = componentRecords.map((record) => {

@@ -1,38 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { AltiumParser } from '../../src/core/altium/AltiumParser.mjs'
-
-const schematicPath =
-    '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01A.SchDoc'
-const schematicBluetoothPath =
-    '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01E.SchDoc'
-const schematicMidiPath =
-    '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.01F.SchDoc'
-const pcbPath =
-    '/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/GEWA-G1.01.08.PcbDoc'
-
-/**
- * Converts a Node buffer into an exact ArrayBuffer slice.
- * @param {Buffer} buffer
- * @returns {ArrayBuffer}
- */
-function toArrayBuffer(buffer) {
-    return buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength
-    )
-}
+import { AltiumFixtureLoader } from '../fixtures/AltiumFixtureLoader.mjs'
 
 /**
  * Verifies schematic samples produce a normalized document with visible entities.
  */
 test('parseAltiumArrayBuffer parses a native SchDoc sample', async () => {
-    const buffer = await readFile(schematicPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01A.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(documentModel.fileType, 'SchDoc')
@@ -40,7 +14,7 @@ test('parseAltiumArrayBuffer parses a native SchDoc sample', async () => {
     assert.equal(documentModel.schematic.lines.length > 50, true)
     assert.equal(documentModel.schematic.texts.length > 20, true)
     assert.equal(documentModel.bom.length > 0, true)
-    assert.match(documentModel.summary.title, /GEWA/i)
+    assert.match(documentModel.summary.title, /Atlas/i)
 })
 
 /**
@@ -48,11 +22,7 @@ test('parseAltiumArrayBuffer parses a native SchDoc sample', async () => {
  * Bluetooth sheet sample.
  */
 test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(
@@ -146,7 +116,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
         true
     )
     assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
-        title: 'GEWA-EDRUM-G1',
+        title: 'ATLAS-CONTROL-A1',
         revision: '01',
         documentNumber: '',
         sheetNumber: '4',
@@ -198,7 +168,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     assert.equal(documentModel.schematic.sheet.yZones, 4)
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'GEWA-EDRUM-G1' || text.text === '01'
+            (text) => text.text === 'ATLAS-CONTROL-A1' || text.text === '01'
         ),
         false
     )
@@ -282,11 +252,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
  * SN74LVC1G00 gate symbols instead of collapsing them to name-only labels.
  */
 test('parseAltiumArrayBuffer keeps gate pin numbers on the Bluetooth sheet', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const gatePins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '296' || pin.ownerIndex === '322'
     )
@@ -381,11 +347,7 @@ test('parseAltiumArrayBuffer keeps gate pin numbers on the Bluetooth sheet', asy
  * the parsed page size so the rendered sheet does not appear undersized.
  */
 test('parseAltiumArrayBuffer infers a tight-enough Bluetooth sheet size', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     assert.equal(documentModel.schematic.sheet.paperSize, 'A4')
     assert.equal(documentModel.schematic.sheet.width, 1169)
     assert.equal(documentModel.schematic.sheet.height, 827)
@@ -396,11 +358,7 @@ test('parseAltiumArrayBuffer infers a tight-enough Bluetooth sheet size', async 
  * instead of shrinking tightly to visible geometry.
  */
 test('parseAltiumArrayBuffer resolves the sample power sheet to A3', async () => {
-    const buffer = await readFile(schematicPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01A.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
 
     assert.equal(documentModel.schematic.sheet.paperSize, 'A3')
     assert.equal(documentModel.schematic.sheet.width, 1654)
@@ -412,11 +370,7 @@ test('parseAltiumArrayBuffer resolves the sample power sheet to A3', async () =>
  * preserving one label per visible section and snapping back to A3.
  */
 test('parseAltiumArrayBuffer restores active multipart sections on the MIDI sheet', async () => {
-    const buffer = await readFile(schematicMidiPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01F.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
     const u2Pins = documentModel.schematic.pins.filter((pin) =>
         ['1672', '2172', '3833'].includes(pin.ownerIndex)
     )
@@ -451,11 +405,7 @@ test('parseAltiumArrayBuffer restores active multipart sections on the MIDI shee
  * geometry instead of using one blanket rule for every designator.
  */
 test('parseAltiumArrayBuffer anchors Bluetooth component texts from owner geometry', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const anchors = documentModel.schematic.texts
         .filter((text) =>
             ['C70', 'C82', 'C68', 'R148', 'R134', 'C187', 'C190'].includes(
@@ -486,11 +436,7 @@ test('parseAltiumArrayBuffer anchors Bluetooth component texts from owner geomet
  * body instead of touching its outline.
  */
 test('parseAltiumArrayBuffer pads Bluetooth gate designators above the body', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const designators = documentModel.schematic.texts
         .filter((text) => ['U29', 'U31'].includes(text.text))
         .map((text) => ({
@@ -511,11 +457,7 @@ test('parseAltiumArrayBuffer pads Bluetooth gate designators above the body', as
  * original left-to-right anchor instead of being pulled left under the body.
  */
 test('parseAltiumArrayBuffer keeps Bluetooth bottom connector designators left-to-right', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const designator = documentModel.schematic.texts.find(
         (text) => text.text === 'J5'
     )
@@ -541,11 +483,7 @@ test('parseAltiumArrayBuffer keeps Bluetooth bottom connector designators left-t
  * designators, while labels attached to component pins stay left-to-right.
  */
 test('parseAltiumArrayBuffer keeps component-connected wire labels readable on the Bluetooth sheet', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
     const anchors = documentModel.schematic.texts
         .filter(
             (text) =>
@@ -583,11 +521,7 @@ test('parseAltiumArrayBuffer keeps component-connected wire labels readable on t
  * line segments so the symbol triangle is visible.
  */
 test('parseAltiumArrayBuffer preserves the Bluetooth D16 diode triangle', async () => {
-    const buffer = await readFile(schematicBluetoothPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.01E.SchDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
 
     assert.equal(
         documentModel.schematic.lines.some(
@@ -631,11 +565,7 @@ test('parseAltiumArrayBuffer preserves the Bluetooth D16 diode triangle', async 
  * Verifies PCB samples produce board outline, layers, and placements.
  */
 test('parseAltiumArrayBuffer parses a native PcbDoc sample', async () => {
-    const buffer = await readFile(pcbPath)
-    const documentModel = AltiumParser.parseArrayBuffer(
-        'GEWA-G1.01.08.PcbDoc',
-        toArrayBuffer(buffer)
-    )
+    const documentModel = await AltiumFixtureLoader.parsePcb()
 
     assert.equal(documentModel.kind, 'pcb')
     assert.equal(documentModel.fileType, 'PcbDoc')

@@ -81,13 +81,14 @@ export class SchematicTextPostProcessor {
      * Right-aligns wire labels that precede a same-row component designator so
      * they stay clear of the symbol body.
      * Labels that sit on a wire segment whose left endpoint is an actual pin
-     * keep their original left-to-right flow.
+     * or off-sheet port keep their original left-to-right flow.
      * @param {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]} texts
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
      * @returns {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]}
      */
-    static anchorWireLabelsNearDesignators(texts, lines, pins) {
+    static anchorWireLabelsNearDesignators(texts, lines, pins, ports = []) {
         return texts.map((text) => {
             if (
                 !text ||
@@ -117,6 +118,11 @@ export class SchematicTextPostProcessor {
                     text,
                     lines,
                     pins
+                ) ||
+                SchematicTextPostProcessor.#hasPortConnectedAtWireStart(
+                    text,
+                    lines,
+                    ports
                 )
             ) {
                 return text
@@ -253,6 +259,40 @@ export class SchematicTextPostProcessor {
     }
 
     /**
+     * Returns true when the horizontal wire segment under the label starts at an
+     * off-sheet port connection, which means the label should keep reading
+     * rightward from that port.
+     * @param {{ x: number, y: number }} text
+     * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @returns {boolean}
+     */
+    static #hasPortConnectedAtWireStart(text, lines, ports) {
+        const containingSegment =
+            SchematicTextPostProcessor.#findContainingHorizontalWireSegment(
+                text,
+                lines
+            )
+
+        if (!containingSegment) {
+            return false
+        }
+
+        const leftX = Math.min(containingSegment.x1, containingSegment.x2)
+
+        return ports.some((port) => {
+            const endpoint =
+                SchematicTextPostProcessor.#projectPortConnectionEndpoint(port)
+
+            return (
+                endpoint &&
+                Math.abs(endpoint.x - leftX) <= 2 &&
+                Math.abs(endpoint.y - text.y) <= 2
+            )
+        })
+    }
+
+    /**
      * Finds the horizontal wire segment that carries a text label.
      * @param {{ x: number, y: number }} text
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
@@ -276,6 +316,18 @@ export class SchematicTextPostProcessor {
                 Math.abs(Math.min(left.x1, left.x2) - text.x) -
                 Math.abs(Math.min(right.x1, right.x2) - text.x)
         )[0]
+    }
+
+    /**
+     * Projects the wire-connection endpoint for one off-sheet port.
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }} port
+     * @returns {{ x: number, y: number }}
+     */
+    static #projectPortConnectionEndpoint(port) {
+        return {
+            x: (port.direction || 'right') === 'left' ? port.x + port.width : port.x,
+            y: port.y
+        }
     }
 
     /**

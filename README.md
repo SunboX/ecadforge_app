@@ -45,7 +45,7 @@ Open `http://localhost:3000/` and load a native `.SchDoc` or `.PcbDoc` file.
 npm test
 ```
 
-The parser tests validate against the sample files you provided in `/Users/afiedler/Downloads/GEWA-G1.01.08 (2026-3-6 15-16-26)/`.
+The parser tests validate against the repo-owned fake fixtures in `tests/fixtures/altium/`.
 
 ## Formatting
 
