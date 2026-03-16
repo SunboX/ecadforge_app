@@ -64,7 +64,7 @@ export class SchematicPinParser {
      * Normalizes schematic port records into drawable port boxes.
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} [lines]
-     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction: 'left' | 'right' }[]}
+     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction: 'left' | 'right' | 'up' | 'down' }[]}
      */
     static parseSchematicPorts(records, lines = []) {
         return records
@@ -115,9 +115,21 @@ export class SchematicPinParser {
      * @param {number} y
      * @param {number} width
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
-     * @returns {'left' | 'right'}
+     * @returns {'left' | 'right' | 'up' | 'down'}
      */
     static #resolveSchematicPortDirection(fields, x, y, width, lines) {
+        if (ParserUtils.parseNumericField(fields, 'Style') === 4) {
+            const verticalWireSide =
+                SchematicPinParser.#findSchematicVerticalPortWireSide(
+                    x,
+                    y,
+                    width,
+                    lines
+                )
+
+            return verticalWireSide || 'up'
+        }
+
         const wireSide = SchematicPinParser.#findSchematicPortWireSide(
             x,
             y,
@@ -185,6 +197,52 @@ export class SchematicPinParser {
     }
 
     /**
+     * Returns which vertical side of one style-4 port touches recovered wire
+     * geometry. Those ports use `x` as the vertical centerline and `y` as the
+     * lower bound of the callout footprint.
+     * @param {number} x
+     * @param {number} y
+     * @param {number} width
+     * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
+     * @returns {'up' | 'down' | null}
+     */
+    static #findSchematicVerticalPortWireSide(x, y, width, lines) {
+        const topPoint = {
+            x,
+            y: y + width
+        }
+        const bottomPoint = {
+            x,
+            y
+        }
+        let touchesTop = false
+        let touchesBottom = false
+
+        for (const line of lines) {
+            touchesTop =
+                touchesTop ||
+                SchematicPinParser.#pointTouchesLine(topPoint, line, 0.01)
+            touchesBottom =
+                touchesBottom ||
+                SchematicPinParser.#pointTouchesLine(bottomPoint, line, 0.01)
+
+            if (touchesTop && touchesBottom) {
+                return null
+            }
+        }
+
+        if (touchesTop) {
+            return 'up'
+        }
+
+        if (touchesBottom) {
+            return 'down'
+        }
+
+        return null
+    }
+
+    /**
      * Infers the tapered side from port IO type plus attached wire side.
      * @param {string} ioType
      * @param {'left' | 'right'} wireSide
@@ -207,6 +265,54 @@ export class SchematicPinParser {
     static #inferSchematicPortDirectionFromAlignment(alignment) {
         return String(alignment || '') === '2' ? 'right' : 'left'
     }
+
+    /**
+     * Returns true when a point lands on one line endpoint or on an
+     * axis-aligned segment within a small tolerance.
+     * @param {{ x: number, y: number }} point
+     * @param {{ x1: number, y1: number, x2: number, y2: number }} line
+     * @param {number} tolerance
+     * @returns {boolean}
+     */
+    static #pointTouchesLine(point, line, tolerance) {
+        const effectiveTolerance = Math.max(Number(tolerance || 0.01), 0.01)
+        const touchesStart =
+            Math.abs(Number(line.x1) - point.x) <= effectiveTolerance &&
+            Math.abs(Number(line.y1) - point.y) <= effectiveTolerance
+        const touchesEnd =
+            Math.abs(Number(line.x2) - point.x) <= effectiveTolerance &&
+            Math.abs(Number(line.y2) - point.y) <= effectiveTolerance
+
+        if (touchesStart || touchesEnd) {
+            return true
+        }
+
+        const minX = Math.min(Number(line.x1), Number(line.x2)) - effectiveTolerance
+        const maxX = Math.max(Number(line.x1), Number(line.x2)) + effectiveTolerance
+        const minY = Math.min(Number(line.y1), Number(line.y2)) - effectiveTolerance
+        const maxY = Math.max(Number(line.y1), Number(line.y2)) + effectiveTolerance
+
+        if (
+            Math.abs(Number(line.x1) - Number(line.x2)) <= effectiveTolerance &&
+            Math.abs(point.x - Number(line.x1)) <= effectiveTolerance &&
+            point.y >= minY &&
+            point.y <= maxY
+        ) {
+            return true
+        }
+
+        if (
+            Math.abs(Number(line.y1) - Number(line.y2)) <= effectiveTolerance &&
+            Math.abs(point.y - Number(line.y1)) <= effectiveTolerance &&
+            point.x >= minX &&
+            point.x <= maxX
+        ) {
+            return true
+        }
+
+        return false
+    }
+
 
     /**
      * Normalizes no-connect crosses from schematic records.
@@ -389,7 +495,10 @@ export class SchematicPinParser {
         }
 
         if (allPassive && deduped.length <= 2) {
-            labelMode = 'hidden'
+            labelMode =
+                SchematicPinParser.#isCanonicalPassiveTwoPinGroup(deduped)
+                    ? 'hidden'
+                    : 'number-only'
         } else if (!semanticNames.length && orientationCount <= 2) {
             labelMode = 'number-only'
         } else if (
@@ -406,6 +515,24 @@ export class SchematicPinParser {
             labelColor: '#1f1f1f',
             labelMode
         }))
+    }
+
+    /**
+     * Returns true when one passive two-pin symbol uses the ordinary 1/2 pin
+     * numbering that should stay hidden for simple resistor-like parts.
+     * @param {{ designator: string }[]} pins
+     * @returns {boolean}
+     */
+    static #isCanonicalPassiveTwoPinGroup(pins) {
+        if (pins.length !== 2) {
+            return false
+        }
+
+        const designators = pins
+            .map((pin) => String(pin.designator || '').trim())
+            .sort((left, right) => Number(left) - Number(right))
+
+        return designators[0] === '1' && designators[1] === '2'
     }
 
     /**

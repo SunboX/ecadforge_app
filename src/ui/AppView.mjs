@@ -2,6 +2,7 @@ import { BomTableRenderer } from './BomTableRenderer.mjs'
 import { PcbSvgRenderer } from './PcbSvgRenderer.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicSvgRenderer } from './SchematicSvgRenderer.mjs'
+import { SchematicViewportController } from './SchematicViewportController.mjs'
 
 /**
  * DOM rendering and event binding helper.
@@ -40,6 +41,9 @@ export class AppView {
     /** @type {HTMLElement | null} */
     #diagnosticsCountNode
 
+    /** @type {SchematicViewportController | null} */
+    #schematicViewportController
+
     /**
      * @param {Document} documentRef
      */
@@ -58,6 +62,7 @@ export class AppView {
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#diagnosticsCountNode =
             this.#document.querySelector('#diagnosticsCount')
+        this.#schematicViewportController = null
     }
 
     /**
@@ -250,6 +255,8 @@ export class AppView {
     #renderContent(snapshot) {
         if (!this.#contentNode) return
 
+        this.#disposeSchematicViewportController()
+
         if (snapshot.parseStatus === 'loading') {
             this.#contentNode.innerHTML =
                 '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>Parsing native Altium records in the browser...</p></section>'
@@ -266,6 +273,7 @@ export class AppView {
             this.#contentNode.innerHTML = SchematicSvgRenderer.render(
                 snapshot.documentModel
             )
+            this.#attachSchematicViewportController()
             return
         }
 
@@ -293,6 +301,34 @@ export class AppView {
         this.#contentNode.innerHTML = AppView.#renderDiagnostics(
             snapshot.documentModel.diagnostics || []
         )
+    }
+
+    /**
+     * Attaches the schematic viewport controller when the rendered content
+     * contains a compatible schematic SVG node.
+     * @returns {void}
+     */
+    #attachSchematicViewportController() {
+        if (!this.#contentNode) return
+
+        const schematicSvg = this.#contentNode.querySelector('.schematic-svg')
+        if (!AppView.#isInteractiveSchematicSvg(schematicSvg)) {
+            return
+        }
+
+        this.#schematicViewportController = new SchematicViewportController(
+            schematicSvg
+        )
+    }
+
+    /**
+     * Disposes the active schematic viewport controller before the panel
+     * content changes.
+     * @returns {void}
+     */
+    #disposeSchematicViewportController() {
+        this.#schematicViewportController?.dispose()
+        this.#schematicViewportController = null
     }
 
     /**
@@ -373,6 +409,24 @@ export class AppView {
                 )
                 .join('') +
             '</ul></section>'
+        )
+    }
+
+    /**
+     * Returns true when the queried node exposes the methods required by the
+     * schematic viewport controller.
+     * @param {unknown} node
+     * @returns {boolean}
+     */
+    static #isInteractiveSchematicSvg(node) {
+        return Boolean(
+            node &&
+                typeof node === 'object' &&
+                typeof node.getAttribute === 'function' &&
+                typeof node.setAttribute === 'function' &&
+                typeof node.getBoundingClientRect === 'function' &&
+                typeof node.addEventListener === 'function' &&
+                typeof node.removeEventListener === 'function'
         )
     }
 

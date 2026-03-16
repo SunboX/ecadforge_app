@@ -5,18 +5,24 @@ import { AltiumParser } from '../../src/core/altium/AltiumParser.mjs'
 import { SchematicSvgRenderer } from '../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies schematic samples produce a normalized document with visible entities.
+ * Verifies the reduced embedded solace-sheet fixture still produces normalized
+ * ports, labels, and bus geometry.
  */
-test('parseAltiumArrayBuffer parses a native SchDoc sample', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('parseAltiumArrayBuffer parses an embedded fake SchDoc sample', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(documentModel.fileType, 'SchDoc')
-    assert.equal(documentModel.schematic.components.length > 0, true)
-    assert.equal(documentModel.schematic.lines.length > 50, true)
-    assert.equal(documentModel.schematic.texts.length > 20, true)
-    assert.equal(documentModel.bom.length > 0, true)
-    assert.match(documentModel.summary.title, /Atlas/i)
+    assert.equal(documentModel.schematic.components.length, 0)
+    assert.equal(documentModel.schematic.lines.length, 14)
+    assert.equal(documentModel.schematic.texts.length, 10)
+    assert.equal(documentModel.schematic.ports.length, 5)
+    assert.equal(
+        documentModel.schematic.lines.filter((line) => line.isBus).length,
+        2
+    )
+    assert.equal(documentModel.bom.length, 0)
+    assert.equal(documentModel.summary.title, 'LUMEN-VEIL-A1')
 })
 
 /**
@@ -50,24 +56,24 @@ test('parseAltiumArrayBuffer keeps record-28 notes out of schematic lines', () =
 })
 
 /**
- * Verifies Altium schematic colors and polyline wires are normalized from the
- * Bluetooth sheet sample.
+ * Verifies Altium schematic colors, title typography, and synthesized
+ * connector notes are normalized from the aether-sheet fixture.
  */
-test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
-                text.text === 'Bluetooth Module' && text.color === '#000080'
+                text.text === 'Zephyr Node' && text.color === '#000080'
         ),
         true
     )
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
-                text.text === 'Bluetooth Module' &&
+                text.text === 'WYRN' &&
                 Math.abs(text.fontSize - 22) < 0.02 &&
                 text.anchor === 'middle'
         ),
@@ -86,14 +92,14 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     )
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'JTAG' && text.rotation === 90
+            (text) => text.text === 'WYRN' && text.rotation === 90
         ),
         true
     )
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
-                text.text === 'D16' &&
+                text.text === 'Q12' &&
                 text.rotation === 90 &&
                 text.anchor === 'start'
         ),
@@ -148,7 +154,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
         true
     )
     assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
-        title: 'ATLAS-CONTROL-A1',
+        title: 'LUMEN-VEIL-A1',
         revision: '01',
         documentNumber: '',
         sheetNumber: '4',
@@ -200,7 +206,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     assert.equal(documentModel.schematic.sheet.yZones, 4)
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'ATLAS-CONTROL-A1' || text.text === '01'
+            (text) => text.text === 'LUMEN-VEIL-A1' || text.text === '01'
         ),
         false
     )
@@ -214,7 +220,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     assert.equal(
         documentModel.schematic.ports.some(
             (port) =>
-                port.name === 'UART_CTS' &&
+                port.name === 'RUNE_CTL' &&
                 port.x === 680 &&
                 port.y === 495 &&
                 port.width === 60 &&
@@ -224,13 +230,13 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     )
     assert.equal(
         documentModel.schematic.texts.filter(
-            (text) => text.text === '排针PH2.54 2x3P 180度 双塑 L=30.5'
+            (text) => text.text === 'RUNE HEADER P2.54 2X3P VERTICAL L=30.5'
         ).length,
-        2
+        1
     )
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'UART_CTS' || text.text === 'UART_RTS'
+            (text) => text.text === 'RUNE_CTL' || text.text === 'RUNE_FLOW'
         ),
         false
     )
@@ -247,10 +253,10 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
     assert.equal(
         documentModel.schematic.lines.some(
             (line) =>
-                line.x1 === 702 &&
-                line.y1 === 475 &&
-                line.x2 === 700 &&
-                line.y2 === 475
+                line.x1 === 697 &&
+                line.y1 === 535 &&
+                line.x2 === 695 &&
+                line.y2 === 535
         ),
         true
     )
@@ -271,7 +277,7 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
             }))
             .sort((left, right) => left.x - right.x || left.y - right.y),
         [
-            { x: 225, y: 270, designator: 'D16' },
+            { x: 225, y: 270, designator: 'Q12' },
             { x: 255, y: 215, designator: 'R94' },
             { x: 455, y: 595, designator: 'U6' },
             { x: 950, y: 540, designator: 'J6' }
@@ -280,11 +286,84 @@ test('parseAltiumArrayBuffer decodes Bluetooth sheet colors and wires', async ()
 })
 
 /**
- * Verifies the Bluetooth sheet preserves pin numbers on the two five-pin
+ * Verifies rotated schematic texts preserve their raw Altium orientation so
+ * the renderer can distinguish opposite vertical reading directions.
+ */
+test(
+    'parseAltiumArrayBuffer preserves rotated text source orientation',
+    async () => {
+        const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
+        const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+        const d16 = aetherDocument.schematic.texts.find(
+            (text) => text.text === 'Q12'
+        )
+        const jtag = aetherDocument.schematic.texts.find(
+            (text) => text.text === 'WYRN'
+        )
+        const r24 = bastionDocument.schematic.texts.find(
+            (text) => text.text === 'Q24'
+        )
+        const r24Value = bastionDocument.schematic.texts.find(
+            (text) => text.text === '4K7' && text.ownerIndex === '3652'
+        )
+
+        assert.deepEqual(
+            {
+                text: d16?.text,
+                rotation: d16?.rotation,
+                sourceOrientation: d16?.sourceOrientation
+            },
+            {
+                text: 'Q12',
+                rotation: 90,
+                sourceOrientation: 1
+            }
+        )
+        assert.deepEqual(
+            {
+                text: jtag?.text,
+                rotation: jtag?.rotation,
+                sourceOrientation: jtag?.sourceOrientation
+            },
+            {
+                text: 'WYRN',
+                rotation: 90,
+                sourceOrientation: 1
+            }
+        )
+        assert.deepEqual(
+            {
+                text: r24?.text,
+                rotation: r24?.rotation,
+                sourceOrientation: r24?.sourceOrientation
+            },
+            {
+                text: 'Q24',
+                rotation: 90,
+                sourceOrientation: 3
+            }
+        )
+        assert.deepEqual(
+            {
+                text: r24Value?.text,
+                rotation: r24Value?.rotation,
+                sourceOrientation: r24Value?.sourceOrientation
+            },
+            {
+                text: '4K7',
+                rotation: 90,
+                sourceOrientation: 3
+            }
+        )
+    }
+)
+
+/**
+ * Verifies the aether sheet preserves pin numbers on the two five-pin
  * SN74LVC1G00 gate symbols instead of collapsing them to name-only labels.
  */
-test('parseAltiumArrayBuffer keeps gate pin numbers on the Bluetooth sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer keeps gate pin numbers on the aether sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const gatePins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '296' || pin.ownerIndex === '322'
     )
@@ -375,12 +454,12 @@ test('parseAltiumArrayBuffer keeps gate pin numbers on the Bluetooth sheet', asy
 })
 
 /**
- * Verifies sheet-F packages keep the top and bottom pin rows encoded by the
+ * Verifies lyra-sheet packages keep the top and bottom pin rows encoded by the
  * less-common 57/49/51 conglomerate variants, including the full dual-row
  * TVS labelling used by D12.
  */
-test('parseAltiumArrayBuffer maps sheet-F top and bottom variant pin conglomerates', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer maps lyra-sheet top and bottom variant pin conglomerates', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const d12Pins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '5547'
     )
@@ -438,11 +517,11 @@ test('parseAltiumArrayBuffer maps sheet-F top and bottom variant pin conglomerat
 })
 
 /**
- * Verifies sheet-F power ports preserve Altium orientation metadata so the
+ * Verifies lyra-sheet power ports preserve Altium orientation metadata so the
  * renderer can honor explicit port direction before inferring from wires.
  */
-test('parseAltiumArrayBuffer keeps sheet-F +3.3V power-port orientation', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer keeps lyra-sheet +3.3V power-port orientation', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
 
     assert.equal(
         documentModel.schematic.texts.some(
@@ -458,11 +537,11 @@ test('parseAltiumArrayBuffer keeps sheet-F +3.3V power-port orientation', async 
 })
 
 /**
- * Verifies sheet-F multipart unit designators keep the visible section suffix
+ * Verifies lyra-sheet multipart unit designators keep the visible section suffix
  * derived from the active Altium part id instead of rendering as bare U2.
  */
-test('parseAltiumArrayBuffer appends active multipart suffixes to sheet-F designators', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer appends active multipart suffixes to lyra-sheet designators', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
 
     assert.equal(
         documentModel.schematic.texts.some(
@@ -497,8 +576,8 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to sheet-F design
  * Verifies escaped Altium active-low pin names are normalized into readable
  * labels before rendering.
  */
-test('parseAltiumArrayBuffer decodes escaped sheet-F pin names like RST', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer decodes escaped lyra-sheet pin names like RST', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
 
     assert.equal(
         documentModel.schematic.pins.some(
@@ -521,11 +600,11 @@ test('parseAltiumArrayBuffer decodes escaped sheet-F pin names like RST', async 
 })
 
 /**
- * Verifies the sheet-F crystal Y2 keeps its four numbered passive pins rather
+ * Verifies the lyra-sheet crystal Y2 keeps its four numbered passive pins rather
  * than dropping them because the symbol spans multiple sides.
  */
-test('parseAltiumArrayBuffer keeps the sheet-F Y2 crystal pins as number-only labels', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer keeps the lyra-sheet Y2 crystal pins as number-only labels', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const y2Pins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '6355'
     )
@@ -665,11 +744,11 @@ test('parseAltiumArrayBuffer keeps anonymous multi-side connector pins and groun
 })
 
 /**
- * Verifies sheet-F record-14 package bodies are parsed as filled rectangles
+ * Verifies lyra-sheet record-14 package bodies are parsed as filled rectangles
  * instead of diagonal line segments.
  */
-test('parseAltiumArrayBuffer keeps the sheet-F D12 body as a rectangle primitive', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer keeps the lyra-sheet D12 body as a rectangle primitive', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
 
     assert.equal(
         documentModel.schematic.rectangles.some(
@@ -699,11 +778,11 @@ test('parseAltiumArrayBuffer keeps the sheet-F D12 body as a rectangle primitive
 })
 
 /**
- * Verifies sheet-F inductor body arcs survive normalization with their
+ * Verifies lyra-sheet inductor body arcs survive normalization with their
  * fractional center coordinates instead of being dropped entirely.
  */
-test('parseAltiumArrayBuffer keeps the sheet-F inductor coil arcs as record-12 primitives', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer keeps the lyra-sheet inductor coil arcs as record-12 primitives', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const l52Arcs = documentModel.schematic.arcs?.filter(
         (arc) => arc.ownerIndex === '5602'
     )
@@ -743,11 +822,11 @@ test('parseAltiumArrayBuffer keeps the sheet-F inductor coil arcs as record-12 p
 })
 
 /**
- * Verifies recovered Bluetooth-sheet geometry occupies a reasonable share of
+ * Verifies recovered aether-sheet geometry occupies a reasonable share of
  * the parsed page size so the rendered sheet does not appear undersized.
  */
-test('parseAltiumArrayBuffer infers a tight-enough Bluetooth sheet size', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer infers a tight-enough aether sheet size', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     assert.equal(documentModel.schematic.sheet.paperSize, 'A4')
     assert.equal(documentModel.schematic.sheet.width, 1169)
     assert.equal(documentModel.schematic.sheet.height, 827)
@@ -757,8 +836,8 @@ test('parseAltiumArrayBuffer infers a tight-enough Bluetooth sheet size', async 
  * Verifies larger recovered pages snap to the next matching ISO paper size
  * instead of shrinking tightly to visible geometry.
  */
-test('parseAltiumArrayBuffer resolves the sample power sheet to A3', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('parseAltiumArrayBuffer resolves the sample solace sheet to A3', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
 
     assert.equal(documentModel.schematic.sheet.paperSize, 'A3')
     assert.equal(documentModel.schematic.sheet.width, 1654)
@@ -766,27 +845,76 @@ test('parseAltiumArrayBuffer resolves the sample power sheet to A3', async () =>
 })
 
 /**
- * Verifies power-sheet off-sheet ports keep the same pointed side Altium uses
+ * Verifies solace-sheet off-sheet ports keep the same pointed side Altium uses
  * when explicit port style is omitted from the stored record.
  */
-test('parseAltiumArrayBuffer infers power-sheet port direction from connectivity', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('parseAltiumArrayBuffer infers solace-sheet port direction from connectivity', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
     const resolveDirection = (name) =>
         documentModel.schematic.ports.find((port) => port.name === name)
             ?.direction
 
-    assert.equal(resolveDirection('STM_Reset'), 'left')
-    assert.equal(resolveDirection('BOOT_SEL'), 'left')
-    assert.equal(resolveDirection('MIX_RESET'), 'left')
-    assert.equal(resolveDirection('MIX_IN_DETECT'), 'right')
+    assert.equal(resolveDirection('AURA_RST'), 'left')
+    assert.equal(resolveDirection('SIGIL_SEL'), 'left')
+    assert.equal(resolveDirection('EMBER_RST'), 'left')
+    assert.equal(resolveDirection('EMBER_SENSE'), 'right')
 })
 
 /**
- * Verifies record-26 bus trunks on the power sheet survive normalization so
+ * Verifies style-4 off-sheet ports preserve their vertical up/down direction
+ * so the renderer can rotate the callout geometry instead of forcing a
+ * horizontal left/right symbol.
+ */
+test('parseAltiumArrayBuffer infers vertical style-4 port direction from connectivity', async () => {
+    const solaceDocument = await AltiumFixtureLoader.parseSolaceSheet()
+    const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+    const mc1 = solaceDocument.schematic.ports.find(
+        (port) => port.name === 'GLYPH_1' && port.x === 475 && port.y === 150
+    )
+    const mc0 = bastionDocument.schematic.ports.find(
+        (port) => port.name === 'GLYPH_0' && port.x === 910 && port.y === 650
+    )
+
+    assert.deepEqual(
+        {
+            x: mc1?.x,
+            y: mc1?.y,
+            width: mc1?.width,
+            height: mc1?.height,
+            direction: mc1?.direction
+        },
+        {
+            x: 475,
+            y: 150,
+            width: 30,
+            height: 10,
+            direction: 'down'
+        }
+    )
+    assert.deepEqual(
+        {
+            x: mc0?.x,
+            y: mc0?.y,
+            width: mc0?.width,
+            height: mc0?.height,
+            direction: mc0?.direction
+        },
+        {
+            x: 910,
+            y: 650,
+            width: 25,
+            height: 10,
+            direction: 'up'
+        }
+    )
+})
+
+/**
+ * Verifies record-26 bus trunks on the solace sheet survive normalization so
  * grouped net routes render instead of disappearing entirely.
  */
-test('parseAltiumArrayBuffer preserves power-sheet bus trunks', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('parseAltiumArrayBuffer preserves solace-sheet bus trunks', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
 
     assert.equal(
         documentModel.schematic.lines.some(
@@ -813,19 +941,19 @@ test('parseAltiumArrayBuffer preserves power-sheet bus trunks', async () => {
 })
 
 /**
- * Verifies the MIDI/system sheet keeps only the active multipart U2 sections,
+ * Verifies the lyra sheet keeps only the active multipart U2 sections,
  * preserving one label per visible section and snapping back to A3.
  */
-test('parseAltiumArrayBuffer restores active multipart sections on the MIDI sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('parseAltiumArrayBuffer restores active multipart sections on the lyra sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const u2Pins = documentModel.schematic.pins.filter((pin) =>
         ['1672', '2172', '3833'].includes(pin.ownerIndex)
     )
     const sectionLabels = documentModel.schematic.texts.filter((text) =>
         [
-            'USB port',
-            'Power',
-            'System / MIDI',
+            'Rune Gate',
+            'Cinder Well',
+            'Lyra / Echo',
             'NAND FLASH',
             'Digital Audio',
             'Ethernet MAC',
@@ -843,16 +971,16 @@ test('parseAltiumArrayBuffer restores active multipart sections on the MIDI shee
         sectionLabels
             .map((text) => text.text)
             .sort((left, right) => left.localeCompare(right)),
-        ['Power', 'System / MIDI', 'USB port']
+        ['Cinder Well', 'Lyra / Echo', 'Rune Gate']
     )
 })
 
 /**
- * Verifies Bluetooth-sheet component texts anchor according to their owner
+ * Verifies aether-sheet component texts anchor according to their owner
  * geometry instead of using one blanket rule for every designator.
  */
-test('parseAltiumArrayBuffer anchors Bluetooth component texts from owner geometry', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer anchors aether-sheet component texts from owner geometry', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const anchors = documentModel.schematic.texts
         .filter((text) =>
             ['C70', 'C82', 'C68', 'R148', 'R134', 'C187', 'C190'].includes(
@@ -879,13 +1007,145 @@ test('parseAltiumArrayBuffer anchors Bluetooth component texts from owner geomet
 })
 
 /**
- * Verifies gate designators on the Bluetooth sheet sit just above the symbol
+ * Verifies bastion-sheet multipart designators keep side-aware anchors on the
+ * reduced fake resistor sections.
+ */
+test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on the bastion sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+    const anchors = documentModel.schematic.texts
+        .filter(
+            (text) => ['Q51', 'Q56'].includes(text.text)
+        )
+        .map((text) => ({
+            text: text.text,
+            ownerIndex: String(text.ownerIndex || ''),
+            anchor: text.anchor
+        }))
+        .sort(
+            (left, right) =>
+                left.ownerIndex.localeCompare(right.ownerIndex) ||
+                left.text.localeCompare(right.text)
+        )
+
+    assert.deepEqual(anchors, [
+        { text: 'Q51', ownerIndex: '2891', anchor: 'end' },
+        { text: 'Q56', ownerIndex: '2953', anchor: 'start' }
+    ])
+})
+
+/**
+ * Verifies the multipart resistor stack keeps the active suffixes on the
+ * repeated bastion-sheet sections while leaving the single connector
+ * designator unsuffixed.
+ */
+test('parseAltiumArrayBuffer resolves multipart designators without suffixing the bastion-sheet connector', async () => {
+    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+    const designators = documentModel.schematic.texts
+        .filter(
+            (text) =>
+                ['4010', '4050', '4088', '4126', '4164'].includes(
+                    String(text.ownerIndex || '')
+                ) && text.name === 'Designator'
+        )
+        .map((text) => ({
+            ownerIndex: String(text.ownerIndex || ''),
+            text: text.text,
+            anchor: text.anchor
+        }))
+        .sort((left, right) => left.ownerIndex.localeCompare(right.ownerIndex))
+
+    assert.deepEqual(designators, [
+        { ownerIndex: '4010', text: 'Q92B', anchor: 'end' },
+        { ownerIndex: '4050', text: 'Q92A', anchor: 'end' },
+        { ownerIndex: '4088', text: 'Q92C', anchor: 'end' },
+        { ownerIndex: '4126', text: 'Q92D', anchor: 'end' },
+        { ownerIndex: '4164', text: 'P4', anchor: 'start' }
+    ])
+    assert.equal(
+        documentModel.schematic.texts.some((text) => text.text === 'P4A'),
+        false
+    )
+})
+
+/**
+ * Verifies each multipart bastion-sheet owner keeps only its active pin pair
+ * instead of rendering all four overlapping owner-part variants.
+ */
+test('parseAltiumArrayBuffer keeps only active multipart resistor pin pairs on the bastion sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+    const pinGroups = ['4010', '4050', '4088', '4126'].map((ownerIndex) => ({
+        ownerIndex,
+        pins: documentModel.schematic.pins
+            .filter((pin) => pin.ownerIndex === ownerIndex)
+            .map((pin) => ({
+                designator: pin.designator,
+                labelMode: pin.labelMode
+            }))
+            .sort(
+                (left, right) =>
+                    Number(left.designator) - Number(right.designator)
+            )
+    }))
+
+    assert.deepEqual(pinGroups, [
+        {
+            ownerIndex: '4010',
+            pins: [
+                { designator: '2', labelMode: 'number-only' },
+                { designator: '7', labelMode: 'number-only' }
+            ]
+        },
+        {
+            ownerIndex: '4050',
+            pins: [
+                { designator: '1', labelMode: 'number-only' },
+                { designator: '8', labelMode: 'number-only' }
+            ]
+        },
+        {
+            ownerIndex: '4088',
+            pins: [
+                { designator: '3', labelMode: 'number-only' },
+                { designator: '6', labelMode: 'number-only' }
+            ]
+        },
+        {
+            ownerIndex: '4126',
+            pins: [
+                { designator: '4', labelMode: 'number-only' },
+                { designator: '5', labelMode: 'number-only' }
+            ]
+        }
+    ])
+})
+
+/**
+ * Verifies the reduced lyra resistor designator keeps its left-side owner
+ * anchor instead of flipping across the body.
+ */
+test('parseAltiumArrayBuffer keeps the lyra left-side resistor designator aligned', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+    const anchors = documentModel.schematic.texts
+        .filter(
+            (text) => text.text === 'R11' && text.ownerIndex === '1461'
+        )
+        .map((text) => ({
+            text: text.text,
+            anchor: text.anchor
+        }))
+        .sort((left, right) => left.text.localeCompare(right.text))
+
+    assert.deepEqual(anchors, [{ text: 'R11', anchor: 'end' }])
+})
+
+/**
+ * Verifies gate designators on the aether sheet sit just above the symbol
  * body instead of touching its outline.
  */
-test('parseAltiumArrayBuffer pads Bluetooth gate designators above the body', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer pads aether gate designators above the body', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const designators = documentModel.schematic.texts
-        .filter((text) => ['U29', 'U31'].includes(text.text))
+        .filter((text) => ['K29', 'K31'].includes(text.text))
         .map((text) => ({
             text: text.text,
             y: text.y,
@@ -894,19 +1154,19 @@ test('parseAltiumArrayBuffer pads Bluetooth gate designators above the body', as
         .sort((left, right) => left.text.localeCompare(right.text))
 
     assert.deepEqual(designators, [
-        { text: 'U29', y: 224, anchor: 'start' },
-        { text: 'U31', y: 234, anchor: 'start' }
+        { text: 'K29', y: 224, anchor: 'start' },
+        { text: 'K31', y: 234, anchor: 'start' }
     ])
 })
 
 /**
- * Verifies bottom-side connector designators on the Bluetooth sheet keep their
+ * Verifies bottom-side connector designators on the aether sheet keep their
  * original left-to-right anchor instead of being pulled left under the body.
  */
-test('parseAltiumArrayBuffer keeps Bluetooth bottom connector designators left-to-right', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer keeps aether bottom connector designators left-to-right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const designator = documentModel.schematic.texts.find(
-        (text) => text.text === 'J5'
+        (text) => text.text === 'P5'
     )
 
     assert.deepEqual(
@@ -917,7 +1177,7 @@ test('parseAltiumArrayBuffer keeps Bluetooth bottom connector designators left-t
             anchor: designator?.anchor
         },
         {
-            text: 'J5',
+            text: 'P5',
             x: 974,
             y: 244,
             anchor: 'start'
@@ -929,20 +1189,20 @@ test('parseAltiumArrayBuffer keeps Bluetooth bottom connector designators left-t
  * Verifies only wire labels on open left runs flip away from nearby
  * designators, while labels attached to component pins stay left-to-right.
  */
-test('parseAltiumArrayBuffer keeps component-connected wire labels readable on the Bluetooth sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer keeps component-connected wire labels readable on the aether sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const anchors = documentModel.schematic.texts
         .filter(
             (text) =>
-                (text.text === 'BT_RESET' &&
+                (text.text === 'VEIL_RST' &&
                     text.x === 245 &&
                     text.y === 545) ||
-                (text.text === 'ESP_TX2' && text.x === 630 && text.y === 475) ||
-                (text.text === 'ESP_RX2' && text.x === 630 && text.y === 445) ||
-                (text.text === 'ESP_BOOT' &&
+                (text.text === 'WYRN_SEND' && text.x === 630 && text.y === 475) ||
+                (text.text === 'WYRN_ECHO' && text.x === 630 && text.y === 445) ||
+                (text.text === 'WYRN_INIT' &&
                     text.x === 630 &&
                     text.y === 435) ||
-                (text.text === 'ESP_TX0' && text.x === 760 && text.y === 535)
+                (text.text === 'NOVA_SEND' && text.x === 760 && text.y === 535)
         )
         .map((text) => ({
             text: text.text,
@@ -955,20 +1215,20 @@ test('parseAltiumArrayBuffer keeps component-connected wire labels readable on t
         )
 
     assert.deepEqual(anchors, [
-        { text: 'BT_RESET', x: 245, anchor: 'end' },
-        { text: 'ESP_BOOT', x: 630, anchor: 'start' },
-        { text: 'ESP_RX2', x: 630, anchor: 'start' },
-        { text: 'ESP_TX2', x: 630, anchor: 'start' },
-        { text: 'ESP_TX0', x: 760, anchor: 'start' }
+        { text: 'VEIL_RST', x: 245, anchor: 'end' },
+        { text: 'WYRN_ECHO', x: 630, anchor: 'start' },
+        { text: 'WYRN_INIT', x: 630, anchor: 'start' },
+        { text: 'WYRN_SEND', x: 630, anchor: 'start' },
+        { text: 'NOVA_SEND', x: 760, anchor: 'start' }
     ])
 })
 
 /**
- * Verifies the Bluetooth sheet keeps the D16 diode body polygon as drawable
+ * Verifies the aether sheet keeps the Q12 diode body polygon as drawable
  * line segments so the symbol triangle is visible.
  */
-test('parseAltiumArrayBuffer preserves the Bluetooth D16 diode triangle', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('parseAltiumArrayBuffer preserves the aether-sheet Q12 diode triangle', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
 
     assert.equal(
         documentModel.schematic.lines.some(
@@ -1009,21 +1269,118 @@ test('parseAltiumArrayBuffer preserves the Bluetooth D16 diode triangle', async 
 })
 
 /**
- * Verifies PCB samples produce board outline, layers, and placements.
+ * Verifies the boot-strap region keeps its centered note text, preserves
+ * the visible same-row wire labels, and normalizes the mixed-direction
+ * off-sheet port stack.
  */
-test('parseAltiumArrayBuffer parses a native PcbDoc sample', async () => {
+test(
+    'parseAltiumArrayBuffer normalizes the bastion-sheet dawn-sigil note and off-sheet ports',
+    async () => {
+        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const bootNote = documentModel.schematic.texts.find(
+            (text) => text.text === 'Needed for Dawn Sigil!'
+        )
+        const dashedFrameBounds = documentModel.schematic.lines
+            .filter((line) => Number(line.lineStyle || 0) === 1)
+            .reduce(
+                (bounds, line) => ({
+                    minX: Math.min(bounds.minX, line.x1, line.x2),
+                    minY: Math.min(bounds.minY, line.y1, line.y2),
+                    maxX: Math.max(bounds.maxX, line.x1, line.x2),
+                    maxY: Math.max(bounds.maxY, line.y1, line.y2)
+                }),
+                {
+                    minX: Number.POSITIVE_INFINITY,
+                    minY: Number.POSITIVE_INFINITY,
+                    maxX: Number.NEGATIVE_INFINITY,
+                    maxY: Number.NEGATIVE_INFINITY
+                }
+            )
+        const portStack = documentModel.schematic.ports
+            .filter(
+                (port) =>
+                    ['AURA_IRQ', 'AURA_CS', 'GLYPH_CS'].includes(port.name) &&
+                    port.x === 280
+            )
+            .sort((left, right) => left.y - right.y)
+        const wireSidePortTexts = documentModel.schematic.texts.filter(
+            (text) =>
+                text.recordType === '25' &&
+                ['AURA_IRQ', 'AURA_CS', 'GLYPH_CS'].includes(text.text) &&
+                text.x === 340
+        ).sort((left, right) => left.y - right.y)
+
+        assert.deepEqual(
+            {
+                text: bootNote?.text,
+                x: bootNote?.x,
+                y: bootNote?.y,
+                anchor: bootNote?.anchor
+            },
+            {
+                text: 'Needed for Dawn Sigil!',
+                x: 349,
+                y: 576,
+                anchor: 'middle'
+            }
+        )
+        assert.deepEqual(dashedFrameBounds, {
+            minX: 289,
+            minY: 524,
+            maxX: 409,
+            maxY: 590
+        })
+        assert.deepEqual(
+            portStack.map((port) => ({
+                name: port.name,
+                x: port.x,
+                y: port.y,
+                direction: port.direction
+            })),
+            [
+                { name: 'AURA_IRQ', x: 280, y: 470, direction: 'right' },
+                { name: 'AURA_CS', x: 280, y: 480, direction: 'right' },
+                { name: 'GLYPH_CS', x: 280, y: 490, direction: 'left' }
+            ]
+        )
+        assert.deepEqual(
+            wireSidePortTexts.map((text) => ({
+                text: text.text,
+                x: text.x,
+                y: text.y,
+                anchor: text.anchor
+            })),
+            [
+                { text: 'AURA_IRQ', x: 340, y: 470, anchor: 'start' },
+                { text: 'AURA_CS', x: 340, y: 480, anchor: 'start' },
+                { text: 'GLYPH_CS', x: 340, y: 490, anchor: 'start' }
+            ]
+        )
+    }
+)
+
+/**
+ * Verifies the reduced embedded PCB fixture still exposes outline, layers,
+ * placement data, and a grouped BOM row.
+ */
+test('parseAltiumArrayBuffer parses an embedded fake PcbDoc sample', async () => {
     const documentModel = await AltiumFixtureLoader.parsePcb()
 
     assert.equal(documentModel.kind, 'pcb')
     assert.equal(documentModel.fileType, 'PcbDoc')
-    assert.equal(documentModel.pcb.boardOutline.segments.length > 20, true)
-    assert.equal(documentModel.pcb.layers.length > 8, true)
-    assert.equal(documentModel.pcb.components.length > 50, true)
-    assert.equal(documentModel.bom.length > 10, true)
-    assert.equal(
-        documentModel.pcb.components.some(
-            (component) => component.designator === 'U4'
-        ),
-        true
-    )
+    assert.equal(documentModel.pcb.boardOutline.segments.length, 5)
+    assert.equal(documentModel.pcb.layers.length, 4)
+    assert.equal(documentModel.pcb.components.length, 1)
+    assert.equal(documentModel.bom.length, 1)
+    assert.deepEqual(documentModel.pcb.components[0], {
+        designator: 'J1',
+        x: 900,
+        y: 500,
+        layer: 'BOTTOM',
+        pattern: 'HDR-6',
+        rotation: 180,
+        source: 'CON/FAKE/HDR-6',
+        description: 'Oracle header',
+        height: 40
+    })
 })

@@ -18,7 +18,7 @@
 
 **Step 1: Write the failing parser test**
 
-Add a test that parses `tests/fixtures/altium/AtlasControl-A1.01.01F.SchDoc` and asserts the sheet resolves to `A3`, the active `U2` parts expose `USB port`, `Power`, and `System / MIDI` text exactly once, and the visible `U2` pin count stays in the expected narrowed range.
+Add a test that parses `tests/fixtures/altium/LumenVeil-A1.01.01F.SchDoc` and asserts the sheet resolves to `A3`, the active `U2` parts expose `Rune Gate`, `Cinder Well`, and `Lyra / Echo` text exactly once, and the visible `U2` pin count stays in the expected narrowed range.
 
 **Step 2: Run the parser test to verify it fails**
 
@@ -28,7 +28,7 @@ Expected: FAIL because sheet F still resolves to a custom page and/or merged mul
 
 **Step 3: Write the failing renderer test**
 
-Add a renderer test for the same file that asserts the body-outline lines from record `6` appear in the SVG and that `USB port`, `Power`, and `System / MIDI` each render once.
+Add a renderer test for the same file that asserts the body-outline lines from record `6` appear in the SVG and that `Rune Gate`, `Cinder Well`, and `Lyra / Echo` each render once.
 
 **Step 4: Run the renderer test to verify it fails**
 

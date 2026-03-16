@@ -11,11 +11,12 @@ export class SchematicJunctionRenderer {
      * Builds junction-dot markup from connected wire linework.
      * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} [ports]
      * @param {number} sheetHeight
      * @returns {string}
      */
-    static buildMarkup(lines, crosses, sheetHeight) {
-        return SchematicJunctionRenderer.#resolveJunctions(lines, crosses)
+    static buildMarkup(lines, crosses, ports = [], sheetHeight) {
+        return SchematicJunctionRenderer.#resolveJunctions(lines, crosses, ports)
             .map(
                 (junction) =>
                     '<circle class="schematic-junction" cx="' +
@@ -26,7 +27,7 @@ export class SchematicJunctionRenderer {
                     escapeHtml(
                         SchematicColorResolver.resolveColor(
                             junction.color,
-                            '--schematic-blue-color'
+                            '--schematic-default-ink-color'
                         )
                     ) +
                     '" />'
@@ -38,14 +39,21 @@ export class SchematicJunctionRenderer {
      * Resolves all wire-junction points that should display a connection dot.
      * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @returns {{ x: number, y: number, color: string }[]}
      */
-    static #resolveJunctions(lines, crosses) {
+    static #resolveJunctions(lines, crosses, ports) {
         const wireLines = lines.filter(
             (line) => !line.ownerIndex && line.isBus !== true
         )
+        const verticalPorts = ports.filter((port) =>
+            SchematicJunctionRenderer.#isVerticalPort(port)
+        )
 
-        return SchematicJunctionRenderer.#collectCandidatePoints(wireLines)
+        return SchematicJunctionRenderer.#collectCandidatePoints(
+            wireLines,
+            verticalPorts
+        )
             .filter(
                 (point) =>
                     !SchematicJunctionRenderer.#hasNearbyCross(point, crosses)
@@ -54,6 +62,9 @@ export class SchematicJunctionRenderer {
                 const contributingLines = wireLines.filter((line) =>
                     SchematicJunctionRenderer.#lineContainsPoint(line, point)
                 )
+                const contributingPorts = verticalPorts.filter((port) =>
+                    SchematicJunctionRenderer.#portContainsPoint(port, point)
+                )
                 const directions = new Set()
 
                 for (const line of contributingLines) {
@@ -61,6 +72,13 @@ export class SchematicJunctionRenderer {
                         directions,
                         line,
                         point
+                    )
+                }
+
+                for (const port of contributingPorts) {
+                    SchematicJunctionRenderer.#appendPortDirections(
+                        directions,
+                        port
                     )
                 }
 
@@ -74,7 +92,7 @@ export class SchematicJunctionRenderer {
                         y: point.y,
                         color:
                             contributingLines[0]?.color ||
-                            'var(--schematic-blue-color)'
+                            'var(--schematic-default-ink-color)'
                     }
                 ]
             })
@@ -83,9 +101,10 @@ export class SchematicJunctionRenderer {
     /**
      * Collects all distinct wire endpoints as candidate junction points.
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
+     * @param {{ x: number, y: number, width: number, direction?: 'up' | 'down' }[]} ports
      * @returns {{ x: number, y: number }[]}
      */
-    static #collectCandidatePoints(lines) {
+    static #collectCandidatePoints(lines, ports) {
         const candidates = new Map()
 
         for (const line of lines) {
@@ -98,6 +117,18 @@ export class SchematicJunctionRenderer {
                     point
                 )
             }
+        }
+
+        for (const port of ports) {
+            const connectionPoint =
+                SchematicJunctionRenderer.#resolveVerticalPortConnectionPoint(
+                    port
+                )
+
+            candidates.set(
+                SchematicJunctionRenderer.#pointKey(connectionPoint),
+                connectionPoint
+            )
         }
 
         return [...candidates.values()]
@@ -141,6 +172,23 @@ export class SchematicJunctionRenderer {
     }
 
     /**
+     * Adds the one branch direction contributed by a vertical off-sheet port.
+     * @param {Set<string>} directions
+     * @param {{ direction?: 'up' | 'down' }} port
+     * @returns {void}
+     */
+    static #appendPortDirections(directions, port) {
+        if (port.direction === 'up') {
+            directions.add('south')
+            return
+        }
+
+        if (port.direction === 'down') {
+            directions.add('north')
+        }
+    }
+
+    /**
      * Returns true when one cross marker occupies the same point.
      * @param {{ x: number, y: number }} point
      * @param {{ x: number, y: number }[]} crosses
@@ -176,6 +224,54 @@ export class SchematicJunctionRenderer {
         }
 
         return false
+    }
+
+    /**
+     * Returns true when one vertical off-sheet port attaches at the point.
+     * @param {{ x: number, y: number, width: number, direction?: 'up' | 'down' }} port
+     * @param {{ x: number, y: number }} point
+     * @returns {boolean}
+     */
+    static #portContainsPoint(port, point) {
+        if (!SchematicJunctionRenderer.#isVerticalPort(port)) {
+            return false
+        }
+
+        const connectionPoint =
+            SchematicJunctionRenderer.#resolveVerticalPortConnectionPoint(port)
+
+        return (
+            Math.abs(connectionPoint.x - point.x) <= 0.01 &&
+            Math.abs(connectionPoint.y - point.y) <= 0.01
+        )
+    }
+
+    /**
+     * Returns the wire attachment point for one vertical off-sheet port.
+     * @param {{ x: number, y: number, width: number, direction?: 'up' | 'down' }} port
+     * @returns {{ x: number, y: number }}
+     */
+    static #resolveVerticalPortConnectionPoint(port) {
+        if (port.direction === 'down') {
+            return {
+                x: port.x,
+                y: port.y
+            }
+        }
+
+        return {
+            x: port.x,
+            y: port.y + port.width
+        }
+    }
+
+    /**
+     * Returns true when a port uses the vertical style-4 geometry.
+     * @param {{ direction?: 'left' | 'right' | 'up' | 'down' }} port
+     * @returns {boolean}
+     */
+    static #isVerticalPort(port) {
+        return port.direction === 'up' || port.direction === 'down'
     }
 
     /**

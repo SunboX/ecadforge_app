@@ -22,7 +22,7 @@ const {
 export class SchematicSvgRenderer {
     /**
      * Renders a normalized schematic model into SVG markup.
-     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
+     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -97,7 +97,7 @@ export class SchematicSvgRenderer {
                         component.x + 8,
                         projectSchematicY(height, component.y) - 8,
                         component.designator || '',
-                        'var(--schematic-blue-color)',
+                        'var(--schematic-default-ink-color)',
                         'start',
                         SchematicTypography.buildDefaultSchematicFontOptions(
                             schematic.sheet
@@ -107,12 +107,15 @@ export class SchematicSvgRenderer {
             )
             .join('')
 
+        const rotatedVerticalNumberOwners =
+            SchematicTypography.collectRotatedVerticalNumberOwners(pins)
         const pinMarkup = pins
             .map((pin) =>
                 SchematicSvgRenderer.#buildSchematicPinMarkup(
                     pin,
                     height,
-                    schematic.sheet
+                    schematic.sheet,
+                    rotatedVerticalNumberOwners
                 )
             )
             .join('')
@@ -124,6 +127,7 @@ export class SchematicSvgRenderer {
         const junctionMarkup = SchematicJunctionRenderer.buildMarkup(
             lines,
             crosses,
+            ports,
             height
         )
         const crossMarkup = crosses
@@ -204,7 +208,7 @@ export class SchematicSvgRenderer {
             escapeHtml(
                 SchematicColorResolver.resolveColor(
                     line.color,
-                    '--schematic-blue-color'
+                    '--schematic-default-ink-color'
                 )
             ) +
             '" stroke-width="' +
@@ -474,7 +478,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.31,
                     titleRowY,
                     titleBlock.title || '',
-                    'var(--schematic-blue-color)',
+                    'var(--schematic-default-ink-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -490,7 +494,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.92,
                     titleRowY,
                     titleBlock.revision || '',
-                    'var(--schematic-blue-color)',
+                    'var(--schematic-default-ink-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -506,7 +510,7 @@ export class SchematicSvgRenderer {
                     x + titleBlockWidth * 0.415,
                     valueRowY,
                     sheetValue,
-                    'var(--schematic-blue-color)',
+                    'var(--schematic-default-ink-color)',
                     'middle'
                 ) +
                 createSvgText(
@@ -599,7 +603,7 @@ export class SchematicSvgRenderer {
 
     /**
      * Builds one free text primitive with font metadata.
-     * @param {{ x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }} text
+     * @param {{ x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }} text
      * @param {number} sheetWidth
      * @param {number} sheetHeight
      * @param {{ marginWidth?: number }} sheet
@@ -645,12 +649,7 @@ export class SchematicSvgRenderer {
                 '--schematic-text-color'
             ),
             placement.anchor,
-            {
-                fontSize: text.fontSize,
-                fontFamily: text.fontFamily,
-                fontWeight: text.fontWeight,
-                rotation: text.rotation ? -text.rotation : 0
-            }
+            SchematicTypography.buildSchematicTextRenderOptions(text)
         )
     }
 
@@ -703,12 +702,18 @@ export class SchematicSvgRenderer {
 
     /**
      * Builds one schematic pin including its stub and visible labels.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }} pin
+     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex?: string }} pin
      * @param {number} sheetHeight
      * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
+     * @param {Set<string>} rotatedVerticalNumberOwners
      * @returns {string}
      */
-    static #buildSchematicPinMarkup(pin, sheetHeight, sheet) {
+    static #buildSchematicPinMarkup(
+        pin,
+        sheetHeight,
+        sheet,
+        rotatedVerticalNumberOwners
+    ) {
         const geometry = SchematicSvgRenderer.#projectSchematicPinGeometry(pin)
         if (!geometry) return ''
 
@@ -723,6 +728,9 @@ export class SchematicSvgRenderer {
             '--schematic-text-color'
         )
         const labelMode = pin.labelMode || 'name-and-number'
+        const rotateTopNumber =
+            pin.orientation === 'top' &&
+            rotatedVerticalNumberOwners.has(String(pin.ownerIndex || ''))
 
         if (pin.orientation === 'left') {
             if (labelMode !== 'hidden' && labelMode !== 'name-only') {
@@ -802,14 +810,14 @@ export class SchematicSvgRenderer {
             texts.push(
                 createSvgText(
                     'schematic-pin-number',
-                    pin.orientation === 'top' ? geometry.bodyX : geometry.bodyX - 2,
+                    pin.orientation === 'top' ? geometry.bodyX - 2 : geometry.bodyX - 2,
                     pin.orientation === 'top'
                         ? projectedInnerY - 6
                         : projectedInnerY + 7,
                     pin.designator,
                     labelColor,
                     'middle',
-                    pin.orientation === 'top'
+                    pin.orientation === 'top' && !rotateTopNumber
                         ? textOptions
                         : { ...textOptions, rotation: -90 }
                 )
@@ -851,7 +859,7 @@ export class SchematicSvgRenderer {
             escapeHtml(
                 SchematicColorResolver.resolveColor(
                     pin.color,
-                    '--schematic-bright-blue-color'
+                    '--schematic-accent-ink-color'
                 )
             ) +
             '" />' +

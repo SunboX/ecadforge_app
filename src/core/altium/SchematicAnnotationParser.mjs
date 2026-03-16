@@ -56,7 +56,7 @@ export class SchematicAnnotationParser {
                 recordType: 'annotation',
                 style: 0,
                 fontSize: SchematicAnnotationParser.#toSvgFontSize(font.size),
-                fontFamily: 'Songti SC, SimSun, Times New Roman, serif',
+                fontFamily: font.family,
                 fontWeight: 400,
                 rotation: 0,
                 anchor: 'middle'
@@ -130,19 +130,34 @@ export class SchematicAnnotationParser {
      */
     static #formatConnectorAnnotation(libReference) {
         const normalized = String(libReference || '').trim()
-        if (!/CON\/PH2\.54 2x3P/i.test(normalized)) {
+        const upper = normalized.toUpperCase()
+        const hasConnectorKeyword =
+            /\b(CON|CONN|CONNECTOR|HDR|HEADER)\b/.test(upper) ||
+            /\b\d+X\d+P\b/.test(upper)
+
+        if (!hasConnectorKeyword) {
             return ''
         }
 
+        const notes = ['HEADER']
+        const pitch =
+            /PH\s*([0-9.]+)/i.exec(normalized)?.[1] ||
+            /PITCH[_ =-]*([0-9.]+)/i.exec(normalized)?.[1]
+        const pinFormat = /\b(\d+X\d+P)\b/i.exec(upper)?.[1]
         const length = /L=([0-9.]+)/i.exec(normalized)?.[1] || ''
-        const notes = ['排针PH2.54', '2x3P']
 
-        if (/straight/i.test(normalized)) {
-            notes.push('180度')
+        if (pitch) {
+            notes.push('P' + pitch)
         }
 
-        if (/double plastic/i.test(normalized)) {
-            notes.push('双塑')
+        if (pinFormat) {
+            notes.push(pinFormat)
+        }
+
+        if (/\b(straight|vertical)\b/i.test(normalized)) {
+            notes.push('VERTICAL')
+        } else if (/\b(right angle|horizontal)\b/i.test(normalized)) {
+            notes.push('RIGHT-ANGLE')
         }
 
         if (length) {

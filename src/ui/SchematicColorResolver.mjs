@@ -1,6 +1,6 @@
 const COLOR_TOKEN_BY_VALUE = new Map([
-    ['#000080', '--schematic-blue-color'],
-    ['#0000ff', '--schematic-bright-blue-color'],
+    ['#000080', '--schematic-default-ink-color'],
+    ['#0000ff', '--schematic-accent-ink-color'],
     ['#000000', '--schematic-text-color'],
     ['#111111', '--schematic-text-color'],
     ['#1f1f1f', '--schematic-text-color'],

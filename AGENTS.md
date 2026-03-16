@@ -35,6 +35,12 @@
 - After each code change, run `npm test` or do a UI sanity check.
 - For every feature/fix/behavior change, add or update tests in `tests/`.
 - Keep tests focused on observable app behavior.
+- Tests must use repo-owned fake schematics and fake PCB samples only; never depend on or mention real customer, vendor, or project identifiers in fixtures, test names, or assertions.
+- Do not commit provided test files directly into the repository; extract only the minimum test information needed from them, obfuscate it, and keep only the obfuscated test data in embedded test data or repo-owned fake fixture helpers.
+- Do not reintroduce native provided `.SchDoc` or `.PcbDoc` files under `tests/fixtures/altium/` or any similar repo path; keep only split, obfuscated, test-required pieces in code-owned loaders.
+- Fixture helper APIs, fixture file names, and embedded labels must also stay obfuscated and non-source-descriptive; do not use source-descriptive helper names, file names, or any similarly guessable source-derived identifiers.
+- Parser and renderer fixes must stay universal; never special-case a specific `.SchDoc`, fixture file name, or project identifier when normalizing behavior.
+- Do not encode fixture-specific text phrases or library strings into production parser rules; derive behavior from generic structural signals only.
 
 ## Commit & Pull Request Guidelines
 
