@@ -47,7 +47,7 @@ Open `http://localhost:3000/` and load a native `.SchDoc` or `.PcbDoc` file.
 npm test
 ```
 
-The parser tests validate against the repo-owned fake fixtures in `tests/fixtures/altium/`.
+The parser tests validate against embedded obfuscated fake fixture shards assembled in `tests/fixtures/AltiumFixtureLoader.mjs`.
 
 ## Formatting
 

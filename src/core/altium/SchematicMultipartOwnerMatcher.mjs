@@ -39,7 +39,8 @@ export class SchematicMultipartOwnerMatcher {
                 minX: Number.POSITIVE_INFINITY,
                 minY: Number.POSITIVE_INFINITY,
                 maxX: Number.NEGATIVE_INFINITY,
-                maxY: Number.NEGATIVE_INFINITY
+                maxY: Number.NEGATIVE_INFINITY,
+                leftPinLength: 0
             }
 
             for (const [x, y] of points) {
@@ -48,6 +49,13 @@ export class SchematicMultipartOwnerMatcher {
                 existingBounds.maxX = Math.max(existingBounds.maxX, x)
                 existingBounds.maxY = Math.max(existingBounds.maxY, y)
             }
+
+            existingBounds.leftPinLength = Math.max(
+                existingBounds.leftPinLength,
+                SchematicMultipartOwnerMatcher.#collectLeftPinLength(
+                    record.fields
+                )
+            )
 
             partBounds.set(key, existingBounds)
         }
@@ -162,13 +170,98 @@ export class SchematicMultipartOwnerMatcher {
      * @returns {number}
      */
     static #scoreBoundsAnchor(bounds, x, y, isMirrored, currentPartId) {
+        const midpointY = (bounds.minY + bounds.maxY) / 2
+        const scores = []
+
         if (!isMirrored || currentPartId === '1') {
-            return Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y)
+            scores.push(Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y))
+
+            if (
+                SchematicMultipartOwnerMatcher.#isCompactHorizontalMultipart(
+                    bounds
+                ) &&
+                bounds.leftPinLength > 0
+            ) {
+                scores.push(
+                    Math.abs(bounds.minX - bounds.leftPinLength - x) +
+                        Math.abs(midpointY - y)
+                )
+            }
+        } else {
+            scores.push(
+                Math.abs(bounds.maxX - x) + Math.abs(bounds.minY - y),
+                Math.abs(bounds.maxX - x) + Math.abs(bounds.maxY - y)
+            )
         }
 
-        return Math.min(
-            Math.abs(bounds.maxX - x) + Math.abs(bounds.minY - y),
-            Math.abs(bounds.maxX - x) + Math.abs(bounds.maxY - y)
-        )
+        return Math.min(...scores)
+    }
+
+    /**
+     * Collects the left pin length for one raw schematic pin record.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {number}
+     */
+    static #collectLeftPinLength(fields) {
+        if (getField(fields, 'RECORD') !== '2') {
+            return 0
+        }
+
+        const pinLength = parseNumericField(fields, 'PinLength')
+        const orientation =
+            SchematicMultipartOwnerMatcher.#inferSchematicPinOrientation(
+                parseNumericField(fields, 'PinConglomerate')
+            )
+
+        if (
+            pinLength === null ||
+            pinLength <= 0 ||
+            orientation !== 'left'
+        ) {
+            return 0
+        }
+
+        return pinLength
+    }
+
+    /**
+     * Returns true when one owner bounds box looks like a compact horizontal
+     * passive multipart unit anchored from its left pin endpoint.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @returns {boolean}
+     */
+    static #isCompactHorizontalMultipart(bounds) {
+        const width = bounds.maxX - bounds.minX
+        const height = bounds.maxY - bounds.minY
+
+        return width <= 30 && height <= 20 && width > height
+    }
+
+    /**
+     * Maps raw pin conglomerates into schematic pin orientations.
+     * @param {number | null} conglomerate
+     * @returns {'left' | 'right' | 'top' | 'bottom' | null}
+     */
+    static #inferSchematicPinOrientation(conglomerate) {
+        switch (conglomerate) {
+            case 34:
+            case 50:
+            case 58:
+                return 'left'
+            case 32:
+            case 48:
+            case 56:
+                return 'right'
+            case 35:
+            case 51:
+            case 59:
+                return 'top'
+            case 33:
+            case 49:
+            case 57:
+                return 'bottom'
+            default:
+                return null
+        }
     }
 }

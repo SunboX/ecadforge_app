@@ -56,7 +56,7 @@ export class SchematicTextParser {
      * @param {Record<string, string>} metadata
      * @param {{ width: number, marginWidth: number }} sheet
      * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
      */
     static normalizeSchematicTextRecord(fields, metadata, sheet, fonts) {
         const x = ParserUtils.parseNumericField(fields, 'Location.X')
@@ -94,6 +94,10 @@ export class SchematicTextParser {
             font,
             recordType
         )
+        const sourceOrientation = ParserUtils.parseNumericField(
+            fields,
+            'Orientation'
+        )
         const textRecord = {
             x,
             y,
@@ -111,12 +115,15 @@ export class SchematicTextParser {
             fontFamily: font.family,
             fontWeight: font.bold ? 700 : 400,
             rotation,
+            sourceOrientation:
+                sourceOrientation === null ? undefined : sourceOrientation,
             powerPortDirection:
                 SchematicTextParser.#resolvePowerPortDirection(
                     fields,
                     recordType
                 ) || undefined,
             anchor: SchematicTextParser.#inferTextAnchor(
+                fields,
                 recordType,
                 name,
                 text,
@@ -252,6 +259,7 @@ export class SchematicTextParser {
 
     /**
      * Picks a visible text anchor from the recovered font metadata.
+     * @param {Record<string, string | string[]>} fields
      * @param {string} recordType
      * @param {string} name
      * @param {string} text
@@ -259,10 +267,15 @@ export class SchematicTextParser {
      * @param {number} rotation
      * @returns {'start' | 'middle' | 'end'}
      */
-    static #inferTextAnchor(recordType, name, text, font, rotation) {
+    static #inferTextAnchor(fields, recordType, name, text, font, rotation) {
         const normalizedName = String(name || '').trim().toLowerCase()
+        const justification = ParserUtils.parseNumericField(
+            fields,
+            'Justification'
+        )
 
         if (recordType === '17') return 'middle'
+        if (justification === 2) return 'middle'
         if (font.size >= 20 && !normalizedName && /\S/.test(text)) {
             return 'middle'
         }
@@ -393,9 +406,9 @@ export class SchematicTextParser {
 
     /**
      * Adds note box metadata to one decoded schematic note record.
-     * @param {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end' }} textRecord
+     * @param {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end' }} textRecord
      * @param {Record<string, string | string[]>} fields
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }}
      */
     static #normalizeSchematicNoteRecord(textRecord, fields) {
         const noteLines = SchematicTextParser.#decodeSchematicNoteLines(

@@ -36,7 +36,7 @@ export class SchematicShapeRenderer {
             escapeHtml(
                 SchematicColorResolver.resolveColor(
                     rectangle.color,
-                    '--schematic-blue-color'
+                    '--schematic-default-ink-color'
                 )
             ) +
             '" stroke-width="' +
@@ -81,7 +81,7 @@ export class SchematicShapeRenderer {
             escapeHtml(
                 SchematicColorResolver.resolveColor(
                     arc.color,
-                    '--schematic-blue-color'
+                    '--schematic-default-ink-color'
                 )
             ) +
             '" stroke-width="' +

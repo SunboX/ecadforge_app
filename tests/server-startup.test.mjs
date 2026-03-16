@@ -149,3 +149,84 @@ test('server entrypoint starts listening on the configured port', async (t) => {
     const output = await waitForServerListening(childProcess, port)
     assert.match(output.stdout, new RegExp('localhost:' + String(port)))
 })
+
+/**
+ * Verifies frontend modules are served with no-store cache headers so browser
+ * reloads do not keep stale parser worker code after local edits.
+ */
+test('server serves static app modules with no-store cache headers', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' + String(port) + '/main.mjs'
+    )
+
+    assert.equal(response.ok, true)
+    assert.match(
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
+ * Verifies the server rewrites frontend entrypoints and module imports with
+ * the current app version so browser ESM graphs cannot keep stale parser code.
+ */
+test('server serves versioned HTML and module imports', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const baseUrl = 'http://127.0.0.1:' + String(port)
+    const appMetaResponse = await fetch(baseUrl + '/api/app-meta')
+    const appMeta = await appMetaResponse.json()
+    const versionSuffix = '?v=' + String(appMeta.version)
+    const indexResponse = await fetch(baseUrl + '/')
+    const indexHtml = await indexResponse.text()
+    const mainResponse = await fetch(baseUrl + '/main.mjs' + versionSuffix)
+    const mainSource = await mainResponse.text()
+    const workerResponse = await fetch(
+        baseUrl + '/workers/altium-parser.worker.mjs' + versionSuffix
+    )
+    const workerSource = await workerResponse.text()
+
+    assert.equal(indexResponse.ok, true)
+    assert.match(indexHtml, new RegExp('/style\\.css\\?v=' + appMeta.version))
+    assert.match(indexHtml, new RegExp('/main\\.mjs\\?v=' + appMeta.version))
+
+    assert.equal(mainResponse.ok, true)
+    assert.match(
+        mainSource,
+        new RegExp('\\./AppController\\.mjs\\?v=' + appMeta.version)
+    )
+    assert.match(
+        mainSource,
+        new RegExp('\\./WorkerUrlBuilder\\.mjs\\?v=' + appMeta.version)
+    )
+
+    assert.equal(workerResponse.ok, true)
+    assert.match(
+        workerSource,
+        new RegExp(
+            '\\.\\./core/altium/AltiumParser\\.mjs\\?v=' + appMeta.version
+        )
+    )
+})

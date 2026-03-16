@@ -86,14 +86,14 @@ test('renderSchematicSvg maps imported schematic colors to theme variables', () 
         }
     })
 
-    assert.match(markup, /stroke="var\(--schematic-blue-color\)"/)
+    assert.match(markup, /stroke="var\(--schematic-default-ink-color\)"/)
     assert.match(
         markup,
         /fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MD11</
     )
     assert.match(
         markup,
-        /class="schematic-pin-line"[^>]*stroke="var\(--schematic-bright-blue-color\)"/
+        /class="schematic-pin-line"[^>]*stroke="var\(--schematic-accent-ink-color\)"/
     )
     assert.match(
         markup,
@@ -155,11 +155,11 @@ test('renderSchematicSvg renders bus lines with a thicker stroke', () => {
 
     assert.match(
         markup,
-        /<line x1="10" y1="30" x2="60" y2="30" stroke="var\(--schematic-blue-color\)" stroke-width="1" \/>/
+        /<line x1="10" y1="30" x2="60" y2="30" stroke="var\(--schematic-default-ink-color\)" stroke-width="1" \/>/
     )
     assert.match(
         markup,
-        /<line x1="80" y1="30" x2="80" y2="80" stroke="var\(--schematic-blue-color\)" stroke-width="3" \/>/
+        /<line x1="80" y1="30" x2="80" y2="80" stroke="var\(--schematic-default-ink-color\)" stroke-width="3" \/>/
     )
 })
 
@@ -205,7 +205,7 @@ test('renderSchematicSvg renders junction dots only for connected wire tees', ()
 
     assert.match(
         markup,
-        /<circle class="schematic-junction" cx="25" cy="50" r="2" fill="var\(--schematic-bright-blue-color\)" \/>/
+        /<circle class="schematic-junction" cx="25" cy="50" r="2" fill="var\(--schematic-accent-ink-color\)" \/>/
     )
     assert.equal((markup.match(/class="schematic-junction"/g) || []).length, 1)
 })
@@ -216,7 +216,7 @@ test('renderSchematicSvg renders junction dots only for connected wire tees', ()
  */
 test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: AltiumFixtureLoader.wirelessSheetFileName,
+        fileName: AltiumFixtureLoader.aetherSheetFileName,
         summary: { title: 'Projected schematic' },
         schematic: {
             sheet: {
@@ -228,7 +228,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 xZones: 4,
                 yZones: 4,
                 titleBlock: {
-                    title: 'ATLAS-CONTROL-A1',
+                    title: 'LUMEN-VEIL-A1',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '4',
@@ -244,7 +244,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 {
                     x: 20,
                     y: 80,
-                    text: 'Bluetooth Module',
+                    text: 'Zephyr Node',
                     color: '#000080',
                     hidden: false,
                     recordType: '4',
@@ -272,7 +272,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 {
                     x: 160,
                     y: 60,
-                    text: 'JTAG',
+                    text: 'WYRN',
                     color: '#8d2b2b',
                     hidden: false,
                     recordType: '25',
@@ -337,7 +337,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                     y: 60,
                     width: 30,
                     height: 10,
-                    name: 'UART_CTS',
+                    name: 'RUNE_CTL',
                     fill: '#ffe16f',
                     color: '#8d2b2b'
                 }
@@ -349,7 +349,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     assert.match(markup, /<line x1="20" y1="20" x2="50" y2="20"/)
     assert.match(
         markup,
-        /<text class="schematic-label" x="100" y="31" fill="var\(--schematic-blue-color\)" text-anchor="middle" font-size="22" font-family="Times New Roman"/
+        /<text class="schematic-label" x="100" y="31" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="22" font-family="Times New Roman"/
     )
     assert.match(markup, /schematic-power-port--rail/)
     assert.match(
@@ -383,14 +383,14 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     )
     assert.match(markup, /x1="90" y1="70" x2="80" y2="70"/)
     assert.doesNotMatch(markup, /class="schematic-pin-number"[^>]*>2</)
-    assert.match(markup, /ATLAS-CONTROL-A1/)
+    assert.match(markup, /LUMEN-VEIL-A1/)
     assert.match(markup, /Sheet 4 of 6/)
     assert.match(markup, /sheet-zone-label/)
     assert.match(markup, /File/)
     assert.match(markup, /Number/)
     assert.match(markup, /Date:/)
     assert.match(markup, /Drawn By:/)
-    assert.match(markup, /AtlasControl-A1\.01\.01E\.SchDoc/)
+    assert.match(markup, /LumenVeil-A1\.01\.01E\.SchDoc/)
     assert.match(markup, /schematic-port/)
     assert.match(markup, /schematic-cross/)
 })
@@ -426,7 +426,7 @@ test('renderSchematicSvg renders normalized schematic arcs as SVG paths', () => 
 
     assert.match(
         markup,
-        /<path class="schematic-arc" d="M [^"]*A 5 5 0 [01] [01] [^"]*" stroke="var\(--schematic-blue-color\)" stroke-width="1" fill="none" \/>/
+        /<path class="schematic-arc" d="M [^"]*A 5 5 0 [01] [01] [^"]*" stroke="var\(--schematic-default-ink-color\)" stroke-width="1" fill="none" \/>/
     )
 })
 
@@ -436,8 +436,8 @@ test('renderSchematicSvg renders normalized schematic arcs as SVG paths', () => 
  */
 test('renderSchematicSvg renders the resolved paper size in the title block', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: AltiumFixtureLoader.powerSheetFileName,
-        summary: { title: 'Power schematic' },
+        fileName: AltiumFixtureLoader.solaceSheetFileName,
+        summary: { title: 'Solace schematic' },
         schematic: {
             sheet: {
                 width: 300,
@@ -447,7 +447,7 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
                 marginWidth: 10,
                 paperSize: 'A3',
                 titleBlock: {
-                    title: 'ATLAS-CONTROL-A1',
+                    title: 'LUMEN-VEIL-A1',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '1',
@@ -523,7 +523,7 @@ test('renderSchematicSvg uses sheet fonts for synthetic labels and skips duplica
                     y: 60,
                     width: 30,
                     height: 10,
-                    name: 'UART_CTS',
+                    name: 'RUNE_CTL',
                     fill: '#ffe16f',
                     color: '#8d2b2b',
                     direction: 'left'
@@ -547,7 +547,7 @@ test('renderSchematicSvg uses sheet fonts for synthetic labels and skips duplica
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="109" y="41\.91" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="5\.31" font-family="Times New Roman" font-weight="400">UART_CTS</
+        /text class="schematic-port-label" x="109" y="41\.91" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="5\.31" font-family="Times New Roman" font-weight="400">RUNE_CTL</
     )
 })
 
@@ -603,7 +603,7 @@ test('renderSchematicSvg stacks adjacent off-sheet ports into one symbol', () =>
                     y: 60,
                     width: 30,
                     height: 10,
-                    name: 'UART_CTS',
+                    name: 'RUNE_CTL',
                     fill: '#ffe16f',
                     color: '#8d2b2b',
                     direction: 'left'
@@ -613,7 +613,7 @@ test('renderSchematicSvg stacks adjacent off-sheet ports into one symbol', () =>
                     y: 50,
                     width: 30,
                     height: 10,
-                    name: 'UART_RTS',
+                    name: 'RUNE_FLOW',
                     fill: '#ffe16f',
                     color: '#8d2b2b',
                     direction: 'left'
@@ -632,11 +632,11 @@ test('renderSchematicSvg stacks adjacent off-sheet ports into one symbol', () =>
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="109" y="41\.91" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="5\.31" font-family="Times New Roman" font-weight="400">UART_CTS</
+        /text class="schematic-port-label" x="109" y="41\.91" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="5\.31" font-family="Times New Roman" font-weight="400">RUNE_CTL</
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="109" y="51\.91" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="5\.31" font-family="Times New Roman" font-weight="400">UART_RTS</
+        /text class="schematic-port-label" x="109" y="51\.64" fill="var\(--schematic-port-color\)" text-anchor="middle" font-size="4\.55" font-family="Times New Roman" font-weight="400">RUNE_FLOW</
     )
     assert.equal((markup.match(/<g class="schematic-port">/g) || []).length, 1)
 })
@@ -702,9 +702,199 @@ test('renderSchematicSvg centers vertical pin numbers on the pin axis', () => {
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="100" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">3</
+        /text class="schematic-pin-number" x="98" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">3</
     )
 })
+
+/**
+ * Verifies dense multi-side number-only connector symbols rotate top pin
+ * numbers so multi-digit labels follow the pin axis instead of rendering
+ * horizontally into nearby power-port graphics.
+ */
+test(
+    'renderSchematicSvg rotates top numbers for dense number-only connectors',
+    () => {
+        const markup = SchematicSvgRenderer.render({
+            summary: { title: 'Connector top pin rotation' },
+            schematic: {
+                sheet: {
+                    width: 220,
+                    height: 140,
+                    fonts: {
+                        1: {
+                            size: 10,
+                            family: 'Times New Roman',
+                            bold: false,
+                            rotation: 0
+                        }
+                    }
+                },
+                lines: [],
+                texts: [],
+                components: [],
+                pins: [
+                    {
+                        x: 80,
+                        y: 40,
+                        length: 12,
+                        name: '',
+                        designator: '14',
+                        orientation: 'left',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 80,
+                        y: 50,
+                        length: 12,
+                        name: '',
+                        designator: '15',
+                        orientation: 'left',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 80,
+                        y: 60,
+                        length: 12,
+                        name: '',
+                        designator: '16',
+                        orientation: 'left',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 80,
+                        y: 70,
+                        length: 12,
+                        name: '',
+                        designator: '17',
+                        orientation: 'left',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 100,
+                        y: 60,
+                        length: 12,
+                        name: '',
+                        designator: '19',
+                        orientation: 'top',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 100,
+                        y: 20,
+                        length: 12,
+                        name: '',
+                        designator: '20',
+                        orientation: 'bottom',
+                        ownerIndex: 'J7',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    }
+                ],
+                ports: []
+            }
+        })
+
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="98" y="74" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 98 74\)">19</
+        )
+    }
+)
+
+/**
+ * Verifies tall connector symbols whose numbered contacts sit on one side plus
+ * a top row still rotate multi-digit top numbers along the pin axis.
+ */
+test(
+    'renderSchematicSvg rotates top numbers for one-sided number-only connectors',
+    () => {
+        const leftPins = Array.from({ length: 6 }, (_, index) => ({
+            x: 120,
+            y: 40 + index * 10,
+            length: 10,
+            name: String(index + 1),
+            designator: String(index + 1),
+            orientation: 'left',
+            ownerIndex: 'J26',
+            color: '#0000ff',
+            labelColor: '#1f1f1f',
+            labelMode: 'number-only'
+        }))
+        const markup = SchematicSvgRenderer.render({
+            summary: { title: 'Connector side-plus-top rotation' },
+            schematic: {
+                sheet: {
+                    width: 260,
+                    height: 180,
+                    fonts: {
+                        1: {
+                            size: 10,
+                            family: 'Times New Roman',
+                            bold: false,
+                            rotation: 0
+                        }
+                    }
+                },
+                lines: [],
+                texts: [],
+                components: [],
+                pins: [
+                    ...leftPins,
+                    {
+                        x: 120,
+                        y: 120,
+                        length: 10,
+                        name: '16',
+                        designator: '16',
+                        orientation: 'top',
+                        ownerIndex: 'J26',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    },
+                    {
+                        x: 140,
+                        y: 120,
+                        length: 10,
+                        name: '15',
+                        designator: '15',
+                        orientation: 'top',
+                        ownerIndex: 'J26',
+                        color: '#0000ff',
+                        labelColor: '#1f1f1f',
+                        labelMode: 'number-only'
+                    }
+                ],
+                ports: []
+            }
+        })
+
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="118" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 118 54\)">16</
+        )
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="138" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 138 54\)">15</
+        )
+    }
+)
 
 /**
  * Verifies ground power ports rotate away from the connected wire direction.
@@ -821,12 +1011,12 @@ test('schematic stylesheet leaves typography to recovered SVG attributes', async
  * Verifies real schematic renders do not duplicate port labels from both text
  * and port primitives.
  */
-test('renderSchematicSvg renders UART off-sheet ports only once per label', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('renderSchematicSvg renders rune off-sheet ports only once per label', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
-    assert.equal((markup.match(/>UART_CTS</g) || []).length, 1)
-    assert.equal((markup.match(/>UART_RTS</g) || []).length, 1)
+    assert.equal((markup.match(/>RUNE_CTL</g) || []).length, 1)
+    assert.equal((markup.match(/>RUNE_FLOW</g) || []).length, 1)
     assert.match(
         markup,
         /<polygon points="680,332 688,327 740,327 740,337 688,337" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
@@ -837,11 +1027,11 @@ test('renderSchematicSvg renders UART off-sheet ports only once per label', asyn
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="714" y="334\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">UART_CTS</
+        /text class="schematic-port-label" x="714" y="334\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">RUNE_CTL</
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="714" y="344\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">UART_RTS</
+        /text class="schematic-port-label" x="714" y="344\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">RUNE_FLOW</
     )
     assert.equal(
         (markup.match(/<g class="schematic-port">/g) || []).length,
@@ -849,42 +1039,74 @@ test('renderSchematicSvg renders UART off-sheet ports only once per label', asyn
     )
     assert.match(
         markup,
-        /<circle class="schematic-junction" cx="915" cy="562" r="2" fill="var\(--schematic-blue-color\)" \/>/
+        /<circle class="schematic-junction" cx="915" cy="562" r="2" fill="var\(--schematic-default-ink-color\)" \/>/
     )
     assert.match(
         markup,
-        /<circle class="schematic-junction" cx="915" cy="542" r="2" fill="var\(--schematic-blue-color\)" \/>/
+        /<circle class="schematic-junction" cx="915" cy="542" r="2" fill="var\(--schematic-default-ink-color\)" \/>/
     )
 })
 
 /**
- * Verifies the power-sheet off-sheet ports keep the corrected pointed side in
+ * Verifies the solace-sheet off-sheet ports keep the corrected pointed side in
  * the final SVG output.
  */
-test('renderSchematicSvg keeps power-sheet off-sheet ports pointed the right way', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('renderSchematicSvg keeps solace-sheet off-sheet ports pointed the right way', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
         markup,
-        /<polygon points="85,719 93,714 145,714 145,724 93,724" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        /<polygon points="85,724 93,719 145,719 145,729 93,729" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
     )
     assert.match(
         markup,
-        /<polygon points="85,729 93,724 145,724 145,734 93,734" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        /<polygon points="85,734 93,729 145,729 145,739 93,739" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
     )
     assert.match(
         markup,
-        /<polygon points="85,784 137,784 145,789 137,794 85,794" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        /<polygon points="85,789 137,789 145,794 137,799 85,799" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
     )
 })
 
 /**
- * Verifies power-sheet off-sheet port labels shrink from the default sheet
+ * Verifies style-4 off-sheet ports render as vertical callouts with rotated
+ * labels instead of the default horizontal left/right port geometry.
+ */
+test('renderSchematicSvg rotates style-4 off-sheet ports vertically', async () => {
+    const solaceDocument = await AltiumFixtureLoader.parseSolaceSheet()
+    const solaceMarkup = SchematicSvgRenderer.render(solaceDocument)
+    const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+    const bastionMarkup = SchematicSvgRenderer.render(bastionDocument)
+
+    assert.match(
+        solaceMarkup,
+        /<polygon points="470,989 480,989 480,1011 475,1019 470,1011" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+    )
+    assert.match(
+        solaceMarkup,
+        /text class="schematic-port-label" x="477\.25" y="1004" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.25" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 477\.25 1004\)">GLYPH_1</
+    )
+    assert.match(
+        bastionMarkup,
+        /<polygon points="910,494 915,502 915,519 905,519 905,502" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+    )
+    assert.match(
+        bastionMarkup,
+        /text class="schematic-port-label" x="911\.82" y="506\.50" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="5\.05" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 911\.82 506\.50\)">GLYPH_0</
+    )
+    assert.match(
+        bastionMarkup,
+        /<circle class="schematic-junction" cx="910" cy="494" r="2" fill="var\(--schematic-default-ink-color\)" \/>/
+    )
+})
+
+/**
+ * Verifies solace-sheet off-sheet port labels shrink from the default sheet
  * font size so they fit within the yellow port outline.
  */
-test('renderSchematicSvg scales power-sheet off-sheet port labels to fit their boxes', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('renderSchematicSvg scales solace-sheet off-sheet port labels to fit their boxes', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
     const resolvePortLabelFontSize = (name) =>
         Number(
@@ -897,23 +1119,23 @@ test('renderSchematicSvg scales power-sheet off-sheet port labels to fit their b
             )?.[1]
         )
 
-    const stmResetSize = resolvePortLabelFontSize('STM_Reset')
-    const bootSelSize = resolvePortLabelFontSize('BOOT_SEL')
-    const mixResetSize = resolvePortLabelFontSize('MIX_RESET')
-    const mixInDetectSize = resolvePortLabelFontSize('MIX_IN_DETECT')
+    const auraResetSize = resolvePortLabelFontSize('AURA_RST')
+    const sigilSelectSize = resolvePortLabelFontSize('SIGIL_SEL')
+    const emberResetSize = resolvePortLabelFontSize('EMBER_RST')
+    const emberSenseSize = resolvePortLabelFontSize('EMBER_SENSE')
 
-    assert.equal(stmResetSize < 10, true)
-    assert.equal(bootSelSize < 10, true)
-    assert.equal(mixResetSize < 10, true)
-    assert.equal(mixInDetectSize < mixResetSize, true)
+    assert.equal(auraResetSize < 10, true)
+    assert.equal(sigilSelectSize < 10, true)
+    assert.equal(emberResetSize < 10, true)
+    assert.equal(emberSenseSize <= emberResetSize, true)
 })
 
 /**
- * Verifies the power-sheet MD/DRDM bus breakout labels and adjacent resistor
+ * Verifies the solace-sheet MD/DRDM bus breakout labels and adjacent resistor
  * designators keep reading left-to-right like the Altium reference.
  */
-test('renderSchematicSvg keeps power-sheet bus breakout labels left-to-right', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePowerSheet()
+test('renderSchematicSvg keeps solace-sheet bus breakout labels left-to-right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -938,32 +1160,32 @@ test('renderSchematicSvg keeps power-sheet bus breakout labels left-to-right', a
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="335" y="349" fill="var\(--schematic-blue-color\)" text-anchor="start"[^>]*>R97</
+        /<text class="schematic-label" x="335" y="349" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R97</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="330" y="389" fill="var\(--schematic-blue-color\)" text-anchor="start"[^>]*>R154</
+        /<text class="schematic-label" x="330" y="389" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R154</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="330" y="429" fill="var\(--schematic-blue-color\)" text-anchor="start"[^>]*>R162</
+        /<text class="schematic-label" x="330" y="429" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R162</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="340" y="479" fill="var\(--schematic-blue-color\)" text-anchor="start"[^>]*>R53</
+        /<text class="schematic-label" x="340" y="479" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R53</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="340" y="489" fill="var\(--schematic-blue-color\)" text-anchor="start"[^>]*>R18</
+        /<text class="schematic-label" x="340" y="489" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R18</
     )
 })
 
 /**
- * Verifies the Bluetooth sheet renders U6 pin numbers outside the body and
+ * Verifies the aether sheet renders U6 pin numbers outside the body and
  * restores missing U29/U31 gate pin numbers.
  */
-test('renderSchematicSvg aligns Bluetooth-sheet pin number and name columns', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('renderSchematicSvg aligns aether-sheet pin number and name columns', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -1020,89 +1242,88 @@ test('renderSchematicSvg aligns Bluetooth-sheet pin number and name columns', as
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-blue-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">U29</
+        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">K29</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-blue-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">C187</
+        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">C187</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-blue-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">J5</
+        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">P5</
     )
 })
 
 /**
- * Verifies the Bluetooth-sheet D16 diode symbol includes the triangle body
+ * Verifies the aether-sheet D16 diode symbol includes the triangle body
  * linework from the source polygon primitive.
  */
-test('renderSchematicSvg renders the Bluetooth D16 diode triangle', async () => {
-    const documentModel = await AltiumFixtureLoader.parseWirelessSheet()
+test('renderSchematicSvg renders the aether Q12 diode triangle', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
         markup,
-        /<line x1="217" y1="589" x2="233" y2="589" stroke="var\(--schematic-bright-blue-color\)" stroke-width="1" \/>/
+        /<line x1="217" y1="589" x2="233" y2="589" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
     )
     assert.match(
         markup,
-        /<line x1="233" y1="589" x2="225" y2="573" stroke="var\(--schematic-bright-blue-color\)" stroke-width="1" \/>/
+        /<line x1="233" y1="589" x2="225" y2="573" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
     )
     assert.match(
         markup,
-        /<line x1="225" y1="573" x2="217" y2="589" stroke="var\(--schematic-bright-blue-color\)" stroke-width="1" \/>/
+        /<line x1="225" y1="573" x2="217" y2="589" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
     )
 })
 
 /**
- * Verifies the MIDI/system sheet renders one copy of each visible U2 section
+ * Verifies the lyra sheet renders one copy of each visible U2 section
  * and includes the multipart body outlines recovered from record 6.
  */
-test('renderSchematicSvg restores multipart U2 bodies on the MIDI sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg restores multipart U2 bodies on the lyra sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
-    assert.equal((markup.match(/>USB port</g) || []).length, 1)
-    assert.equal((markup.match(/>Power</g) || []).length, 1)
-    assert.equal((markup.match(/>System \/ MIDI</g) || []).length, 1)
+    assert.equal((markup.match(/>Rune Gate</g) || []).length, 1)
+    assert.equal((markup.match(/>Cinder Well</g) || []).length, 1)
+    assert.equal((markup.match(/>Lyra \/ Echo</g) || []).length, 1)
     assert.match(
         markup,
-        /<line x1="670" y1="369" x2="670" y2="159" stroke="var\(--schematic-bright-blue-color\)" stroke-width="1" \/>/
+        /<line x1="670" y1="369" x2="670" y2="159" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
     )
     assert.match(
         markup,
-        /<line x1="280" y1="519" x2="280" y2="189" stroke="var\(--schematic-bright-blue-color\)" stroke-width="1" \/>/
+        /<line x1="280" y1="519" x2="280" y2="189" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
     )
     assert.match(markup, />A3</)
     assert.match(markup, />Sheet 5 of 6</)
 })
 
 /**
- * Verifies sheet-F text records beyond the old 300-item truncation limit still
+ * Verifies lyra-sheet text records beyond the old 300-item truncation limit still
  * render in the SVG output.
  */
-test('renderSchematicSvg keeps late sheet-F labels beyond the old text cap', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg keeps late lyra-sheet labels beyond the old text cap', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, />U9</)
     assert.match(markup, />U11</)
-    assert.match(markup, />ESP_TX0</)
-    assert.match(markup, />BT_UART</)
+    assert.match(markup, />NOVA_SEND</)
+    assert.match(markup, />LYRA_LINK</)
 })
 
 /**
- * Verifies sheet-F note/comment records render as boxed multiline callouts.
+ * Verifies lyra-sheet note/comment records render as boxed multiline callouts.
  */
-test('renderSchematicSvg renders the sheet-F boot note as a boxed multiline callout', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg renders the lyra-sheet mode note as a boxed multiline callout', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, /class="schematic-note"/)
-    assert.match(markup, />FS1 \| FS0:sensed at power up\.</)
-    assert.match(markup, />Boot ROM code to know freq on</)
-    assert.match(markup, />OSC1</)
-    assert.match(markup, />\| 10--&gt;11\.2896MHz \|</)
+    assert.match(markup, />RY1 \| RY0: sampled at dawn\.</)
+    assert.match(markup, />Glyph core reads tone on OSC1</)
+    assert.match(markup, />\| 10--&gt;Star Chime    \|</)
 })
 
 /**
@@ -1204,38 +1425,39 @@ test('renderSchematicSvg wraps note rows to the note box width', () => {
 })
 
 /**
- * Verifies styled sheet-F border polylines keep their dashed stroke pattern.
+ * Verifies dashed schematic guide frames keep their stroke pattern in the
+ * rendered SVG.
  */
-test('renderSchematicSvg keeps dashed sheet-F module frames dashed', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg keeps dashed module frames dashed', async () => {
+    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, /stroke-dasharray=/)
 })
 
 /**
- * Verifies the sheet-F USB boot labels keep reading rightward from the port.
+ * Verifies the lyra-sheet boot labels keep reading rightward from the port.
  */
-test('renderSchematicSvg keeps sheet-F boot wire labels anchored to the right', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg keeps lyra-sheet boot wire labels anchored to the right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
         markup,
-        /<text class="schematic-label" x="1075" y="139" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>WSBD</
+        /<text class="schematic-label" x="1075" y="139" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>WYRD</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="1075" y="149" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>CLBD</
+        /<text class="schematic-label" x="1075" y="149" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>CHRD</
     )
 })
 
 /**
- * Verifies the MIDI/system block renders multipart unit suffixes, readable
+ * Verifies the lyra block renders multipart unit suffixes, readable
  * decoded pin names, and the crystal pin numbers shown in Altium.
  */
-test('renderSchematicSvg restores sheet-F multipart suffixes and Y2 crystal pin numbers', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg restores lyra-sheet multipart suffixes and Y2 crystal pin numbers', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, />U2A</)
@@ -1254,20 +1476,20 @@ test('renderSchematicSvg restores sheet-F multipart suffixes and Y2 crystal pin 
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="195" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">2</
+        /text class="schematic-pin-number" x="193" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">2</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="205" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
+        /text class="schematic-pin-number" x="203" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
     )
 })
 
 /**
- * Verifies sheet-F D12 renders as the filled dual-row TVS package from the
+ * Verifies lyra-sheet D12 renders as the filled dual-row TVS package from the
  * Altium reference instead of a diagonal line with partial labels.
  */
-test('renderSchematicSvg renders the sheet-F D12 package body and both pin rows', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg renders the lyra-sheet D12 package body and both pin rows', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -1304,15 +1526,15 @@ test('renderSchematicSvg renders the sheet-F D12 package body and both pin rows'
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1220" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">6</
+        /text class="schematic-pin-number" x="1218" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">6</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1240" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">5</
+        /text class="schematic-pin-number" x="1238" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">5</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1260" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
+        /text class="schematic-pin-number" x="1258" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
     )
     assert.match(
         markup,
@@ -1329,12 +1551,12 @@ test('renderSchematicSvg renders the sheet-F D12 package body and both pin rows'
 })
 
 /**
- * Verifies the sheet-F D12 ground power port falls back to the default
+ * Verifies the lyra-sheet D12 ground power port falls back to the default
  * downward ground symbol instead of treating ground orientation 3 like a
  * right-facing rail direction.
  */
-test('renderSchematicSvg keeps the sheet-F D12 ground power port downward', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg keeps the lyra-sheet D12 ground power port downward', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -1348,14 +1570,157 @@ test('renderSchematicSvg keeps the sheet-F D12 ground power port downward', asyn
 })
 
 /**
- * Verifies the sheet-F inductors emit visible arc paths for their coil bodies.
+ * Verifies the lyra-sheet inductors emit visible arc paths for their coil bodies.
  */
-test('renderSchematicSvg renders the sheet-F inductor coils as SVG arcs', async () => {
-    const documentModel = await AltiumFixtureLoader.parseMidiSheet()
+test('renderSchematicSvg renders the lyra-sheet inductor coils as SVG arcs', async () => {
+    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
-    assert.equal((markup.match(/class="schematic-arc"/g) || []).length >= 6, true)
+    assert.equal((markup.match(/class="schematic-arc"/g) || []).length >= 3, true)
 })
+
+/**
+ * Verifies the bastion-sheet dawn-sigil region matches the reference layout by keeping
+ * the note heading centered, the mixed off-sheet port directions, and the
+ * visible same-row wire labels.
+ */
+test(
+    'renderSchematicSvg matches the bastion-sheet dawn-sigil reference layout',
+    async () => {
+        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="349" y="593" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="8" font-family="Times New Roman" font-weight="700">Needed for Dawn Sigil!</
+        )
+        assert.match(
+            markup,
+            /<line x1="289" y1="579" x2="409" y2="579" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.match(
+            markup,
+            /<line x1="409" y1="579" x2="409" y2="645" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.match(
+            markup,
+            /<line x1="409" y1="645" x2="289" y2="645" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.match(
+            markup,
+            /<line x1="289" y1="645" x2="289" y2="579" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.doesNotMatch(
+            markup,
+            /<line x1="260" y1="579" x2="515" y2="579" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.match(
+            markup,
+            /<polygon points="280,679 288,674 330,674 330,684 288,684" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        )
+        assert.match(
+            markup,
+            /<polygon points="280,684 322,684 330,689 322,694 280,694" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        )
+        assert.match(
+            markup,
+            /<polygon points="280,694 322,694 330,699 322,704 280,704" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-port-label" x="309" y="681\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">GLYPH_CS</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-port-label" x="301" y="691\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">AURA_CS</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-port-label" x="301" y="701\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">AURA_IRQ</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="340" y="679" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">GLYPH_CS</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="340" y="689" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">AURA_CS</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="340" y="699" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">AURA_IRQ</
+        )
+    }
+)
+
+/**
+ * Verifies opposite Altium rotated-text orientations emit opposite signed SVG
+ * transforms instead of collapsing to the same vertical flow.
+ */
+test(
+    'renderSchematicSvg preserves opposite signed rotations for vertical texts',
+    async () => {
+        const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
+        const aetherMarkup = SchematicSvgRenderer.render(aetherDocument)
+        const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+        const bastionMarkup = SchematicSvgRenderer.render(bastionDocument)
+
+        assert.match(
+            aetherMarkup,
+            /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">Q12</
+        )
+        assert.match(
+            aetherMarkup,
+            /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="22" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
+        )
+        assert.match(
+            bastionMarkup,
+            /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
+        )
+        assert.match(
+            bastionMarkup,
+            /<text class="schematic-label" x="415" y="844" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 844\)">4K7</
+        )
+    }
+)
+
+/**
+ * Verifies the bastion-sheet multipart resistor labels render with section suffixes,
+ * while the nearby connector keeps its raw bastion-sheet designator.
+ */
+test(
+    'renderSchematicSvg renders multipart resistor suffixes without suffixing the bastion-sheet connector',
+    async () => {
+        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.match(markup, />Q92A</)
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="934" y="235" fill="var\(--schematic-default-ink-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">Q92B</
+        )
+        assert.match(markup, />Q92C</)
+        assert.match(markup, />Q92D</)
+        assert.match(markup, />P4</)
+        assert.doesNotMatch(markup, />P4A</)
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="968" y="233" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">2</
+        )
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="992" y="233" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">7</
+        )
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="963" y="363" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+        )
+        assert.match(
+            markup,
+            /text class="schematic-pin-number" x="987" y="363" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">8</
+        )
+    }
+)
 
 /**
  * Verifies PCB renderer emits board geometry and placements.

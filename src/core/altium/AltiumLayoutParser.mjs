@@ -225,7 +225,7 @@ export class AltiumLayoutParser {
      * @param {{ x: number, y: number }[]} components
      * @param {{ x: number, y: number }[]} pins
      * @param {{ x: number, y: number, width: number, height: number }[]} rectangles
-     * @param {{ x: number, y: number, width: number, height: number }[]} ports
+     * @param {{ x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ maxX: number, maxY: number } | null}
      */
@@ -264,6 +264,16 @@ export class AltiumLayoutParser {
         }
 
         for (const port of ports) {
+            if (port.direction === 'up' || port.direction === 'down') {
+                const halfWidth = Number(port.height || 0) / 2
+
+                coordinates.push(
+                    [port.x - halfWidth, port.y],
+                    [port.x + halfWidth, port.y + port.width]
+                )
+                continue
+            }
+
             coordinates.push(
                 [port.x, port.y],
                 [port.x + port.width, port.y + port.height]

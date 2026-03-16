@@ -35,9 +35,8 @@ npm test
 
 ## Sample Corpus
 
-The current parser tests are validated against the repo-owned fake fixtures:
+The current parser tests are validated against embedded obfuscated fake fixture
+pieces assembled in `tests/fixtures/AltiumFixtureLoader.mjs`.
 
-- `tests/fixtures/altium/AtlasControl-A1.01.01A.SchDoc`
-- `tests/fixtures/altium/AtlasControl-A1.01.08.PcbDoc`
-
-If these fixtures move, update `tests/fixtures/AltiumFixtureLoader.mjs`.
+If those embedded shards or manual fixture fragments move, update
+`tests/fixtures/AltiumFixtureLoader.mjs`.

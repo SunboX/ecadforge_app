@@ -13,13 +13,37 @@ export class SchematicTextPostProcessor {
             (text) =>
                 !ports.some(
                     (port) =>
-                        text.recordType === '25' &&
-                        port.name === text.text &&
-                        Math.abs(port.y - text.y) <= 2 &&
-                        text.x < port.x &&
-                        port.x - text.x <= Math.max(port.width + 20, 80)
+                        SchematicTextPostProcessor.#isDuplicatePortLabel(
+                            text,
+                            port
+                        )
                 )
         )
+    }
+
+    /**
+     * Returns true when one free wire label duplicates a visible off-sheet port
+     * label immediately beside the port body.
+     * @param {{ x: number, y: number, text: string, recordType?: string }} text
+     * @param {{ x: number, y: number, width: number, name: string }} port
+     * @returns {boolean}
+     */
+    static #isDuplicatePortLabel(text, port) {
+        if (
+            text.recordType !== '25' ||
+            port.name !== text.text ||
+            Math.abs(port.y - text.y) > 2
+        ) {
+            return false
+        }
+
+        if ((port.direction || 'right') !== 'left') {
+            return false
+        }
+
+        const maxGap = Math.max(port.width + 20, 80)
+
+        return text.x <= port.x && port.x - text.x <= maxGap
     }
 
     /**
@@ -31,6 +55,12 @@ export class SchematicTextPostProcessor {
      * @returns {{ text: string, name?: string, ownerIndex?: string, recordType?: string }[]}
      */
     static decorateMultipartDesignators(texts, activeMultipartOwnerParts) {
+        const duplicatedActiveBaseDesignators =
+            SchematicTextPostProcessor.#collectDuplicatedActiveMultipartDesignators(
+                texts,
+                activeMultipartOwnerParts
+            )
+
         return texts.map((text) => {
             const ownerIndex = String(text.ownerIndex || '')
             const suffix =
@@ -41,7 +71,8 @@ export class SchematicTextPostProcessor {
             if (
                 !suffix ||
                 text.recordType !== '34' ||
-                String(text.name || '').trim().toLowerCase() !== 'designator'
+                String(text.name || '').trim().toLowerCase() !== 'designator' ||
+                !duplicatedActiveBaseDesignators.has(text.text)
             ) {
                 return text
             }
@@ -58,13 +89,49 @@ export class SchematicTextPostProcessor {
     }
 
     /**
+     * Collects base multipart designators that belong to more than one active
+     * visible owner on the current sheet.
+     * @param {{ text: string, name?: string, ownerIndex?: string, recordType?: string }[]} texts
+     * @param {Map<string, string>} activeMultipartOwnerParts
+     * @returns {Set<string>}
+     */
+    static #collectDuplicatedActiveMultipartDesignators(
+        texts,
+        activeMultipartOwnerParts
+    ) {
+        const counts = new Map()
+
+        for (const text of texts) {
+            const ownerIndex = String(text.ownerIndex || '')
+
+            if (
+                !activeMultipartOwnerParts.has(ownerIndex) ||
+                text.recordType !== '34' ||
+                String(text.name || '').trim().toLowerCase() !== 'designator' ||
+                !/\d$/i.test(String(text.text || '').trim())
+            ) {
+                continue
+            }
+
+            const baseDesignator = String(text.text || '').trim()
+            counts.set(baseDesignator, (counts.get(baseDesignator) || 0) + 1)
+        }
+
+        return new Set(
+            [...counts.entries()]
+                .filter(([, count]) => count > 1)
+                .map(([baseDesignator]) => baseDesignator)
+        )
+    }
+
+    /**
      * Re-anchors horizontal component texts from their owner primitive bounds
-     * so labels to the left of a symbol right-align and labels to the right
-     * keep reading left-to-right.
+     * so left-side standalone designators can right-align without disturbing
+     * stacked owner-side value text.
      * @param {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]} texts
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
      * @param {{ x: number, y: number, ownerIndex: string, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
-     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @returns {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]}
      */
     static anchorComponentTextsFromOwnerBounds(texts, lines, pins, ports = []) {
@@ -78,7 +145,7 @@ export class SchematicTextPostProcessor {
         return texts.map((text) => {
             if (
                 !text ||
-                text.name !== 'Designator' ||
+                !SchematicTextPostProcessor.#isDesignatorText(text) ||
                 text.rotation ||
                 !text.ownerIndex
             ) {
@@ -92,22 +159,29 @@ export class SchematicTextPostProcessor {
             }
 
             const paddedText =
-                SchematicTextPostProcessor.#padDesignatorAboveOwner(
-                    text,
-                    bounds
-                )
+                SchematicTextPostProcessor.#isDesignatorText(text)
+                    ? SchematicTextPostProcessor.#padDesignatorAboveOwner(
+                          text,
+                          bounds
+                      )
+                    : text
             const ownerPinCount = ownerPinCounts.get(text.ownerIndex) || 0
 
             if (text.y > bounds.maxY) {
                 return paddedText
             }
 
-            if (text.y < bounds.minY) {
+            if (text.y < bounds.minY - 1) {
                 return paddedText
             }
 
             if (paddedText.x <= bounds.minX + 2) {
                 if (
+                    SchematicTextPostProcessor.#hasVisibleOwnerSideTextStack(
+                        paddedText,
+                        texts,
+                        bounds
+                    ) ||
                     SchematicTextPostProcessor.#hasNearbyLeftWireLabel(
                         paddedText,
                         texts,
@@ -148,7 +222,7 @@ export class SchematicTextPostProcessor {
      * @param {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]} texts
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
-     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @returns {{ x: number, y: number, text: string, name?: string, ownerIndex?: string, recordType?: string, rotation?: number, anchor?: 'start' | 'middle' | 'end' }[]}
      */
     static anchorWireLabelsNearDesignators(texts, lines, pins, ports = []) {
@@ -259,6 +333,42 @@ export class SchematicTextPostProcessor {
     }
 
     /**
+     * Returns true when a text is a visible component designator.
+     * @param {{ name?: string }} text
+     * @returns {boolean}
+     */
+    static #isDesignatorText(text) {
+        return String(text.name || '').trim().toLowerCase() === 'designator'
+    }
+
+    /**
+     * Returns true when a left-side designator shares its owner-side stack with
+     * a visible value or comment text at the same x position.
+     * @param {{ x: number, y: number, ownerIndex?: string }} text
+     * @param {{ x: number, y: number, name?: string, ownerIndex?: string, rotation?: number }[]} texts
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @returns {boolean}
+     */
+    static #hasVisibleOwnerSideTextStack(text, texts, bounds) {
+        return texts.some((candidate) => {
+            const normalizedName = String(candidate?.name || '')
+                .trim()
+                .toLowerCase()
+
+            return (
+                candidate &&
+                candidate !== text &&
+                candidate.ownerIndex === text.ownerIndex &&
+                !candidate.rotation &&
+                (normalizedName === 'value' || normalizedName === 'comment') &&
+                candidate.y >= bounds.minY &&
+                candidate.y <= bounds.maxY &&
+                Math.abs(candidate.x - text.x) <= 2
+            )
+        })
+    }
+
+    /**
      * Adds a small gap between a top-side designator and the owner outline.
      * @param {{ x: number, y: number }} text
      * @param {{ maxY: number }} bounds
@@ -276,9 +386,8 @@ export class SchematicTextPostProcessor {
     }
 
     /**
-     * Returns true for compact two-pin symbols such as the small capacitors on
-     * the Bluetooth sheet, whose left-side designators should keep reading
-     * left-to-right instead of flipping toward the body.
+     * Returns true for compact two-pin symbols whose left-side designators
+     * should keep reading left-to-right instead of flipping toward the body.
      * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
      * @param {number} ownerPinCount
      * @returns {boolean}
@@ -292,13 +401,13 @@ export class SchematicTextPostProcessor {
     }
 
     /**
-     * Returns true when a designator sits immediately to the right of a visible
-     * same-row wire label and should preserve the left-to-right flow.
+     * Returns true when a component text sits immediately to the right of a
+     * visible same-row wire label and should preserve the left-to-right flow.
      * @param {{ x: number, y: number, recordType?: string, rotation?: number }} text
      * @param {{ x: number, y: number, recordType?: string, rotation?: number }}[] texts
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
-     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @returns {boolean}
      */
     static #hasNearbyLeftWireLabel(text, texts, lines, pins, ports) {
@@ -422,7 +531,7 @@ export class SchematicTextPostProcessor {
      * rightward from that port.
      * @param {{ x: number, y: number }} text
      * @param {{ x1: number, y1: number, x2: number, y2: number, ownerIndex?: string }[]} lines
-     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }[]} ports
+     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @returns {boolean}
      */
     static #hasPortConnectedAtWireStart(text, lines, ports) {
@@ -438,16 +547,12 @@ export class SchematicTextPostProcessor {
 
         const leftX = Math.min(containingSegment.x1, containingSegment.x2)
 
-        return ports.some((port) => {
-            const endpoint =
-                SchematicTextPostProcessor.#projectPortConnectionEndpoint(port)
-
-            return (
-                endpoint &&
-                Math.abs(endpoint.x - leftX) <= 2 &&
-                Math.abs(endpoint.y - text.y) <= 2
-            )
-        })
+        return ports.some(
+            (port) =>
+                Math.abs(port.y - text.y) <= 2 &&
+                (Math.abs(port.x - leftX) <= 2 ||
+                    Math.abs(port.x + port.width - leftX) <= 2)
+        )
     }
 
     /**
@@ -517,18 +622,6 @@ export class SchematicTextPostProcessor {
         }
 
         return false
-    }
-
-    /**
-     * Projects the wire-connection endpoint for one off-sheet port.
-     * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' }} port
-     * @returns {{ x: number, y: number }}
-     */
-    static #projectPortConnectionEndpoint(port) {
-        return {
-            x: (port.direction || 'right') === 'left' ? port.x + port.width : port.x,
-            y: port.y
-        }
     }
 
     /**

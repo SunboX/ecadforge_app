@@ -2,6 +2,7 @@ import { AppController } from './AppController.mjs'
 import { AppState } from './core/AppState.mjs'
 import { AppView } from './ui/AppView.mjs'
 import { I18nService } from './I18n.mjs'
+import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 
 /**
  * App bootstrap.
@@ -18,13 +19,17 @@ async function bootstrap() {
     })
 
     const view = new AppView(document)
+    const parserWorkerUrl = WorkerUrlBuilder.buildParserWorkerUrl(
+        import.meta.url,
+        Date.now()
+    )
     const controller = new AppController({
         state,
         view,
         i18n,
         workerFactory: () =>
             new Worker(
-                new URL('./workers/altium-parser.worker.mjs', import.meta.url),
+                parserWorkerUrl,
                 { type: 'module' }
             )
     })

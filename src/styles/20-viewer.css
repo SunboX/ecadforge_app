@@ -134,6 +134,11 @@
     transform: translateY(-1px);
 }
 
+html.is-schematic-panning,
+html.is-schematic-panning body {
+    overflow: hidden;
+}
+
 .viewer-stage {
     min-height: 68vh;
     overflow: hidden;
@@ -224,8 +229,8 @@
 }
 
 .schematic-svg {
-    --schematic-blue-color: #000080;
-    --schematic-bright-blue-color: #0000ff;
+    --schematic-default-ink-color: #000080;
+    --schematic-accent-ink-color: #0000ff;
     --schematic-text-color: #1f1f1f;
     --schematic-sheet-label-color: #4f4f4f;
     --schematic-power-color: #800000;
@@ -239,6 +244,13 @@
     --schematic-sheet-backdrop-stroke: rgba(95, 112, 124, 0.12);
     --schematic-sheet-frame-stroke: rgba(95, 112, 124, 0.48);
     --schematic-node-fill: rgba(15, 116, 108, 0.9);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.schematic-svg.is-panning {
+    cursor: grabbing;
 }
 
 .sheet-backdrop {

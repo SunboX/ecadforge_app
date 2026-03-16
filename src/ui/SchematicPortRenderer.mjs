@@ -12,7 +12,7 @@ export class SchematicPortRenderer {
     /**
      * Builds schematic off-sheet port boxes, stacking adjacent rows into one
      * shared outline when they use the same geometry and styling.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[]} ports
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @param {number} sheetHeight
      * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
      * @returns {string}
@@ -31,12 +31,32 @@ export class SchematicPortRenderer {
 
     /**
      * Builds one grouped schematic off-sheet port symbol.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[]} portGroup
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} portGroup
      * @param {number} sheetHeight
      * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
      * @returns {string}
      */
     static #buildPortGroupMarkup(portGroup, sheetHeight, sheet) {
+        const direction = portGroup[0]?.direction || 'right'
+        const baseTextOptions =
+            SchematicTypography.buildDefaultSchematicFontOptions(sheet)
+
+        if (SchematicPortRenderer.#isVerticalDirection(direction)) {
+            return (
+                '<g class="schematic-port">' +
+                portGroup
+                    .map((port) =>
+                        SchematicPortRenderer.#buildVerticalPortMarkup(
+                            port,
+                            sheetHeight,
+                            baseTextOptions
+                        )
+                    )
+                    .join('') +
+                '</g>'
+            )
+        }
+
         const rows = [...portGroup]
             .map((port) => ({
                 ...port,
@@ -45,16 +65,13 @@ export class SchematicPortRenderer {
             }))
             .sort((left, right) => left.projectedY - right.projectedY)
         const firstRow = rows[0]
-        const lastRow = rows[rows.length - 1]
         const x = firstRow.x
         const width = firstRow.width
-        const direction = firstRow.direction || 'right'
+        const horizontalDirection = firstRow.direction || 'right'
         const tipDepth = Math.min(
             Math.max(firstRow.height - 2, 4),
             width / 2
         )
-        const baseTextOptions =
-            SchematicTypography.buildDefaultSchematicFontOptions(sheet)
         const outlineMarkup = rows
             .map(
                 (row) =>
@@ -66,7 +83,7 @@ export class SchematicPortRenderer {
                             row.width,
                             row.height,
                             tipDepth,
-                            direction
+                            horizontalDirection
                         )
                     ) +
                     '" fill="' +
@@ -100,7 +117,7 @@ export class SchematicPortRenderer {
                         row.x,
                         row.width,
                         tipDepth,
-                        direction
+                        horizontalDirection
                     ),
                     SchematicPortRenderer.#resolveLabelBaselineY(
                         row.projectedY,
@@ -123,6 +140,76 @@ export class SchematicPortRenderer {
             outlineMarkup +
             labelMarkup +
             '</g>'
+        )
+    }
+
+    /**
+     * Builds one style-4 vertical off-sheet port symbol.
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'up' | 'down' }} port
+     * @param {number} sheetHeight
+     * @param {{ fontSize: number, fontFamily: string, fontWeight: number }} baseTextOptions
+     * @returns {string}
+     */
+    static #buildVerticalPortMarkup(port, sheetHeight, baseTextOptions) {
+        const tipDepth = Math.min(
+            Math.max(port.height - 2, 4),
+            port.width / 2
+        )
+        const projectedTopY = projectSchematicY(sheetHeight, port.y + port.width)
+        const projectedBottomY = projectSchematicY(sheetHeight, port.y)
+        const textOptions = {
+            ...SchematicPortRenderer.#resolveLabelTextOptions(
+                port,
+                baseTextOptions
+            ),
+            rotation: -90
+        }
+
+        return (
+            '<polygon points="' +
+            escapeHtml(
+                SchematicPortRenderer.#buildVerticalOutlinePoints(
+                    port.x,
+                    projectedTopY,
+                    projectedBottomY,
+                    port.height,
+                    tipDepth,
+                    port.direction || 'up'
+                )
+            ) +
+            '" fill="' +
+            escapeHtml(
+                SchematicColorResolver.resolveFill(
+                    port.fill,
+                    '--schematic-fill-color'
+                )
+            ) +
+            '" stroke="' +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    port.color,
+                    '--schematic-port-color'
+                )
+            ) +
+            '" />' +
+            createSvgText(
+                'schematic-port-label',
+                SchematicPortRenderer.#resolveVerticalLabelX(
+                    port.x,
+                    textOptions.fontSize
+                ),
+                SchematicPortRenderer.#resolveVerticalLabelY(
+                    projectedTopY,
+                    projectedBottomY
+                ),
+                port.name,
+                SchematicColorResolver.resolveColor(
+                    port.color,
+                    '--schematic-port-color'
+                ),
+                'middle',
+                textOptions
+            )
         )
     }
 
@@ -157,6 +244,53 @@ export class SchematicPortRenderer {
             [x + width, y + height / 2],
             [x + width - tipDepth, y + height],
             [x, y + height]
+        ]
+            .map(([pointX, pointY]) =>
+                formatNumber(pointX) + ',' + formatNumber(pointY)
+            )
+            .join(' ')
+    }
+
+    /**
+     * Builds the polygon for one vertical style-4 off-sheet port.
+     * @param {number} x
+     * @param {number} projectedTopY
+     * @param {number} projectedBottomY
+     * @param {number} height
+     * @param {number} tipDepth
+     * @param {'up' | 'down'} direction
+     * @returns {string}
+     */
+    static #buildVerticalOutlinePoints(
+        x,
+        projectedTopY,
+        projectedBottomY,
+        height,
+        tipDepth,
+        direction
+    ) {
+        const halfWidth = height / 2
+
+        if (direction === 'down') {
+            return [
+                [x - halfWidth, projectedTopY],
+                [x + halfWidth, projectedTopY],
+                [x + halfWidth, projectedBottomY - tipDepth],
+                [x, projectedBottomY],
+                [x - halfWidth, projectedBottomY - tipDepth]
+            ]
+                .map(([pointX, pointY]) =>
+                    formatNumber(pointX) + ',' + formatNumber(pointY)
+                )
+                .join(' ')
+        }
+
+        return [
+            [x, projectedTopY],
+            [x + halfWidth, projectedTopY + tipDepth],
+            [x + halfWidth, projectedBottomY],
+            [x - halfWidth, projectedBottomY],
+            [x - halfWidth, projectedTopY + tipDepth]
         ]
             .map(([pointX, pointY]) =>
                 formatNumber(pointX) + ',' + formatNumber(pointY)
@@ -209,6 +343,26 @@ export class SchematicPortRenderer {
      */
     static #resolveLabelBaselineY(projectedY, height, fontSize) {
         return projectedY + height / 2 + fontSize * 0.36
+    }
+
+    /**
+     * Centers one rotated vertical label inside the port body.
+     * @param {number} x
+     * @param {number} fontSize
+     * @returns {number}
+     */
+    static #resolveVerticalLabelX(x, fontSize) {
+        return x + fontSize * 0.36
+    }
+
+    /**
+     * Returns the visual centerline for one rotated vertical label.
+     * @param {number} projectedTopY
+     * @param {number} projectedBottomY
+     * @returns {number}
+     */
+    static #resolveVerticalLabelY(projectedTopY, projectedBottomY) {
+        return (projectedTopY + projectedBottomY) / 2
     }
 
     /**
@@ -282,8 +436,8 @@ export class SchematicPortRenderer {
     /**
      * Groups vertically adjacent off-sheet ports that share the same geometry
      * and styling so they render as one stacked symbol.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[]} ports
-     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[][]}
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
+     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[][]}
      */
     static #groupPorts(ports) {
         const sortedPorts = [...ports].sort(
@@ -316,13 +470,18 @@ export class SchematicPortRenderer {
 
     /**
      * Returns true when one port can extend an existing stacked-port group.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }[]} portGroup
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' }} port
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} portGroup
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }} port
      * @returns {boolean}
      */
     static #canAppendPort(portGroup, port) {
         const firstPort = portGroup[0]
         const previousPort = portGroup[portGroup.length - 1]
+        const direction = firstPort.direction || 'right'
+
+        if (SchematicPortRenderer.#isVerticalDirection(direction)) {
+            return false
+        }
 
         return (
             firstPort.x === port.x &&
@@ -333,5 +492,14 @@ export class SchematicPortRenderer {
             (firstPort.direction || 'right') === (port.direction || 'right') &&
             Math.abs(port.y - previousPort.y - previousPort.height) <= 0.01
         )
+    }
+
+    /**
+     * Returns true when a port direction uses the style-4 vertical geometry.
+     * @param {'left' | 'right' | 'up' | 'down'} direction
+     * @returns {boolean}
+     */
+    static #isVerticalDirection(direction) {
+        return direction === 'up' || direction === 'down'
     }
 }

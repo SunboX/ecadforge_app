@@ -50,3 +50,69 @@ test('collectActiveMultipartOwnerParts matches mirrored multipart owners by full
 
     assert.equal(activeOwnerParts.get('28'), '6')
 })
+
+/**
+ * Verifies passive multipart owners can match when the component placement is
+ * anchored on the left outer pin endpoint instead of a bounds corner.
+ */
+test('collectActiveMultipartOwnerParts matches passive multipart owners by left pin anchor', () => {
+    const records = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '150',
+                'Location.Y': '205',
+                PinLength: '10',
+                PinConglomerate: '50'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '170',
+                'Location.Y': '205',
+                PinLength: '10',
+                PinConglomerate: '48'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '14',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '150',
+                'Location.Y': '200',
+                'Corner.X': '170',
+                'Corner.Y': '210'
+            }
+        }
+    ]
+    const componentRecords = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '1',
+                IndexInSheet: '27',
+                PartCount: '5',
+                CurrentPartId: '2',
+                'Location.X': '140',
+                'Location.Y': '205'
+            }
+        }
+    ]
+
+    const activeOwnerParts =
+        SchematicMultipartOwnerMatcher.collectActiveMultipartOwnerParts(
+            records,
+            componentRecords
+        )
+
+    assert.equal(activeOwnerParts.get('28'), '2')
+})
