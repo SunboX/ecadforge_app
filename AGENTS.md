@@ -34,6 +34,7 @@
 - Use repo scripts only (`npm test`).
 - After each code change, run `npm test` or do a UI sanity check.
 - For every feature/fix/behavior change, add or update tests in `tests/`.
+- Keep each test file under 1000 lines; split large suites into domain-based files when they grow.
 - Keep tests focused on observable app behavior.
 - Tests must use repo-owned fake schematics and fake PCB samples only; never depend on or mention real customer, vendor, or project identifiers in fixtures, test names, or assertions.
 - Do not commit provided test files directly into the repository; extract only the minimum test information needed from them, obfuscate it, and keep only the obfuscated test data in embedded test data or repo-owned fake fixture helpers.
