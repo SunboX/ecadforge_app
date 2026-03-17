@@ -1,0 +1,359 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { AltiumFixtureLoader } from '../../fixtures/AltiumFixtureLoader.mjs'
+import { AltiumParser } from '../../../src/core/altium/AltiumParser.mjs'
+import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
+
+/**
+ * Verifies the reduced embedded solace-sheet fixture still produces normalized
+ * ports, labels, and bus geometry.
+ */
+test('parseAltiumArrayBuffer parses an embedded fake SchDoc sample', async () => {
+    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+
+    assert.equal(documentModel.kind, 'schematic')
+    assert.equal(documentModel.fileType, 'SchDoc')
+    assert.equal(documentModel.schematic.components.length, 0)
+    assert.equal(documentModel.schematic.lines.length, 14)
+    assert.equal(documentModel.schematic.texts.length, 10)
+    assert.equal(documentModel.schematic.ports.length, 5)
+    assert.equal(
+        documentModel.schematic.lines.filter((line) => line.isBus).length,
+        2
+    )
+    assert.equal(documentModel.bom.length, 0)
+    assert.equal(documentModel.summary.title, 'LUMEN-VEIL-A1')
+})
+
+/**
+ * Verifies wrapped record-28 note boxes stay in the text model and do not
+ * leak into the line model as a diagonal location-to-corner segment.
+ */
+test('parseAltiumArrayBuffer keeps record-28 notes out of schematic lines', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|CustomX=200|CustomY=100|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|RECORD=28|Location.X=20|Location.Y=20|Corner.X=120|Corner.Y=60' +
+            '|AreaColor=16777215|TextColor=255|FontID=1|IsSolid=T|Alignment=1|WordWrap=T|ClipToRect=T' +
+            '|Text=*NOTE:~11)Alpha~12)Beta'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'wrapped-note.SchDoc',
+        arrayBuffer
+    )
+    const note = documentModel.schematic.texts.find(
+        (text) => text.recordType === '28'
+    )
+
+    assert.ok(note)
+    assert.equal(documentModel.schematic.lines.length, 0)
+    assert.equal(note.color, '#ff0000')
+    assert.deepEqual(note.noteLines, ['*NOTE:', '1)Alpha', '2)Beta'])
+    assert.equal(note.cornerX, 120)
+    assert.equal(note.cornerY, 60)
+})
+
+/**
+ * Verifies Altium schematic colors, title typography, and synthesized
+ * connector notes are normalized from the aether-sheet fixture.
+ */
+test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () => {
+    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+
+    assert.equal(documentModel.kind, 'schematic')
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) =>
+                text.text === 'Zephyr Node' && text.color === '#000080'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) =>
+                text.text === 'WYRN' &&
+                Math.abs(text.fontSize - 22) < 0.02 &&
+                text.anchor === 'middle'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) =>
+                text.text === '+3.3V' &&
+                text.recordType === '17' &&
+                text.style === 2 &&
+                text.rotation === 0 &&
+                text.anchor === 'middle'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) => text.text === 'WYRN' && text.rotation === 90
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) =>
+                text.text === 'Q12' &&
+                text.rotation === 90 &&
+                text.anchor === 'start'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.lines.some(
+            (line) =>
+                line.x1 === 175 &&
+                line.y1 === 545 &&
+                line.x2 === 175 &&
+                line.y2 === 555 &&
+                line.color === '#000080'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.some((text) => text.text === '=title'),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.texts.some((text) =>
+            /@DESIGNATOR|INITIAL VOLTAGE/i.test(text.text)
+        ),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.name === 'EN' &&
+                pin.designator === '3' &&
+                pin.orientation === 'left' &&
+                pin.x === 455 &&
+                pin.y === 545 &&
+                pin.labelMode === 'name-and-number'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) => pin.x === 300 && pin.y === 230
+        ),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.x === 950 &&
+                pin.y === 530 &&
+                pin.labelMode === 'number-only'
+        ),
+        true
+    )
+    assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
+        title: 'LUMEN-VEIL-A1',
+        revision: '01',
+        documentNumber: '',
+        sheetNumber: '4',
+        sheetTotal: '6',
+        date: '',
+        drawnBy: ''
+    })
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.ownerIndex === '296' &&
+                pin.name === 'A' &&
+                pin.labelMode === 'name-and-number'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.ownerIndex === '322' &&
+                pin.name === 'A' &&
+                pin.labelMode === 'name-and-number'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.ownerIndex === '1231' &&
+                pin.x === 695 &&
+                pin.y === 535 &&
+                pin.orientation === 'left' &&
+                pin.labelMode === 'hidden'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.pins.some(
+            (pin) =>
+                pin.ownerIndex === '638' &&
+                pin.x === 175 &&
+                pin.y === 535 &&
+                pin.orientation === 'top' &&
+                pin.labelMode === 'hidden'
+        ),
+        true
+    )
+    assert.equal(documentModel.schematic.sheet.xZones, 4)
+    assert.equal(documentModel.schematic.sheet.yZones, 4)
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) => text.text === 'LUMEN-VEIL-A1' || text.text === '01'
+        ),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.crosses.some(
+            (cross) =>
+                cross.x === 990 && cross.y === 530 && cross.color === '#ff0000'
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.ports.some(
+            (port) =>
+                port.name === 'RUNE_CTL' &&
+                port.x === 680 &&
+                port.y === 495 &&
+                port.width === 60 &&
+                port.height === 10
+        ),
+        true
+    )
+    assert.equal(
+        documentModel.schematic.texts.filter(
+            (text) => text.text === 'RUNE HEADER P2.54 2X3P VERTICAL L=30.5'
+        ).length,
+        1
+    )
+    assert.equal(
+        documentModel.schematic.texts.some(
+            (text) => text.text === 'RUNE_CTL' || text.text === 'RUNE_FLOW'
+        ),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.lines.some(
+            (line) =>
+                line.x1 === 690 &&
+                line.y1 === 427 &&
+                line.x2 === 690 &&
+                line.y2 === 425
+        ),
+        false
+    )
+    assert.equal(
+        documentModel.schematic.lines.some(
+            (line) =>
+                line.x1 === 697 &&
+                line.y1 === 535 &&
+                line.x2 === 695 &&
+                line.y2 === 535
+        ),
+        true
+    )
+    assert.deepEqual(
+        documentModel.schematic.components
+            .filter((component) =>
+                [
+                    [255, 215],
+                    [225, 270],
+                    [950, 540],
+                    [455, 595]
+                ].some(([x, y]) => component.x === x && component.y === y)
+            )
+            .map((component) => ({
+                x: component.x,
+                y: component.y,
+                designator: component.designator
+            }))
+            .sort((left, right) => left.x - right.x || left.y - right.y),
+        [
+            { x: 225, y: 270, designator: 'Q12' },
+            { x: 255, y: 215, designator: 'R94' },
+            { x: 455, y: 595, designator: 'U6' },
+            { x: 950, y: 540, designator: 'J6' }
+        ]
+    )
+})
+
+/**
+ * Verifies rotated schematic texts preserve their raw Altium orientation so
+ * the renderer can distinguish opposite vertical reading directions.
+ */
+test(
+    'parseAltiumArrayBuffer preserves rotated text source orientation',
+    async () => {
+        const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
+        const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+        const d16 = aetherDocument.schematic.texts.find(
+            (text) => text.text === 'Q12'
+        )
+        const jtag = aetherDocument.schematic.texts.find(
+            (text) => text.text === 'WYRN'
+        )
+        const r24 = bastionDocument.schematic.texts.find(
+            (text) => text.text === 'Q24'
+        )
+        const r24Value = bastionDocument.schematic.texts.find(
+            (text) => text.text === '4K7' && text.ownerIndex === '3652'
+        )
+
+        assert.deepEqual(
+            {
+                text: d16?.text,
+                rotation: d16?.rotation,
+                sourceOrientation: d16?.sourceOrientation
+            },
+            {
+                text: 'Q12',
+                rotation: 90,
+                sourceOrientation: 1
+            }
+        )
+        assert.deepEqual(
+            {
+                text: jtag?.text,
+                rotation: jtag?.rotation,
+                sourceOrientation: jtag?.sourceOrientation
+            },
+            {
+                text: 'WYRN',
+                rotation: 90,
+                sourceOrientation: 1
+            }
+        )
+        assert.deepEqual(
+            {
+                text: r24?.text,
+                rotation: r24?.rotation,
+                sourceOrientation: r24?.sourceOrientation
+            },
+            {
+                text: 'Q24',
+                rotation: 90,
+                sourceOrientation: 3
+            }
+        )
+        assert.deepEqual(
+            {
+                text: r24Value?.text,
+                rotation: r24Value?.rotation,
+                sourceOrientation: r24Value?.sourceOrientation
+            },
+            {
+                text: '4K7',
+                rotation: 90,
+                sourceOrientation: 3
+            }
+        )
+    }
+)

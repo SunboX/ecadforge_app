@@ -4,7 +4,9 @@
 
 - `app-state.test.mjs`: state transitions and subscriptions
 - `project-structure.test.mjs`: required project files and scripts
-- `mjs-line-limit.test.mjs`: source file size guardrail
+- `core/altium-parser.test.mjs`: parser entrypoint importing the split suites in `tests/core/altium-parser/`
+- `ui/renderers.test.mjs`: renderer entrypoint importing the split suites in `tests/ui/renderers/`
+- `mjs-line-limit.test.mjs`: source and test file size guardrail
 
 ## Add when extending
 

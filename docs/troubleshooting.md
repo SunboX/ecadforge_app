@@ -30,4 +30,4 @@ PORT=3100 npm start
 
 - Ensure moved files are reflected in test imports.
 - Keep line-limit and structure tests updated with intentional layout changes.
-- If parser sample tests fail, confirm the sample file paths in `tests/core/altium-parser.test.mjs`.
+- If parser sample tests fail, confirm the sample file paths in `tests/fixtures/AltiumFixtureLoader.mjs`.

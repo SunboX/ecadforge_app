@@ -27,26 +27,45 @@ async function collectMjsFiles(directory) {
 }
 
 /**
- * Verifies all source modules stay below the max line limit.
+ * Verifies all .mjs files in the given directory stay below the max line limit.
+ * @param {string} directory
+ * @param {string} label
+ * @returns {Promise<void>}
  */
-test('all source .mjs files stay below line limit', async () => {
-    const sourceFiles = await collectMjsFiles('src')
+async function assertDirectoryLineLimit(directory, label) {
+    const files = await collectMjsFiles(directory)
     const oversized = []
 
-    for (const sourceFile of sourceFiles) {
-        const source = await readFile(sourceFile, 'utf8')
+    for (const filePath of files) {
+        const source = await readFile(filePath, 'utf8')
         const lineCount = source.split('\n').length
         if (lineCount >= LINE_LIMIT) {
-            oversized.push(sourceFile + ' (' + lineCount + ' lines)')
+            oversized.push(filePath + ' (' + lineCount + ' lines)')
         }
     }
 
     assert.deepEqual(
         oversized,
         [],
-        'Found source modules at or above ' +
+        'Found ' +
+            label +
+            ' .mjs files at or above ' +
             LINE_LIMIT +
             ' lines:\n' +
             oversized.join('\n')
     )
+}
+
+/**
+ * Verifies all source modules stay below the max line limit.
+ */
+test('all source .mjs files stay below line limit', async () => {
+    await assertDirectoryLineLimit('src', 'source')
+})
+
+/**
+ * Verifies all test modules stay below the max line limit.
+ */
+test('all test .mjs files stay below line limit', async () => {
+    await assertDirectoryLineLimit('tests', 'test')
 })
