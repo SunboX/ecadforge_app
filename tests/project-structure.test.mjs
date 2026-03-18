@@ -113,6 +113,41 @@ test('app identity metadata uses the ECAD Forge name', async () => {
 })
 
 /**
+ * Verifies the app shell exposes the shared legal footer and keeps the
+ * runtime version display in the footer only.
+ */
+test('app shell includes localized footer metadata and footer-only version UI', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const englishRaw = await readFile(new URL('src/i18n/en.json', root), 'utf8')
+    const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
+
+    const englishMessages = JSON.parse(englishRaw)
+    const germanMessages = JSON.parse(germanRaw)
+
+    assert.match(indexRaw, /<footer class="page-footer">/)
+    assert.match(indexRaw, /data-i18n="footer\.title"/)
+    assert.match(indexRaw, /data-i18n="footer\.responsible"/)
+    assert.match(indexRaw, /data-i18n="footer\.contact"/)
+    assert.match(indexRaw, /data-i18n="footer\.version"/)
+    assert.match(indexRaw, /id="appVersion"/)
+    assert.doesNotMatch(indexRaw, /class="version-pill"/)
+    assert.equal(englishMessages['footer.title'], 'Imprint')
+    assert.equal(germanMessages['footer.title'], 'Impressum')
+    assert.equal(
+        englishMessages['footer.responsible'],
+        'Responsible for this website'
+    )
+    assert.equal(
+        germanMessages['footer.responsible'],
+        'Verantwortlich fuer diese Website'
+    )
+    assert.equal(englishMessages['footer.contact'], 'Contact')
+    assert.equal(germanMessages['footer.contact'], 'Kontakt')
+    assert.equal(englishMessages['footer.version'], 'Version')
+    assert.equal(germanMessages['footer.version'], 'Version')
+})
+
+/**
  * Verifies deployed app metadata stays aligned with the package version.
  */
 test('deployed app version metadata matches package version', async () => {

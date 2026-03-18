@@ -95,7 +95,7 @@ export class AppView {
      */
     setVersion(version) {
         if (this.#versionNode) {
-            this.#versionNode.textContent = version ? 'v' + version : 'v—'
+            this.#versionNode.textContent = version || '—'
         }
     }
 
@@ -421,12 +421,12 @@ export class AppView {
     static #isInteractiveSvg(node) {
         return Boolean(
             node &&
-                typeof node === 'object' &&
-                typeof node.getAttribute === 'function' &&
-                typeof node.setAttribute === 'function' &&
-                typeof node.getBoundingClientRect === 'function' &&
-                typeof node.addEventListener === 'function' &&
-                typeof node.removeEventListener === 'function'
+            typeof node === 'object' &&
+            typeof node.getAttribute === 'function' &&
+            typeof node.setAttribute === 'function' &&
+            typeof node.getBoundingClientRect === 'function' &&
+            typeof node.addEventListener === 'function' &&
+            typeof node.removeEventListener === 'function'
         )
     }
 

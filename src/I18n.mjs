@@ -64,11 +64,51 @@ export class I18nService {
         if (!documentRef) return
 
         documentRef.documentElement.lang = this.#locale
+        this.#applyTextTranslations(documentRef)
+        this.#applyAttributeTranslations(documentRef)
+    }
+
+    /**
+     * Applies translations to text content nodes.
+     * @param {Document} documentRef
+     * @returns {void}
+     */
+    #applyTextTranslations(documentRef) {
         const nodes = documentRef.querySelectorAll('[data-i18n]')
         nodes.forEach((node) => {
             const key = node.getAttribute('data-i18n')
             if (!key) return
             node.textContent = this.translate(key)
+        })
+    }
+
+    /**
+     * Applies translations to declared element attributes.
+     * @param {Document} documentRef
+     * @returns {void}
+     */
+    #applyAttributeTranslations(documentRef) {
+        const nodes = documentRef.querySelectorAll('[data-i18n-attr]')
+        nodes.forEach((node) => {
+            const attributeMap = node.getAttribute('data-i18n-attr')
+            if (!attributeMap) return
+            this.#applyNodeAttributeTranslations(node, attributeMap)
+        })
+    }
+
+    /**
+     * Applies one comma-separated attribute translation map to a node.
+     * @param {{ setAttribute: (name: string, value: string) => void }} node
+     * @param {string} attributeMap
+     * @returns {void}
+     */
+    #applyNodeAttributeTranslations(node, attributeMap) {
+        attributeMap.split(',').forEach((entry) => {
+            const [attributeName, key] = entry
+                .split(':')
+                .map((value) => value.trim())
+            if (!attributeName || !key) return
+            node.setAttribute(attributeName, this.translate(key))
         })
     }
 
