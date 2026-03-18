@@ -1,7 +1,9 @@
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
 import { SchematicColorResolver } from './SchematicColorResolver.mjs'
+import { SchematicTypography } from './SchematicTypography.mjs'
 
 const { escapeHtml, formatNumber, projectSchematicY } = SchematicSvgUtils
+const MINIMUM_NOTE_TEXT_SIZE = 4
 
 /**
  * Renders boxed schematic notes recovered from Altium note records.
@@ -27,7 +29,13 @@ export class SchematicNoteRenderer {
         const width = Math.max(right - left, 1)
         const height = Math.max(bottom - top, 1)
         const textMargin = Math.max(Number(text.textMargin || 4), 3)
-        const requestedTextSize = Math.max(Number(text.fontSize || 8), 5)
+        const requestedTextSize = Math.max(
+            Number(
+                SchematicTypography.resolveViewerFontSize(text.fontSize || 8) ||
+                    MINIMUM_NOTE_TEXT_SIZE
+            ),
+            MINIMUM_NOTE_TEXT_SIZE
+        )
         const noteFill = SchematicColorResolver.resolveFill(
             text.isSolid === false
                 ? 'transparent'
@@ -119,7 +127,7 @@ export class SchematicNoteRenderer {
                     ? 0
                     : textSize + lineHeight * (wrappedLines.length - 1)
 
-            if (requiredHeight <= maxHeight || textSize <= 5) {
+            if (requiredHeight <= maxHeight || textSize <= MINIMUM_NOTE_TEXT_SIZE) {
                 return {
                     noteLines: wrappedLines,
                     textSize,
@@ -128,7 +136,7 @@ export class SchematicNoteRenderer {
             }
 
             const nextSize = Math.max(
-                5,
+                MINIMUM_NOTE_TEXT_SIZE,
                 Math.min(
                     textSize - 0.5,
                     textSize * (maxHeight / requiredHeight)

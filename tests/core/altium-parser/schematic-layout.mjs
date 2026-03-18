@@ -28,6 +28,37 @@ test('parseAltiumArrayBuffer resolves the sample solace sheet to A3', async () =
 })
 
 /**
+ * Verifies standard-style sheets still snap to the footer-implied A3 page
+ * even when the visible schematic content stops well left of the title block.
+ */
+test('parseAltiumArrayBuffer keeps footer-driven A3 sizing when content is narrower than the footer', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|SheetStyle=1|CustomX=1500|CustomY=950|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|Size2=14|FontName2=Times New Roman|Bold2=T|Rotation2=0' +
+            '|RECORD=4|Location.X=1262|Location.Y=1017|Color=8388608|FontID=1|Text=SIG_OUT' +
+            '|RECORD=4|Location.X=1225|Location.Y=75|Color=8388608|FontID=2|Text=EMBER-UNIT Power' +
+            '|RECORD=4|Location.X=1420|Location.Y=80|Color=255|FontID=2|Text=CORE-MOD' +
+            '|RECORD=4|Location.X=1455|Location.Y=50|Color=8388608|FontID=1|Text=03' +
+            '|RECORD=4|Location.X=1405|Location.Y=30|Color=8388608|FontID=1|Text=2' +
+            '|RECORD=4|Location.X=1435|Location.Y=30|Color=8388608|FontID=1|Text=7'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'footer-width-bias.SchDoc',
+        arrayBuffer
+    )
+
+    assert.equal(documentModel.schematic.sheet.paperSize, 'A3')
+    assert.equal(documentModel.schematic.sheet.width, 1654)
+    assert.equal(documentModel.schematic.sheet.height, 1169)
+    assert.equal(documentModel.schematic.sheet.xZones, 8)
+    assert.equal(documentModel.schematic.sheet.sourceWidth, 1500)
+    assert.equal(documentModel.schematic.sheet.sourceHeight, 950)
+})
+
+/**
  * Verifies solace-sheet off-sheet ports keep the same pointed side Altium uses
  * when explicit port style is omitted from the stored record.
  */

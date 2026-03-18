@@ -29,7 +29,7 @@ export class SchematicColorResolver {
      * @param {string} fallbackVariable
      * @returns {string}
      */
-    static resolveColor(color, fallbackVariable) {
+    static resolveColor(color, fallbackVariable, preserveUnknown = false) {
         const normalized = SchematicColorResolver.#normalizeColor(color)
 
         if (!normalized) {
@@ -46,7 +46,13 @@ export class SchematicColorResolver {
 
         const token = COLOR_TOKEN_BY_VALUE.get(normalized)
 
-        return SchematicColorResolver.#toVariable(token || fallbackVariable)
+        if (token) {
+            return SchematicColorResolver.#toVariable(token)
+        }
+
+        return preserveUnknown
+            ? normalized
+            : SchematicColorResolver.#toVariable(fallbackVariable)
     }
 
     /**
@@ -55,8 +61,12 @@ export class SchematicColorResolver {
      * @param {string} fallbackVariable
      * @returns {string}
      */
-    static resolveFill(fill, fallbackVariable) {
-        return SchematicColorResolver.resolveColor(fill, fallbackVariable)
+    static resolveFill(fill, fallbackVariable, preserveUnknown = false) {
+        return SchematicColorResolver.resolveColor(
+            fill,
+            fallbackVariable,
+            preserveUnknown
+        )
     }
 
     /**
@@ -85,6 +95,5 @@ export class SchematicColorResolver {
         }
 
         return 'var(' + normalized + ')'
-
     }
 }

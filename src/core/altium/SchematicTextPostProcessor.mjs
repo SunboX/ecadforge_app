@@ -141,6 +141,8 @@ export class SchematicTextPostProcessor {
         )
         const ownerPinCounts =
             SchematicTextPostProcessor.#buildOwnerPinCounts(pins)
+        const ownerPinOrientations =
+            SchematicTextPostProcessor.#buildOwnerPinOrientations(pins)
 
         return texts.map((text) => {
             if (
@@ -181,6 +183,12 @@ export class SchematicTextPostProcessor {
                         paddedText,
                         texts,
                         bounds
+                    ) ||
+                    SchematicTextPostProcessor.#hasVisibleOppositeSideValuePair(
+                        paddedText,
+                        texts,
+                        bounds,
+                        ownerPinOrientations.get(text.ownerIndex) || new Set()
                     ) ||
                     SchematicTextPostProcessor.#hasNearbyLeftWireLabel(
                         paddedText,
@@ -333,6 +341,29 @@ export class SchematicTextPostProcessor {
     }
 
     /**
+     * Collects the visible pin orientations per owner.
+     * @param {{ ownerIndex: string, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
+     * @returns {Map<string, Set<'left' | 'right' | 'top' | 'bottom'>>}
+     */
+    static #buildOwnerPinOrientations(pins) {
+        const ownerPinOrientations = new Map()
+
+        for (const pin of pins) {
+            if (!pin.ownerIndex || !pin.orientation) {
+                continue
+            }
+
+            if (!ownerPinOrientations.has(pin.ownerIndex)) {
+                ownerPinOrientations.set(pin.ownerIndex, new Set())
+            }
+
+            ownerPinOrientations.get(pin.ownerIndex).add(pin.orientation)
+        }
+
+        return ownerPinOrientations
+    }
+
+    /**
      * Returns true when a text is a visible component designator.
      * @param {{ name?: string }} text
      * @returns {boolean}
@@ -364,6 +395,49 @@ export class SchematicTextPostProcessor {
                 candidate.y >= bounds.minY &&
                 candidate.y <= bounds.maxY &&
                 Math.abs(candidate.x - text.x) <= 2
+            )
+        })
+    }
+
+    /**
+     * Returns true when a horizontal owner already exposes a visible
+     * value/comment on the far side of the body, so the left designator should
+     * keep its original left-to-right source anchor.
+     * @param {{ x: number, y: number, ownerIndex?: string }} text
+     * @param {{ x: number, y: number, name?: string, ownerIndex?: string, rotation?: number }[]} texts
+     * @param {{ minX: number, maxX: number }} bounds
+     * @param {Set<'left' | 'right' | 'top' | 'bottom'>} ownerOrientations
+     * @returns {boolean}
+     */
+    static #hasVisibleOppositeSideValuePair(
+        text,
+        texts,
+        bounds,
+        ownerOrientations
+    ) {
+        if (
+            !ownerOrientations.has('left') ||
+            !ownerOrientations.has('right') ||
+            ownerOrientations.has('top') ||
+            ownerOrientations.has('bottom')
+        ) {
+            return false
+        }
+
+        return texts.some((candidate) => {
+            const normalizedName = String(candidate?.name || '')
+                .trim()
+                .toLowerCase()
+
+            return (
+                candidate &&
+                candidate !== text &&
+                candidate.ownerIndex === text.ownerIndex &&
+                !candidate.rotation &&
+                (normalizedName === 'value' || normalizedName === 'comment') &&
+                candidate.x >= bounds.maxX - 2 &&
+                candidate.x > text.x &&
+                Math.abs(candidate.y - text.y) <= 2
             )
         })
     }

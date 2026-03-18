@@ -1,5 +1,6 @@
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
 import { SchematicColorResolver } from './SchematicColorResolver.mjs'
+import { SchematicTypography } from './SchematicTypography.mjs'
 
 const { createSvgText, escapeHtml, formatNumber, projectSchematicY } =
     SchematicSvgUtils
@@ -19,17 +20,17 @@ export class SchematicPowerPortRenderer {
     static buildMarkup(text, lines, pins, sheetHeight) {
         const x = text.x
         const y = projectSchematicY(sheetHeight, text.y)
-        const fontSize = Number(text.fontSize || 10)
         const direction = SchematicPowerPortRenderer.#resolveOutwardDirection(
             text,
             lines,
             pins
         )
-        const labelOptions = {
-            fontSize: text.fontSize,
+        const labelOptions = SchematicTypography.withViewerFontSize({
+            fontSize: Number(text.fontSize || 10),
             fontFamily: text.fontFamily,
             fontWeight: text.fontWeight
-        }
+        })
+        const fontSize = Number(labelOptions.fontSize || 9)
         const resolvedColor = SchematicColorResolver.resolveColor(
             text.color,
             '--schematic-power-color'
@@ -37,7 +38,7 @@ export class SchematicPowerPortRenderer {
 
         if (Number(text.style) === 4) {
             return (
-                '<g class="schematic-power-port schematic-power-port--ground">' +
+                '<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round">' +
                 SchematicPowerPortRenderer.#buildGroundLines(
                     x,
                     y,
@@ -58,7 +59,7 @@ export class SchematicPowerPortRenderer {
         }
 
         return (
-            '<g class="schematic-power-port schematic-power-port--rail">' +
+            '<g class="schematic-power-port schematic-power-port--rail" stroke-linecap="round">' +
             SchematicPowerPortRenderer.#buildRailLine(
                 x,
                 y,

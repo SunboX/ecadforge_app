@@ -323,7 +323,7 @@ export class SchematicPortRenderer {
      * @returns {{ fontSize: number, fontFamily: string, fontWeight: number }}
      */
     static #resolveLabelTextOptions(row, baseTextOptions) {
-        return {
+        return SchematicTypography.withViewerFontSize({
             ...baseTextOptions,
             fontSize: SchematicPortRenderer.#resolveLabelFontSize(
                 row.name,
@@ -331,7 +331,7 @@ export class SchematicPortRenderer {
                 row.height,
                 baseTextOptions.fontSize
             )
-        }
+        })
     }
 
     /**

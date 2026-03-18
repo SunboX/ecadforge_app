@@ -273,16 +273,16 @@ html.is-schematic-panning body {
 }
 
 .sheet-title-label {
-    font-size: 7px;
+    font-size: 6px;
 }
 
 .sheet-title-value {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
 }
 
 .sheet-zone-label {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 500;
 }
 
@@ -355,7 +355,7 @@ html.is-schematic-panning body {
 }
 
 .pcb-component text {
-    font-size: 30px;
+    font-size: 29px;
     text-anchor: middle;
     fill: #22343b;
     font-weight: 700;

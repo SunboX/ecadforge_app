@@ -389,7 +389,7 @@ test('AppView wires mouse-wheel zoom onto the rendered schematic svg', () => {
         preventDefault() {}
     })
 
-    assert.equal(svg.getAttribute('viewBox'), '2.5 1.25 190 95')
+    assert.equal(svg.getAttribute('viewBox'), '1.5 0.75 194 97')
 })
 
 /**
@@ -414,7 +414,7 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
         preventDefault() {}
     })
 
-    assert.equal(firstSvg.getAttribute('viewBox'), '2.5 1.25 190 95')
+    assert.equal(firstSvg.getAttribute('viewBox'), '1.5 0.75 194 97')
 
     view.render(snapshot)
 

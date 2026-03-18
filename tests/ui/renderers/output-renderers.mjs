@@ -45,6 +45,20 @@ test('renderPcbSvg renders board outline and placements', () => {
 })
 
 /**
+ * Verifies PCB viewer designators use the reduced in-view font size.
+ */
+test('pcb viewer stylesheet reduces component text by one point', async () => {
+    const cssPath = new URL('../../../src/styles/20-viewer.css', import.meta.url)
+    const css = await readFile(cssPath, 'utf8')
+    const pcbComponentTextBlock = css.match(
+        /\.pcb-component text\s*\{[^}]*\}/
+    )?.[0]
+
+    assert.ok(pcbComponentTextBlock)
+    assert.match(pcbComponentTextBlock, /font-size:\s*29px;/)
+})
+
+/**
  * Verifies BOM renderer groups rows into a table.
  */
 test('renderBomTable renders grouped BOM rows', () => {

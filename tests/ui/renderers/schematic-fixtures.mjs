@@ -17,67 +17,67 @@ test('renderSchematicSvg aligns aether-sheet pin number and name columns', async
 
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="453" y="261" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+        /text class="schematic-pin-number" x="453" y="261" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="459" y="265" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">GND</
+        /text class="schematic-pin-name" x="459" y="265" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">GND</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="601" y="265" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">GND</
+        /text class="schematic-pin-name" x="601" y="265" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">GND</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="379" y="615" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">A</
+        /text class="schematic-pin-name" x="379" y="615" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">A</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="431" y="615" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">VCC</
+        /text class="schematic-pin-name" x="431" y="615" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">VCC</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="624" y="625" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">A</
+        /text class="schematic-pin-name" x="624" y="625" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">A</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="676" y="625" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">VCC</
+        /text class="schematic-pin-name" x="676" y="625" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">VCC</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="618" y="621" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+        /text class="schematic-pin-number" x="618" y="621" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="682" y="621" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">5</
+        /text class="schematic-pin-number" x="682" y="621" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">5</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="373" y="611" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+        /text class="schematic-pin-number" x="373" y="611" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="437" y="611" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">5</
+        /text class="schematic-pin-number" x="437" y="611" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">5</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="483" y="419" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 483 419\)">15</
+        /text class="schematic-pin-number" x="483" y="419" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 483 419\)">15</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="499" y="408" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 499 408\)">IO13</
+        /text class="schematic-pin-name" x="499" y="408" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 499 408\)">IO13</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">K29</
+        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">K29</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">C187</
+        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">C187</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">P5</
+        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">P5</
     )
 })
 
@@ -295,19 +295,19 @@ test('renderSchematicSvg restores lyra-sheet multipart suffixes and Y2 crystal p
     assert.doesNotMatch(markup, /\\R\\S\\T\\/)
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="163" y="773" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+        /text class="schematic-pin-number" x="163" y="773" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="187" y="773" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">3</
+        /text class="schematic-pin-number" x="187" y="773" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">3</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="193" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">2</
+        /text class="schematic-pin-number" x="193" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 193 748\)">2</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="203" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
+        /text class="schematic-pin-number" x="203" y="748" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 203 748\)">4</
     )
 })
 
@@ -329,51 +329,51 @@ test('renderSchematicSvg renders the lyra-sheet D12 package body and both pin ro
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1220" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1220 288\)">I\/O4</
+        /text class="schematic-pin-name" x="1220" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1220 288\)">I\/O4</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1240" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1240 288\)">VDD</
+        /text class="schematic-pin-name" x="1240" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1240 288\)">VDD</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1260" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1260 288\)">I\/O3</
+        /text class="schematic-pin-name" x="1260" y="288" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1260 288\)">I\/O3</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1224" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1224 340\)">I\/O1</
+        /text class="schematic-pin-name" x="1224" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1224 340\)">I\/O1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1244" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1244 340\)">GND</
+        /text class="schematic-pin-name" x="1244" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1244 340\)">GND</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="1264" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1264 340\)">I\/O2</
+        /text class="schematic-pin-name" x="1264" y="340" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1264 340\)">I\/O2</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1218" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">6</
+        /text class="schematic-pin-number" x="1218" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400">6</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1238" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">5</
+        /text class="schematic-pin-number" x="1238" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400">5</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1258" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">4</
+        /text class="schematic-pin-number" x="1258" y="278" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400">4</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1218" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1218 351\)">1</
+        /text class="schematic-pin-number" x="1218" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1218 351\)">1</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1238" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1238 351\)">2</
+        /text class="schematic-pin-number" x="1238" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1238 351\)">2</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="1258" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1258 351\)">3</
+        /text class="schematic-pin-number" x="1258" y="351" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 1258 351\)">3</
     )
 })
 
@@ -388,11 +388,11 @@ test('renderSchematicSvg keeps the lyra-sheet D12 ground power port downward', a
 
     assert.match(
         markup,
-        /<g class="schematic-power-port schematic-power-port--ground"><line x1="1240" y1="354" x2="1240" y2="361" stroke="var\(--schematic-power-color\)" \/><line x1="1233" y1="361" x2="1247" y2="361" stroke="var\(--schematic-power-color\)" \/><line x1="1235" y1="364" x2="1245" y2="364" stroke="var\(--schematic-power-color\)" \/><line x1="1237" y1="367" x2="1243" y2="367" stroke="var\(--schematic-power-color\)" \/>/
+        /<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round"><line x1="1240" y1="354" x2="1240" y2="361" stroke="var\(--schematic-power-color\)" \/><line x1="1233" y1="361" x2="1247" y2="361" stroke="var\(--schematic-power-color\)" \/><line x1="1235" y1="364" x2="1245" y2="364" stroke="var\(--schematic-power-color\)" \/><line x1="1237" y1="367" x2="1243" y2="367" stroke="var\(--schematic-power-color\)" \/>/
     )
     assert.doesNotMatch(
         markup,
-        /<g class="schematic-power-port schematic-power-port--ground"><line x1="1240" y1="354" x2="1247" y2="354" stroke="var\(--schematic-power-color\)" \/><line x1="1247" y1="347" x2="1247" y2="361" stroke="var\(--schematic-power-color\)"/
+        /<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round"><line x1="1240" y1="354" x2="1247" y2="354" stroke="var\(--schematic-power-color\)" \/><line x1="1247" y1="347" x2="1247" y2="361" stroke="var\(--schematic-power-color\)"/
     )
 })
 
@@ -419,7 +419,7 @@ test(
 
         assert.match(
             markup,
-            /<text class="schematic-label" x="349" y="593" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="8" font-family="Times New Roman" font-weight="700">Needed for Dawn Sigil!</
+            /<text class="schematic-label" x="349" y="593" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="7" font-family="Times New Roman" font-weight="700">Needed for Dawn Sigil!</
         )
         assert.match(
             markup,
@@ -455,27 +455,27 @@ test(
         )
         assert.match(
             markup,
-            /<text class="schematic-port-label" x="309" y="681\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">GLYPH_CS</
+            /<text class="schematic-port-label" x="309" y="681\.34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.50" font-family="Times New Roman" font-weight="400">GLYPH_CS</
         )
         assert.match(
             markup,
-            /<text class="schematic-port-label" x="301" y="691\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">AURA_CS</
+            /<text class="schematic-port-label" x="301" y="691\.34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.50" font-family="Times New Roman" font-weight="400">AURA_CS</
         )
         assert.match(
             markup,
-            /<text class="schematic-port-label" x="301" y="701\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">AURA_IRQ</
+            /<text class="schematic-port-label" x="301" y="701\.34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.50" font-family="Times New Roman" font-weight="400">AURA_IRQ</
         )
         assert.match(
             markup,
-            /<text class="schematic-label" x="340" y="679" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">GLYPH_CS</
+            /<text class="schematic-label" x="340" y="679" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">GLYPH_CS</
         )
         assert.match(
             markup,
-            /<text class="schematic-label" x="340" y="689" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">AURA_CS</
+            /<text class="schematic-label" x="340" y="689" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">AURA_CS</
         )
         assert.match(
             markup,
-            /<text class="schematic-label" x="340" y="699" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">AURA_IRQ</
+            /<text class="schematic-label" x="340" y="699" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">AURA_IRQ</
         )
     }
 )
@@ -494,19 +494,19 @@ test(
 
         assert.match(
             aetherMarkup,
-            /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">Q12</
+            /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">Q12</
         )
         assert.match(
             aetherMarkup,
-            /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="22" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
+            /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="21" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
         )
         assert.match(
             bastionMarkup,
-            /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
+            /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
         )
         assert.match(
             bastionMarkup,
-            /<text class="schematic-label" x="415" y="844" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 844\)">4K7</
+            /<text class="schematic-label" x="415" y="844" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 844\)">4K7</
         )
     }
 )
@@ -524,7 +524,7 @@ test(
         assert.match(markup, />Q92A</)
         assert.match(
             markup,
-            /<text class="schematic-label" x="934" y="235" fill="var\(--schematic-default-ink-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">Q92B</
+            /<text class="schematic-label" x="934" y="235" fill="var\(--schematic-default-ink-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">Q92B</
         )
         assert.match(markup, />Q92C</)
         assert.match(markup, />Q92D</)
@@ -532,19 +532,19 @@ test(
         assert.doesNotMatch(markup, />P4A</)
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="968" y="233" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">2</
+            /text class="schematic-pin-number" x="968" y="233" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">2</
         )
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="992" y="233" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">7</
+            /text class="schematic-pin-number" x="992" y="233" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">7</
         )
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="963" y="363" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="10" font-family="Times New Roman" font-weight="400">1</
+            /text class="schematic-pin-number" x="963" y="363" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1</
         )
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="987" y="363" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">8</
+            /text class="schematic-pin-number" x="987" y="363" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">8</
         )
     }
 )

@@ -1,0 +1,58 @@
+/**
+ * Resolves frontend runtime version state from the currently loaded module
+ * graph and the latest server metadata.
+ */
+export class AppRuntimeVersion {
+    /**
+     * Extracts the loaded asset version from one module URL query string.
+     * @param {string} moduleUrl
+     * @returns {string}
+     */
+    static readLoadedVersion(moduleUrl) {
+        const normalizedModuleUrl = String(moduleUrl || '').trim()
+        if (!normalizedModuleUrl) {
+            return ''
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedModuleUrl)
+            return String(parsedUrl.searchParams.get('v') || '').trim()
+        } catch (_error) {
+            return ''
+        }
+    }
+
+    /**
+     * Chooses the version shown in the UI, preferring the version baked into
+     * the loaded module graph over later server metadata.
+     * @param {string} loadedVersion
+     * @param {string} serverVersion
+     * @returns {string}
+     */
+    static resolveDisplayVersion(loadedVersion, serverVersion) {
+        const normalizedLoadedVersion = String(loadedVersion || '').trim()
+        if (normalizedLoadedVersion) {
+            return normalizedLoadedVersion
+        }
+
+        return String(serverVersion || '').trim()
+    }
+
+    /**
+     * Returns true when the browser is still executing an older module graph
+     * than the version currently served by the backend.
+     * @param {string} loadedVersion
+     * @param {string} serverVersion
+     * @returns {boolean}
+     */
+    static shouldReloadForStaleModules(loadedVersion, serverVersion) {
+        const normalizedLoadedVersion = String(loadedVersion || '').trim()
+        const normalizedServerVersion = String(serverVersion || '').trim()
+
+        return Boolean(
+            normalizedLoadedVersion &&
+                normalizedServerVersion &&
+                normalizedLoadedVersion !== normalizedServerVersion
+        )
+    }
+}

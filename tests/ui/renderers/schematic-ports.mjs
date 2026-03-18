@@ -60,15 +60,15 @@ test('renderSchematicSvg centers vertical pin numbers on the pin axis', () => {
 
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="78" y="67" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 78 67\)">16</
+        /text class="schematic-pin-number" x="78" y="67" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 78 67\)">16</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-name" x="84" y="56" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 84 56\)">IO13</
+        /text class="schematic-pin-name" x="84" y="56" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 84 56\)">IO13</
     )
     assert.match(
         markup,
-        /text class="schematic-pin-number" x="98" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">3</
+        /text class="schematic-pin-number" x="98" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400">3</
     )
 })
 
@@ -178,7 +178,7 @@ test(
 
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="98" y="74" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 98 74\)">19</
+            /text class="schematic-pin-number" x="98" y="74" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 98 74\)">19</
         )
     }
 )
@@ -253,11 +253,11 @@ test(
 
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="118" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 118 54\)">16</
+            /text class="schematic-pin-number" x="118" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 118 54\)">16</
         )
         assert.match(
             markup,
-            /text class="schematic-pin-number" x="138" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 138 54\)">15</
+            /text class="schematic-pin-number" x="138" y="54" fill="var\(--schematic-text-color\)" text-anchor="middle" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 138 54\)">15</
         )
     }
 )
@@ -299,7 +299,7 @@ test('renderSchematicSvg rotates ground ports from attached wire direction', () 
     assert.match(markup, /x1="157" y1="43" x2="157" y2="57"/)
     assert.match(
         markup,
-        /<text class="schematic-power-port-label" x="168" y="53.60" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="10"/
+        /<text class="schematic-power-port-label" x="168" y="53.24" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="9"/
     )
 })
 
@@ -341,7 +341,7 @@ test('renderSchematicSvg prefers explicit power-port direction over wire inferen
     assert.match(markup, /x1="150" y1="50" x2="150" y2="38"/)
     assert.match(
         markup,
-        /<text class="schematic-power-port-label" x="150" y="34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="10"/
+        /<text class="schematic-power-port-label" x="150" y="34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="9"/
     )
     assert.doesNotMatch(markup, /x1="150" y1="50" x2="138" y2="50"/)
 })
@@ -393,11 +393,11 @@ test('renderSchematicSvg renders rune off-sheet ports only once per label', asyn
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="714" y="334\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">RUNE_CTL</
+        /text class="schematic-port-label" x="714" y="334\.34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.50" font-family="Times New Roman" font-weight="400">RUNE_CTL</
     )
     assert.match(
         markup,
-        /text class="schematic-port-label" x="714" y="344\.70" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="7\.50" font-family="Times New Roman" font-weight="400">RUNE_FLOW</
+        /text class="schematic-port-label" x="714" y="344\.34" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.50" font-family="Times New Roman" font-weight="400">RUNE_FLOW</
     )
     assert.equal(
         (markup.match(/<g class="schematic-port">/g) || []).length,
@@ -451,7 +451,7 @@ test('renderSchematicSvg rotates style-4 off-sheet ports vertically', async () =
     )
     assert.match(
         solaceMarkup,
-        /text class="schematic-port-label" x="477\.25" y="1004" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="6\.25" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 477\.25 1004\)">GLYPH_1</
+        /text class="schematic-port-label" x="476\.89" y="1004" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="5\.25" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 476\.89 1004\)">GLYPH_1</
     )
     assert.match(
         bastionMarkup,
@@ -459,7 +459,7 @@ test('renderSchematicSvg rotates style-4 off-sheet ports vertically', async () =
     )
     assert.match(
         bastionMarkup,
-        /text class="schematic-port-label" x="911\.82" y="506\.50" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="5\.05" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 911\.82 506\.50\)">GLYPH_0</
+        /text class="schematic-port-label" x="911\.46" y="506\.50" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="4\.05" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 911\.46 506\.50\)">GLYPH_0</
     )
     assert.match(
         bastionMarkup,

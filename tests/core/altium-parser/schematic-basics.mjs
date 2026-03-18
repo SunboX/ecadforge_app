@@ -56,6 +56,62 @@ test('parseAltiumArrayBuffer keeps record-28 notes out of schematic lines', () =
 })
 
 /**
+ * Verifies standard-style A3 sheets keep the footer value hints needed to
+ * position the synthesized title block like the source page footer.
+ */
+test('parseAltiumArrayBuffer keeps standard A3 footer title-block hints', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|SheetStyle=1|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|Size2=14|FontName2=Times New Roman|Bold2=T|Rotation2=0' +
+            '|RECORD=41|Name=Title|Text=EMBER-UNIT|IsHidden=T' +
+            '|RECORD=4|Location.X=1225|Location.Y=75|Color=8388608|FontID=2|Text=EMBER-UNIT Power' +
+            '|RECORD=4|Location.X=1420|Location.Y=80|Color=255|FontID=2|Text=CORE-MOD' +
+            '|RECORD=4|Location.X=1455|Location.Y=50|Color=8388608|FontID=1|Text=03' +
+            '|RECORD=4|Location.X=1405|Location.Y=30|Color=8388608|FontID=1|Text=2' +
+            '|RECORD=4|Location.X=1435|Location.Y=30|Color=8388608|FontID=1|Text=7'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'footer-hints.SchDoc',
+        arrayBuffer
+    )
+    const titleBlock = documentModel.schematic.sheet.titleBlock
+
+    assert.equal(documentModel.schematic.sheet.xZones, 8)
+    assert.equal(titleBlock.title, 'EMBER-UNIT Power')
+    assert.equal(titleBlock.documentNumber, 'CORE-MOD')
+    assert.equal(titleBlock.revision, '03')
+    assert.equal(titleBlock.sheetNumber, '2')
+    assert.equal(titleBlock.sheetTotal, '7')
+    assert.deepEqual(titleBlock.footerHints.title, {
+        x: 1225,
+        y: 75,
+        color: '#000080',
+        fontSize: 14,
+        fontFamily: 'Times New Roman',
+        fontWeight: 700
+    })
+    assert.deepEqual(titleBlock.footerHints.documentNumber, {
+        x: 1420,
+        y: 80,
+        color: '#ff0000',
+        fontSize: 14,
+        fontFamily: 'Times New Roman',
+        fontWeight: 700
+    })
+    assert.deepEqual(titleBlock.footerHints.revision, {
+        x: 1455,
+        y: 50,
+        color: '#000080',
+        fontSize: 10,
+        fontFamily: 'Times New Roman',
+        fontWeight: 400
+    })
+})
+
+/**
  * Verifies Altium schematic colors, title typography, and synthesized
  * connector notes are normalized from the aether-sheet fixture.
  */
@@ -160,7 +216,25 @@ test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () =>
         sheetNumber: '4',
         sheetTotal: '6',
         date: '',
-        drawnBy: ''
+        drawnBy: '',
+        footerHints: {
+            sheetNumber: {
+                x: 1005,
+                y: 30,
+                color: '#000080',
+                fontSize: 10,
+                fontFamily: 'Times New Roman',
+                fontWeight: 400
+            },
+            sheetTotal: {
+                x: 1025,
+                y: 30,
+                color: '#000080',
+                fontSize: 10,
+                fontFamily: 'Times New Roman',
+                fontWeight: 400
+            }
+        }
     })
     assert.equal(
         documentModel.schematic.pins.some(

@@ -162,16 +162,15 @@ export class AltiumLayoutParser {
         }
 
         const margin = Math.max(Number(sheet?.marginWidth || 20), 20)
-        const footerBandHeight =
-            AltiumLayoutParser.#measureSchematicFooterBandHeight(
+        const footerBounds =
+            AltiumLayoutParser.#collectSchematicFooterBounds(
                 textRecords,
                 Number(sheet?.width || 0)
             )
-        const requiredWidth = bounds.maxX + margin * 2
+        const requiredWidth =
+            Math.max(bounds.maxX, footerBounds?.maxX || 0) + margin * 2
         const requiredHeight =
-            bounds.maxY +
-            Math.max(footerBandHeight - margin, 0) +
-            margin * 2
+            Math.max(bounds.maxY, footerBounds?.maxY || 0) + margin * 2
         const standardSheet = AltiumLayoutParser.#resolveStandardSheetSize(
             requiredWidth,
             requiredHeight
@@ -295,23 +294,33 @@ export class AltiumLayoutParser {
     }
 
     /**
-     * Measures the visible footer/title-block band recovered from title-block
-     * text placeholders.
+     * Collects the visible title-block footer extent recovered from footer
+     * value placeholders.
      * @param {{ fields: Record<string, string | string[]> }[]} textRecords
      * @param {number} sheetWidth
-     * @returns {number}
+     * @returns {{ maxX: number, maxY: number } | null}
      */
-    static #measureSchematicFooterBandHeight(textRecords, sheetWidth) {
-        const footerYValues = textRecords
+    static #collectSchematicFooterBounds(textRecords, sheetWidth) {
+        const footerCoordinates = textRecords
             .filter((record) =>
                 SchematicTextParser.isTitleBlockFooterRecord(
                     record.fields,
                     sheetWidth
                 )
             )
-            .map((record) => parseNumericField(record.fields, 'Location.Y') || 0)
+            .map((record) => ({
+                x: parseNumericField(record.fields, 'Location.X') || 0,
+                y: parseNumericField(record.fields, 'Location.Y') || 0
+            }))
 
-        return footerYValues.length ? Math.max(...footerYValues) : 0
+        if (!footerCoordinates.length) {
+            return null
+        }
+
+        return {
+            maxX: Math.max(...footerCoordinates.map((coordinate) => coordinate.x)),
+            maxY: Math.max(...footerCoordinates.map((coordinate) => coordinate.y))
+        }
     }
 
     /**
