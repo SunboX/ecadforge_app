@@ -161,6 +161,10 @@ export class AltiumLayoutParser {
             return sheet
         }
 
+        if (AltiumLayoutParser.#shouldPreserveDeclaredCustomSheetSize(sheet)) {
+            return sheet
+        }
+
         const margin = Math.max(Number(sheet?.marginWidth || 20), 20)
         const footerBounds =
             AltiumLayoutParser.#collectSchematicFooterBounds(
@@ -214,6 +218,26 @@ export class AltiumLayoutParser {
             height: resolvedHeight,
             paperSize: sheet?.paperSize
         }
+    }
+
+    /**
+     * Returns true when the parser should trust the authored custom sheet
+     * dimensions instead of shrinking the page to visible content bounds.
+     * @param {{ width?: number, height?: number, borderOn?: boolean, titleBlockOn?: boolean, sheetStyle?: number } | undefined} sheet
+     * @returns {boolean}
+     */
+    static #shouldPreserveDeclaredCustomSheetSize(sheet) {
+        const declaredStandardSheet =
+            AltiumLayoutParser.#resolveStandardSheetSize(
+                Number(sheet?.width || 0),
+                Number(sheet?.height || 0)
+            )
+
+        return (
+            Number(sheet?.sheetStyle || 0) !== 1 &&
+            Boolean(sheet?.borderOn || sheet?.titleBlockOn) &&
+            !declaredStandardSheet
+        )
     }
 
     /**

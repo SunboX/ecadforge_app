@@ -12,7 +12,7 @@ export class SchematicPortRenderer {
     /**
      * Builds schematic off-sheet port boxes, stacking adjacent rows into one
      * shared outline when they use the same geometry and styling.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[]} ports
      * @param {number} sheetHeight
      * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
      * @returns {string}
@@ -31,7 +31,7 @@ export class SchematicPortRenderer {
 
     /**
      * Builds one grouped schematic off-sheet port symbol.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} portGroup
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[]} portGroup
      * @param {number} sheetHeight
      * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
      * @returns {string}
@@ -68,6 +68,7 @@ export class SchematicPortRenderer {
         const x = firstRow.x
         const width = firstRow.width
         const horizontalDirection = firstRow.direction || 'right'
+        const shape = firstRow.shape || 'single'
         const tipDepth = Math.min(
             Math.max(firstRow.height - 2, 4),
             width / 2
@@ -83,7 +84,8 @@ export class SchematicPortRenderer {
                             row.width,
                             row.height,
                             tipDepth,
-                            horizontalDirection
+                            horizontalDirection,
+                            shape
                         )
                     ) +
                     '" fill="' +
@@ -117,7 +119,8 @@ export class SchematicPortRenderer {
                         row.x,
                         row.width,
                         tipDepth,
-                        horizontalDirection
+                        horizontalDirection,
+                        shape
                     ),
                     SchematicPortRenderer.#resolveLabelBaselineY(
                         row.projectedY,
@@ -221,9 +224,38 @@ export class SchematicPortRenderer {
      * @param {number} height
      * @param {number} tipDepth
      * @param {'left' | 'right'} direction
+     * @param {'single' | 'double' | 'plain'} shape
      * @returns {string}
      */
-    static #buildOutlinePoints(x, y, width, height, tipDepth, direction) {
+    static #buildOutlinePoints(x, y, width, height, tipDepth, direction, shape) {
+        if (shape === 'plain') {
+            return [
+                [x, y],
+                [x + width, y],
+                [x + width, y + height],
+                [x, y + height]
+            ]
+                .map(([pointX, pointY]) =>
+                    formatNumber(pointX) + ',' + formatNumber(pointY)
+                )
+                .join(' ')
+        }
+
+        if (shape === 'double') {
+            return [
+                [x + tipDepth, y],
+                [x + width - tipDepth, y],
+                [x + width, y + height / 2],
+                [x + width - tipDepth, y + height],
+                [x + tipDepth, y + height],
+                [x, y + height / 2]
+            ]
+                .map(([pointX, pointY]) =>
+                    formatNumber(pointX) + ',' + formatNumber(pointY)
+                )
+                .join(' ')
+        }
+
         if (direction === 'left') {
             return [
                 [x, y + height / 2],
@@ -304,9 +336,14 @@ export class SchematicPortRenderer {
      * @param {number} width
      * @param {number} tipDepth
      * @param {'left' | 'right'} direction
+     * @param {'single' | 'double' | 'plain'} shape
      * @returns {number}
      */
-    static #resolveLabelX(x, width, tipDepth, direction) {
+    static #resolveLabelX(x, width, tipDepth, direction, shape) {
+        if (shape === 'plain' || shape === 'double') {
+            return x + width / 2
+        }
+
         const bodyWidth = width - tipDepth
 
         if (direction === 'left') {
@@ -436,8 +473,8 @@ export class SchematicPortRenderer {
     /**
      * Groups vertically adjacent off-sheet ports that share the same geometry
      * and styling so they render as one stacked symbol.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
-     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[][]}
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[]} ports
+     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[][]}
      */
     static #groupPorts(ports) {
         const sortedPorts = [...ports].sort(
@@ -447,6 +484,7 @@ export class SchematicPortRenderer {
                 left.height - right.height ||
                 String(left.fill).localeCompare(String(right.fill)) ||
                 String(left.color).localeCompare(String(right.color)) ||
+                String(left.shape || '').localeCompare(String(right.shape || '')) ||
                 left.y - right.y
         )
         const groups = []
@@ -470,8 +508,8 @@ export class SchematicPortRenderer {
 
     /**
      * Returns true when one port can extend an existing stacked-port group.
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[]} portGroup
-     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }} port
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[]} portGroup
+     * @param {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }} port
      * @returns {boolean}
      */
     static #canAppendPort(portGroup, port) {
@@ -489,6 +527,7 @@ export class SchematicPortRenderer {
             firstPort.height === port.height &&
             firstPort.fill === port.fill &&
             firstPort.color === port.color &&
+            (firstPort.shape || 'single') === (port.shape || 'single') &&
             (firstPort.direction || 'right') === (port.direction || 'right') &&
             Math.abs(port.y - previousPort.y - previousPort.height) <= 0.01
         )

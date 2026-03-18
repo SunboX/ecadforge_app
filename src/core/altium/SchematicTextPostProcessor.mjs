@@ -374,13 +374,19 @@ export class SchematicTextPostProcessor {
 
     /**
      * Returns true when a left-side designator shares its owner-side stack with
-     * a visible value or comment text at the same x position.
+     * a visible value or comment text at the same owner-side x position.
      * @param {{ x: number, y: number, ownerIndex?: string }} text
      * @param {{ x: number, y: number, name?: string, ownerIndex?: string, rotation?: number }[]} texts
      * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
      * @returns {boolean}
      */
     static #hasVisibleOwnerSideTextStack(text, texts, bounds) {
+        const side = SchematicTextPostProcessor.#resolveOwnerSide(text, bounds)
+
+        if (!side) {
+            return false
+        }
+
         return texts.some((candidate) => {
             const normalizedName = String(candidate?.name || '')
                 .trim()
@@ -392,11 +398,47 @@ export class SchematicTextPostProcessor {
                 candidate.ownerIndex === text.ownerIndex &&
                 !candidate.rotation &&
                 (normalizedName === 'value' || normalizedName === 'comment') &&
-                candidate.y >= bounds.minY &&
-                candidate.y <= bounds.maxY &&
-                Math.abs(candidate.x - text.x) <= 2
+                Math.abs(candidate.x - text.x) <= 2 &&
+                SchematicTextPostProcessor.#isTextOnOwnerSide(
+                    candidate,
+                    bounds,
+                    side
+                )
             )
         })
+    }
+
+    /**
+     * Resolves which horizontal owner side a text sits on.
+     * @param {{ x: number }} text
+     * @param {{ minX: number, maxX: number }} bounds
+     * @returns {'left' | 'right' | null}
+     */
+    static #resolveOwnerSide(text, bounds) {
+        if (text.x <= bounds.minX + 2) {
+            return 'left'
+        }
+
+        if (text.x >= bounds.maxX - 2) {
+            return 'right'
+        }
+
+        return null
+    }
+
+    /**
+     * Returns true when a text sits on the requested horizontal owner side.
+     * @param {{ x: number }} text
+     * @param {{ minX: number, maxX: number }} bounds
+     * @param {'left' | 'right'} side
+     * @returns {boolean}
+     */
+    static #isTextOnOwnerSide(text, bounds, side) {
+        if (side === 'left') {
+            return text.x <= bounds.minX + 2
+        }
+
+        return text.x >= bounds.maxX - 2
     }
 
     /**

@@ -42,7 +42,7 @@ export class AppView {
     #diagnosticsCountNode
 
     /** @type {SchematicViewportController | null} */
-    #schematicViewportController
+    #svgViewportController
 
     /**
      * @param {Document} documentRef
@@ -62,7 +62,7 @@ export class AppView {
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#diagnosticsCountNode =
             this.#document.querySelector('#diagnosticsCount')
-        this.#schematicViewportController = null
+        this.#svgViewportController = null
     }
 
     /**
@@ -255,7 +255,7 @@ export class AppView {
     #renderContent(snapshot) {
         if (!this.#contentNode) return
 
-        this.#disposeSchematicViewportController()
+        this.#disposeSvgViewportController()
 
         if (snapshot.parseStatus === 'loading') {
             this.#contentNode.innerHTML =
@@ -273,7 +273,7 @@ export class AppView {
             this.#contentNode.innerHTML = SchematicSvgRenderer.render(
                 snapshot.documentModel
             )
-            this.#attachSchematicViewportController()
+            this.#attachSvgViewportController('.schematic-svg')
             return
         }
 
@@ -281,6 +281,7 @@ export class AppView {
             this.#contentNode.innerHTML = PcbSvgRenderer.render(
                 snapshot.documentModel
             )
+            this.#attachSvgViewportController('.pcb-svg')
             return
         }
 
@@ -304,31 +305,30 @@ export class AppView {
     }
 
     /**
-     * Attaches the schematic viewport controller when the rendered content
-     * contains a compatible schematic SVG node.
+     * Attaches the shared SVG viewport controller when the rendered content
+     * contains a compatible schematic or PCB SVG node.
+     * @param {string} selector
      * @returns {void}
      */
-    #attachSchematicViewportController() {
+    #attachSvgViewportController(selector) {
         if (!this.#contentNode) return
 
-        const schematicSvg = this.#contentNode.querySelector('.schematic-svg')
-        if (!AppView.#isInteractiveSchematicSvg(schematicSvg)) {
+        const svgNode = this.#contentNode.querySelector(selector)
+        if (!AppView.#isInteractiveSvg(svgNode)) {
             return
         }
 
-        this.#schematicViewportController = new SchematicViewportController(
-            schematicSvg
-        )
+        this.#svgViewportController = new SchematicViewportController(svgNode)
     }
 
     /**
-     * Disposes the active schematic viewport controller before the panel
+     * Disposes the active SVG viewport controller before the panel
      * content changes.
      * @returns {void}
      */
-    #disposeSchematicViewportController() {
-        this.#schematicViewportController?.dispose()
-        this.#schematicViewportController = null
+    #disposeSvgViewportController() {
+        this.#svgViewportController?.dispose()
+        this.#svgViewportController = null
     }
 
     /**
@@ -414,11 +414,11 @@ export class AppView {
 
     /**
      * Returns true when the queried node exposes the methods required by the
-     * schematic viewport controller.
+     * shared SVG viewport controller.
      * @param {unknown} node
      * @returns {boolean}
      */
-    static #isInteractiveSchematicSvg(node) {
+    static #isInteractiveSvg(node) {
         return Boolean(
             node &&
                 typeof node === 'object' &&
