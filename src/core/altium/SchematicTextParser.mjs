@@ -56,7 +56,7 @@ export class SchematicTextParser {
      * @param {Record<string, string>} metadata
      * @param {{ width: number, marginWidth: number }} sheet
      * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, isMirrored?: boolean, anchor: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] } | null}
      */
     static normalizeSchematicTextRecord(fields, metadata, sheet, fonts) {
         const x = ParserUtils.parseNumericField(fields, 'Location.X')
@@ -98,6 +98,7 @@ export class SchematicTextParser {
             fields,
             'Orientation'
         )
+        const isMirrored = ParserUtils.parseBoolean(fields.IsMirrored)
         const textRecord = {
             x,
             y,
@@ -117,6 +118,7 @@ export class SchematicTextParser {
             rotation,
             sourceOrientation:
                 sourceOrientation === null ? undefined : sourceOrientation,
+            isMirrored: isMirrored || undefined,
             powerPortDirection:
                 SchematicTextParser.#resolvePowerPortDirection(
                     fields,
@@ -400,18 +402,42 @@ export class SchematicTextParser {
      */
     static #inferTextAnchor(fields, recordType, name, text, font, rotation) {
         const normalizedName = String(name || '').trim().toLowerCase()
-        const justification = ParserUtils.parseNumericField(
-            fields,
-            'Justification'
-        )
+        const explicitAnchor =
+            SchematicTextParser.#resolveSchematicTextJustificationAnchor(fields)
 
         if (recordType === '17') return 'middle'
-        if (justification === 2) return 'middle'
+        if (explicitAnchor) return explicitAnchor
         if (font.size >= 20 && !normalizedName && /\S/.test(text)) {
             return 'middle'
         }
 
         return 'start'
+    }
+
+    /**
+     * Decodes Altium's three-column text justification grid into one
+     * horizontal SVG text anchor.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {'start' | 'middle' | 'end' | null}
+     */
+    static #resolveSchematicTextJustificationAnchor(fields) {
+        const justification = ParserUtils.parseNumericField(
+            fields,
+            'Justification'
+        )
+
+        if (justification === null) {
+            return null
+        }
+
+        switch (((justification % 3) + 3) % 3) {
+            case 1:
+                return 'middle'
+            case 2:
+                return 'end'
+            default:
+                return 'start'
+        }
     }
 
     /**
@@ -426,14 +452,32 @@ export class SchematicTextParser {
             return null
         }
 
-        // Rail-style power ports carry a stable explicit orientation in these
-        // samples. Ground-style ports do not map cleanly yet, so they still
-        // rely on connection heuristics and the renderer default.
-        if (ParserUtils.parseNumericField(fields, 'Style') === 4) {
-            return null
+        const style = ParserUtils.parseNumericField(fields, 'Style')
+        const orientation = ParserUtils.parseNumericField(
+            fields,
+            'Orientation'
+        )
+
+        if (style === 4) {
+            // Ground power-port symbols use a different rotation baseline than
+            // rail ports in recovered Altium samples, with orientation 3
+            // corresponding to the standard downward ground symbol.
+            switch (orientation) {
+                case 1:
+                    return 'up'
+                case 2:
+                    return 'left'
+                case 3:
+                    return 'down'
+                case 0:
+                case 4:
+                    return 'right'
+                default:
+                    return null
+            }
         }
 
-        switch (ParserUtils.parseNumericField(fields, 'Orientation')) {
+        switch (orientation) {
             case 1:
                 return 'up'
             case 2:
@@ -537,9 +581,9 @@ export class SchematicTextParser {
 
     /**
      * Adds note box metadata to one decoded schematic note record.
-     * @param {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end' }} textRecord
+     * @param {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, isMirrored?: boolean, anchor: 'start' | 'middle' | 'end' }} textRecord
      * @param {Record<string, string | string[]>} fields
-     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }}
+     * @returns {{ x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, recordType: string, style: number, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, isMirrored?: boolean, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }}
      */
     static #normalizeSchematicNoteRecord(textRecord, fields) {
         const noteLines = SchematicTextParser.#decodeSchematicNoteLines(

@@ -47,7 +47,7 @@ export class SchematicShapeRenderer {
             ) +
             '" stroke-width="' +
             formatNumber(Math.max(polygon.lineWidth || 1, 0.8)) +
-            '" />'
+            '" stroke-linejoin="round" />'
         )
     }
 
@@ -91,12 +91,14 @@ export class SchematicShapeRenderer {
 
     /**
      * Builds one schematic arc primitive as an SVG path.
-     * @param {{ x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }} arc
+     * Record-11 curves may supply `radiusY` for ellipse segments.
+     * @param {{ x: number, y: number, radius: number, radiusY?: number, startAngle: number, endAngle: number, color: string, width: number }} arc
      * @param {number} sheetHeight
      * @returns {string}
      */
     static buildArcMarkup(arc, sheetHeight) {
-        const radius = Math.max(Number(arc.radius) || 0, 0.8)
+        const radiusX = Math.max(Number(arc.radius) || 0, 0.8)
+        const radiusY = Math.max(Number(arc.radiusY ?? arc.radius) || 0, 0.8)
         const delta = SchematicShapeRenderer.#normalizeArcDelta(
             arc.startAngle,
             arc.endAngle
@@ -106,13 +108,15 @@ export class SchematicShapeRenderer {
             Math.abs(delta) >= 359.999
                 ? SchematicShapeRenderer.#buildFullCircleArcPath(
                       arc,
-                      radius,
+                      radiusX,
+                      radiusY,
                       sheetHeight,
                       sweep
                   )
                 : SchematicShapeRenderer.#buildPartialArcPath(
                       arc,
-                      radius,
+                      radiusX,
+                      radiusY,
                       sheetHeight,
                       delta,
                       sweep
@@ -135,6 +139,42 @@ export class SchematicShapeRenderer {
     }
 
     /**
+     * Builds one schematic ellipse primitive.
+     * @param {{ x: number, y: number, radiusX: number, radiusY: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }} ellipse
+     * @param {number} sheetHeight
+     * @returns {string}
+     */
+    static buildEllipseMarkup(ellipse, sheetHeight) {
+        return (
+            '<ellipse class="schematic-ellipse" cx="' +
+            formatNumber(ellipse.x) +
+            '" cy="' +
+            formatNumber(projectSchematicY(sheetHeight, ellipse.y)) +
+            '" rx="' +
+            formatNumber(Math.max(Number(ellipse.radiusX) || 0, 0.8)) +
+            '" ry="' +
+            formatNumber(Math.max(Number(ellipse.radiusY) || 0, 0.8)) +
+            '" fill="' +
+            escapeHtml(
+                SchematicColorResolver.resolveFill(
+                    SchematicShapeRenderer.#resolveSchematicEllipseFill(ellipse),
+                    '--schematic-fill-light-color'
+                )
+            ) +
+            '" stroke="' +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    ellipse.color,
+                    '--schematic-default-ink-color'
+                )
+            ) +
+            '" stroke-width="' +
+            formatNumber(Math.max(ellipse.lineWidth || 1, 0.8)) +
+            '" />'
+        )
+    }
+
+    /**
      * Resolves the visible fill for one schematic rectangle primitive.
      * @param {{ fill: string, isSolid: boolean, transparent: boolean }} rectangle
      * @returns {string}
@@ -148,24 +188,49 @@ export class SchematicShapeRenderer {
     }
 
     /**
+     * Resolves the visible fill for one schematic ellipse primitive.
+     * @param {{ fill: string, isSolid: boolean, transparent: boolean }} ellipse
+     * @returns {string}
+     */
+    static #resolveSchematicEllipseFill(ellipse) {
+        if (ellipse.transparent || !ellipse.isSolid) {
+            return 'none'
+        }
+
+        return ellipse.fill || 'none'
+    }
+
+    /**
      * Builds one non-circular SVG arc path.
-     * @param {{ x: number, y: number, radius: number, startAngle: number, endAngle: number }} arc
-     * @param {number} radius
+     * @param {{ x: number, y: number, radius: number, radiusY?: number, startAngle: number, endAngle: number }} arc
+     * @param {number} radiusX
+     * @param {number} radiusY
      * @param {number} sheetHeight
      * @param {number} delta
      * @param {0 | 1} sweep
      * @returns {string}
      */
-    static #buildPartialArcPath(arc, radius, sheetHeight, delta, sweep) {
+    static #buildPartialArcPath(
+        arc,
+        radiusX,
+        radiusY,
+        sheetHeight,
+        delta,
+        sweep
+    ) {
         const start = SchematicShapeRenderer.#projectArcPoint(
             arc,
             arc.startAngle,
-            sheetHeight
+            sheetHeight,
+            radiusX,
+            radiusY
         )
         const end = SchematicShapeRenderer.#projectArcPoint(
             arc,
             arc.endAngle,
-            sheetHeight
+            sheetHeight,
+            radiusX,
+            radiusY
         )
 
         return (
@@ -174,9 +239,9 @@ export class SchematicShapeRenderer {
             ' ' +
             formatNumber(start.y) +
             ' A ' +
-            formatNumber(radius) +
+            formatNumber(radiusX) +
             ' ' +
-            formatNumber(radius) +
+            formatNumber(radiusY) +
             ' 0 ' +
             (Math.abs(delta) > 180 ? '1' : '0') +
             ' ' +
@@ -191,23 +256,28 @@ export class SchematicShapeRenderer {
     /**
      * Builds one full-circle arc path from two half-arc segments.
      * @param {{ x: number, y: number, startAngle: number }} arc
-     * @param {number} radius
+     * @param {number} radiusX
+     * @param {number} radiusY
      * @param {number} sheetHeight
      * @param {0 | 1} sweep
      * @returns {string}
      */
-    static #buildFullCircleArcPath(arc, radius, sheetHeight, sweep) {
+    static #buildFullCircleArcPath(arc, radiusX, radiusY, sheetHeight, sweep) {
         const startAngle = Number(arc.startAngle) || 0
         const midAngle = startAngle + (sweep === 0 ? 180 : -180)
         const start = SchematicShapeRenderer.#projectArcPoint(
             arc,
             startAngle,
-            sheetHeight
+            sheetHeight,
+            radiusX,
+            radiusY
         )
         const mid = SchematicShapeRenderer.#projectArcPoint(
             arc,
             midAngle,
-            sheetHeight
+            sheetHeight,
+            radiusX,
+            radiusY
         )
 
         return (
@@ -216,9 +286,9 @@ export class SchematicShapeRenderer {
             ' ' +
             formatNumber(start.y) +
             ' A ' +
-            formatNumber(radius) +
+            formatNumber(radiusX) +
             ' ' +
-            formatNumber(radius) +
+            formatNumber(radiusY) +
             ' 0 0 ' +
             sweep +
             ' ' +
@@ -226,9 +296,9 @@ export class SchematicShapeRenderer {
             ' ' +
             formatNumber(mid.y) +
             ' A ' +
-            formatNumber(radius) +
+            formatNumber(radiusX) +
             ' ' +
-            formatNumber(radius) +
+            formatNumber(radiusY) +
             ' 0 0 ' +
             sweep +
             ' ' +
@@ -240,19 +310,21 @@ export class SchematicShapeRenderer {
 
     /**
      * Projects one schematic arc point into the SVG coordinate system.
-     * @param {{ x: number, y: number, radius: number }} arc
+     * @param {{ x: number, y: number }} arc
      * @param {number} angle
      * @param {number} sheetHeight
+     * @param {number} radiusX
+     * @param {number} radiusY
      * @returns {{ x: number, y: number }}
      */
-    static #projectArcPoint(arc, angle, sheetHeight) {
+    static #projectArcPoint(arc, angle, sheetHeight, radiusX, radiusY) {
         const radians = (Number(angle) * Math.PI) / 180
 
         return {
-            x: Number(arc.x) + Number(arc.radius) * Math.cos(radians),
+            x: Number(arc.x) + radiusX * Math.cos(radians),
             y: projectSchematicY(
                 sheetHeight,
-                Number(arc.y) + Number(arc.radius) * Math.sin(radians)
+                Number(arc.y) + radiusY * Math.sin(radians)
             )
         }
     }

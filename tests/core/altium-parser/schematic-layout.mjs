@@ -59,6 +59,32 @@ test('parseAltiumArrayBuffer keeps footer-driven A3 sizing when content is narro
 })
 
 /**
+ * Verifies custom-style sheets keep their declared page size even when the
+ * visible drawing occupies only one smaller region of the authored page.
+ */
+test('parseAltiumArrayBuffer keeps declared custom sheet size for non-standard style sheets', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|CustomX=1500|CustomY=950|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|RECORD=4|Location.X=760|Location.Y=511|Color=8388608|FontID=1|Text=USB_D_N' +
+            '|RECORD=18|Location.X=816|Location.Y=511|Name=USB_D_N|Width=65|Height=10|Color=8388608|AreaColor=65535'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'custom-sheet-size.SchDoc',
+        arrayBuffer
+    )
+
+    assert.equal(documentModel.schematic.sheet.width, 1500)
+    assert.equal(documentModel.schematic.sheet.height, 950)
+    assert.equal(documentModel.schematic.sheet.sourceWidth, 1500)
+    assert.equal(documentModel.schematic.sheet.sourceHeight, 950)
+    assert.equal(documentModel.schematic.sheet.xZones, 4)
+    assert.equal(documentModel.schematic.sheet.yZones, 4)
+})
+
+/**
  * Verifies solace-sheet off-sheet ports keep the same pointed side Altium uses
  * when explicit port style is omitted from the stored record.
  */

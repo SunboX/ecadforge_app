@@ -20,7 +20,7 @@ export class SchematicPowerPortRenderer {
     static buildMarkup(text, lines, pins, sheetHeight) {
         const x = text.x
         const y = projectSchematicY(sheetHeight, text.y)
-        const direction = SchematicPowerPortRenderer.#resolveOutwardDirection(
+        const direction = SchematicPowerPortRenderer.resolveOutwardDirection(
             text,
             lines,
             pins
@@ -86,7 +86,7 @@ export class SchematicPowerPortRenderer {
      * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
      * @returns {'up' | 'down' | 'left' | 'right'}
      */
-    static #resolveOutwardDirection(text, lines, pins) {
+    static resolveOutwardDirection(text, lines, pins) {
         if (text.powerPortDirection) {
             return text.powerPortDirection
         }
@@ -121,9 +121,46 @@ export class SchematicPowerPortRenderer {
             counts.set(candidate, (counts.get(candidate) || 0) + 1)
         }
 
-        return [...counts.entries()].sort(
-            (left, right) => right[1] - left[1]
-        )[0][0]
+        return [...counts.entries()].sort((left, right) => {
+            const countDelta = right[1] - left[1]
+
+            if (countDelta !== 0) {
+                return countDelta
+            }
+
+            return (
+                SchematicPowerPortRenderer.#resolveDirectionPriority(
+                    text,
+                    right[0]
+                ) -
+                SchematicPowerPortRenderer.#resolveDirectionPriority(
+                    text,
+                    left[0]
+                )
+            )
+        })[0][0]
+    }
+
+    /**
+     * Breaks directional ties for symbols whose connectivity touches more than
+     * one branch at the same attachment point.
+     * @param {{ style?: number }} text
+     * @param {'up' | 'down' | 'left' | 'right'} direction
+     * @returns {number}
+     */
+    static #resolveDirectionPriority(text, direction) {
+        if (Number(text.style) !== 4) {
+            return 0
+        }
+
+        switch (direction) {
+            case 'down':
+                return 2
+            case 'up':
+                return 1
+            default:
+                return 0
+        }
     }
 
     /**

@@ -4,9 +4,12 @@ import { SchematicTextParser } from './SchematicTextParser.mjs'
 import { SchematicTextPostProcessor } from './SchematicTextPostProcessor.mjs'
 import { SchematicStandaloneCalloutNormalizer } from './SchematicStandaloneCalloutNormalizer.mjs'
 import { SchematicAnnotationParser } from './SchematicAnnotationParser.mjs'
+import { SchematicDirectiveParser } from './SchematicDirectiveParser.mjs'
 import { SchematicPinParser } from './SchematicPinParser.mjs'
 import { SchematicPrimitiveParser } from './SchematicPrimitiveParser.mjs'
 import { AltiumLayoutParser } from './AltiumLayoutParser.mjs'
+import { PcbModelParser } from './PcbModelParser.mjs'
+import { PcbStreamExtractor } from './PcbStreamExtractor.mjs'
 import { SchematicMultipartOwnerMatcher } from './SchematicMultipartOwnerMatcher.mjs'
 import { SchematicSheetStyleResolver } from './SchematicSheetStyleResolver.mjs'
 const {
@@ -42,22 +45,22 @@ export class AltiumParser {
      * Parses a native Altium buffer into a normalized viewer model.
      * @param {string} fileName
      * @param {ArrayBuffer} arrayBuffer
-     * @returns {{
-     * kind: 'schematic' | 'pcb',
-     * fileType: 'SchDoc' | 'PcbDoc',
-     * fileName: string,
-     * summary: Record<string, number | string>,
-     * diagnostics: { severity: 'info' | 'warning', message: string }[],
-     * schematic?: { sheet: { width: number, height: number, sourceWidth?: number, sourceHeight?: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string, isBus?: boolean }[], polygons?: { points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], rectangles: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses: { x: number, y: number, size: number, color: string }[] },
-     * pcb?: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[] }
-     * bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[]
-     * }}
+     * @returns {{ kind: 'schematic' | 'pcb', fileType: 'SchDoc' | 'PcbDoc', fileName: string, summary: Record<string, number | string>, diagnostics: { severity: 'info' | 'warning', message: string }[], schematic?: Record<string, unknown>, pcb?: Record<string, unknown>, bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[] }}
      */
     static parseArrayBuffer(fileName, arrayBuffer) {
         const records = AsciiRecordParser.parse(arrayBuffer)
         const fileType = AltiumParser.#sniffFileType(fileName, records)
         if (fileType === 'SchDoc') return AltiumParser.#parseSchematic(fileName, records)
-        if (fileType === 'PcbDoc') return AltiumParser.#parsePcb(fileName, records)
+        if (fileType === 'PcbDoc') {
+            const pcbExtraction = PcbStreamExtractor.extractFromArrayBuffer(
+                arrayBuffer
+            )
+            return PcbModelParser.parse(
+                fileName,
+                pcbExtraction?.records || records,
+                pcbExtraction
+            )
+        }
         throw new Error('Unsupported file type: ' + fileName)
     }
 
@@ -134,7 +137,13 @@ export class AltiumParser {
         )
         const arcRecords = drawableRecords.filter(
             (record) =>
-                getField(record.fields, 'RECORD') === '12' &&
+                ['11', '12'].includes(getField(record.fields, 'RECORD')) &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
+                parseNumericField(record.fields, 'Radius') !== null
+        )
+        const ellipseRecords = drawableRecords.filter(
+            (record) =>
+                getField(record.fields, 'RECORD') === '8' &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
                 parseNumericField(record.fields, 'Radius') !== null
         )
@@ -152,6 +161,11 @@ export class AltiumParser {
         )
         const portRecords = drawableRecords.filter(
             (record) => getField(record.fields, 'RECORD') === '18'
+        )
+        const directiveRecords = drawableRecords.filter(
+            (record) =>
+                getField(record.fields, 'RECORD') === '43' &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Location')
         )
         const crossRecords = drawableRecords.filter(
             (record) => getField(record.fields, 'RECORD') === '22'
@@ -206,7 +220,7 @@ export class AltiumParser {
         }
 
         const lines = [
-            ...lineRecords.map((record) => ({
+            ...lineRecords.map((record, index) => ({
                 x1: parseNumericField(record.fields, 'Location.X') || 0,
                 y1: parseNumericField(record.fields, 'Location.Y') || 0,
                 x2: parseNumericField(record.fields, 'Corner.X') || 0,
@@ -214,19 +228,22 @@ export class AltiumParser {
                 color: toColor(record.fields.Color, '#a44a1b'),
                 width: parseNumericField(record.fields, 'LineWidth') || 1,
                 lineStyle: parseNumericField(record.fields, 'LineStyle') || 0,
+                renderOrder: parseNumericField(record.fields, 'IndexInSheet') ?? index,
                 ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
             })),
-            ...polylineRecords.flatMap((record) =>
+            ...polylineRecords.flatMap((record, index) =>
                 parseSchematicPolyline(record.fields, {
                     isBus: getField(record.fields, 'RECORD') === '26'
-                }).map((line) => ({
+                }).map((line, segmentIndex) => ({
                     ...line,
+                    renderOrder: (parseNumericField(record.fields, 'IndexInSheet') ?? index) + segmentIndex / 100,
                     ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
                 }))
             ),
-            ...polygonRecords.flatMap((record) =>
-                parseSchematicPolygon(record.fields).map((line) => ({
+            ...polygonRecords.flatMap((record, index) =>
+                parseSchematicPolygon(record.fields).map((line, segmentIndex) => ({
                     ...line,
+                    renderOrder: (parseNumericField(record.fields, 'IndexInSheet') ?? index) + segmentIndex / 100,
                     ownerIndex: getField(record.fields, 'OwnerIndex') || undefined
                 }))
             )
@@ -235,7 +252,11 @@ export class AltiumParser {
             SchematicPrimitiveParser.parseSchematicPolygons(polygonRecords)
         const rectangles =
             SchematicPrimitiveParser.parseSchematicRectangles(rectangleRecords)
+        const ellipses =
+            SchematicPrimitiveParser.parseSchematicEllipses(ellipseRecords)
         const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
+        const directives =
+            SchematicDirectiveParser.parseSchematicDirectives(directiveRecords)
 
         const pins = parseSchematicPins(pinRecords)
         const ports = parseSchematicPorts(portRecords, lines)
@@ -395,113 +416,14 @@ export class AltiumParser {
                 lines: normalizedLines,
                 polygons,
                 rectangles,
+                ellipses,
                 arcs,
+                directives,
                 texts: anchoredTexts,
                 components,
                 pins,
                 ports,
                 crosses
-            },
-            bom
-        }
-    }
-
-    /**
-     * Normalizes a PCB document.
-     * @param {string} fileName
-     * @param {{ raw: string, fields: Record<string, string | string[]> }[]} records
-     * @returns {ReturnType<typeof AltiumParser.parseArrayBuffer>}
-     */
-    static #parsePcb(fileName, records) {
-        const boardRecord = records.find((record) =>
-            getField(record.fields, 'KIND0')
-        )
-        const layerRecord = records.find(
-            (record) =>
-                countMatchingKeys(record.fields, /^V9_STACK_LAYER\d+_NAME$/) > 0
-        )
-        const componentRecords = dedupeByDesignator(
-            records
-                .filter(
-                    (record) =>
-                        getField(record.fields, 'PATTERN') &&
-                        getField(record.fields, 'SOURCEDESIGNATOR')
-                )
-                .map((record) => ({
-                    designator: getField(record.fields, 'SOURCEDESIGNATOR'),
-                    x: parseNumericField(record.fields, 'X') || 0,
-                    y: parseNumericField(record.fields, 'Y') || 0,
-                    layer: getField(record.fields, 'LAYER') || 'TOP',
-                    pattern: getField(record.fields, 'PATTERN'),
-                    rotation: parseNumericField(record.fields, 'ROTATION') || 0,
-                    source:
-                        getField(record.fields, 'SOURCELIBREFERENCE') ||
-                        getField(record.fields, 'SOURCEFOOTPRINTLIBRARY'),
-                    description: getField(record.fields, 'SOURCEDESCRIPTION'),
-                    height: parseNumericField(record.fields, 'HEIGHT')
-                }))
-        )
-
-        const boardOutline = AltiumLayoutParser.parseBoardOutline(
-            boardRecord?.fields || {}
-        )
-        const layers = AltiumLayoutParser.parseLayerStack(
-            layerRecord?.fields || {}
-        )
-        const bom = AltiumParser.#groupBomRows(
-            componentRecords.map((component) => ({
-                designator: component.designator,
-                pattern: component.pattern,
-                source: component.source,
-                value: component.description || component.pattern
-            }))
-        )
-
-        const diagnostics = [
-            {
-                severity: 'info',
-                message:
-                    'Recovered ' + records.length + ' printable PCB records.'
-            },
-            {
-                severity: 'info',
-                message:
-                    'Recovered ' +
-                    componentRecords.length +
-                    ' PCB component placements.'
-            },
-            {
-                severity: 'info',
-                message: 'Recovered ' + layers.length + ' layer stack entries.'
-            }
-        ]
-
-        if (!boardRecord) {
-            diagnostics.push({
-                severity: 'warning',
-                message:
-                    'Board geometry record was not found. PCB view uses component extents only.'
-            })
-        }
-
-        return {
-            kind: 'pcb',
-            fileType: 'PcbDoc',
-            fileName,
-            summary: {
-                title: stripExtension(fileName),
-                componentCount: componentRecords.length,
-                layerCount: layers.length,
-                outlineSegmentCount: boardOutline.segments.length,
-                bomRowCount: bom.length,
-                boardWidthMil: Math.round(boardOutline.widthMil),
-                boardHeightMil: Math.round(boardOutline.heightMil)
-            },
-            diagnostics,
-            pcb: {
-                boardOutline,
-                layers,
-                components: componentRecords
             },
             bom
         }
@@ -620,6 +542,7 @@ export class AltiumParser {
         return (
             recordType === '2' ||
             recordType === '6' ||
+            recordType === '11' ||
             recordType === '12' ||
             recordType === '13' ||
             recordType === '27' ||

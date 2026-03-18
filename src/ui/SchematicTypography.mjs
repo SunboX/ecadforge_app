@@ -51,8 +51,9 @@ export class SchematicTypography {
 
     /**
      * Builds render options for one schematic text label, including the signed
-     * SVG rotation derived from the original Altium orientation.
-     * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number }} text
+     * SVG rotation derived from the original Altium orientation and mirrored
+     * source state.
+     * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, isMirrored?: boolean }} text
      * @returns {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number }}
      */
     static buildSchematicTextRenderOptions(text) {
@@ -62,7 +63,8 @@ export class SchematicTypography {
             fontWeight: text.fontWeight,
             rotation: SchematicTypography.#resolveSignedTextRotation(
                 text.rotation,
-                text.sourceOrientation
+                text.sourceOrientation,
+                text.isMirrored
             )
         }
     }
@@ -139,6 +141,31 @@ export class SchematicTypography {
     }
 
     /**
+     * Collects owner/text pairs that already expose explicit pin-name labels as
+     * free text primitives, so the pin renderer can avoid duplicating them.
+     * @param {{ ownerIndex?: string, recordType?: string, text?: string }[]} texts
+     * @returns {Set<string>}
+     */
+    static collectExplicitOwnerPinNameLabels(texts) {
+        return new Set(
+            texts
+                .filter(
+                    (text) =>
+                        text &&
+                        text.recordType === '4' &&
+                        String(text.ownerIndex || '').trim() &&
+                        String(text.text || '').trim()
+                )
+                .map(
+                    (text) =>
+                        String(text.ownerIndex || '').trim() +
+                        '::' +
+                        String(text.text || '').trim()
+                )
+        )
+    }
+
+    /**
      * Converts Altium point sizes into SVG font units.
      * @param {number} size
      * @returns {number}
@@ -151,19 +178,21 @@ export class SchematicTypography {
      * Resolves the signed SVG rotation for one schematic text label.
      * @param {number | undefined} rotation
      * @param {number | undefined} sourceOrientation
+     * @param {boolean | undefined} isMirrored
      * @returns {number}
      */
-    static #resolveSignedTextRotation(rotation, sourceOrientation) {
+    static #resolveSignedTextRotation(rotation, sourceOrientation, isMirrored) {
         const normalizedRotation = Number(rotation || 0)
 
         if (!normalizedRotation) {
             return 0
         }
 
-        if (Number(sourceOrientation || 0) === 3) {
-            return normalizedRotation
-        }
+        const signedRotation =
+            Number(sourceOrientation || 0) === 3
+                ? normalizedRotation
+                : -normalizedRotation
 
-        return -normalizedRotation
+        return isMirrored ? -signedRotation : signedRotation
     }
 }

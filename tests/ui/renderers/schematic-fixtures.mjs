@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { AltiumFixtureLoader } from '../../fixtures/AltiumFixtureLoader.mjs'
+import { AltiumParser } from '../../../src/core/altium/AltiumParser.mjs'
 import { BomTableRenderer } from '../../../src/ui/BomTableRenderer.mjs'
 import { PcbSvgRenderer } from '../../../src/ui/PcbSvgRenderer.mjs'
 import { Scene3dRenderer } from '../../../src/ui/Scene3dRenderer.mjs'
@@ -100,6 +101,24 @@ test('renderSchematicSvg renders the aether Q12 diode triangle', async () => {
     assert.match(
         markup,
         /<line x1="225" y1="573" x2="217" y2="589" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
+    )
+})
+
+/**
+ * Verifies non-mirrored `Orientation=3` texts keep their existing clockwise
+ * flow so mirrored owner-side pin-name fixes do not flip ordinary labels.
+ */
+test('renderSchematicSvg keeps bastion-sheet non-mirrored orientation-3 labels clockwise', async () => {
+    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.match(
+        markup,
+        /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
+    )
+    assert.match(
+        markup,
+        /<text class="schematic-label" x="415" y="844" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 844\)">4K7</
     )
 })
 
@@ -476,6 +495,39 @@ test(
         assert.match(
             markup,
             /<text class="schematic-label" x="340" y="699" fill="var\(--schematic-power-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">AURA_IRQ</
+        )
+    }
+)
+
+/**
+ * Verifies mirrored free-text strings honor their decoded horizontal
+ * justification in the final SVG output.
+ */
+test(
+    'renderSchematicSvg honors generic free-text justification anchors',
+    () => {
+        const records = [
+            '|HEADER=Schematic Document',
+            '|RECORD=31|CustomX=500|CustomY=300|VisibleGridSize=10|SnapGridSize=5' +
+                '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+                '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+            '|RECORD=4|Location.X=200|Location.Y=220|Justification=2|Color=255|FontID=1|Text=DC 12V IN|IsMirrored=T',
+            '|RECORD=4|Location.X=120|Location.Y=140|Justification=6|Color=8388608|FontID=1|Text=StandBy|IsMirrored=T'
+        ]
+        const arrayBuffer = new TextEncoder().encode(records.join('')).buffer
+        const documentModel = AltiumParser.parseArrayBuffer(
+            'free-text-justification.SchDoc',
+            arrayBuffer
+        )
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="200" y="40" fill="var\(--schematic-alert-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">DC 12V IN</
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-label" x="120" y="120" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">StandBy</
         )
     }
 )

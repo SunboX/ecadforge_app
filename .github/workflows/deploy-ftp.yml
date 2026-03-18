@@ -1,0 +1,94 @@
+name: Deploy to FTP (main)
+
+on:
+    push:
+        branches: ['main']
+
+concurrency:
+    group: ftp-deploy-main
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - uses: dorny/paths-filter@v3
+              id: changes
+              with:
+                  filters: |
+                      deps:
+                        - 'package.json'
+                        - 'package-lock.json'
+                      src:
+                        - 'src/**'
+                      docs:
+                        - 'docs/**'
+
+            - name: Deploy src to /
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./src/
+                  server-dir: /
+                  exclude: |
+                      **/node_modules/**
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-src-state.json
+
+            - name: Deploy docs to /docs/
+              if: steps.changes.outputs.docs == 'true'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./docs/
+                  server-dir: /docs/
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-docs-state.json
+
+            - uses: actions/setup-node@v4
+              if: steps.changes.outputs.deps == 'true'
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install production dependencies
+              if: steps.changes.outputs.deps == 'true'
+              run: npm ci --omit=dev
+
+            - name: Deploy node_modules
+              if: steps.changes.outputs.deps == 'true'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./node_modules/
+                  server-dir: /node_modules/
+                  exclude: |
+                      **/.git*
+                      **/.github/**
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-nm-state.json

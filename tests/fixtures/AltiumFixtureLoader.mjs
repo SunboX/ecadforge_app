@@ -494,7 +494,7 @@ export class AltiumFixtureLoader {
                 '|RECORD=1|LibReference=RES/FAKE/NET-ARRAY-4|PartCount=5|DisplayModeCount=1|IndexInSheet=201|OwnerPartId=-1|Location.X=955|Location.Y=805|CurrentPartId=1|UniqueID=TVEWLEBV|Color=128|DesignItemId=RES/FAKE/NET-ARRAY-4|AllPinCount=8',
                 '|RECORD=1|LibReference=RES/FAKE/NET-ARRAY-4|PartCount=5|DisplayModeCount=1|IndexInSheet=202|OwnerPartId=-1|Location.X=961|Location.Y=985|CurrentPartId=3|UniqueID=SXEASYAV|Color=128|DesignItemId=RES/FAKE/NET-ARRAY-4|AllPinCount=8',
                 '|RECORD=1|LibReference=RES/FAKE/NET-ARRAY-4|PartCount=5|DisplayModeCount=1|IndexInSheet=203|OwnerPartId=-1|Location.X=955|Location.Y=775|CurrentPartId=4|UniqueID=QYKGGGPN|Color=128|DesignItemId=RES/FAKE/NET-ARRAY-4|AllPinCount=8',
-                '|RECORD=4|Location.X=349|Location.Y=576|Justification=2|Color=8388608|FontID=5|Text=Needed for Dawn Sigil!',
+                '|RECORD=4|Location.X=349|Location.Y=576|Justification=1|Color=8388608|FontID=5|Text=Needed for Dawn Sigil!',
                 '|RECORD=13|Location.X=289|Location.Y=590|Corner.X=409|Corner.Y=590|Color=16711680|LineWidth=1|LineStyle=1',
                 '|RECORD=13|Location.X=409|Location.Y=590|Corner.X=409|Corner.Y=524|Color=16711680|LineWidth=1|LineStyle=1',
                 '|RECORD=13|Location.X=409|Location.Y=524|Corner.X=289|Corner.Y=524|Color=16711680|LineWidth=1|LineStyle=1',

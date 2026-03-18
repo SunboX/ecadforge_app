@@ -6,7 +6,7 @@ import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
 export class PcbSvgRenderer {
     /**
      * Renders a normalized PCB model into HTML and SVG markup.
-     * @param {{ summary: { title?: string }, pcb?: { boardOutline: { segments: Array<Record<string, number | string>>, minX: number, minY: number, widthMil: number, heightMil: number }, layers: { name: string }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] } }} documentModel
+     * @param {{ summary: { title?: string }, pcb?: { boardOutline: { segments: Array<Record<string, number | string>>, minX: number, minY: number, widthMil: number, heightMil: number }, layers: { name: string }[], polygons?: { layer?: string, segments: Array<Record<string, number | string>> }[], fills?: { x1: number, y1: number, x2: number, y2: number, layerCode?: number }[], tracks?: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number }[], vias?: { x: number, y: number, diameter: number, holeDiameter: number }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -16,15 +16,116 @@ export class PcbSvgRenderer {
         }
 
         const outline = pcb.boardOutline
+        const polygons = pcb.polygons || []
+        const fills = pcb.fills || []
+        const tracks = pcb.tracks || []
+        const vias = pcb.vias || []
         const components = pcb.components.slice(0, 260)
+        const copperGroups = PcbSvgRenderer.#splitCopperPrimitives(
+            polygons,
+            fills,
+            tracks
+        )
         const path = PcbSvgRenderer.#buildBoardPath(outline.segments)
-        const viewBox = PcbSvgRenderer.#buildViewBox(outline, components)
+        const clipPathId = 'pcb-board-clip'
+        const viewBox = PcbSvgRenderer.#buildViewBox(
+            outline,
+            components,
+            polygons,
+            fills,
+            tracks,
+            vias
+        )
         const layerMarkup = pcb.layers
             .slice(0, 10)
             .map(
                 (layer) =>
                     '<li>' + SchematicSvgUtils.escapeHtml(layer.name) + '</li>'
             )
+            .join('')
+        const polygonMarkup = (polygonList, visibilityClass) =>
+            polygonList
+                .map(
+                    (polygon) =>
+                        '<path class="pcb-polygon pcb-polygon--' +
+                        visibilityClass +
+                        '" d="' +
+                        SchematicSvgUtils.escapeHtml(
+                            PcbSvgRenderer.#buildBoardPath(polygon.segments)
+                        ) +
+                        '" />'
+                )
+                .join('')
+        const fillMarkup = (fillList, visibilityClass) =>
+            fillList
+                .map((fill) => {
+                const x = Math.min(fill.x1, fill.x2)
+                const y = Math.min(fill.y1, fill.y2)
+                const width = Math.abs(fill.x2 - fill.x1)
+                const height = Math.abs(fill.y2 - fill.y1)
+
+                return (
+                    '<rect class="pcb-fill pcb-fill--' +
+                    visibilityClass +
+                    '" x="' +
+                    SchematicSvgUtils.formatNumber(x) +
+                    '" y="' +
+                    SchematicSvgUtils.formatNumber(y) +
+                    '" width="' +
+                    SchematicSvgUtils.formatNumber(width) +
+                    '" height="' +
+                    SchematicSvgUtils.formatNumber(height) +
+                    '" rx="' +
+                    SchematicSvgUtils.formatNumber(Math.min(width, height) / 6) +
+                    '" />'
+                )
+            })
+            .join('')
+        const trackMarkup = (trackList, visibilityClass) =>
+            trackList
+                .map(
+                    (track) =>
+                        '<line class="pcb-track pcb-track--' +
+                        visibilityClass +
+                        '" x1="' +
+                        SchematicSvgUtils.formatNumber(track.x1) +
+                        '" y1="' +
+                        SchematicSvgUtils.formatNumber(track.y1) +
+                        '" x2="' +
+                        SchematicSvgUtils.formatNumber(track.x2) +
+                        '" y2="' +
+                        SchematicSvgUtils.formatNumber(track.y2) +
+                        '" stroke-width="' +
+                        SchematicSvgUtils.formatNumber(
+                            Math.max(track.width || 0, 1)
+                        ) +
+                        '" />'
+                )
+                .join('')
+        const viaMarkup = vias
+            .map((via) => {
+                const ringRadius = Math.max((via.diameter || 0) / 2, 1)
+                const holeRadius = Math.max((via.holeDiameter || 0) / 2, 0.6)
+
+                return (
+                    '<g class="pcb-via">' +
+                    '<circle class="pcb-via__pad" cx="' +
+                    SchematicSvgUtils.formatNumber(via.x) +
+                    '" cy="' +
+                    SchematicSvgUtils.formatNumber(via.y) +
+                    '" r="' +
+                    SchematicSvgUtils.formatNumber(ringRadius) +
+                    '" />' +
+                    '<circle class="pcb-via__hole" cx="' +
+                    SchematicSvgUtils.formatNumber(via.x) +
+                    '" cy="' +
+                    SchematicSvgUtils.formatNumber(via.y) +
+                    '" r="' +
+                    SchematicSvgUtils.formatNumber(holeRadius) +
+                    '" />' +
+                    '</g>'
+                )
+            })
             .join('')
 
         const componentMarkup = components
@@ -78,13 +179,36 @@ export class PcbSvgRenderer {
             pcb.layers.length +
             ' layers</p></header>' +
             '<div class="pcb-layout">' +
-            '<aside class="pcb-legend"><h4>Visible layers</h4><ul>' +
+            '<aside class="pcb-legend"><h4>Board stack</h4><p>Top-facing composite view</p><ul>' +
             layerMarkup +
             '</ul></aside>' +
             '<svg class="pcb-svg" viewBox="' +
             SchematicSvgUtils.escapeHtml(viewBox) +
             '" preserveAspectRatio="xMidYMid meet" aria-label="PCB view">' +
+            '<defs><clipPath id="' +
+            clipPathId +
+            '"><path d="' +
+            SchematicSvgUtils.escapeHtml(path) +
+            '" /></clipPath></defs>' +
             '<path class="board-outline" d="' +
+            SchematicSvgUtils.escapeHtml(path) +
+            '" />' +
+            '<g class="pcb-copper-layers" clip-path="url(#' +
+            clipPathId +
+            ')">' +
+            '<g class="pcb-copper pcb-copper--subsurface">' +
+            polygonMarkup(copperGroups.subsurface.polygons, 'subsurface') +
+            fillMarkup(copperGroups.subsurface.fills, 'subsurface') +
+            trackMarkup(copperGroups.subsurface.tracks, 'subsurface') +
+            '</g>' +
+            '<g class="pcb-copper pcb-copper--surface">' +
+            polygonMarkup(copperGroups.surface.polygons, 'surface') +
+            fillMarkup(copperGroups.surface.fills, 'surface') +
+            trackMarkup(copperGroups.surface.tracks, 'surface') +
+            viaMarkup +
+            '</g>' +
+            '</g>' +
+            '<path class="board-outline board-outline--stroke" d="' +
             SchematicSvgUtils.escapeHtml(path) +
             '" />' +
             '<g class="pcb-components">' +
@@ -152,21 +276,57 @@ export class PcbSvgRenderer {
 
     /**
      * Computes a reasonable viewBox.
-     * @param {{ minX: number, minY: number, widthMil: number, heightMil: number }} outline
+     * @param {{ minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }} outline
      * @param {{ x: number, y: number }[]} components
+     * @param {{ segments: Array<Record<string, number | string>> }[]} polygons
+     * @param {{ x1: number, y1: number, x2: number, y2: number }[]} fills
+     * @param {{ x1: number, y1: number, x2: number, y2: number }[]} tracks
+     * @param {{ x: number, y: number, diameter: number }[]} vias
      * @returns {string}
      */
-    static #buildViewBox(outline, components) {
-        const xs = [
-            outline.minX,
-            outline.minX + outline.widthMil,
-            ...components.map((component) => component.x)
-        ]
-        const ys = [
-            outline.minY,
-            outline.minY + outline.heightMil,
-            ...components.map((component) => component.y)
-        ]
+    static #buildViewBox(outline, components, polygons, fills, tracks, vias) {
+        const xs = [outline.minX, outline.minX + outline.widthMil]
+        const ys = [outline.minY, outline.minY + outline.heightMil]
+
+        for (const segment of outline.segments || []) {
+            xs.push(Number(segment.x1) || 0, Number(segment.x2) || 0)
+            ys.push(Number(segment.y1) || 0, Number(segment.y2) || 0)
+        }
+
+        for (const polygon of polygons) {
+            for (const segment of polygon.segments || []) {
+                xs.push(Number(segment.x1) || 0, Number(segment.x2) || 0)
+                ys.push(Number(segment.y1) || 0, Number(segment.y2) || 0)
+            }
+        }
+
+        for (const fill of fills) {
+            xs.push(fill.x1, fill.x2)
+            ys.push(fill.y1, fill.y2)
+        }
+
+        for (const track of tracks) {
+            xs.push(track.x1, track.x2)
+            ys.push(track.y1, track.y2)
+        }
+
+        for (const via of vias) {
+            const radius = (via.diameter || 0) / 2
+
+            xs.push(via.x - radius, via.x + radius)
+            ys.push(via.y - radius, via.y + radius)
+        }
+
+        for (const component of components) {
+            const footprint = PcbSvgRenderer.#footprintSize(component.pattern)
+
+            xs.push(component.x - footprint.width / 2, component.x + footprint.width / 2)
+            ys.push(
+                component.y - footprint.height / 2,
+                component.y + footprint.height / 2
+            )
+        }
+
         const minX = Math.min(...xs)
         const minY = Math.min(...ys)
         const maxX = Math.max(...xs)
@@ -199,5 +359,67 @@ export class PcbSvgRenderer {
         }
         if (normalized.includes('SC70')) return { width: 110, height: 70 }
         return { width: 96, height: 60 }
+    }
+
+    /**
+     * Splits recovered copper primitives into the default top-facing surface
+     * view and de-emphasized buried layers.
+     * @param {{ layer?: string, segments: Array<Record<string, number | string>> }[]} polygons
+     * @param {{ x1: number, y1: number, x2: number, y2: number, layerCode?: number }[]} fills
+     * @param {{ x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number }[]} tracks
+     * @returns {{ surface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number }[] }, subsurface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number }[] } }}
+     */
+    static #splitCopperPrimitives(polygons, fills, tracks) {
+        const surfaceTrackLayerCode =
+            PcbSvgRenderer.#resolveSurfaceLayerCode(tracks)
+        const surfaceFillLayerCode =
+            PcbSvgRenderer.#resolveSurfaceLayerCode(fills)
+
+        return {
+            surface: {
+                polygons: polygons.filter((polygon) =>
+                    PcbSvgRenderer.#isSurfacePolygon(polygon)
+                ),
+                fills: fills.filter(
+                    (fill) => fill.layerCode === surfaceFillLayerCode
+                ),
+                tracks: tracks.filter(
+                    (track) => track.layerCode === surfaceTrackLayerCode
+                )
+            },
+            subsurface: {
+                polygons: polygons.filter(
+                    (polygon) => !PcbSvgRenderer.#isSurfacePolygon(polygon)
+                ),
+                fills: fills.filter(
+                    (fill) => fill.layerCode !== surfaceFillLayerCode
+                ),
+                tracks: tracks.filter(
+                    (track) => track.layerCode !== surfaceTrackLayerCode
+                )
+            }
+        }
+    }
+
+    /**
+     * Returns the default visible layer code from one primitive family.
+     * @param {{ layerCode?: number }[]} primitives
+     * @returns {number | null}
+     */
+    static #resolveSurfaceLayerCode(primitives) {
+        const layerCodes = primitives
+            .map((primitive) => primitive.layerCode)
+            .filter((layerCode) => Number.isFinite(layerCode))
+
+        return layerCodes.length ? Math.min(...layerCodes) : null
+    }
+
+    /**
+     * Returns true when one polygon belongs to the top-facing copper view.
+     * @param {{ layer?: string }} polygon
+     * @returns {boolean}
+     */
+    static #isSurfacePolygon(polygon) {
+        return String(polygon.layer || '').trim().toUpperCase() === 'TOP'
     }
 }

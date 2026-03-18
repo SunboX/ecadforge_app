@@ -390,6 +390,45 @@ test('parseAltiumArrayBuffer keeps anonymous multi-side connector pins and groun
 })
 
 /**
+ * Verifies inline ground power ports preserve explicit Altium orientation so
+ * the renderer does not rotate them sideways when only a horizontal wire is
+ * attached at the connection point.
+ */
+test('parseAltiumArrayBuffer keeps explicit ground power-port orientation on horizontal wires', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=160|CustomY=100|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=13|Location.X=70|Location.Y=40|Corner.X=90|Corner.Y=40|LineWidth=1|Color=128',
+        '|RECORD=17|Style=4|ShowNetName=T|Orientation=3|Location.X=90|Location.Y=40|Color=128|FontID=1|Text=GND'
+    ]
+    const arrayBuffer = new TextEncoder().encode(records.join('')).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'ground-orientation.SchDoc',
+        arrayBuffer
+    )
+    const markup = SchematicSvgRenderer.render(documentModel)
+    const groundPort = documentModel.schematic.texts.find(
+        (text) =>
+            text.recordType === '17' &&
+            text.text === 'GND' &&
+            text.x === 90 &&
+            text.y === 40
+    )
+
+    assert.equal(groundPort?.powerPortDirection, 'down')
+    assert.match(
+        markup,
+        /<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round"><line x1="90" y1="60" x2="90" y2="67" stroke="var\(--schematic-power-color\)" \/>/
+    )
+    assert.doesNotMatch(
+        markup,
+        /<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round"><line x1="90" y1="60" x2="97" y2="60" stroke="var\(--schematic-power-color\)" \/>/
+    )
+})
+
+/**
  * Verifies lyra-sheet record-14 package bodies are parsed as filled rectangles
  * instead of diagonal line segments.
  */
@@ -442,6 +481,7 @@ test('parseAltiumArrayBuffer keeps the lyra-sheet inductor coil arcs as record-1
             endAngle: 177.7,
             color: '#0000ff',
             width: 1,
+            renderOrder: 5,
             ownerIndex: '5602'
         },
         {
@@ -452,6 +492,7 @@ test('parseAltiumArrayBuffer keeps the lyra-sheet inductor coil arcs as record-1
             endAngle: 177.7,
             color: '#0000ff',
             width: 1,
+            renderOrder: 6,
             ownerIndex: '5602'
         },
         {
@@ -462,6 +503,7 @@ test('parseAltiumArrayBuffer keeps the lyra-sheet inductor coil arcs as record-1
             endAngle: 177.7,
             color: '#0000ff',
             width: 1,
+            renderOrder: 7,
             ownerIndex: '5602'
         }
     ])

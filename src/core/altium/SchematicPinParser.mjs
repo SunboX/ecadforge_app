@@ -7,7 +7,7 @@ export class SchematicPinParser {
     /**
      * Normalizes schematic pin records into drawable pin primitives.
      * @param {{ fields: Record<string, string | string[]> }[]} records
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
+     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
      */
     static parseSchematicPins(records) {
         const groups = new Map()
@@ -51,6 +51,9 @@ export class SchematicPinParser {
                 ),
                 designator: ParserUtils.getField(record.fields, 'Designator'),
                 orientation,
+                electrical:
+                    ParserUtils.parseNumericField(record.fields, 'Electrical') ||
+                    undefined,
                 ownerIndex
             })
         }
@@ -64,7 +67,7 @@ export class SchematicPinParser {
      * Normalizes schematic port records into drawable port boxes.
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} [lines]
-     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction: 'left' | 'right' | 'up' | 'down' }[]}
+     * @returns {{ x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction: 'left' | 'right' | 'up' | 'down', shape: 'single' | 'double' | 'plain' }[]}
      */
     static parseSchematicPorts(records, lines = []) {
         return records
@@ -95,6 +98,9 @@ export class SchematicPinParser {
                         record.fields.TextColor || record.fields.Color,
                         '#8d2b2b'
                     ),
+                    shape: SchematicPinParser.#resolveSchematicPortShape(
+                        record.fields
+                    ),
                     direction:
                         SchematicPinParser.#resolveSchematicPortDirection(
                             record.fields,
@@ -106,6 +112,30 @@ export class SchematicPinParser {
                 }
             })
             .filter((port) => port.name)
+    }
+
+    /**
+     * Resolves which horizontal port silhouette Altium requested.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {'single' | 'double' | 'plain'}
+     */
+    static #resolveSchematicPortShape(fields) {
+        if (ParserUtils.parseNumericField(fields, 'Style') === 4) {
+            return 'single'
+        }
+
+        if (ParserUtils.getField(fields, 'IOType') === '3') {
+            return 'double'
+        }
+
+        if (
+            !ParserUtils.getField(fields, 'Alignment') &&
+            !ParserUtils.getField(fields, 'IOType')
+        ) {
+            return 'plain'
+        }
+
+        return 'single'
     }
 
     /**
@@ -457,8 +487,8 @@ export class SchematicPinParser {
 
     /**
      * Deduces the visible pins for one schematic symbol owner.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', ownerIndex: string }[]} pins
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
+     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]} pins
+     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
      */
     static #normalizeSchematicPinGroup(pins) {
         const deduped = SchematicPinParser.#dedupeSchematicPins(pins)
@@ -537,8 +567,8 @@ export class SchematicPinParser {
 
     /**
      * Removes duplicate pin records emitted for alternate display modes.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', ownerIndex: string }[]} pins
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', ownerIndex: string }[]}
+     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]} pins
+     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]}
      */
     static #dedupeSchematicPins(pins) {
         const seen = new Set()
@@ -552,7 +582,8 @@ export class SchematicPinParser {
                 pin.length,
                 pin.name,
                 pin.designator,
-                pin.orientation
+                pin.orientation,
+                pin.electrical
             ].join('::')
 
             if (seen.has(key)) continue

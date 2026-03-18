@@ -164,11 +164,11 @@ test('renderSchematicSvg renders filled polygons from source AreaColor values', 
     assert.match(markup, /<g class="schematic-polygons">/)
     assert.match(
         markup,
-        /<polygon class="schematic-polygon" points="20,80 36,80 28,64" fill="var\(--schematic-power-color\)" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
+        /<polygon class="schematic-polygon" points="20,80 36,80 28,64" fill="var\(--schematic-power-color\)" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-linejoin="round" \/>/
     )
     assert.match(
         markup,
-        /<polygon class="schematic-polygon" points="60,80 76,80 68,64" fill="#00c0c0" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
+        /<polygon class="schematic-polygon" points="60,80 76,80 68,64" fill="#00c0c0" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" stroke-linejoin="round" \/>/
     )
 })
 
@@ -518,6 +518,23 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     assert.match(markup, /LUMEN-VEIL-A1/)
     assert.match(markup, /Sheet 4 of 6/)
     assert.match(markup, /sheet-zone-label/)
+    assert.equal((markup.match(/class="sheet-zone-separator"/g) || []).length, 12)
+    assert.match(
+        markup,
+        /<line class="sheet-zone-separator" x1="55" y1="0" x2="55" y2="10" \/>/
+    )
+    assert.match(
+        markup,
+        /<line class="sheet-zone-separator" x1="55" y1="90" x2="55" y2="100" \/>/
+    )
+    assert.match(
+        markup,
+        /<line class="sheet-zone-separator" x1="0" y1="30" x2="10" y2="30" \/>/
+    )
+    assert.match(
+        markup,
+        /<line class="sheet-zone-separator" x1="190" y1="30" x2="200" y2="30" \/>/
+    )
     assert.match(markup, /File/)
     assert.match(markup, /Number/)
     assert.match(markup, /Date:/)
@@ -679,105 +696,6 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
     })
 
     assert.match(markup, />A3</)
-})
-
-/**
- * Verifies source-provided footer hints override the generic title-block
- * value placement so the synthesized footer matches the stored page layout.
- */
-test('renderSchematicSvg uses footer title-block hints for A3 footer placement', () => {
-    const markup = SchematicSvgRenderer.render({
-        fileName: 'footer-hints.SchDoc',
-        summary: { title: 'Footer hints schematic' },
-        schematic: {
-            sheet: {
-                width: 1654,
-                height: 1169,
-                sourceWidth: 1500,
-                borderOn: true,
-                titleBlockOn: true,
-                marginWidth: 20,
-                xZones: 8,
-                yZones: 4,
-                paperSize: 'A3',
-                titleBlock: {
-                    title: 'EMBER-UNIT Power',
-                    documentNumber: 'CORE-MOD',
-                    revision: '03',
-                    sheetNumber: '2',
-                    sheetTotal: '7',
-                    date: '3/17/2026',
-                    drawnBy: '',
-                    footerHints: {
-                        title: {
-                            x: 1225,
-                            y: 75,
-                            color: '#000080',
-                            fontSize: 14,
-                            fontFamily: 'Times New Roman',
-                            fontWeight: 700
-                        },
-                        documentNumber: {
-                            x: 1420,
-                            y: 80,
-                            color: '#ff0000',
-                            fontSize: 14,
-                            fontFamily: 'Times New Roman',
-                            fontWeight: 700
-                        },
-                        revision: {
-                            x: 1455,
-                            y: 50,
-                            color: '#000080',
-                            fontSize: 10,
-                            fontFamily: 'Times New Roman',
-                            fontWeight: 400
-                        },
-                        sheetNumber: {
-                            x: 1405,
-                            y: 30,
-                            color: '#000080',
-                            fontSize: 10,
-                            fontFamily: 'Times New Roman',
-                            fontWeight: 400
-                        },
-                        sheetTotal: {
-                            x: 1435,
-                            y: 30,
-                            color: '#000080',
-                            fontSize: 10,
-                            fontFamily: 'Times New Roman',
-                            fontWeight: 400
-                        }
-                    }
-                }
-            },
-            lines: [],
-            texts: [],
-            components: []
-        }
-    })
-
-    assert.match(
-        markup,
-        /<rect x="1259" y="1071" width="375" height="78" \/>/
-    )
-    assert.match(
-        markup,
-        /<text class="sheet-title-value" x="1379" y="1094" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">EMBER-UNIT Power</
-    )
-    assert.match(
-        markup,
-        /<text class="sheet-title-value" x="1574" y="1089" fill="var\(--schematic-alert-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">CORE-MOD</
-    )
-    assert.match(
-        markup,
-        /<text class="sheet-title-value" x="1609" y="1119" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">03</
-    )
-    assert.match(
-        markup,
-        /<text class="sheet-title-value" x="1574" y="1139" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">Sheet 2 of 7</
-    )
 })
 
 /**

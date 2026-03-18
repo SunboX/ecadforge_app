@@ -223,9 +223,29 @@ html.is-schematic-panning body {
     width: 100%;
     min-height: 60vh;
     border-radius: 22px;
+    --pcb-board-fill: #d8e8e4;
+    --pcb-board-stroke: #0f746c;
+    --pcb-surface-copper-fill: rgba(199, 109, 61, 0.15);
+    --pcb-subsurface-copper-fill: rgba(114, 84, 62, 0.06);
+    --pcb-surface-fill: rgba(199, 109, 61, 0.34);
+    --pcb-subsurface-fill: rgba(114, 84, 62, 0.08);
+    --pcb-surface-track-color: rgba(199, 82, 45, 0.88);
+    --pcb-subsurface-track-color: rgba(112, 84, 62, 0.2);
+    --pcb-copper-fill: rgba(196, 118, 70, 0.24);
+    --pcb-copper-solid-fill: rgba(196, 118, 70, 0.78);
+    --pcb-track-color: #c7522d;
+    --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
+    --pcb-via-hole-fill: #0f746c;
+    --pcb-component-top-fill: rgba(244, 219, 198, 0.92);
+    --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
+    --pcb-component-stroke: rgba(110, 64, 38, 0.28);
+    --pcb-component-text: #22343b;
     background: var(--canvas);
     border: 1px solid rgba(95, 112, 124, 0.12);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
 }
 
 .schematic-svg {
@@ -239,17 +259,26 @@ html.is-schematic-panning body {
     --schematic-fill-color: #ffff80;
     --schematic-note-fill-color: #eceb94;
     --schematic-fill-light-color: #ffffff;
+    --schematic-pin-marker-fill: #eef3f8;
     --schematic-note-border-color: #7b7753;
     --schematic-sheet-backdrop-fill: rgba(255, 250, 245, 0.96);
     --schematic-sheet-backdrop-stroke: rgba(95, 112, 124, 0.12);
     --schematic-sheet-frame-stroke: rgba(95, 112, 124, 0.48);
     --schematic-node-fill: rgba(15, 116, 108, 0.9);
-    cursor: grab;
-    user-select: none;
-    touch-action: none;
 }
 
-.schematic-svg.is-panning {
+.pcb-svg {
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.72),
+            transparent 44%
+        ),
+        linear-gradient(180deg, #f7f4ef 0%, #f0ece4 100%);
+}
+
+.schematic-svg.is-panning,
+.pcb-svg.is-panning {
     cursor: grabbing;
 }
 
@@ -259,6 +288,7 @@ html.is-schematic-panning body {
 }
 
 .sheet-frame,
+.sheet-zone-separator,
 .sheet-title-block rect,
 .sheet-title-block line {
     fill: none;
@@ -338,26 +368,87 @@ html.is-schematic-panning body {
     color: var(--muted);
 }
 
+.pcb-legend p {
+    margin: 0.65rem 0 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
 .board-outline {
-    fill: rgba(15, 116, 108, 0.18);
-    stroke: var(--accent);
+    fill: var(--pcb-board-fill);
+    stroke: var(--pcb-board-stroke);
     stroke-width: 18;
 }
 
+.board-outline--stroke {
+    fill: none;
+    stroke-linejoin: round;
+}
+
+.pcb-polygon {
+    stroke: none;
+}
+
+.pcb-fill {
+    stroke: none;
+}
+
+.pcb-track {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pcb-copper--surface .pcb-polygon {
+    fill: var(--pcb-surface-copper-fill);
+}
+
+.pcb-copper--subsurface .pcb-polygon {
+    fill: var(--pcb-subsurface-copper-fill);
+}
+
+.pcb-copper--surface .pcb-fill {
+    fill: var(--pcb-surface-fill);
+}
+
+.pcb-copper--subsurface .pcb-fill {
+    fill: var(--pcb-subsurface-fill);
+}
+
+.pcb-copper--surface .pcb-track {
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-copper--subsurface .pcb-track {
+    stroke: var(--pcb-subsurface-track-color);
+}
+
+.pcb-copper--subsurface {
+    opacity: 0.45;
+}
+
+.pcb-via__pad {
+    fill: var(--pcb-via-ring-fill);
+}
+
+.pcb-via__hole {
+    fill: var(--pcb-via-hole-fill);
+}
+
 .pcb-component rect {
-    fill: rgba(184, 90, 37, 0.86);
-    stroke: rgba(78, 32, 8, 0.2);
+    fill: var(--pcb-component-top-fill);
+    stroke: var(--pcb-component-stroke);
     stroke-width: 3;
 }
 
 .pcb-component--bottom rect {
-    fill: rgba(15, 116, 108, 0.84);
+    fill: var(--pcb-component-bottom-fill);
 }
 
 .pcb-component text {
     font-size: 29px;
     text-anchor: middle;
-    fill: #22343b;
+    fill: var(--pcb-component-text);
     font-weight: 700;
 }
 

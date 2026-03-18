@@ -16,6 +16,10 @@ test('parseAltiumArrayBuffer parses an embedded fake PcbDoc sample', async () =>
     assert.equal(documentModel.pcb.boardOutline.segments.length, 5)
     assert.equal(documentModel.pcb.layers.length, 4)
     assert.equal(documentModel.pcb.components.length, 1)
+    assert.deepEqual(documentModel.pcb.polygons, [])
+    assert.deepEqual(documentModel.pcb.fills, [])
+    assert.deepEqual(documentModel.pcb.tracks, [])
+    assert.deepEqual(documentModel.pcb.vias, [])
     assert.equal(documentModel.bom.length, 1)
     assert.deepEqual(documentModel.pcb.components[0], {
         designator: 'J1',

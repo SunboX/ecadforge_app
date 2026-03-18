@@ -12,11 +12,17 @@ export class SchematicJunctionRenderer {
      * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
      * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} [ports]
+     * @param {{ x: number, y: number, style?: number, powerPortDirection?: 'up' | 'down' | 'left' | 'right' }[]} [powerPorts]
      * @param {number} sheetHeight
      * @returns {string}
      */
-    static buildMarkup(lines, crosses, ports = [], sheetHeight) {
-        return SchematicJunctionRenderer.#resolveJunctions(lines, crosses, ports)
+    static buildMarkup(lines, crosses, ports = [], powerPorts = [], sheetHeight) {
+        return SchematicJunctionRenderer.#resolveJunctions(
+            lines,
+            crosses,
+            ports,
+            powerPorts
+        )
             .map(
                 (junction) =>
                     '<circle class="schematic-junction" cx="' +
@@ -40,19 +46,24 @@ export class SchematicJunctionRenderer {
      * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, ownerIndex?: string, isBus?: boolean }[]} lines
      * @param {{ x: number, y: number }[]} crosses
      * @param {{ x: number, y: number, width: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
+     * @param {{ x: number, y: number, style?: number, powerPortDirection?: 'up' | 'down' | 'left' | 'right' }[]} powerPorts
      * @returns {{ x: number, y: number, color: string }[]}
      */
-    static #resolveJunctions(lines, crosses, ports) {
+    static #resolveJunctions(lines, crosses, ports, powerPorts) {
         const wireLines = lines.filter(
             (line) => !line.ownerIndex && line.isBus !== true
         )
         const verticalPorts = ports.filter((port) =>
             SchematicJunctionRenderer.#isVerticalPort(port)
         )
+        const visiblePowerPorts = powerPorts.filter((powerPort) =>
+            SchematicJunctionRenderer.#isDrawablePowerPort(powerPort)
+        )
 
         return SchematicJunctionRenderer.#collectCandidatePoints(
             wireLines,
-            verticalPorts
+            verticalPorts,
+            visiblePowerPorts
         )
             .filter(
                 (point) =>
@@ -64,6 +75,13 @@ export class SchematicJunctionRenderer {
                 )
                 const contributingPorts = verticalPorts.filter((port) =>
                     SchematicJunctionRenderer.#portContainsPoint(port, point)
+                )
+                const contributingPowerPorts = visiblePowerPorts.filter(
+                    (powerPort) =>
+                        SchematicJunctionRenderer.#powerPortContainsPoint(
+                            powerPort,
+                            point
+                        )
                 )
                 const directions = new Set()
 
@@ -79,6 +97,13 @@ export class SchematicJunctionRenderer {
                     SchematicJunctionRenderer.#appendPortDirections(
                         directions,
                         port
+                    )
+                }
+
+                for (const powerPort of contributingPowerPorts) {
+                    SchematicJunctionRenderer.#appendPowerPortDirections(
+                        directions,
+                        powerPort
                     )
                 }
 
@@ -102,9 +127,10 @@ export class SchematicJunctionRenderer {
      * Collects all distinct wire endpoints as candidate junction points.
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
      * @param {{ x: number, y: number, width: number, direction?: 'up' | 'down' }[]} ports
+     * @param {{ x: number, y: number }} powerPorts
      * @returns {{ x: number, y: number }[]}
      */
-    static #collectCandidatePoints(lines, ports) {
+    static #collectCandidatePoints(lines, ports, powerPorts) {
         const candidates = new Map()
 
         for (const line of lines) {
@@ -128,6 +154,13 @@ export class SchematicJunctionRenderer {
             candidates.set(
                 SchematicJunctionRenderer.#pointKey(connectionPoint),
                 connectionPoint
+            )
+        }
+
+        for (const powerPort of powerPorts) {
+            candidates.set(
+                SchematicJunctionRenderer.#pointKey(powerPort),
+                powerPort
             )
         }
 
@@ -185,6 +218,30 @@ export class SchematicJunctionRenderer {
 
         if (port.direction === 'down') {
             directions.add('north')
+        }
+    }
+
+    /**
+     * Adds the branch direction contributed by one rendered power-port symbol.
+     * @param {Set<string>} directions
+     * @param {{ powerPortDirection?: 'up' | 'down' | 'left' | 'right' }} powerPort
+     * @returns {void}
+     */
+    static #appendPowerPortDirections(directions, powerPort) {
+        switch (powerPort.powerPortDirection) {
+            case 'up':
+                directions.add('north')
+                return
+            case 'down':
+                directions.add('south')
+                return
+            case 'left':
+                directions.add('west')
+                return
+            case 'right':
+                directions.add('east')
+                return
+            default:
         }
     }
 
@@ -247,6 +304,20 @@ export class SchematicJunctionRenderer {
     }
 
     /**
+     * Returns true when one rendered power port attaches at the candidate
+     * point.
+     * @param {{ x: number, y: number }} powerPort
+     * @param {{ x: number, y: number }} point
+     * @returns {boolean}
+     */
+    static #powerPortContainsPoint(powerPort, point) {
+        return (
+            Math.abs(powerPort.x - point.x) <= 0.01 &&
+            Math.abs(powerPort.y - point.y) <= 0.01
+        )
+    }
+
+    /**
      * Returns the wire attachment point for one vertical off-sheet port.
      * @param {{ x: number, y: number, width: number, direction?: 'up' | 'down' }} port
      * @returns {{ x: number, y: number }}
@@ -272,6 +343,21 @@ export class SchematicJunctionRenderer {
      */
     static #isVerticalPort(port) {
         return port.direction === 'up' || port.direction === 'down'
+    }
+
+    /**
+     * Returns true when one visible text-backed power port can contribute a
+     * junction branch.
+     * @param {{ x: number, y: number, style?: number, powerPortDirection?: 'up' | 'down' | 'left' | 'right' } | null | undefined} powerPort
+     * @returns {boolean}
+     */
+    static #isDrawablePowerPort(powerPort) {
+        return (
+            Boolean(powerPort) &&
+            Number.isFinite(Number(powerPort.x)) &&
+            Number.isFinite(Number(powerPort.y)) &&
+            typeof powerPort.powerPortDirection === 'string'
+        )
     }
 
     /**

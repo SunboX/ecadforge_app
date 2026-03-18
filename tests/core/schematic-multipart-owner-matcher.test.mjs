@@ -116,3 +116,111 @@ test('collectActiveMultipartOwnerParts matches passive multipart owners by left 
 
     assert.equal(activeOwnerParts.get('28'), '2')
 })
+
+/**
+ * Verifies op-amp style multipart owners still resolve their active part when
+ * the component placement lands inside the enclosing owner bounds instead of
+ * on one of the existing per-part corner anchors.
+ */
+test('collectActiveMultipartOwnerParts matches op-amp owners by enclosing owner bounds', () => {
+    const records = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '6',
+                OwnerIndex: '44',
+                OwnerPartId: '1',
+                LocationCount: '5',
+                X1: '215',
+                Y1: '285',
+                X2: '215',
+                Y2: '225',
+                X3: '255',
+                Y3: '245',
+                X4: '275',
+                Y4: '255',
+                X5: '215',
+                Y5: '285'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '6',
+                OwnerIndex: '44',
+                OwnerPartId: '2',
+                LocationCount: '5',
+                X1: '215',
+                Y1: '280',
+                X2: '215',
+                Y2: '220',
+                X3: '255',
+                Y3: '240',
+                X4: '275',
+                Y4: '250',
+                X5: '215',
+                Y5: '280'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '6',
+                OwnerIndex: '44',
+                OwnerPartId: '3',
+                LocationCount: '5',
+                X1: '210',
+                Y1: '280',
+                X2: '210',
+                Y2: '220',
+                X3: '250',
+                Y3: '240',
+                X4: '270',
+                Y4: '250',
+                X5: '210',
+                Y5: '280'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '6',
+                OwnerIndex: '44',
+                OwnerPartId: '4',
+                LocationCount: '5',
+                X1: '200',
+                Y1: '280',
+                X2: '200',
+                Y2: '220',
+                X3: '240',
+                Y3: '240',
+                X4: '260',
+                Y4: '250',
+                X5: '200',
+                Y5: '280'
+            }
+        }
+    ]
+    const componentRecords = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '1',
+                IndexInSheet: '62',
+                PartCount: '6',
+                CurrentPartId: '3',
+                'Location.X': '215',
+                'Location.Y': '265',
+                IsMirrored: 'T'
+            }
+        }
+    ]
+
+    const activeOwnerParts =
+        SchematicMultipartOwnerMatcher.collectActiveMultipartOwnerParts(
+            records,
+            componentRecords
+        )
+
+    assert.equal(activeOwnerParts.get('44'), '3')
+})

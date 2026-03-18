@@ -238,13 +238,14 @@ class FakeSvgElement extends FakeEventTarget {
     /**
      * @param {FakeDocument} ownerDocument
      * @param {string} viewBox
+     * @param {string[]} classNames
      */
-    constructor(ownerDocument, viewBox) {
+    constructor(ownerDocument, viewBox, classNames = ['schematic-svg']) {
         super()
         this.#attributes = new Map([['viewBox', viewBox]])
         this.#rect = { left: 0, top: 0, width: 400, height: 200 }
         this.ownerDocument = ownerDocument
-        this.classList = new FakeClassList(['schematic-svg'])
+        this.classList = new FakeClassList(classNames)
     }
 
     /**
@@ -282,8 +283,8 @@ class FakeContentNode extends FakeNode {
     /** @type {FakeDocument} */
     #ownerDocument
 
-    /** @type {FakeSvgElement | null} */
-    #schematicSvg
+    /** @type {Map<string, FakeSvgElement>} */
+    #svgBySelector
 
     /**
      * @param {FakeDocument} ownerDocument
@@ -291,7 +292,7 @@ class FakeContentNode extends FakeNode {
     constructor(ownerDocument) {
         super()
         this.#ownerDocument = ownerDocument
-        this.#schematicSvg = null
+        this.#svgBySelector = new Map()
     }
 
     /**
@@ -300,13 +301,20 @@ class FakeContentNode extends FakeNode {
     set innerHTML(value) {
         this.textContent = ''
         this._innerHTML = String(value)
-        const viewBoxMatch = this._innerHTML.match(/viewBox="([^"]+)"/)
-        const hasSchematicSvg = /class="schematic-svg"/.test(this._innerHTML)
+        this.#svgBySelector = new Map()
 
-        this.#schematicSvg =
-            hasSchematicSvg && viewBoxMatch
-                ? new FakeSvgElement(this.#ownerDocument, viewBoxMatch[1])
-                : null
+        for (const match of this._innerHTML.matchAll(/<svg class="([^"]+)" viewBox="([^"]+)"/g)) {
+            const classNames = match[1].split(/\s+/).filter(Boolean)
+            const svg = new FakeSvgElement(
+                this.#ownerDocument,
+                match[2],
+                classNames
+            )
+
+            for (const className of classNames) {
+                this.#svgBySelector.set('.' + className, svg)
+            }
+        }
     }
 
     /**
@@ -322,7 +330,7 @@ class FakeContentNode extends FakeNode {
      * @returns {FakeSvgElement | null}
      */
     querySelector(selector) {
-        return selector === '.schematic-svg' ? this.#schematicSvg : null
+        return this.#svgBySelector.get(selector) || null
     }
 }
 
@@ -365,6 +373,93 @@ function createSchematicSnapshot() {
                 ports: [],
                 crosses: []
             }
+        }
+    }
+}
+
+/**
+ * Builds a minimal PCB snapshot accepted by AppView.
+ * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: any }}
+ */
+function createPcbSnapshot() {
+    return {
+        activeView: 'pcb',
+        locale: 'en',
+        parseStatus: 'ready',
+        statusMessage: 'File parsed successfully.',
+        activeFileName: 'demo.PcbDoc',
+        documentModel: {
+            kind: 'pcb',
+            diagnostics: [],
+            summary: {
+                title: 'Demo board',
+                componentCount: 1,
+                layerCount: 2,
+                outlineSegmentCount: 4,
+                bomRowCount: 1,
+                polygonCount: 1,
+                trackCount: 1,
+                viaCount: 1,
+                boardWidthMil: 1000,
+                boardHeightMil: 500
+            },
+            pcb: {
+                boardOutline: {
+                    minX: 0,
+                    minY: 0,
+                    widthMil: 1000,
+                    heightMil: 500,
+                    segments: [
+                        { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                        { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                        { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                        { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                    ]
+                },
+                layers: [{ name: 'Top Layer' }, { name: 'Bottom Layer' }],
+                polygons: [
+                    {
+                        layer: 'TOP',
+                        segments: [
+                            { type: 'line', x1: 100, y1: 100, x2: 300, y2: 100 },
+                            { type: 'line', x1: 300, y1: 100, x2: 300, y2: 250 },
+                            { type: 'line', x1: 300, y1: 250, x2: 100, y2: 250 },
+                            { type: 'line', x1: 100, y1: 250, x2: 100, y2: 100 }
+                        ]
+                    }
+                ],
+                fills: [{ x1: 340, y1: 120, x2: 420, y2: 180, layerCode: 256 }],
+                tracks: [
+                    {
+                        x1: 130,
+                        y1: 320,
+                        x2: 520,
+                        y2: 320,
+                        width: 12,
+                        layerCode: 256
+                    }
+                ],
+                vias: [{ x: 520, y: 320, diameter: 24, holeDiameter: 10 }],
+                components: [
+                    {
+                        designator: 'U1',
+                        x: 200,
+                        y: 250,
+                        rotation: 90,
+                        layer: 'TOP',
+                        pattern: 'QFN'
+                    }
+                ]
+            },
+            bom: [
+                {
+                    designators: ['U1'],
+                    quantity: 1,
+                    pattern: 'QFN',
+                    source: 'IC/FAKE/QFN',
+                    value: 'Demo'
+                }
+            ]
         }
     }
 }
@@ -425,4 +520,41 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
     assert.equal(secondSvg.getAttribute('viewBox'), '0 0 200 100')
     assert.equal(firstSvg.getListenerCount('wheel'), 0)
     assert.equal(firstSvg.getListenerCount('mousedown'), 0)
+})
+
+/**
+ * Verifies AppView makes the rendered PCB SVG interactive.
+ */
+test('AppView wires zoom and drag onto the rendered pcb svg', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createPcbSnapshot())
+
+    const svg = fakeDocument.querySelector('#viewContent').querySelector('.pcb-svg')
+
+    svg.dispatch('wheel', {
+        deltaY: -100,
+        clientX: 100,
+        clientY: 50,
+        preventDefault() {}
+    })
+
+    assert.equal(svg.getAttribute('viewBox'), '-228.9 -232.65 1435.6 950.6')
+
+    svg.dispatch('mousedown', {
+        button: 0,
+        clientX: 200,
+        clientY: 100,
+        preventDefault() {}
+    })
+
+    fakeDocument.dispatch('mousemove', {
+        buttons: 1,
+        clientX: 240,
+        clientY: 120,
+        preventDefault() {}
+    })
+
+    assert.equal(svg.getAttribute('viewBox'), '-372.46 -327.71 1435.6 950.6')
 })

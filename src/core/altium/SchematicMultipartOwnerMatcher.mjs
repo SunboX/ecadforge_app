@@ -15,6 +15,7 @@ export class SchematicMultipartOwnerMatcher {
      */
     static collectActiveMultipartOwnerParts(records, componentRecords) {
         const partBounds = new Map()
+        const ownerBounds = new Map()
 
         for (const record of records) {
             const ownerIndex = getField(record.fields, 'OwnerIndex')
@@ -43,12 +44,7 @@ export class SchematicMultipartOwnerMatcher {
                 leftPinLength: 0
             }
 
-            for (const [x, y] of points) {
-                existingBounds.minX = Math.min(existingBounds.minX, x)
-                existingBounds.minY = Math.min(existingBounds.minY, y)
-                existingBounds.maxX = Math.max(existingBounds.maxX, x)
-                existingBounds.maxY = Math.max(existingBounds.maxY, y)
-            }
+            SchematicMultipartOwnerMatcher.#expandBounds(existingBounds, points)
 
             existingBounds.leftPinLength = Math.max(
                 existingBounds.leftPinLength,
@@ -58,6 +54,20 @@ export class SchematicMultipartOwnerMatcher {
             )
 
             partBounds.set(key, existingBounds)
+
+            const existingOwnerBounds = ownerBounds.get(ownerIndex) || {
+                ownerIndex,
+                minX: Number.POSITIVE_INFINITY,
+                minY: Number.POSITIVE_INFINITY,
+                maxX: Number.NEGATIVE_INFINITY,
+                maxY: Number.NEGATIVE_INFINITY
+            }
+
+            SchematicMultipartOwnerMatcher.#expandBounds(
+                existingOwnerBounds,
+                points
+            )
+            ownerBounds.set(ownerIndex, existingOwnerBounds)
         }
 
         const activeOwnerParts = new Map()
@@ -75,22 +85,32 @@ export class SchematicMultipartOwnerMatcher {
                 continue
             }
 
-            const bestMatch = [...partBounds.values()]
-                .filter((bounds) => bounds.ownerPartId === currentPartId)
-                .map((bounds) => ({
-                    ...bounds,
-                    score: SchematicMultipartOwnerMatcher.#scoreBoundsAnchor(
-                        bounds,
-                        x,
-                        y,
-                        isMirrored,
-                        currentPartId
-                    )
-                }))
-                .sort((left, right) => left.score - right.score)[0]
+            const bestPartMatch =
+                SchematicMultipartOwnerMatcher.#findBestPartBoundsMatch(
+                    partBounds,
+                    currentPartId,
+                    x,
+                    y,
+                    isMirrored
+                )
 
-            if (bestMatch && bestMatch.score <= 4) {
-                activeOwnerParts.set(bestMatch.ownerIndex, bestMatch.ownerPartId)
+            if (bestPartMatch && bestPartMatch.score <= 4) {
+                activeOwnerParts.set(
+                    bestPartMatch.ownerIndex,
+                    bestPartMatch.ownerPartId
+                )
+                continue
+            }
+
+            const bestOwnerMatch =
+                SchematicMultipartOwnerMatcher.#findBestOwnerBoundsMatch(
+                    ownerBounds,
+                    x,
+                    y
+                )
+
+            if (bestOwnerMatch && bestOwnerMatch.score <= 4) {
+                activeOwnerParts.set(bestOwnerMatch.ownerIndex, currentPartId)
             }
         }
 
@@ -156,6 +176,121 @@ export class SchematicMultipartOwnerMatcher {
         }
 
         return points
+    }
+
+    /**
+     * Expands one accumulated bounds box to include a list of points.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @param {[number, number][]} points
+     * @returns {void}
+     */
+    static #expandBounds(bounds, points) {
+        for (const [x, y] of points) {
+            bounds.minX = Math.min(bounds.minX, x)
+            bounds.minY = Math.min(bounds.minY, y)
+            bounds.maxX = Math.max(bounds.maxX, x)
+            bounds.maxY = Math.max(bounds.maxY, y)
+        }
+    }
+
+    /**
+     * Finds the closest part-specific multipart bounds match for one component
+     * placement using the existing per-part anchor heuristics.
+     * @param {Map<string, { ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number }>} partBounds
+     * @param {string} currentPartId
+     * @param {number} x
+     * @param {number} y
+     * @param {boolean} isMirrored
+     * @returns {{ ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number, score: number } | undefined}
+     */
+    static #findBestPartBoundsMatch(
+        partBounds,
+        currentPartId,
+        x,
+        y,
+        isMirrored
+    ) {
+        return [...partBounds.values()]
+            .filter((bounds) => bounds.ownerPartId === currentPartId)
+            .map((bounds) => ({
+                ...bounds,
+                score: SchematicMultipartOwnerMatcher.#scoreBoundsAnchor(
+                    bounds,
+                    x,
+                    y,
+                    isMirrored,
+                    currentPartId
+                )
+            }))
+            .sort((left, right) => left.score - right.score)[0]
+    }
+
+    /**
+     * Finds the closest owner-level multipart bounds match for one component
+     * placement when the part-specific corner anchors do not line up.
+     * @param {Map<string, { ownerIndex: string, minX: number, minY: number, maxX: number, maxY: number }>} ownerBounds
+     * @param {number} x
+     * @param {number} y
+     * @returns {{ ownerIndex: string, minX: number, minY: number, maxX: number, maxY: number, score: number, centerScore: number, area: number } | undefined}
+     */
+    static #findBestOwnerBoundsMatch(ownerBounds, x, y) {
+        return [...ownerBounds.values()]
+            .map((bounds) => ({
+                ...bounds,
+                score: SchematicMultipartOwnerMatcher.#scoreOwnerBoundsMatch(
+                    bounds,
+                    x,
+                    y
+                ),
+                centerScore:
+                    SchematicMultipartOwnerMatcher.#scoreOwnerBoundsCenter(
+                        bounds,
+                        x,
+                        y
+                    ),
+                area: (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY)
+            }))
+            .sort((left, right) => {
+                if (left.score !== right.score) {
+                    return left.score - right.score
+                }
+                if (left.centerScore !== right.centerScore) {
+                    return left.centerScore - right.centerScore
+                }
+                return left.area - right.area
+            })[0]
+    }
+
+    /**
+     * Scores how far one component placement sits outside an owner's overall
+     * multipart bounds. Points inside the box score zero.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @param {number} x
+     * @param {number} y
+     * @returns {number}
+     */
+    static #scoreOwnerBoundsMatch(bounds, x, y) {
+        const distanceX =
+            x < bounds.minX ? bounds.minX - x : Math.max(0, x - bounds.maxX)
+        const distanceY =
+            y < bounds.minY ? bounds.minY - y : Math.max(0, y - bounds.maxY)
+
+        return distanceX + distanceY
+    }
+
+    /**
+     * Scores how close one component placement is to the center of an owner's
+     * overall bounds so overlapping matches prefer the most local owner.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @param {number} x
+     * @param {number} y
+     * @returns {number}
+     */
+    static #scoreOwnerBoundsCenter(bounds, x, y) {
+        const centerX = (bounds.minX + bounds.maxX) / 2
+        const centerY = (bounds.minY + bounds.maxY) / 2
+
+        return Math.abs(centerX - x) + Math.abs(centerY - y)
     }
 
     /**

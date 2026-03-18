@@ -62,11 +62,38 @@ export class SchematicColorResolver {
      * @returns {string}
      */
     static resolveFill(fill, fallbackVariable, preserveUnknown = false) {
-        return SchematicColorResolver.resolveColor(
-            fill,
-            fallbackVariable,
-            preserveUnknown
-        )
+        const normalized = SchematicColorResolver.#normalizeColor(fill)
+
+        if (!normalized) {
+            return SchematicColorResolver.#toVariable(fallbackVariable)
+        }
+
+        if (
+            normalized === 'none' ||
+            normalized === 'transparent' ||
+            normalized.startsWith('var(')
+        ) {
+            return normalized
+        }
+
+        const token = COLOR_TOKEN_BY_VALUE.get(normalized)
+
+        // Border colors such as neutral note gray should stay literal when they
+        // appear as area fills so symbol bodies do not collapse to the darker
+        // border theme token.
+        if (token === '--schematic-note-border-color') {
+            return preserveUnknown
+                ? normalized
+                : SchematicColorResolver.#toVariable(fallbackVariable)
+        }
+
+        if (token) {
+            return SchematicColorResolver.#toVariable(token)
+        }
+
+        return preserveUnknown
+            ? normalized
+            : SchematicColorResolver.#toVariable(fallbackVariable)
     }
 
     /**
