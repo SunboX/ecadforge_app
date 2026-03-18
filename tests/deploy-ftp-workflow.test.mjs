@@ -18,3 +18,16 @@ test('ftp workflow deploys the api directory', async () => {
     assert.match(workflow, /local-dir: \.\/api\//)
     assert.match(workflow, /server-dir: \.\/api\//)
 })
+
+/**
+ * Verifies the API deploy skips `.htaccess` so FTP hosts that reset dotfile
+ * uploads can still publish the PHP metadata fallback.
+ */
+test('ftp workflow excludes api htaccess from FTP sync', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+
+    assert.match(
+        workflow,
+        /name: Deploy api to \.\/api\/[\s\S]*?exclude: \|[\s\S]*?\*\*\/\.htaccess/
+    )
+})
