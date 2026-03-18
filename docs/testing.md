@@ -18,6 +18,9 @@ npm test
 - `tests/app-state.test.mjs`: state defaults, patching, subscriptions
 - `tests/core/altium-parser.test.mjs`: parser entrypoint importing split suites in `tests/core/altium-parser/`
 - `tests/ui/renderers.test.mjs`: renderer entrypoint importing split suites in `tests/ui/renderers/`
+- `tests/app-meta-loader.test.mjs`: browser metadata endpoint fallback behavior
+- `tests/php-app-meta-endpoint.test.mjs`: deployable PHP metadata endpoint payloads
+- `tests/deploy-ftp-workflow.test.mjs`: FTP workflow deployment coverage for `api/`
 - `tests/project-structure.test.mjs`: required file presence
 - `tests/mjs-line-limit.test.mjs`: source and test file length guard
 

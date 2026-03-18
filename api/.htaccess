@@ -1,0 +1,4 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^app-meta/?$ app-meta.php [L,QSA]
+</IfModule>

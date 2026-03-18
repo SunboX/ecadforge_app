@@ -33,6 +33,11 @@ test('required project files exist', async () => {
         'docs/testing.md',
         'docs/security.md',
         'docs/troubleshooting.md',
+        'api/.htaccess',
+        'api/app-meta.php',
+        'api/app-version.json',
+        'src/AppMetaLoader.mjs',
+        'src/favicon.svg',
         'src/index.html',
         'src/main.mjs',
         'src/style.css',
@@ -102,6 +107,23 @@ test('app identity metadata uses the ECAD Forge name', async () => {
     assert.equal(pkg.name, 'ecadforge_app')
     assert.match(indexRaw, /<title>ECAD Forge<\/title>/)
     assert.match(indexRaw, /<h1[^>]*>ECAD Forge<\/h1>/)
+    assert.match(indexRaw, /<link[^>]+rel="icon"[^>]+href="\/favicon\.svg"/)
     assert.equal(englishMessages['app.title'], 'ECAD Forge')
     assert.equal(germanMessages['app.title'], 'ECAD Forge')
+})
+
+/**
+ * Verifies deployed app metadata stays aligned with the package version.
+ */
+test('deployed app version metadata matches package version', async () => {
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const appVersionRaw = await readFile(
+        new URL('api/app-version.json', root),
+        'utf8'
+    )
+
+    const pkg = JSON.parse(packageRaw)
+    const appVersion = JSON.parse(appVersionRaw)
+
+    assert.equal(appVersion.version, pkg.version)
 })

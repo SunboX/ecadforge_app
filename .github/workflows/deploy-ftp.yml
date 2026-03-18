@@ -24,6 +24,8 @@ jobs:
                         - 'package-lock.json'
                       src:
                         - 'src/**'
+                      api:
+                        - 'api/**'
                       docs:
                         - 'docs/**'
 
@@ -72,6 +74,51 @@ jobs:
 
             - name: Ensure src deploy succeeded
               if: steps.deploy_src.outcome == 'failure' && steps.deploy_src_retry.outcome == 'failure'
+              run: exit 1
+
+            - name: Deploy api to ./api/
+              id: deploy_api
+              if: steps.changes.outputs.api == 'true'
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./api/
+                  server-dir: ./api/
+                  timeout: 60000
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-api-state.json
+
+            - name: Retry deploy api to ./api/
+              id: deploy_api_retry
+              if: steps.deploy_api.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./api/
+                  server-dir: ./api/
+                  timeout: 60000
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-api-state.json
+
+            - name: Ensure api deploy succeeded
+              if: steps.deploy_api.outcome == 'failure' && steps.deploy_api_retry.outcome == 'failure'
               run: exit 1
 
             - name: Deploy docs to ./docs/

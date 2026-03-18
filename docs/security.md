@@ -21,4 +21,4 @@
 ## Network Behavior
 
 - The browser app does not make outbound network calls
-- The only runtime HTTP requests are local calls to `/api/app-meta` for version metadata
+- The only runtime HTTP requests are local calls to `/api/app-meta`, with `/api/app-meta.php` as a PHP-host fallback for version metadata

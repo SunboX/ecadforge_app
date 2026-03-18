@@ -13,6 +13,8 @@
 - `src/ui/*Renderer.mjs`: pure markup renderers for schematic, PCB, BOM, and 3D summary views
 - `src/workers/altium-parser.worker.mjs`: parser offload worker
 - `src/server.mjs`: local static server and metadata endpoints
+- `api/app-meta.php`: PHP metadata endpoint for FTP/shared-hosting deployments
+- `api/.htaccess`: extensionless route rewrite for `/api/app-meta`
 
 ## Parse Strategy
 
@@ -46,4 +48,4 @@ This is not full binary/OLE reconstruction yet. It is a browser-only recovery st
 
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
-- `GET /api/app-meta.php`: PHP-compatible alias
+- `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
