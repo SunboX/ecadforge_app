@@ -13,12 +13,14 @@ Open schematics, inspect PCB layouts, and explore 3D boards directly in your bro
 - 3D-style board summary view and parser diagnostics tab
 - Worker-backed parse flow with main-thread fallback
 - Local Express dev server in `src/server.mjs`
+- Shared-hosting PHP metadata endpoint in `api/`
 
 ## Project Structure
 
 - `src/core/altium/`: printable-record extraction and normalized Altium parsers
 - `src/ui/`: viewer shell and markup renderers
 - `src/workers/altium-parser.worker.mjs`: off-main-thread native parsing
+- `api/`: deployable PHP metadata endpoint and version manifest for FTP hosts
 - `tests/`: parser, renderer, state, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting
 - `spec/`: product scope and acceptance criteria

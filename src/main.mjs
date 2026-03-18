@@ -1,4 +1,5 @@
 import { AppController } from './AppController.mjs'
+import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
 import { AppView } from './ui/AppView.mjs'
@@ -30,11 +31,7 @@ async function bootstrap() {
         state,
         view,
         i18n,
-        workerFactory: () =>
-            new Worker(
-                parserWorkerUrl,
-                { type: 'module' }
-            )
+        workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' })
     })
 
     await controller.init()
@@ -49,16 +46,7 @@ async function bootstrap() {
  */
 async function loadVersion(view, loadedVersion) {
     try {
-        const response = await fetch('/api/app-meta', { cache: 'no-store' })
-        if (!response.ok) {
-            view.setVersion(
-                AppRuntimeVersion.resolveDisplayVersion(loadedVersion, '')
-            )
-            return
-        }
-
-        const payload = await response.json()
-        const serverVersion = String(payload.version || '').trim()
+        const serverVersion = await AppMetaLoader.loadVersion()
 
         view.setVersion(
             AppRuntimeVersion.resolveDisplayVersion(
