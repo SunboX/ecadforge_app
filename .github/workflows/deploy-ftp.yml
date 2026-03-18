@@ -27,16 +27,19 @@ jobs:
                       docs:
                         - 'docs/**'
 
-            - name: Deploy src to /
+            - name: Deploy src to ./
+              id: deploy_src
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
-              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
               with:
                   server: ${{ secrets.FTP_SERVER }}
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
                   local-dir: ./src/
-                  server-dir: /
+                  server-dir: ./
+                  timeout: 60000
                   exclude: |
                       **/node_modules/**
                       **/.DS_Store
@@ -46,16 +49,44 @@ jobs:
                       **/*.env.*
                   state-name: .ftp-deploy-src-state.json
 
-            - name: Deploy docs to /docs/
+            - name: Retry deploy src to ./
+              id: deploy_src_retry
+              if: steps.deploy_src.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./src/
+                  server-dir: ./
+                  timeout: 60000
+                  exclude: |
+                      **/node_modules/**
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-src-state.json
+
+            - name: Ensure src deploy succeeded
+              if: steps.deploy_src.outcome == 'failure' && steps.deploy_src_retry.outcome == 'failure'
+              run: exit 1
+
+            - name: Deploy docs to ./docs/
+              id: deploy_docs
               if: steps.changes.outputs.docs == 'true'
-              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
               with:
                   server: ${{ secrets.FTP_SERVER }}
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
                   local-dir: ./docs/
-                  server-dir: /docs/
+                  server-dir: ./docs/
+                  timeout: 60000
                   exclude: |
                       **/.DS_Store
                       **/.env
@@ -63,6 +94,30 @@ jobs:
                       **/*.env
                       **/*.env.*
                   state-name: .ftp-deploy-docs-state.json
+
+            - name: Retry deploy docs to ./docs/
+              id: deploy_docs_retry
+              if: steps.deploy_docs.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./docs/
+                  server-dir: ./docs/
+                  timeout: 60000
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-docs-state.json
+
+            - name: Ensure docs deploy succeeded
+              if: steps.deploy_docs.outcome == 'failure' && steps.deploy_docs_retry.outcome == 'failure'
+              run: exit 1
 
             - uses: actions/setup-node@v4
               if: steps.changes.outputs.deps == 'true'
@@ -74,16 +129,19 @@ jobs:
               if: steps.changes.outputs.deps == 'true'
               run: npm ci --omit=dev
 
-            - name: Deploy node_modules
+            - name: Deploy node_modules to ./node_modules/
+              id: deploy_node_modules
               if: steps.changes.outputs.deps == 'true'
-              uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
               with:
                   server: ${{ secrets.FTP_SERVER }}
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
                   local-dir: ./node_modules/
-                  server-dir: /node_modules/
+                  server-dir: ./node_modules/
+                  timeout: 60000
                   exclude: |
                       **/.git*
                       **/.github/**
@@ -92,3 +150,28 @@ jobs:
                       **/*.env
                       **/*.env.*
                   state-name: .ftp-deploy-nm-state.json
+
+            - name: Retry deploy node_modules to ./node_modules/
+              id: deploy_node_modules_retry
+              if: steps.deploy_node_modules.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./node_modules/
+                  server-dir: ./node_modules/
+                  timeout: 60000
+                  exclude: |
+                      **/.git*
+                      **/.github/**
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-nm-state.json
+
+            - name: Ensure node_modules deploy succeeded
+              if: steps.deploy_node_modules.outcome == 'failure' && steps.deploy_node_modules_retry.outcome == 'failure'
+              run: exit 1
