@@ -8,6 +8,50 @@ const { escapeHtml, formatNumber, projectSchematicY } = SchematicSvgUtils
  */
 export class SchematicShapeRenderer {
     /**
+     * Builds one schematic polygon primitive.
+     * @param {{ points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }} polygon
+     * @param {number} sheetHeight
+     * @returns {string}
+     */
+    static buildPolygonMarkup(polygon, sheetHeight) {
+        if (!polygon?.points?.length || polygon.transparent || !polygon.isSolid) {
+            return ''
+        }
+
+        return (
+            '<polygon class="schematic-polygon" points="' +
+            escapeHtml(
+                polygon.points
+                    .map(
+                        (point) =>
+                            formatNumber(point.x) +
+                            ',' +
+                            formatNumber(projectSchematicY(sheetHeight, point.y))
+                    )
+                    .join(' ')
+            ) +
+            '" fill="' +
+            escapeHtml(
+                SchematicColorResolver.resolveFill(
+                    polygon.fill || 'none',
+                    '--schematic-fill-color',
+                    true
+                )
+            ) +
+            '" stroke="' +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    polygon.color,
+                    '--schematic-default-ink-color'
+                )
+            ) +
+            '" stroke-width="' +
+            formatNumber(Math.max(polygon.lineWidth || 1, 0.8)) +
+            '" />'
+        )
+    }
+
+    /**
      * Builds one schematic rectangle primitive.
      * @param {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }} rectangle
      * @param {number} sheetHeight

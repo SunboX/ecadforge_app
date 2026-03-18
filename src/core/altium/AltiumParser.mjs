@@ -8,6 +8,7 @@ import { SchematicPinParser } from './SchematicPinParser.mjs'
 import { SchematicPrimitiveParser } from './SchematicPrimitiveParser.mjs'
 import { AltiumLayoutParser } from './AltiumLayoutParser.mjs'
 import { SchematicMultipartOwnerMatcher } from './SchematicMultipartOwnerMatcher.mjs'
+import { SchematicSheetStyleResolver } from './SchematicSheetStyleResolver.mjs'
 const {
     countMatchingKeys,
     getDisplayText,
@@ -47,7 +48,7 @@ export class AltiumParser {
      * fileName: string,
      * summary: Record<string, number | string>,
      * diagnostics: { severity: 'info' | 'warning', message: string }[],
-     * schematic?: { sheet: { width: number, height: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string, isBus?: boolean }[], rectangles: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses: { x: number, y: number, size: number, color: string }[] },
+     * schematic?: { sheet: { width: number, height: number, sourceWidth?: number, sourceHeight?: number, paperSize?: string, visibleGrid: number, snapGrid: number, borderOn: boolean, titleBlockOn: boolean, marginWidth: number, xZones: number, yZones: number, fonts: Record<string, { size: number, family: string, bold: boolean, rotation: number }>, titleBlock: { title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, ownerIndex?: string, isBus?: boolean }[], polygons?: { points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], rectangles: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string }[], texts: { x: number, y: number, text: string, color: string, hidden: boolean, name: string, ownerIndex?: string, fontSize: number, fontFamily: string, fontWeight: number, rotation: number, sourceOrientation?: number, anchor: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, libReference: string, designator: string, value: string, uniqueId: string }[], pins: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[], ports: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses: { x: number, y: number, size: number, color: string }[] },
      * pcb?: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[] }
      * bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[]
      * }}
@@ -177,6 +178,8 @@ export class AltiumParser {
         const sheet = {
             width: sheetWidth,
             height: sheetHeight,
+            sourceWidth: sheetWidth,
+            sourceHeight: sheetHeight,
             visibleGrid:
                 parseNumericField(sheetRecord?.fields, 'VisibleGridSize') || 10,
             snapGrid: parseNumericField(sheetRecord?.fields, 'SnapGridSize') || 5,
@@ -193,10 +196,12 @@ export class AltiumParser {
                 1
             ),
             fonts: schematicFonts,
+            sheetStyle: parseNumericField(sheetRecord?.fields, 'SheetStyle') || 0,
             titleBlock: extractSchematicTitleBlock(
                 textRecords,
                 metadataTexts,
-                sheetWidth
+                sheetWidth,
+                schematicFonts
             )
         }
 
@@ -226,6 +231,8 @@ export class AltiumParser {
                 }))
             )
         ]
+        const polygons =
+            SchematicPrimitiveParser.parseSchematicPolygons(polygonRecords)
         const rectangles =
             SchematicPrimitiveParser.parseSchematicRectangles(rectangleRecords)
         const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
@@ -323,7 +330,13 @@ export class AltiumParser {
             crosses
         )
 
-        const title = AltiumParser.#findNamedText(textRecords, 'Title') || stripExtension(fileName)
+        resolvedSheet.xZones =
+            SchematicSheetStyleResolver.resolveXZones(resolvedSheet)
+        delete resolvedSheet.sheetStyle
+
+        const title =
+            AltiumParser.#findNamedText(textRecords, 'Title') ||
+            stripExtension(fileName)
         const bom = AltiumParser.#groupBomRows(
             components.map((component) => ({
                 designator: component.designator,
@@ -380,6 +393,7 @@ export class AltiumParser {
             schematic: {
                 sheet: resolvedSheet,
                 lines: normalizedLines,
+                polygons,
                 rectangles,
                 arcs,
                 texts: anchoredTexts,

@@ -368,7 +368,7 @@ test('parseAltiumArrayBuffer keeps anonymous multi-side connector pins and groun
     assert.match(
         markup,
         new RegExp(
-            '<g class="schematic-power-port schematic-power-port--ground">' +
+            '<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round">' +
                 '<line x1="930" y1="' +
                 topGroundY +
                 '" x2="930" y2="' +
@@ -379,7 +379,7 @@ test('parseAltiumArrayBuffer keeps anonymous multi-side connector pins and groun
     assert.match(
         markup,
         new RegExp(
-            '<g class="schematic-power-port schematic-power-port--ground">' +
+            '<g class="schematic-power-port schematic-power-port--ground" stroke-linecap="round">' +
                 '<line x1="930" y1="' +
                 bottomGroundY +
                 '" x2="930" y2="' +

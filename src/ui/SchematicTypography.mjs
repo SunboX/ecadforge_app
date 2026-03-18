@@ -38,6 +38,18 @@ export class SchematicTypography {
     }
 
     /**
+     * Builds default font options with the viewer-wide one-point reduction
+     * already applied.
+     * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
+     * @returns {{ fontSize: number | undefined, fontFamily: string, fontWeight: number }}
+     */
+    static buildViewerSchematicFontOptions(sheet) {
+        return SchematicTypography.withViewerFontSize(
+            SchematicTypography.buildDefaultSchematicFontOptions(sheet)
+        )
+    }
+
+    /**
      * Builds render options for one schematic text label, including the signed
      * SVG rotation derived from the original Altium orientation.
      * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number }} text
@@ -45,7 +57,7 @@ export class SchematicTypography {
      */
     static buildSchematicTextRenderOptions(text) {
         return {
-            fontSize: text.fontSize,
+            fontSize: SchematicTypography.resolveViewerFontSize(text.fontSize),
             fontFamily: text.fontFamily,
             fontWeight: text.fontWeight,
             rotation: SchematicTypography.#resolveSignedTextRotation(
@@ -53,6 +65,35 @@ export class SchematicTypography {
                 text.sourceOrientation
             )
         }
+    }
+
+    /**
+     * Applies the viewer-wide one-point text reduction to one option bag.
+     * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number }} options
+     * @returns {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number }}
+     */
+    static withViewerFontSize(options) {
+        return {
+            ...options,
+            fontSize: SchematicTypography.resolveViewerFontSize(
+                options?.fontSize
+            )
+        }
+    }
+
+    /**
+     * Returns the one-point-smaller font size used for viewer text.
+     * @param {number | undefined} size
+     * @returns {number | undefined}
+     */
+    static resolveViewerFontSize(size) {
+        const numericSize = Number(size)
+
+        if (!Number.isFinite(numericSize) || numericSize <= 0) {
+            return undefined
+        }
+
+        return Math.max(numericSize - 1, 1)
     }
 
     /**
@@ -83,7 +124,7 @@ export class SchematicTypography {
                             pin.orientation === 'right'
                     )
                     return (
-                        groupedPins.length > 4 &&
+                        groupedPins.length >= 4 &&
                         hasTopPin &&
                         hasHorizontalPins &&
                         groupedPins.every(

@@ -13,6 +13,36 @@ const {
  */
 export class SchematicPrimitiveParser {
     /**
+     * Normalizes record-7 polygon primitives into fill-capable polygons.
+     * @param {{ fields: Record<string, string | string[]> }[]} records
+     * @returns {{ points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[]}
+     */
+    static parseSchematicPolygons(records) {
+        return records
+            .map((record) => {
+                const points = SchematicPrimitiveParser.#collectPolygonPoints(
+                    record.fields
+                )
+
+                if (points.length < 2) {
+                    return null
+                }
+
+                return {
+                    points,
+                    color: toColor(record.fields.Color, '#a44a1b'),
+                    fill: toColor(record.fields.AreaColor, '#ffe16f'),
+                    isSolid: parseBoolean(record.fields.IsSolid),
+                    transparent: parseBoolean(record.fields.Transparent),
+                    lineWidth: parseNumericField(record.fields, 'LineWidth') || 1,
+                    ownerIndex:
+                        getField(record.fields, 'OwnerIndex') || undefined
+                }
+            })
+            .filter(Boolean)
+    }
+
+    /**
      * Normalizes record-14 body primitives into drawable rectangles.
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[]}
@@ -91,5 +121,33 @@ export class SchematicPrimitiveParser {
                 }
             })
             .filter(Boolean)
+    }
+
+    /**
+     * Collects one record-7 polygon point list in source order.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {{ x: number, y: number }[]}
+     */
+    static #collectPolygonPoints(fields) {
+        const locationCount = parseNumericField(fields, 'LocationCount')
+
+        if (locationCount === null || locationCount < 2) {
+            return []
+        }
+
+        const points = []
+
+        for (let index = 1; index <= locationCount; index += 1) {
+            const x = parseNumericField(fields, 'X' + index)
+            const y = parseNumericField(fields, 'Y' + index)
+
+            if (x === null || y === null) {
+                break
+            }
+
+            points.push({ x, y })
+        }
+
+        return points
     }
 }

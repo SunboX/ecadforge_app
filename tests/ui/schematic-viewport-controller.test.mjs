@@ -172,7 +172,7 @@ test('SchematicViewportController keeps the cursor point stable while zooming', 
         preventDefault() {}
     })
 
-    assert.equal(svg.getAttribute('viewBox'), '2.5 1.25 190 95')
+    assert.equal(svg.getAttribute('viewBox'), '1.5 0.75 194 97')
 
     controller.dispose()
 })

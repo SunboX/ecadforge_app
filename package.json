@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.1.97",
+    "version": "1.1.108",
     "description": "Browser-based viewer for native Altium schematic and PCB files",
     "private": true,
     "type": "module",

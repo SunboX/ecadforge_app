@@ -147,9 +147,10 @@ export class SchematicTextParser {
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @param {Record<string, string>} metadata
      * @param {number} sheetWidth
-     * @returns {{ title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string }}
+     * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
+     * @returns {{ title: string, revision: string, documentNumber: string, sheetNumber: string, sheetTotal: string, date: string, drawnBy: string, footerHints: Partial<Record<'title' | 'documentNumber' | 'revision' | 'sheetNumber' | 'sheetTotal', { x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }>> }}
      */
-    static extractSchematicTitleBlock(records, metadata, sheetWidth) {
+    static extractSchematicTitleBlock(records, metadata, sheetWidth, fonts) {
         const footerTexts = records
             .filter((record) =>
                 SchematicTextParser.isTitleBlockFooterRecord(
@@ -157,32 +158,50 @@ export class SchematicTextParser {
                     sheetWidth
                 )
             )
-            .map((record) => ({
-                text: ParserUtils.getDisplayText(record.fields),
-                x: ParserUtils.parseNumericField(record.fields, 'Location.X') || 0
-            }))
-            .filter((record) => record.text)
-            .sort((left, right) => left.x - right.x)
+            .map((record) =>
+                SchematicTextParser.#normalizeTitleBlockFooterRecord(
+                    record.fields,
+                    fonts
+                )
+            )
+            .filter(Boolean)
+            .sort(
+                (left, right) => right.y - left.y || left.x - right.x
+            )
+        const footerHints =
+            SchematicTextParser.#collectSchematicTitleBlockFooterHints(
+                footerTexts
+            )
         const numericFooterTexts = footerTexts.filter((record) =>
             /^\d+$/.test(record.text)
         )
 
         return {
-            title: SchematicTextParser.#cleanMetadataValue(metadata.title),
-            revision: SchematicTextParser.#cleanMetadataValue(metadata.revision),
+            title:
+                footerHints.title?.text ||
+                SchematicTextParser.#cleanMetadataValue(metadata.title),
+            revision:
+                footerHints.revision?.text ||
+                SchematicTextParser.#cleanMetadataValue(metadata.revision),
             documentNumber: SchematicTextParser.#cleanMetadataValue(
-                metadata.documentnumber
+                footerHints.documentNumber?.text || metadata.documentnumber
             ),
             sheetNumber:
+                footerHints.sheetNumber?.text ||
                 numericFooterTexts[0]?.text ||
                 SchematicTextParser.#cleanMetadataValue(metadata.sheetnumber),
             sheetTotal:
+                footerHints.sheetTotal?.text ||
                 numericFooterTexts[1]?.text ||
                 SchematicTextParser.#cleanMetadataValue(metadata.sheettotal),
             date: SchematicTextParser.#cleanMetadataValue(
                 metadata.currentdate || metadata.date
             ),
-            drawnBy: SchematicTextParser.#cleanMetadataValue(metadata.drawnby)
+            drawnBy: SchematicTextParser.#cleanMetadataValue(metadata.drawnby),
+            footerHints:
+                SchematicTextParser.#stripSchematicTitleBlockHintText(
+                    footerHints
+                )
         }
     }
 
@@ -203,6 +222,118 @@ export class SchematicTextParser {
             y !== null &&
             x >= sheetWidth * 0.55 &&
             y <= 100
+        )
+    }
+
+    /**
+     * Normalizes one visible footer text record into a title-block layout hint.
+     * @param {Record<string, string | string[]>} fields
+     * @param {Record<string, { size: number, family: string, bold: boolean, rotation: number }>} fonts
+     * @returns {{ text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number } | null}
+     */
+    static #normalizeTitleBlockFooterRecord(fields, fonts) {
+        const text = ParserUtils.getDisplayText(fields)
+        const x = ParserUtils.parseNumericField(fields, 'Location.X')
+        const y = ParserUtils.parseNumericField(fields, 'Location.Y')
+
+        if (!text || x === null || y === null) {
+            return null
+        }
+
+        const font =
+            fonts[ParserUtils.getField(fields, 'FontID')] ||
+            SchematicTextParser.#defaultSchematicFont()
+
+        return {
+            text,
+            x,
+            y,
+            color: SchematicTextParser.#resolveSchematicTextColor(
+                fields,
+                ParserUtils.getField(fields, 'RECORD')
+            ),
+            fontSize: font.size,
+            fontFamily: font.family,
+            fontWeight: font.bold ? 700 : 400
+        }
+    }
+
+    /**
+     * Maps visible footer rows onto title-block fields.
+     * @param {{ text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }[]} footerTexts
+     * @returns {Partial<Record<'title' | 'documentNumber' | 'revision' | 'sheetNumber' | 'sheetTotal', { text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }>>}
+     */
+    static #collectSchematicTitleBlockFooterHints(footerTexts) {
+        const rows = SchematicTextParser.#groupTitleBlockFooterRows(footerTexts)
+        const topRow = rows[0] || []
+        const bottomRow = rows.at(-1) || []
+        const middleRow = rows.length > 2 ? rows[1] || [] : []
+        const numericBottomRow = bottomRow.filter((record) =>
+            /^\d+$/.test(record.text)
+        )
+        const topRowHasVisibleTitleText = topRow.some(
+            (record) => /^\d+$/.test(record.text) === false
+        )
+        const hints = {}
+
+        if (topRow.length && topRowHasVisibleTitleText) {
+            hints.title = topRow[0]
+
+            if (topRow.length > 1) {
+                hints.documentNumber = topRow.at(-1)
+            }
+        }
+
+        if (middleRow.length) {
+            hints.revision = middleRow.at(-1)
+        }
+
+        if (numericBottomRow.length) {
+            hints.sheetNumber = numericBottomRow[0]
+            hints.sheetTotal = numericBottomRow.at(-1)
+        }
+
+        return hints
+    }
+
+    /**
+     * Groups footer texts by their shared baseline row.
+     * @param {{ text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }[]} footerTexts
+     * @returns {Array<{ text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }[]>}
+     */
+    static #groupTitleBlockFooterRows(footerTexts) {
+        const tolerance = 8
+        const rows = []
+
+        for (const record of footerTexts) {
+            const currentRow = rows.at(-1)
+
+            if (
+                currentRow &&
+                Math.abs(currentRow[0].y - record.y) <= tolerance
+            ) {
+                currentRow.push(record)
+                currentRow.sort((left, right) => left.x - right.x)
+                continue
+            }
+
+            rows.push([record])
+        }
+
+        return rows
+    }
+
+    /**
+     * Removes the non-rendered text payload from stored footer hints.
+     * @param {Partial<Record<'title' | 'documentNumber' | 'revision' | 'sheetNumber' | 'sheetTotal', { text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }>>} footerHints
+     * @returns {Partial<Record<'title' | 'documentNumber' | 'revision' | 'sheetNumber' | 'sheetTotal', { x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }>>}
+     */
+    static #stripSchematicTitleBlockHintText(footerHints) {
+        return Object.fromEntries(
+            Object.entries(footerHints).map(([key, value]) => {
+                const { text: _text, ...hint } = value
+                return [key, hint]
+            })
         )
     }
 

@@ -6,10 +6,9 @@ import { SchematicPowerPortRenderer } from './SchematicPowerPortRenderer.mjs'
 import { SchematicNoteRenderer } from './SchematicNoteRenderer.mjs'
 import { SchematicShapeRenderer } from './SchematicShapeRenderer.mjs'
 import { SchematicColorResolver } from './SchematicColorResolver.mjs'
+import { SchematicSheetChromeRenderer } from './SchematicSheetChromeRenderer.mjs'
 
 const {
-    basename,
-    buildCurrentDateValue,
     createSvgText,
     escapeHtml,
     formatNumber,
@@ -22,7 +21,7 @@ const {
 export class SchematicSvgRenderer {
     /**
      * Renders a normalized schematic model into SVG markup.
-     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
+     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, sourceWidth?: number, sourceHeight?: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean }[], polygons?: { points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number' }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -35,6 +34,7 @@ export class SchematicSvgRenderer {
         const height = Math.max(schematic.sheet.height || 700, 100)
         const allTexts = schematic.texts || []
         const lines = schematic.lines.slice(0, 2500)
+        const polygons = (schematic.polygons || []).slice(0, 1000)
         const rectangles = (schematic.rectangles || []).slice(0, 500)
         const arcs = (schematic.arcs || []).slice(0, 1000)
         const texts = allTexts
@@ -56,12 +56,14 @@ export class SchematicSvgRenderer {
             schematic.sheet,
             documentModel?.fileName
         )
-        const rectangleMarkup = rectangles
-            .map((rectangle) =>
-                SchematicShapeRenderer.buildRectangleMarkup(rectangle, height)
+        const contentTransform =
+            SchematicSvgRenderer.#buildSchematicContentTransform(
+                width,
+                height,
+                schematic.sheet
             )
-            .join('')
-
+        const polygonMarkup = polygons.map((polygon) => SchematicShapeRenderer.buildPolygonMarkup(polygon, height)).join('')
+        const rectangleMarkup = rectangles.map((rectangle) => SchematicShapeRenderer.buildRectangleMarkup(rectangle, height)).join('')
         const lineMarkup = lines
             .map((line) =>
                 SchematicSvgRenderer.#buildSchematicLineMarkup(line, height)
@@ -85,30 +87,16 @@ export class SchematicSvgRenderer {
             .join('')
 
         const componentMarkup = drawableComponents
-            .map(
-                (component) =>
-                    '<g class="schematic-node"><circle cx="' +
-                    formatNumber(component.x) +
-                    '" cy="' +
-                    formatNumber(projectSchematicY(height, component.y)) +
-                    '" r="4" />' +
-                    createSvgText(
-                        'schematic-designator',
-                        component.x + 8,
-                        projectSchematicY(height, component.y) - 8,
-                        component.designator || '',
-                        'var(--schematic-default-ink-color)',
-                        'start',
-                        SchematicTypography.buildDefaultSchematicFontOptions(
-                            schematic.sheet
-                        )
-                    ) +
-                    '</g>'
+            .map((component) =>
+                SchematicSvgRenderer.#buildFallbackComponentMarkup(
+                    component,
+                    height,
+                    schematic.sheet
+                )
             )
             .join('')
 
-        const rotatedVerticalNumberOwners =
-            SchematicTypography.collectRotatedVerticalNumberOwners(pins)
+        const rotatedVerticalNumberOwners = SchematicTypography.collectRotatedVerticalNumberOwners(pins)
         const pinMarkup = pins
             .map((pin) =>
                 SchematicSvgRenderer.#buildSchematicPinMarkup(
@@ -155,26 +143,31 @@ export class SchematicSvgRenderer {
             '" height="' +
             formatNumber(height) +
             '" rx="18" />' +
-            frameMarkup +
+            '<g class="schematic-content"' +
+            contentTransform +
+            '>' +
+            '<g class="schematic-polygons">' +
+            polygonMarkup +
+            '</g>' +
             '<g class="schematic-rectangles">' +
             rectangleMarkup +
             '</g>' +
-            '<g class="schematic-lines">' +
+            '<g class="schematic-lines" stroke-linecap="round">' +
             lineMarkup +
             '</g>' +
-            '<g class="schematic-arcs">' +
+            '<g class="schematic-arcs" stroke-linecap="round">' +
             arcMarkup +
             '</g>' +
             '<g class="schematic-junctions">' +
             junctionMarkup +
             '</g>' +
-            '<g class="schematic-pins">' +
+            '<g class="schematic-pins" stroke-linecap="round">' +
             pinMarkup +
             '</g>' +
             '<g class="schematic-ports">' +
             portMarkup +
             '</g>' +
-            '<g class="schematic-crosses">' +
+            '<g class="schematic-crosses" stroke-linecap="round">' +
             crossMarkup +
             '</g>' +
             '<g class="schematic-components">' +
@@ -183,7 +176,61 @@ export class SchematicSvgRenderer {
             '<g class="schematic-texts">' +
             textMarkup +
             '</g>' +
+            '</g>' +
+            frameMarkup +
             '</svg></section>'
+        )
+    }
+
+    /**
+     * Builds one uniform SVG transform that scales recovered schematic
+     * primitives from their source inner frame into a larger normalized page.
+     * @param {number} width
+     * @param {number} height
+     * @param {{ marginWidth?: number, sourceWidth?: number, sourceHeight?: number }} sheet
+     * @returns {string}
+     */
+    static #buildSchematicContentTransform(width, height, sheet) {
+        const margin = Math.max(Number(sheet?.marginWidth || 20), 10)
+        const sourceWidth = Number(sheet?.sourceWidth || 0)
+        const sourceHeight = Number(sheet?.sourceHeight || 0)
+
+        if (
+            sourceWidth <= margin * 2 ||
+            sourceHeight <= margin * 2 ||
+            (width <= sourceWidth && height <= sourceHeight)
+        ) {
+            return ''
+        }
+
+        const sourceInnerWidth = sourceWidth - margin * 2
+        const sourceInnerHeight = sourceHeight - margin * 2
+        const targetInnerWidth = width - margin * 2
+        const targetInnerHeight = height - margin * 2
+        const scale = Math.min(
+            targetInnerWidth / sourceInnerWidth,
+            targetInnerHeight / sourceInnerHeight
+        )
+
+        if (!Number.isFinite(scale) || scale <= 1) {
+            return ''
+        }
+
+        const pivotX = margin
+        const pivotY = height - margin
+
+        return (
+            ' transform="translate(' +
+            formatNumber(pivotX) +
+            ' ' +
+            formatNumber(pivotY) +
+            ') scale(' +
+            formatNumber(scale) +
+            ') translate(' +
+            formatNumber(-pivotX) +
+            ' ' +
+            formatNumber(-pivotY) +
+            ')"'
         )
     }
 
@@ -265,340 +312,12 @@ export class SchematicSvgRenderer {
      * @returns {string}
      */
     static #buildSheetChromeMarkup(width, height, sheet, fileName) {
-        const margin = Math.max(Number(sheet?.marginWidth || 20), 10)
-        let markup = SchematicSvgRenderer.#buildSheetZoneMarkup(
+        return SchematicSheetChromeRenderer.buildMarkup(
             width,
             height,
-            margin,
-            sheet
+            sheet,
+            fileName
         )
-
-        if (sheet?.borderOn) {
-            markup +=
-                '<rect class="sheet-frame" x="' +
-                formatNumber(margin) +
-                '" y="' +
-                formatNumber(margin) +
-                '" width="' +
-                formatNumber(Math.max(width - margin * 2, 10)) +
-                '" height="' +
-                formatNumber(Math.max(height - margin * 2, 10)) +
-                '" />'
-        }
-
-        if (sheet?.titleBlockOn) {
-            const titleBlockWidth = Math.min(
-                Math.max(width - margin * 2, 100),
-                Math.max(Math.min(480, width * 0.34), 140)
-            )
-            const titleBlockHeight = Math.min(
-                Math.max(height - margin * 2, 100),
-                Math.max(Math.min(138, height * 0.18), 102)
-            )
-            const x = width - margin - titleBlockWidth
-            const y = height - margin - titleBlockHeight
-            const titleBlock = sheet?.titleBlock || {}
-            const headerY = y + titleBlockHeight * 0.16
-            const titleRowY = y + titleBlockHeight * 0.48
-            const labelRowY = y + titleBlockHeight * 0.62
-            const valueRowY = y + titleBlockHeight * 0.78
-            const footerDateY = y + titleBlockHeight * 0.9
-            const footerFileY = y + titleBlockHeight * 0.98
-            const line1Y = y + titleBlockHeight * 0.18
-            const line2Y = y + titleBlockHeight * 0.5
-            const line3Y = y + titleBlockHeight * 0.66
-            const line4Y = y + titleBlockHeight * 0.82
-            const numberX = x + titleBlockWidth * 0.64
-            const revisionX = x + titleBlockWidth * 0.84
-            const sizeX = x + titleBlockWidth * 0.16
-            const sheetX = x + titleBlockWidth * 0.67
-            const drawnByX = x + titleBlockWidth * 0.82
-            const sheetValue = SchematicSvgRenderer.#buildSheetValue(titleBlock)
-            const renderedFileName = basename(fileName)
-            const renderedDate = titleBlock.date || buildCurrentDateValue()
-
-            markup +=
-                '<g class="sheet-title-block">' +
-                '<rect x="' +
-                formatNumber(x) +
-                '" y="' +
-                formatNumber(y) +
-                '" width="' +
-                formatNumber(titleBlockWidth) +
-                '" height="' +
-                formatNumber(titleBlockHeight) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(x) +
-                '" y1="' +
-                formatNumber(line1Y) +
-                '" x2="' +
-                formatNumber(x + titleBlockWidth) +
-                '" y2="' +
-                formatNumber(line1Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(x) +
-                '" y1="' +
-                formatNumber(line2Y) +
-                '" x2="' +
-                formatNumber(x + titleBlockWidth) +
-                '" y2="' +
-                formatNumber(line2Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(x) +
-                '" y1="' +
-                formatNumber(line3Y) +
-                '" x2="' +
-                formatNumber(x + titleBlockWidth) +
-                '" y2="' +
-                formatNumber(line3Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(x) +
-                '" y1="' +
-                formatNumber(line4Y) +
-                '" x2="' +
-                formatNumber(x + titleBlockWidth) +
-                '" y2="' +
-                formatNumber(line4Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(numberX) +
-                '" y1="' +
-                formatNumber(y) +
-                '" x2="' +
-                formatNumber(numberX) +
-                '" y2="' +
-                formatNumber(line2Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(revisionX) +
-                '" y1="' +
-                formatNumber(y) +
-                '" x2="' +
-                formatNumber(revisionX) +
-                '" y2="' +
-                formatNumber(line2Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(sizeX) +
-                '" y1="' +
-                formatNumber(line2Y) +
-                '" x2="' +
-                formatNumber(sizeX) +
-                '" y2="' +
-                formatNumber(y + titleBlockHeight) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(sheetX) +
-                '" y1="' +
-                formatNumber(line2Y) +
-                '" x2="' +
-                formatNumber(sheetX) +
-                '" y2="' +
-                formatNumber(line4Y) +
-                '" />' +
-                '<line x1="' +
-                formatNumber(drawnByX) +
-                '" y1="' +
-                formatNumber(line4Y) +
-                '" x2="' +
-                formatNumber(drawnByX) +
-                '" y2="' +
-                formatNumber(y + titleBlockHeight) +
-                '" />' +
-                createSvgText(
-                    'sheet-title-label',
-                    x + titleBlockWidth * 0.03,
-                    headerY,
-                    'Title',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    numberX + titleBlockWidth * 0.03,
-                    headerY,
-                    'Number',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    revisionX + titleBlockWidth * 0.02,
-                    headerY,
-                    'Revision',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    x + titleBlockWidth * 0.05,
-                    labelRowY,
-                    'Size',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    sizeX + titleBlockWidth * 0.05,
-                    labelRowY,
-                    'Sheet',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    sizeX + 8,
-                    footerDateY,
-                    'Date:',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    sizeX + 8,
-                    footerFileY,
-                    'File:',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-label',
-                    drawnByX + 8,
-                    footerFileY,
-                    'Drawn By:',
-                    'var(--schematic-sheet-label-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    x + titleBlockWidth * 0.31,
-                    titleRowY,
-                    titleBlock.title || '',
-                    'var(--schematic-default-ink-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    x + titleBlockWidth * 0.74,
-                    titleRowY,
-                    titleBlock.documentNumber || '',
-                    'var(--schematic-text-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    x + titleBlockWidth * 0.92,
-                    titleRowY,
-                    titleBlock.revision || '',
-                    'var(--schematic-default-ink-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    x + titleBlockWidth * 0.08,
-                    valueRowY,
-                    sheet?.paperSize || 'A4',
-                    'var(--schematic-text-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    x + titleBlockWidth * 0.415,
-                    valueRowY,
-                    sheetValue,
-                    'var(--schematic-default-ink-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    sizeX + titleBlockWidth * 0.08,
-                    footerDateY,
-                    renderedDate,
-                    'var(--schematic-text-color)',
-                    'start'
-                ) +
-                createSvgText(
-                    'sheet-title-value',
-                    sizeX + titleBlockWidth * 0.08,
-                    footerFileY,
-                    renderedFileName,
-                    'var(--schematic-text-color)',
-                    'start'
-                ) +
-                '</g>'
-        }
-
-        return markup
-    }
-
-    /**
-     * Builds the border zone labels around the sheet frame.
-     * @param {number} width
-     * @param {number} height
-     * @param {number} margin
-     * @param {{ borderOn?: boolean, xZones?: number, yZones?: number }} sheet
-     * @returns {string}
-     */
-    static #buildSheetZoneMarkup(width, height, margin, sheet) {
-        if (!sheet?.borderOn) return ''
-
-        const xZones = Math.max(Number(sheet?.xZones || 0), 1)
-        const yZones = Math.max(Number(sheet?.yZones || 0), 1)
-        const innerWidth = Math.max(width - margin * 2, 10)
-        const innerHeight = Math.max(height - margin * 2, 10)
-        let markup = ''
-
-        for (let index = 0; index < xZones; index += 1) {
-            const label = String(index + 1)
-            const x = margin + (innerWidth * (index + 0.5)) / xZones
-
-            markup +=
-                createSvgText(
-                    'sheet-zone-label',
-                    x,
-                    margin - 6,
-                    label,
-                    'var(--schematic-text-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-zone-label',
-                    x,
-                    height - 4,
-                    label,
-                    'var(--schematic-text-color)',
-                    'middle'
-                )
-        }
-
-        for (let index = 0; index < yZones; index += 1) {
-            const label = String.fromCharCode(65 + index)
-            const y = margin + (innerHeight * (index + 0.5)) / yZones
-
-            markup +=
-                createSvgText(
-                    'sheet-zone-label',
-                    8,
-                    y + 2,
-                    label,
-                    'var(--schematic-text-color)',
-                    'middle'
-                ) +
-                createSvgText(
-                    'sheet-zone-label',
-                    width - 8,
-                    y + 2,
-                    label,
-                    'var(--schematic-text-color)',
-                    'middle'
-                )
-        }
-
-        return markup
     }
 
     /**
@@ -718,7 +437,7 @@ export class SchematicSvgRenderer {
         if (!geometry) return ''
 
         const textOptions =
-            SchematicTypography.buildDefaultSchematicFontOptions(sheet)
+            SchematicTypography.buildViewerSchematicFontOptions(sheet)
         const projectedY = projectSchematicY(sheetHeight, pin.y)
         const projectedInnerY = projectSchematicY(sheetHeight, geometry.bodyY)
         const projectedOuterY = projectSchematicY(sheetHeight, geometry.outerY)
@@ -909,22 +628,6 @@ export class SchematicSvgRenderer {
     }
 
     /**
-     * Formats the sheet numbering shown in the title block.
-     * @param {{ sheetNumber?: string, sheetTotal?: string }} titleBlock
-     * @returns {string}
-     */
-    static #buildSheetValue(titleBlock) {
-        const sheetNumber = String(titleBlock?.sheetNumber || '').trim()
-        const sheetTotal = String(titleBlock?.sheetTotal || '').trim()
-
-        if (sheetNumber && sheetTotal) {
-            return 'Sheet ' + sheetNumber + ' of ' + sheetTotal
-        }
-
-        return sheetNumber || sheetTotal || ''
-    }
-
-    /**
      * Builds one schematic cross marker.
      * @param {{ x: number, y: number, size: number, color: string }} cross
      * @param {number} sheetHeight
@@ -971,7 +674,28 @@ export class SchematicSvgRenderer {
     }
 
     /**
-     * Returns true when a component has enough placement data to draw a marker.
+     * Builds one synthetic designator label for a fallback component
+     * placement without the old marker circle.
+     * @param {{ x: number, y: number, designator?: string }} component
+     * @param {number} sheetHeight
+     * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
+     * @returns {string}
+     */
+    static #buildFallbackComponentMarkup(component, sheetHeight, sheet) {
+        return createSvgText(
+            'schematic-designator',
+            component.x + 8,
+            projectSchematicY(sheetHeight, component.y) - 8,
+            component.designator || '',
+            'var(--schematic-default-ink-color)',
+            'start',
+            SchematicTypography.buildViewerSchematicFontOptions(sheet)
+        )
+    }
+
+    /**
+     * Returns true when a component has enough placement data to draw a
+     * fallback designator label.
      * @param {{ x?: number, y?: number, designator?: string }} component
      * @returns {boolean}
      */
