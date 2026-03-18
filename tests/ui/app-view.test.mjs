@@ -303,7 +303,9 @@ class FakeContentNode extends FakeNode {
         this._innerHTML = String(value)
         this.#svgBySelector = new Map()
 
-        for (const match of this._innerHTML.matchAll(/<svg class="([^"]+)" viewBox="([^"]+)"/g)) {
+        for (const match of this._innerHTML.matchAll(
+            /<svg class="([^"]+)" viewBox="([^"]+)"/g
+        )) {
             const classNames = match[1].split(/\s+/).filter(Boolean)
             const svg = new FakeSvgElement(
                 this.#ownerDocument,
@@ -421,9 +423,27 @@ function createPcbSnapshot() {
                     {
                         layer: 'TOP',
                         segments: [
-                            { type: 'line', x1: 100, y1: 100, x2: 300, y2: 100 },
-                            { type: 'line', x1: 300, y1: 100, x2: 300, y2: 250 },
-                            { type: 'line', x1: 300, y1: 250, x2: 100, y2: 250 },
+                            {
+                                type: 'line',
+                                x1: 100,
+                                y1: 100,
+                                x2: 300,
+                                y2: 100
+                            },
+                            {
+                                type: 'line',
+                                x1: 300,
+                                y1: 100,
+                                x2: 300,
+                                y2: 250
+                            },
+                            {
+                                type: 'line',
+                                x1: 300,
+                                y1: 250,
+                                x2: 100,
+                                y2: 250
+                            },
                             { type: 'line', x1: 100, y1: 250, x2: 100, y2: 100 }
                         ]
                     }
@@ -465,6 +485,19 @@ function createPcbSnapshot() {
 }
 
 /**
+ * Verifies AppView renders the runtime version into the footer without a
+ * header-style prefix.
+ */
+test('AppView renders the raw runtime version text in the footer node', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.setVersion('1.2.3')
+
+    assert.equal(fakeDocument.querySelector('#appVersion').textContent, '1.2.3')
+})
+
+/**
  * Verifies AppView makes the rendered schematic SVG interactive.
  */
 test('AppView wires mouse-wheel zoom onto the rendered schematic svg', () => {
@@ -473,9 +506,9 @@ test('AppView wires mouse-wheel zoom onto the rendered schematic svg', () => {
 
     view.render(createSchematicSnapshot())
 
-    const svg = fakeDocument.querySelector('#viewContent').querySelector(
-        '.schematic-svg'
-    )
+    const svg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
 
     svg.dispatch('wheel', {
         deltaY: -100,
@@ -498,9 +531,9 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
 
     view.render(snapshot)
 
-    const firstSvg = fakeDocument.querySelector('#viewContent').querySelector(
-        '.schematic-svg'
-    )
+    const firstSvg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
 
     firstSvg.dispatch('wheel', {
         deltaY: -100,
@@ -513,9 +546,9 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
 
     view.render(snapshot)
 
-    const secondSvg = fakeDocument.querySelector('#viewContent').querySelector(
-        '.schematic-svg'
-    )
+    const secondSvg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
 
     assert.equal(secondSvg.getAttribute('viewBox'), '0 0 200 100')
     assert.equal(firstSvg.getListenerCount('wheel'), 0)
@@ -531,7 +564,9 @@ test('AppView wires zoom and drag onto the rendered pcb svg', () => {
 
     view.render(createPcbSnapshot())
 
-    const svg = fakeDocument.querySelector('#viewContent').querySelector('.pcb-svg')
+    const svg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.pcb-svg')
 
     svg.dispatch('wheel', {
         deltaY: -100,
