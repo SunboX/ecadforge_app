@@ -91,6 +91,7 @@ jobs:
                   timeout: 60000
                   exclude: |
                       **/.DS_Store
+                      **/.htaccess
                       **/.env
                       **/.env.*
                       **/*.env
@@ -111,6 +112,7 @@ jobs:
                   timeout: 60000
                   exclude: |
                       **/.DS_Store
+                      **/.htaccess
                       **/.env
                       **/.env.*
                       **/*.env
