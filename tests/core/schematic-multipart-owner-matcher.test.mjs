@@ -224,3 +224,238 @@ test('collectActiveMultipartOwnerParts matches op-amp owners by enclosing owner 
 
     assert.equal(activeOwnerParts.get('44'), '3')
 })
+
+/**
+ * Verifies mirrored multipart owners can resolve from the right outer pin
+ * endpoint when the component anchor sits one pin-length beyond the body.
+ */
+test('collectActiveMultipartOwnerParts matches mirrored owners by right pin endpoint', () => {
+    const records = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '1',
+                'Location.X': '130',
+                'Location.Y': '120',
+                PinLength: '10',
+                PinConglomerate: '56'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '1',
+                'Location.X': '100',
+                'Location.Y': '100',
+                PinLength: '10',
+                PinConglomerate: '59'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '1',
+                'Location.X': '100',
+                'Location.Y': '140',
+                PinLength: '10',
+                PinConglomerate: '57'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '130',
+                'Location.Y': '120',
+                PinLength: '10',
+                PinConglomerate: '56'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '100',
+                'Location.Y': '100',
+                PinLength: '10',
+                PinConglomerate: '59'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '28',
+                OwnerPartId: '2',
+                'Location.X': '100',
+                'Location.Y': '140',
+                PinLength: '10',
+                PinConglomerate: '57'
+            }
+        }
+    ]
+    const componentRecords = [
+        {
+            raw: '',
+            fields: {
+                RECORD: '1',
+                IndexInSheet: '27',
+                PartCount: '3',
+                CurrentPartId: '2',
+                'Location.X': '140',
+                'Location.Y': '120',
+                IsMirrored: 'T'
+            }
+        }
+    ]
+
+    const activeOwnerParts =
+        SchematicMultipartOwnerMatcher.collectActiveMultipartOwnerParts(
+            records,
+            componentRecords
+        )
+
+    assert.equal(activeOwnerParts.get('28'), '2')
+})
+
+/**
+ * Verifies multipart components can recover their active owner directly from
+ * the serialized component record block when geometric anchors do not match
+ * the library placement origin.
+ */
+test('collectActiveMultipartOwnerParts matches multipart owners by dominant serialized owner block', () => {
+    const componentRecord = {
+        raw: '',
+        fields: {
+            RECORD: '1',
+            IndexInSheet: '204',
+            PartCount: '4',
+            CurrentPartId: '3',
+            'Location.X': '660',
+            'Location.Y': '120'
+        }
+    }
+    const records = [
+        componentRecord,
+        {
+            raw: '',
+            fields: {
+                RECORD: '41',
+                OwnerIndex: '700',
+                OwnerPartId: '-1',
+                Name: 'MODEL',
+                Text: 'AMP-DEMO'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '13',
+                OwnerIndex: '700',
+                OwnerPartId: '1',
+                'Location.X': '680',
+                'Location.Y': '90',
+                'Corner.X': '680',
+                'Corner.Y': '130'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '700',
+                OwnerPartId: '1',
+                'Location.X': '680',
+                'Location.Y': '100',
+                PinLength: '20',
+                PinConglomerate: '50'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '700',
+                OwnerPartId: '2',
+                'Location.X': '680',
+                'Location.Y': '120',
+                PinLength: '20',
+                PinConglomerate: '50'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '13',
+                OwnerIndex: '700',
+                OwnerPartId: '3',
+                'Location.X': '680',
+                'Location.Y': '90',
+                'Corner.X': '680',
+                'Corner.Y': '130'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '700',
+                OwnerPartId: '3',
+                'Location.X': '700',
+                'Location.Y': '120',
+                PinLength: '10',
+                PinConglomerate: '49'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '2',
+                OwnerIndex: '700',
+                OwnerPartId: '3',
+                'Location.X': '700',
+                'Location.Y': '100',
+                PinLength: '10',
+                PinConglomerate: '51'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '41',
+                OwnerIndex: '701',
+                OwnerPartId: '-1',
+                Name: 'PinUniqueId',
+                Text: 'SUB-1'
+            }
+        },
+        {
+            raw: '',
+            fields: {
+                RECORD: '41',
+                OwnerIndex: '702',
+                OwnerPartId: '-1',
+                Name: 'PinUniqueId',
+                Text: 'SUB-2'
+            }
+        }
+    ]
+
+    const activeOwnerParts =
+        SchematicMultipartOwnerMatcher.collectActiveMultipartOwnerParts(
+            records,
+            [componentRecord]
+        )
+
+    assert.equal(activeOwnerParts.get('700'), '3')
+})

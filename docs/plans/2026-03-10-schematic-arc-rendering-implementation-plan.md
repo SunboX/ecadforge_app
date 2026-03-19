@@ -18,7 +18,7 @@
 
 **Step 1: Write the failing test**
 
-Add a fixture-backed test that loads `tests/fixtures/altium/AtlasControl-A1.01.01F.SchDoc` and asserts one inductor owner exposes three normalized arc primitives with the expected centers, radius, and start/end angles.
+Add a fixture-backed test that loads `tests/fixtures/altium/Starfall-Nova.SchDoc` and asserts one inductor owner exposes three normalized arc primitives with the expected centers, radius, and start/end angles.
 
 **Step 2: Run test to verify it fails**
 

@@ -20,7 +20,7 @@ export class SchematicContentLayout {
      * Builds one deterministic clip-path identifier for one schematic SVG.
      * @param {number} width
      * @param {number} height
-     * @param {{ sheet?: { marginWidth?: number }, lines?: unknown[], texts?: unknown[], components?: unknown[], pins?: unknown[] }} schematic
+     * @param {{ sheet?: { marginWidth?: number }, lines?: unknown[], texts?: unknown[], components?: unknown[], pins?: unknown[], regions?: unknown[] }} schematic
      * @returns {string}
      */
     static buildClipId(width, height, schematic) {
@@ -32,7 +32,8 @@ export class SchematicContentLayout {
             (schematic?.lines || []).length,
             (schematic?.texts || []).length,
             (schematic?.components || []).length,
-            (schematic?.pins || []).length
+            (schematic?.pins || []).length,
+            (schematic?.regions || []).length
         ].join('-')
     }
 
@@ -71,7 +72,7 @@ export class SchematicContentLayout {
      * primitives from their source inner frame into a larger normalized page.
      * @param {number} width
      * @param {number} height
-     * @param {{ sheet?: { marginWidth?: number, sourceWidth?: number, sourceHeight?: number, fonts?: Record<string, { size?: number }> }, lines?: { x1: number, y1: number, x2: number, y2: number }[], polygons?: { points: { x: number, y: number }[] }[], rectangles?: { x: number, y: number, width: number, height: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number }[], arcs?: { x: number, y: number, radius: number }[], texts?: { x: number, y: number }[], components?: { x: number, y: number }[], pins?: { x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[], ports?: { x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size?: number }[] }} schematic
+     * @param {{ sheet?: { marginWidth?: number, sourceWidth?: number, sourceHeight?: number, fonts?: Record<string, { size?: number }> }, lines?: { x1: number, y1: number, x2: number, y2: number }[], polygons?: { points: { x: number, y: number }[] }[], rectangles?: { x: number, y: number, width: number, height: number }[], regions?: { x: number, y: number, width: number, height: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number }[], arcs?: { x: number, y: number, radius: number }[], texts?: { x: number, y: number }[], components?: { x: number, y: number }[], pins?: { x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[], ports?: { x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size?: number }[] }} schematic
      * @returns {string}
      */
     static buildTransform(width, height, schematic) {
@@ -94,6 +95,7 @@ export class SchematicContentLayout {
             SchematicContentLayout.#buildNormalizedSheetTransform(
                 width,
                 height,
+                schematic,
                 sheet,
                 margin,
                 bounds,
@@ -120,6 +122,7 @@ export class SchematicContentLayout {
      * expanded beyond their original source size.
      * @param {number} width
      * @param {number} height
+     * @param {{ rectangles?: { x: number, y: number, width: number, height: number }[], regions?: { x: number, y: number, width: number, height: number }[] }} schematic
      * @param {{ sourceWidth?: number, sourceHeight?: number } | undefined} sheet
      * @param {number} margin
      * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
@@ -130,6 +133,7 @@ export class SchematicContentLayout {
     static #buildNormalizedSheetTransform(
         width,
         height,
+        schematic,
         sheet,
         margin,
         bounds,
@@ -155,22 +159,32 @@ export class SchematicContentLayout {
             return ''
         }
 
-        const topLeftGrowthLimit = Math.min(
-            (width - margin - contentPadding - bounds.minX) / usedWidth,
-            (height - margin - contentPadding - bounds.minY) / usedHeight
+        const topLimit = margin + contentPadding * 0.2
+        const bottomLimit = height - margin - footerReserve
+        const dominantAnchorBounds =
+            SchematicContentLayout.#resolveNormalizedAnchorBounds(
+                schematic,
+                height,
+                bounds
+            )
+        const anchorDeltaY =
+            dominantAnchorBounds.minY - bounds.minY
+        const rightFitScaleLimit =
+            (width - margin - contentPadding - bounds.minX) / usedWidth
+        const bottomFitScaleLimit =
+            (bottomLimit - topLimit) /
+            (bounds.maxY - dominantAnchorBounds.minY)
+        const scale = Math.min(
+            normalizedScaleLimit,
+            rightFitScaleLimit,
+            bottomFitScaleLimit
         )
-        const scale = Math.min(normalizedScaleLimit, topLeftGrowthLimit)
 
         if (!Number.isFinite(scale) || scale <= 1) {
             return ''
         }
 
-        const targetMinY =
-            margin +
-            Math.max(
-                (height - margin * 2 - footerReserve - usedHeight * scale) / 2,
-                0
-            )
+        const targetMinY = topLimit - anchorDeltaY * scale
 
         return (
             ' transform="translate(' +
@@ -377,9 +391,64 @@ export class SchematicContentLayout {
     }
 
     /**
+     * Resolves the dominant rendered box that should guide normalized-sheet
+     * top anchoring when a large authored frame sits below smaller outliers.
+     * @param {{ rectangles?: { x: number, y: number, width: number, height: number }[], regions?: { x: number, y: number, width: number, height: number }[] }} schematic
+     * @param {number} sheetHeight
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds
+     * @returns {{ minX: number, minY: number, maxX: number, maxY: number }}
+     */
+    static #resolveNormalizedAnchorBounds(schematic, sheetHeight, bounds) {
+        const totalWidth = bounds.maxX - bounds.minX
+        const totalHeight = bounds.maxY - bounds.minY
+
+        if (totalWidth <= 0 || totalHeight <= 0) {
+            return bounds
+        }
+
+        const minimumWidth = totalWidth * 0.45
+        const minimumHeight = totalHeight * 0.2
+        const minimumArea = totalWidth * totalHeight * 0.12
+        const candidates = [
+            ...SchematicContentLayout.#collectRenderedBoxBounds(
+                schematic?.rectangles,
+                sheetHeight
+            ),
+            ...SchematicContentLayout.#collectRenderedBoxBounds(
+                schematic?.regions,
+                sheetHeight
+            )
+        ].filter((candidate) => {
+            const width = candidate.maxX - candidate.minX
+            const height = candidate.maxY - candidate.minY
+            const area = width * height
+
+            return (
+                candidate.minY > bounds.minY &&
+                width >= minimumWidth &&
+                height >= minimumHeight &&
+                area >= minimumArea
+            )
+        })
+
+        if (!candidates.length) {
+            return bounds
+        }
+
+        candidates.sort(
+            (left, right) =>
+                left.minY - right.minY ||
+                (right.maxX - right.minX) * (right.maxY - right.minY) -
+                    (left.maxX - left.minX) * (left.maxY - left.minY)
+        )
+
+        return candidates[0]
+    }
+
+    /**
      * Collects one approximate visible content envelope in rendered SVG
      * coordinates.
-     * @param {{ lines?: { x1: number, y1: number, x2: number, y2: number }[], polygons?: { points: { x: number, y: number }[] }[], rectangles?: { x: number, y: number, width: number, height: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number }[], arcs?: { x: number, y: number, radius: number }[], texts?: { x: number, y: number }[], components?: { x: number, y: number }[], pins?: { x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[], ports?: { x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size?: number }[] }} schematic
+     * @param {{ lines?: { x1: number, y1: number, x2: number, y2: number }[], polygons?: { points: { x: number, y: number }[] }[], rectangles?: { x: number, y: number, width: number, height: number }[], regions?: { x: number, y: number, width: number, height: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number }[], arcs?: { x: number, y: number, radius: number }[], texts?: { x: number, y: number }[], components?: { x: number, y: number }[], pins?: { x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[], ports?: { x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[], crosses?: { x: number, y: number, size?: number }[] }} schematic
      * @param {number} sheetHeight
      * @returns {{ minX: number, minY: number, maxX: number, maxY: number } | null}
      */
@@ -414,6 +483,19 @@ export class SchematicContentLayout {
                 [
                     rectangle.x + rectangle.width,
                     projectSchematicY(sheetHeight, rectangle.y)
+                ]
+            )
+        }
+
+        for (const region of schematic?.regions || []) {
+            coordinates.push(
+                [
+                    region.x,
+                    projectSchematicY(sheetHeight, region.y + region.height)
+                ],
+                [
+                    region.x + region.width,
+                    projectSchematicY(sheetHeight, region.y)
                 ]
             )
         }
@@ -521,6 +603,21 @@ export class SchematicContentLayout {
             maxX: Math.max(...coordinates.map(([x]) => x)),
             maxY: Math.max(...coordinates.map(([, y]) => y))
         }
+    }
+
+    /**
+     * Projects authored rectangles or regions into rendered SVG bounds.
+     * @param {{ x: number, y: number, width: number, height: number }[] | undefined} boxes
+     * @param {number} sheetHeight
+     * @returns {{ minX: number, minY: number, maxX: number, maxY: number }[]}
+     */
+    static #collectRenderedBoxBounds(boxes, sheetHeight) {
+        return (boxes || []).map((box) => ({
+            minX: box.x,
+            minY: projectSchematicY(sheetHeight, box.y + box.height),
+            maxX: box.x + box.width,
+            maxY: projectSchematicY(sheetHeight, box.y)
+        }))
     }
 
     /**

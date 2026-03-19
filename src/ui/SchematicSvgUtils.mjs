@@ -42,7 +42,7 @@ export class SchematicSvgUtils {
      * @param {string} text
      * @param {string} color
      * @param {'start' | 'end' | 'middle'} anchor
-     * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number }} [options]
+     * @param {{ fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, segments?: { text: string, overline?: boolean }[] }} [options]
      * @returns {string}
      */
     static createSvgText(
@@ -54,7 +54,12 @@ export class SchematicSvgUtils {
         anchor,
         options = {}
     ) {
-        if (!text) return ''
+        const hasSegments = Array.isArray(options.segments)
+            ? options.segments.some((segment) => segment?.text)
+            : false
+        const hasPlainText =
+            text !== undefined && text !== null && String(text).length > 0
+        if (!hasSegments && !hasPlainText) return ''
 
         return (
             '<text class="' +
@@ -70,7 +75,7 @@ export class SchematicSvgUtils {
             '"' +
             SchematicSvgUtils.#buildSvgTextStyleAttributes(x, y, options) +
             '>' +
-            SchematicSvgUtils.escapeHtml(text) +
+            SchematicSvgUtils.#buildSvgTextContent(text, options.segments) +
             '</text>'
         )
     }
@@ -148,5 +153,31 @@ export class SchematicSvgUtils {
         }
 
         return attributes
+    }
+
+    /**
+     * Builds escaped text or segmented tspan markup for one SVG text element.
+     * @param {string} text
+     * @param {{ text: string, overline?: boolean }[] | undefined} segments
+     * @returns {string}
+     */
+    static #buildSvgTextContent(text, segments) {
+        if (Array.isArray(segments) && segments.some((segment) => segment?.text)) {
+            return segments
+                .filter((segment) => segment?.text)
+                .map(
+                    (segment) =>
+                        '<tspan text-decoration="' +
+                        SchematicSvgUtils.escapeHtml(
+                            segment.overline ? 'overline' : 'none'
+                        ) +
+                        '">' +
+                        SchematicSvgUtils.escapeHtml(segment.text) +
+                        '</tspan>'
+                )
+                .join('')
+        }
+
+        return SchematicSvgUtils.escapeHtml(text)
     }
 }

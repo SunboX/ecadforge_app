@@ -5,11 +5,11 @@ import { AltiumParser } from '../../../src/core/altium/AltiumParser.mjs'
 import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies the reduced embedded solace-sheet fixture still produces normalized
+ * Verifies the reduced embedded dawn-sheet fixture still produces normalized
  * ports, labels, and bus geometry.
  */
 test('parseAltiumArrayBuffer parses an embedded fake SchDoc sample', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(documentModel.fileType, 'SchDoc')
@@ -22,7 +22,7 @@ test('parseAltiumArrayBuffer parses an embedded fake SchDoc sample', async () =>
         2
     )
     assert.equal(documentModel.bom.length, 0)
-    assert.equal(documentModel.summary.title, 'LUMEN-VEIL-A1')
+    assert.equal(documentModel.summary.title, 'STARFALL-ARC')
 })
 
 /**
@@ -112,11 +112,90 @@ test('parseAltiumArrayBuffer keeps standard A3 footer title-block hints', () => 
 })
 
 /**
- * Verifies Altium schematic colors, title typography, and synthesized
- * connector notes are normalized from the aether-sheet fixture.
+ * Verifies footer placeholders resolve through hidden sheet metadata and a
+ * visible bottom-row signature populates the synthesized `Drawn By` field.
  */
-test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer resolves footer placeholders and visible drawn-by values', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|CustomX=1500|CustomY=950|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|Size2=14|FontName2=Times New Roman|Bold2=T|Rotation2=0' +
+            '|RECORD=41|Name=Title|Text=EMBER-UNIT Power|IsHidden=T' +
+            '|RECORD=41|Name=Revision|Text=03|IsHidden=T' +
+            '|RECORD=41|Name=DrawnBy|Text=*|IsHidden=T' +
+            '|RECORD=4|Location.X=1900|Location.Y=90|Color=8388608|FontID=2|Text==title' +
+            '|RECORD=4|Location.X=2130|Location.Y=90|Color=255|FontID=2|Text=CORE-MOD' +
+            '|RECORD=4|Location.X=2125|Location.Y=60|Color=8388608|FontID=1|Text==revision' +
+            '|RECORD=4|Location.X=2075|Location.Y=40|Color=8388608|FontID=1|Text=8' +
+            '|RECORD=4|Location.X=2105|Location.Y=40|Color=8388608|FontID=1|Text=8' +
+            '|RECORD=4|Location.X=2125|Location.Y=30|Color=8388608|FontID=1|Text=OR'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'resolved-footer-placeholders.SchDoc',
+        arrayBuffer
+    )
+
+    assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
+        title: 'EMBER-UNIT Power',
+        revision: '03',
+        documentNumber: 'CORE-MOD',
+        sheetNumber: '8',
+        sheetTotal: '8',
+        date: '',
+        drawnBy: 'OR',
+        footerHints: {
+            title: {
+                x: 1900,
+                y: 90,
+                color: '#000080',
+                fontSize: 14,
+                fontFamily: 'Times New Roman',
+                fontWeight: 700
+            },
+            documentNumber: {
+                x: 2130,
+                y: 90,
+                color: '#ff0000',
+                fontSize: 14,
+                fontFamily: 'Times New Roman',
+                fontWeight: 700
+            },
+            revision: {
+                x: 2125,
+                y: 60,
+                color: '#000080',
+                fontSize: 10,
+                fontFamily: 'Times New Roman',
+                fontWeight: 400
+            },
+            sheetNumber: {
+                x: 2075,
+                y: 40,
+                color: '#000080',
+                fontSize: 10,
+                fontFamily: 'Times New Roman',
+                fontWeight: 400
+            },
+            sheetTotal: {
+                x: 2105,
+                y: 40,
+                color: '#000080',
+                fontSize: 10,
+                fontFamily: 'Times New Roman',
+                fontWeight: 400
+            }
+        }
+    })
+})
+
+/**
+ * Verifies Altium schematic colors, title typography, and synthesized
+ * connector notes are normalized from the moon-sheet fixture.
+ */
+test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
 
     assert.equal(documentModel.kind, 'schematic')
     assert.equal(
@@ -210,7 +289,7 @@ test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () =>
         true
     )
     assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
-        title: 'LUMEN-VEIL-A1',
+        title: 'STARFALL-ARC',
         revision: '01',
         documentNumber: '',
         sheetNumber: '4',
@@ -280,7 +359,7 @@ test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () =>
     assert.equal(documentModel.schematic.sheet.yZones, 4)
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'LUMEN-VEIL-A1' || text.text === '01'
+            (text) => text.text === 'STARFALL-ARC' || text.text === '01'
         ),
         false
     )
@@ -366,18 +445,18 @@ test('parseAltiumArrayBuffer decodes aether sheet colors and wires', async () =>
 test(
     'parseAltiumArrayBuffer preserves rotated text source orientation',
     async () => {
-        const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
-        const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
-        const d16 = aetherDocument.schematic.texts.find(
+        const moonDocument = await AltiumFixtureLoader.parseMoonSheet()
+        const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
+        const d16 = moonDocument.schematic.texts.find(
             (text) => text.text === 'Q12'
         )
-        const jtag = aetherDocument.schematic.texts.find(
+        const jtag = moonDocument.schematic.texts.find(
             (text) => text.text === 'WYRN'
         )
-        const r24 = bastionDocument.schematic.texts.find(
+        const r24 = cinderDocument.schematic.texts.find(
             (text) => text.text === 'Q24'
         )
-        const r24Value = bastionDocument.schematic.texts.find(
+        const r24Value = cinderDocument.schematic.texts.find(
             (text) => text.text === '4K7' && text.ownerIndex === '3652'
         )
 

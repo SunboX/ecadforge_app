@@ -52,6 +52,8 @@ class PcbStreamTestFactory {
             PcbStreamTestFactory.#createViaStream()
         const fillStream =
             PcbStreamTestFactory.#createFillStream()
+        const padStream =
+            PcbStreamTestFactory.#createPadStream()
 
         streams.set('Board6/Data', PcbStreamTestFactory.createBoardStream())
         streams.set(
@@ -65,6 +67,8 @@ class PcbStreamTestFactory {
         streams.set('Vias6/Data', viaStream.dataBytes)
         streams.set('Fills6/Header', fillStream.headerBytes)
         streams.set('Fills6/Data', fillStream.dataBytes)
+        streams.set('Pads6/Header', padStream.headerBytes)
+        streams.set('Pads6/Data', padStream.dataBytes)
 
         return streams
     }
@@ -78,14 +82,17 @@ class PcbStreamTestFactory {
         const dataBytes = new Uint8Array(54)
         const headerView = new DataView(headerBytes.buffer)
         const dataView = new DataView(dataBytes.buffer)
+        const payloadOffset = 5
 
         headerView.setUint32(0, 1, true)
-        PcbStreamTestFactory.#writeWordSwappedMil(dataView, 20, 1000)
-        PcbStreamTestFactory.#writeWordSwappedMil(dataView, 24, 2000)
-        PcbStreamTestFactory.#writeWordSwappedMil(dataView, 28, 1500)
-        PcbStreamTestFactory.#writeWordSwappedMil(dataView, 32, 2000)
-        dataView.setUint16(46, 8, true)
-        dataView.setUint16(48, 256, true)
+        dataView.setUint8(0, 4)
+        dataView.setUint32(1, 49, true)
+        dataView.setUint8(payloadOffset, 1)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 13, 1000)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 17, 2000)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 21, 1500)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 25, 2000)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 29, 8)
 
         return { headerBytes, dataBytes }
     }
@@ -130,6 +137,45 @@ class PcbStreamTestFactory {
     }
 
     /**
+     * Creates one synthetic pad stream pair.
+     * @returns {{ headerBytes: Uint8Array, dataBytes: Uint8Array }}
+     */
+    static #createPadStream() {
+        const headerBytes = new Uint8Array(4)
+        const headerView = new DataView(headerBytes.buffer)
+        const mainPayload = new Uint8Array(64)
+        const payloadView = new DataView(mainPayload.buffer)
+
+        headerView.setUint32(0, 1, true)
+        PcbStreamTestFactory.#writeMil(payloadView, 13, 320)
+        PcbStreamTestFactory.#writeMil(payloadView, 17, 260)
+        PcbStreamTestFactory.#writeMil(payloadView, 21, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 25, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 29, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 33, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 37, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 41, 180)
+        PcbStreamTestFactory.#writeMil(payloadView, 45, 100)
+        payloadView.setUint8(49, 1)
+        payloadView.setUint8(50, 1)
+        payloadView.setUint8(51, 1)
+        payloadView.setFloat64(52, 45, true)
+        payloadView.setUint8(60, 1)
+
+        return {
+            headerBytes,
+            dataBytes: PcbStreamTestFactory.#createLengthPrefixedRecord(2, [
+                new Uint8Array(0),
+                new Uint8Array(0),
+                new Uint8Array(0),
+                new Uint8Array(0),
+                mainPayload,
+                new Uint8Array(0)
+            ])
+        }
+    }
+
+    /**
      * Writes one standard little-endian fixed-point mil value.
      * @param {DataView} dataView
      * @param {number} offset
@@ -140,16 +186,34 @@ class PcbStreamTestFactory {
     }
 
     /**
-     * Writes one fixed-point mil value using the track stream word order.
-     * @param {DataView} dataView
-     * @param {number} offset
-     * @param {number} valueMil
+     * Encodes one variable-length primitive record with length-prefixed
+     * subrecords.
+     * @param {number} objectId
+     * @param {Uint8Array[]} subrecords
+     * @returns {Uint8Array}
      */
-    static #writeWordSwappedMil(dataView, offset, valueMil) {
-        const fixedValue = Math.round(valueMil * 10000)
+    static #createLengthPrefixedRecord(objectId, subrecords) {
+        const totalLength =
+            1 +
+            subrecords.reduce(
+                (sum, subrecord) => sum + 4 + subrecord.byteLength,
+                0
+            )
+        const dataBytes = new Uint8Array(totalLength)
+        const dataView = new DataView(dataBytes.buffer)
+        let offset = 0
 
-        dataView.setUint16(offset, fixedValue >>> 16, true)
-        dataView.setUint16(offset + 2, fixedValue & 0xffff, true)
+        dataView.setUint8(offset, objectId)
+        offset += 1
+
+        for (const subrecord of subrecords) {
+            dataView.setUint32(offset, subrecord.byteLength, true)
+            offset += 4
+            dataBytes.set(subrecord, offset)
+            offset += subrecord.byteLength
+        }
+
+        return dataBytes
     }
 }
 
@@ -167,6 +231,7 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
         'Board6/Data',
         'Components6/Data',
         'Fills6/Data',
+        'Pads6/Data',
         'Polygons6/Data',
         'Tracks6/Data',
         'Vias6/Data'
@@ -178,7 +243,8 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
             x2: 1500,
             y2: 2000,
             width: 8,
-            layerCode: 256
+            layerCode: 1,
+            layerId: 1
         }
     ])
     assert.deepEqual(extracted.binaryPrimitives.vias, [
@@ -195,7 +261,34 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
             y1: 150,
             x2: 460,
             y2: 210,
-            layerCode: 256
+            layerCode: 256,
+            layerId: 0
+        }
+    ])
+    assert.deepEqual(extracted.binaryPrimitives.pads, [
+        {
+            x: 320,
+            y: 260,
+            sizeTopX: 180,
+            sizeTopY: 180,
+            sizeMidX: 180,
+            sizeMidY: 180,
+            sizeBottomX: 180,
+            sizeBottomY: 180,
+            holeDiameter: 100,
+            shapeTop: 1,
+            shapeMid: 1,
+            shapeBottom: 1,
+            rotation: 45,
+            isPlated: true,
+            holeShape: null,
+            holeSlotLength: null,
+            holeRotation: null,
+            hasRoundedRect: false,
+            roundedRectShapeTop: null,
+            cornerRadiusTop: null,
+            offsetTopX: 0,
+            offsetTopY: 0
         }
     ])
 })

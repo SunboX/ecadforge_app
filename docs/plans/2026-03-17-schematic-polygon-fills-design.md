@@ -10,7 +10,7 @@ The parser currently expands record-7 schematic polygons into closed line segmen
 
 ## Source Evidence
 
-The provided `GEWA-G1.20.01G.SchDoc` contains record-7 polygons on the affected diode and transistor owners with:
+The provided obfuscated sample schematic contains record-7 polygons on the affected diode and transistor owners with:
 
 - `IsSolid=T`
 - `AreaColor` present

@@ -124,6 +124,42 @@ export class AltiumLayoutParser {
     }
 
     /**
+     * Extracts legacy primitive-layer names keyed by the numeric layer IDs used
+     * by decoded binary track and fill streams.
+     * @param {Record<string, string | string[]>[]} fieldSets
+     * @returns {{ layerId: number, name: string }[]}
+     */
+    static parsePrimitiveLayerNames(fieldSets) {
+        const layers = new Map()
+
+        for (const fields of fieldSets) {
+            for (const key of Object.keys(fields)) {
+                const match = /^LAYER(\d+)NAME$/.exec(key)
+
+                if (!match) {
+                    continue
+                }
+
+                const layerId = Number.parseInt(match[1], 10)
+                const name = getField(fields, key)
+
+                if (!Number.isInteger(layerId) || !name) {
+                    continue
+                }
+
+                if (!layers.has(layerId)) {
+                    layers.set(layerId, {
+                        layerId,
+                        name
+                    })
+                }
+            }
+        }
+
+        return [...layers.values()].sort((left, right) => left.layerId - right.layerId)
+    }
+
+    /**
      * Resolves one schematic page size from recovered geometry when the stored
      * custom dimensions leave excessive blank space around visible content.
      * @param {{ width: number, height: number, marginWidth: number, paperSize?: string }} sheet
@@ -133,6 +169,7 @@ export class AltiumLayoutParser {
      * @param {{ x: number, y: number }[]} components
      * @param {{ x: number, y: number }[]} pins
      * @param {{ x: number, y: number, width: number, height: number }[]} rectangles
+     * @param {{ x: number, y: number, width: number, height: number }[]} regions
      * @param {{ x: number, y: number, width: number, height: number }[]} ports
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ width: number, height: number, marginWidth: number, paperSize?: string }}
@@ -145,6 +182,7 @@ export class AltiumLayoutParser {
         components,
         pins,
         rectangles,
+        regions,
         ports,
         crosses
     ) {
@@ -154,14 +192,11 @@ export class AltiumLayoutParser {
             components,
             pins,
             rectangles,
+            regions,
             ports,
             crosses
         )
         if (!bounds) {
-            return sheet
-        }
-
-        if (AltiumLayoutParser.#shouldPreserveDeclaredCustomSheetSize(sheet)) {
             return sheet
         }
 
@@ -175,6 +210,17 @@ export class AltiumLayoutParser {
             Math.max(bounds.maxX, footerBounds?.maxX || 0) + margin * 2
         const requiredHeight =
             Math.max(bounds.maxY, footerBounds?.maxY || 0) + margin * 2
+
+        if (
+            AltiumLayoutParser.#shouldPreserveDeclaredCustomSheetSize(
+                sheet,
+                requiredWidth,
+                requiredHeight
+            )
+        ) {
+            return sheet
+        }
+
         const standardSheet = AltiumLayoutParser.#resolveStandardSheetSize(
             requiredWidth,
             requiredHeight
@@ -224,20 +270,35 @@ export class AltiumLayoutParser {
      * Returns true when the parser should trust the authored custom sheet
      * dimensions instead of shrinking the page to visible content bounds.
      * @param {{ width?: number, height?: number, borderOn?: boolean, titleBlockOn?: boolean, sheetStyle?: number } | undefined} sheet
+     * @param {number} requiredWidth
+     * @param {number} requiredHeight
      * @returns {boolean}
      */
-    static #shouldPreserveDeclaredCustomSheetSize(sheet) {
+    static #shouldPreserveDeclaredCustomSheetSize(
+        sheet,
+        requiredWidth,
+        requiredHeight
+    ) {
         const declaredStandardSheet =
             AltiumLayoutParser.#resolveStandardSheetSize(
                 Number(sheet?.width || 0),
                 Number(sheet?.height || 0)
             )
 
-        return (
+        if (
             Number(sheet?.sheetStyle || 0) !== 1 &&
             Boolean(sheet?.borderOn || sheet?.titleBlockOn) &&
             !declaredStandardSheet
-        )
+        ) {
+            const declaredWidth = Math.max(Number(sheet?.width || 0), 0)
+            const declaredHeight = Math.max(Number(sheet?.height || 0), 0)
+
+            return (
+                requiredWidth <= declaredWidth && requiredHeight <= declaredHeight
+            )
+        }
+
+        return false
     }
 
     /**
@@ -248,6 +309,7 @@ export class AltiumLayoutParser {
      * @param {{ x: number, y: number }[]} components
      * @param {{ x: number, y: number }[]} pins
      * @param {{ x: number, y: number, width: number, height: number }[]} rectangles
+     * @param {{ x: number, y: number, width: number, height: number }[]} regions
      * @param {{ x: number, y: number, width: number, height: number, direction?: 'left' | 'right' | 'up' | 'down' }[]} ports
      * @param {{ x: number, y: number }[]} crosses
      * @returns {{ maxX: number, maxY: number } | null}
@@ -258,6 +320,7 @@ export class AltiumLayoutParser {
         components,
         pins,
         rectangles,
+        regions,
         ports,
         crosses
     ) {
@@ -283,6 +346,13 @@ export class AltiumLayoutParser {
             coordinates.push(
                 [rectangle.x, rectangle.y],
                 [rectangle.x + rectangle.width, rectangle.y + rectangle.height]
+            )
+        }
+
+        for (const region of regions) {
+            coordinates.push(
+                [region.x, region.y],
+                [region.x + region.width, region.y + region.height]
             )
         }
 

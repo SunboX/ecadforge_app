@@ -24,6 +24,46 @@ const DIRECTIVE_RECORDS = [
         '|PinLength=20|Location.X=140|Location.Y=140|Name=SIG_B|Designator=2'
 ]
 
+const OUTER_MARKER_RECORDS = [
+    '|HEADER=Schematic Document',
+    '|RECORD=31|CustomX=320|CustomY=200|VisibleGridSize=10|SnapGridSize=5' +
+        '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+        '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+    '|RECORD=6|OwnerIndex=700|IsNotAccesible=T|IndexInSheet=1|OwnerPartId=1|LineWidth=1' +
+        '|Color=11796480|LocationCount=5|X1=120|Y1=160|X2=220|Y2=160|X3=220|Y3=60' +
+        '|X4=120|Y4=60|X5=120|Y5=160',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=2|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=140|Name=C\\\\S\\\\|Designator=1',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=120|Name=DO/IO1|Designator=2',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=100|Name=W\\\\P\\\\/IO2|Designator=3',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=80|Name=H\\\\O\\\\L\\\\D\\\\/IO3|Designator=4',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=7|PinConglomerate=56' +
+        '|PinLength=20|Location.X=220|Location.Y=140|Name=VCC|Designator=8',
+    '|RECORD=34|OwnerIndex=700|Location.X=120|Location.Y=165|Color=8388608|FontID=1|Text=U1|Name=Designator',
+    '|RECORD=41|OwnerIndex=700|Location.X=120|Location.Y=50|Color=8388608|FontID=1|Text=FLASH|Name=Value'
+]
+
+const OUTER_MARKER_VARIANT_RECORDS = [
+    '|HEADER=Schematic Document',
+    '|RECORD=31|CustomX=320|CustomY=220|VisibleGridSize=10|SnapGridSize=5' +
+        '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+        '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+    '|RECORD=6|OwnerIndex=700|IsNotAccesible=T|IndexInSheet=1|OwnerPartId=1|LineWidth=1' +
+        '|Color=11796480|LocationCount=5|X1=120|Y1=160|X2=220|Y2=160|X3=220|Y3=40' +
+        '|X4=120|Y4=40|X5=120|Y5=160',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=2|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=140|Name=IN_A|Designator=1',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+        '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=120|Name=IO_A|Designator=2',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=33|FormalType=1|Electrical=4' +
+        '|PinConglomerate=56|PinLength=20|Location.X=220|Location.Y=100|Name=OUT_B|Designator=3',
+    '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+        '|PinConglomerate=56|PinLength=20|Location.X=220|Location.Y=80|Name=IO_B|Designator=4'
+]
+
 /**
  * Verifies directive glyphs, double-ended ports, plain ports, and electrical
  * pin arrows all stay visible in the final schematic SVG.
@@ -62,6 +102,78 @@ test(
         assert.equal(
             (markup.match(/class="schematic-pin-marker"/g) || []).length,
             2
+        )
+    }
+)
+
+/**
+ * Verifies authored outer pin symbols stay visible as single triangles and
+ * escaped active-low runs render as overlined pin-name spans.
+ */
+test(
+    'renderSchematicSvg draws authored outer pin markers and overlined pin labels',
+    () => {
+        const documentModel = AltiumParser.parseArrayBuffer(
+            'outer-pin-markers.SchDoc',
+            new TextEncoder().encode(OUTER_MARKER_RECORDS.join('')).buffer
+        )
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.equal(
+            (markup.match(/class="schematic-pin-marker"/g) || []).length,
+            4
+        )
+        assert.match(
+            markup,
+            /<g class="schematic-pin-marker"><polygon points="114,61 114,67 120,64" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><\/g><text class="schematic-pin-number"/
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-pin-name" x="124" y="67" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400"><tspan text-decoration="overline">CS<\/tspan><\/text>/
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-pin-name" x="124" y="107" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400"><tspan text-decoration="overline">WP<\/tspan><tspan text-decoration="none">\/IO2<\/tspan><\/text>/
+        )
+        assert.match(
+            markup,
+            /<text class="schematic-pin-name" x="124" y="127" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400"><tspan text-decoration="overline">HOLD<\/tspan><tspan text-decoration="none">\/IO3<\/tspan><\/text>/
+        )
+    }
+)
+
+/**
+ * Verifies authored outer-pin marker variants stay distinct instead of being
+ * flattened into one inward-facing triangle.
+ */
+test(
+    'renderSchematicSvg draws inward, outward, and double outer pin markers from authored flags',
+    () => {
+        const documentModel = AltiumParser.parseArrayBuffer(
+            'outer-pin-marker-variants.SchDoc',
+            new TextEncoder().encode(OUTER_MARKER_VARIANT_RECORDS.join('')).buffer
+        )
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.equal(
+            (markup.match(/class="schematic-pin-marker"/g) || []).length,
+            4
+        )
+        assert.match(
+            markup,
+            /<g class="schematic-pin-marker"><polygon points="114,77 114,83 120,80" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><\/g>/
+        )
+        assert.match(
+            markup,
+            /<g class="schematic-pin-marker"><polygon points="114,97 114,103 120,100" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><polygon points="111,97 111,103 105,100" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><\/g>/
+        )
+        assert.match(
+            markup,
+            /<g class="schematic-pin-marker"><polygon points="220,117 220,123 226,120" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><\/g>/
+        )
+        assert.match(
+            markup,
+            /<g class="schematic-pin-marker"><polygon points="226,137 226,143 220,140" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><polygon points="229,137 229,143 235,140" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)" stroke-width="0\.75" vector-effect="non-scaling-stroke" \/><\/g>/
         )
     }
 )

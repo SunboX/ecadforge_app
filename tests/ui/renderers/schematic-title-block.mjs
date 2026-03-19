@@ -182,3 +182,205 @@ test('renderSchematicSvg uses footer title-block hints for A3 footer placement',
         /<text class="sheet-title-value" x="1349" y="1141.20" fill="var\(--schematic-text-color\)" text-anchor="start">3\/17\/2026</
     )
 })
+
+/**
+ * Verifies expanded A2 footer hints use the corrected footer grid instead of
+ * the generic fallback block, keeping the box flush to the right sheet edge.
+ */
+test('renderSchematicSvg uses footer title-block hints for promoted A2 placement', () => {
+    const markup = SchematicSvgRenderer.render({
+        fileName: 'expanded-footer-hints.SchDoc',
+        summary: { title: 'Expanded footer hints schematic' },
+        schematic: {
+            sheet: {
+                width: 2339,
+                height: 1654,
+                sourceWidth: 1500,
+                borderOn: true,
+                titleBlockOn: true,
+                marginWidth: 20,
+                xZones: 8,
+                yZones: 4,
+                paperSize: 'A2',
+                titleBlock: {
+                    title: 'STARFALL-CINDER',
+                    revision: '01',
+                    documentNumber: 'SIGIL-VAULT',
+                    sheetNumber: '8',
+                    sheetTotal: '8',
+                    date: '3/19/2026',
+                    drawnBy: 'OR',
+                    footerHints: {
+                        title: {
+                            x: 1900,
+                            y: 90,
+                            color: '#000080',
+                            fontSize: 14,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 700
+                        },
+                        documentNumber: {
+                            x: 2130,
+                            y: 90,
+                            color: '#ff0000',
+                            fontSize: 14,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 700
+                        },
+                        revision: {
+                            x: 2125,
+                            y: 60,
+                            color: '#000080',
+                            fontSize: 10,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 400
+                        }
+                    }
+                }
+            },
+            lines: [],
+            texts: [],
+            components: []
+        }
+    })
+
+    assert.match(markup, /<rect x="1780" y="1546" width="539" height="88" \/>/)
+    assert.match(markup, /<line x1="1780" y1="1590" x2="2319" y2="1590" \/>/)
+    assert.match(
+        markup,
+        /<text class="sheet-title-label" x="1878.24" y="1595.50" fill="var\(--schematic-sheet-label-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">Number</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-label" x="2176.08" y="1595.50" fill="var\(--schematic-sheet-label-color\)" text-anchor="start" font-size="10" font-family="Times New Roman" font-weight="400">Revision</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1947.09" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">STARFALL-CINDER</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="2232.76" y="1564" fill="var\(--schematic-alert-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">SIGIL-VAULT</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="2281.27" y="1603.75" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">01</
+    )
+    assert.doesNotMatch(
+        markup,
+        /<rect x="1780" y="1546" width="390" height="88" \/>/
+    )
+    assert.doesNotMatch(
+        markup,
+        /<text class="sheet-title-label" x="2041.30" y="1560.08" fill="var\(--schematic-sheet-label-color\)" text-anchor="start">Number</
+    )
+    assert.doesNotMatch(
+        markup,
+        /<text class="sheet-title-value" x="1900" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">STARFALL-CINDER</
+    )
+    assert.doesNotMatch(
+        markup,
+        /<text class="sheet-title-value" x="2130" y="1564" fill="var\(--schematic-alert-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">SIGIL-VAULT</
+    )
+    assert.doesNotMatch(
+        markup,
+        /<text class="sheet-title-value" x="2125" y="1603.75" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">01</
+    )
+})
+
+/**
+ * Verifies sparse A4 footer hints still switch to the compact hinted footer
+ * layout when sheet numbering sits above a separate drawn-by row.
+ */
+test('renderSchematicSvg uses sparse A4 footer hints for compact footer placement', () => {
+    const markup = SchematicSvgRenderer.render({
+        fileName: 'footer-row-a4.SchDoc',
+        summary: { title: 'Sparse footer A4 schematic' },
+        schematic: {
+            sheet: {
+                width: 1360,
+                height: 800,
+                sourceWidth: 1360,
+                sourceHeight: 800,
+                borderOn: true,
+                titleBlockOn: true,
+                marginWidth: 20,
+                xZones: 4,
+                yZones: 4,
+                titleBlock: {
+                    title: 'EMBER-TRIGGER Board',
+                    documentNumber: '',
+                    revision: '01',
+                    sheetNumber: '1',
+                    sheetTotal: '8',
+                    drawnBy: 'NR',
+                    footerHints: {
+                        title: {
+                            x: 1040,
+                            y: 80,
+                            color: '#800000',
+                            fontSize: 14,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 700
+                        },
+                        revision: {
+                            x: 1250,
+                            y: 45,
+                            color: '#800000',
+                            fontSize: 10,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 400
+                        },
+                        sheetNumber: {
+                            x: 1205,
+                            y: 30,
+                            color: '#800000',
+                            fontSize: 10,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 400
+                        },
+                        sheetTotal: {
+                            x: 1235,
+                            y: 30,
+                            color: '#800000',
+                            fontSize: 10,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 400
+                        }
+                    }
+                }
+            },
+            lines: [],
+            texts: [],
+            components: []
+        }
+    })
+
+    assert.match(markup, /<rect x="920" y="702" width="420" height="78" \/>/)
+    assert.match(markup, /<line x1="920" y1="741" x2="1340" y2="741" \/>/)
+    assert.match(markup, /<line x1="920" y1="760.50" x2="1340" y2="760.50" \/>/)
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1050.20" y="720" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">EMBER-TRIGGER Board</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1310.60" y="753.19" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">01</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1256" y="766.84" fill="var\(--schematic-default-ink-color\)" text-anchor="middle">1</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1289.60" y="766.84" fill="var\(--schematic-default-ink-color\)" text-anchor="middle">8</
+    )
+    assert.match(
+        markup,
+        /<text class="sheet-title-value" x="1310.60" y="776.59" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">NR</
+    )
+    assert.doesNotMatch(
+        markup,
+        /<text class="sheet-title-value" x="1094" y="749.64" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="10" font-family="Times New Roman" font-weight="400">Sheet 1 of 8</
+    )
+})

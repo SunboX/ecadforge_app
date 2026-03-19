@@ -9,11 +9,11 @@ import { Scene3dRenderer } from '../../../src/ui/Scene3dRenderer.mjs'
 import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies the aether sheet renders U6 pin numbers outside the body and
+ * Verifies the moon sheet renders U6 pin numbers outside the body and
  * restores missing U29/U31 gate pin numbers.
  */
-test('renderSchematicSvg aligns aether-sheet pin number and name columns', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('renderSchematicSvg aligns moon-sheet pin number and name columns', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -83,11 +83,11 @@ test('renderSchematicSvg aligns aether-sheet pin number and name columns', async
 })
 
 /**
- * Verifies the aether-sheet D16 diode symbol includes the triangle body
+ * Verifies the moon-sheet D16 diode symbol includes the triangle body
  * linework from the source polygon primitive.
  */
-test('renderSchematicSvg renders the aether Q12 diode triangle', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('renderSchematicSvg renders the moon Q12 diode triangle', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -108,8 +108,8 @@ test('renderSchematicSvg renders the aether Q12 diode triangle', async () => {
  * Verifies non-mirrored `Orientation=3` texts keep their existing clockwise
  * flow so mirrored owner-side pin-name fixes do not flip ordinary labels.
  */
-test('renderSchematicSvg keeps bastion-sheet non-mirrored orientation-3 labels clockwise', async () => {
-    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+test('renderSchematicSvg keeps cinder-sheet non-mirrored orientation-3 labels clockwise', async () => {
+    const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -123,16 +123,16 @@ test('renderSchematicSvg keeps bastion-sheet non-mirrored orientation-3 labels c
 })
 
 /**
- * Verifies the lyra sheet renders one copy of each visible U2 section
+ * Verifies the nova sheet renders one copy of each visible U2 section
  * and includes the multipart body outlines recovered from record 6.
  */
-test('renderSchematicSvg restores multipart U2 bodies on the lyra sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg restores multipart U2 bodies on the nova sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.equal((markup.match(/>Rune Gate</g) || []).length, 1)
     assert.equal((markup.match(/>Cinder Well</g) || []).length, 1)
-    assert.equal((markup.match(/>Lyra \/ Echo</g) || []).length, 1)
+    assert.equal((markup.match(/>Nova \/ Echo</g) || []).length, 1)
     assert.match(
         markup,
         /<line x1="670" y1="369" x2="670" y2="159" stroke="var\(--schematic-accent-ink-color\)" stroke-width="1" \/>/
@@ -146,11 +146,11 @@ test('renderSchematicSvg restores multipart U2 bodies on the lyra sheet', async 
 })
 
 /**
- * Verifies lyra-sheet text records beyond the old 300-item truncation limit still
+ * Verifies nova-sheet text records beyond the old 300-item truncation limit still
  * render in the SVG output.
  */
-test('renderSchematicSvg keeps late lyra-sheet labels beyond the old text cap', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg keeps late nova-sheet labels beyond the old text cap', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, />U9</)
@@ -160,10 +160,10 @@ test('renderSchematicSvg keeps late lyra-sheet labels beyond the old text cap', 
 })
 
 /**
- * Verifies lyra-sheet note/comment records render as boxed multiline callouts.
+ * Verifies nova-sheet note/comment records render as boxed multiline callouts.
  */
-test('renderSchematicSvg renders the lyra-sheet mode note as a boxed multiline callout', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg renders the nova-sheet mode note as a boxed multiline callout', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, /class="schematic-note"/)
@@ -275,17 +275,17 @@ test('renderSchematicSvg wraps note rows to the note box width', () => {
  * rendered SVG.
  */
 test('renderSchematicSvg keeps dashed module frames dashed', async () => {
-    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+    const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, /stroke-dasharray=/)
 })
 
 /**
- * Verifies the lyra-sheet boot labels keep reading rightward from the port.
+ * Verifies the nova-sheet boot labels keep reading rightward from the port.
  */
-test('renderSchematicSvg keeps lyra-sheet boot wire labels anchored to the right', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg keeps nova-sheet boot wire labels anchored to the right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -299,11 +299,11 @@ test('renderSchematicSvg keeps lyra-sheet boot wire labels anchored to the right
 })
 
 /**
- * Verifies the lyra block renders multipart unit suffixes, readable
+ * Verifies the nova block renders multipart unit suffixes, readable
  * decoded pin names, and the crystal pin numbers shown in Altium.
  */
-test('renderSchematicSvg restores lyra-sheet multipart suffixes and Y2 crystal pin numbers', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg restores nova-sheet multipart suffixes and Y2 crystal pin numbers', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(markup, />U2A</)
@@ -331,11 +331,11 @@ test('renderSchematicSvg restores lyra-sheet multipart suffixes and Y2 crystal p
 })
 
 /**
- * Verifies lyra-sheet D12 renders as the filled dual-row TVS package from the
+ * Verifies nova-sheet D12 renders as the filled dual-row TVS package from the
  * Altium reference instead of a diagonal line with partial labels.
  */
-test('renderSchematicSvg renders the lyra-sheet D12 package body and both pin rows', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg renders the nova-sheet D12 package body and both pin rows', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -397,12 +397,12 @@ test('renderSchematicSvg renders the lyra-sheet D12 package body and both pin ro
 })
 
 /**
- * Verifies the lyra-sheet D12 ground power port falls back to the default
+ * Verifies the nova-sheet D12 ground power port falls back to the default
  * downward ground symbol instead of treating ground orientation 3 like a
  * right-facing rail direction.
  */
-test('renderSchematicSvg keeps the lyra-sheet D12 ground power port downward', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg keeps the nova-sheet D12 ground power port downward', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -416,24 +416,24 @@ test('renderSchematicSvg keeps the lyra-sheet D12 ground power port downward', a
 })
 
 /**
- * Verifies the lyra-sheet inductors emit visible arc paths for their coil bodies.
+ * Verifies the nova-sheet inductors emit visible arc paths for their coil bodies.
  */
-test('renderSchematicSvg renders the lyra-sheet inductor coils as SVG arcs', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('renderSchematicSvg renders the nova-sheet inductor coils as SVG arcs', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.equal((markup.match(/class="schematic-arc"/g) || []).length >= 3, true)
 })
 
 /**
- * Verifies the bastion-sheet dawn-sigil region matches the reference layout by keeping
+ * Verifies the cinder-sheet dawn-sigil region matches the reference layout by keeping
  * the note heading centered, the mixed off-sheet port directions, and the
  * visible same-row wire labels.
  */
 test(
-    'renderSchematicSvg matches the bastion-sheet dawn-sigil reference layout',
+    'renderSchematicSvg matches the cinder-sheet dawn-sigil reference layout',
     async () => {
-        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const documentModel = await AltiumFixtureLoader.parseCinderSheet()
         const markup = SchematicSvgRenderer.render(documentModel)
 
         assert.match(
@@ -539,38 +539,38 @@ test(
 test(
     'renderSchematicSvg preserves opposite signed rotations for vertical texts',
     async () => {
-        const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
-        const aetherMarkup = SchematicSvgRenderer.render(aetherDocument)
-        const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
-        const bastionMarkup = SchematicSvgRenderer.render(bastionDocument)
+        const moonDocument = await AltiumFixtureLoader.parseMoonSheet()
+        const moonMarkup = SchematicSvgRenderer.render(moonDocument)
+        const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
+        const cinderMarkup = SchematicSvgRenderer.render(cinderDocument)
 
         assert.match(
-            aetherMarkup,
+            moonMarkup,
             /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">Q12</
         )
         assert.match(
-            aetherMarkup,
+            moonMarkup,
             /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="21" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
         )
         assert.match(
-            bastionMarkup,
+            cinderMarkup,
             /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
         )
         assert.match(
-            bastionMarkup,
+            cinderMarkup,
             /<text class="schematic-label" x="415" y="844" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 844\)">4K7</
         )
     }
 )
 
 /**
- * Verifies the bastion-sheet multipart resistor labels render with section suffixes,
- * while the nearby connector keeps its raw bastion-sheet designator.
+ * Verifies the cinder-sheet multipart resistor labels render with section suffixes,
+ * while the nearby connector keeps its raw cinder-sheet designator.
  */
 test(
-    'renderSchematicSvg renders multipart resistor suffixes without suffixing the bastion-sheet connector',
+    'renderSchematicSvg renders multipart resistor suffixes without suffixing the cinder-sheet connector',
     async () => {
-        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const documentModel = await AltiumFixtureLoader.parseCinderSheet()
         const markup = SchematicSvgRenderer.render(documentModel)
 
         assert.match(markup, />Q92A</)

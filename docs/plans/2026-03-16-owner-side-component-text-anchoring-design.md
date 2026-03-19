@@ -12,7 +12,7 @@ Fix left-side stacked schematic designators such as `R51` so they align with the
 
 - Fix non-rotated left-side designator anchoring when the designator shares a visible owner-side value/comment stack
 - Keep owner-aware anchoring in the parser post-processing layer
-- Cover the behavior with parser-backed tests using the bastion-sheet and lyra fixtures
+- Cover the behavior with parser-backed tests using the cinder-sheet and nova fixtures
 
 ### Out Of Scope
 
@@ -28,7 +28,7 @@ The current post-processing pass anchors visible designators from owner geometry
 1. Raw Altium records can place both a component designator and its visible value on the same side of a vertical two-pin part.
 2. For left-side cases, the current pass flips the `Designator` text to `anchor: 'end'`.
 3. When a visible `VALUE` or `Comment` text already shares the same owner-side stack and `x` position, that flipped designator moves away from the already-correct stack.
-4. This is visible in bastion-sheet `R51` and also appears in existing lyra-sheet cases such as `R11` and `R319`.
+4. This is visible in cinder-sheet `R51` and also appears in existing nova-sheet cases such as `R11` and `R319`.
 
 ## Approaches Considered
 
@@ -105,7 +105,7 @@ Within the component-text anchoring pass:
 ## Testing Strategy
 
 - Add a control-sheet parser test that asserts `R51` and its visible `10K` both keep the original stacked `start` anchor while `R56` and its `10K` remain unchanged
-- Add a lyra parser regression test that asserts one pre-existing left-side stacked case such as `R11` also keeps the original stacked `start` anchor
+- Add a nova parser regression test that asserts one pre-existing left-side stacked case such as `R11` also keeps the original stacked `start` anchor
 - Keep the initial coverage at parser level because the renderer already honors `text-anchor`
 - Run the focused parser tests first, then the full suite
 

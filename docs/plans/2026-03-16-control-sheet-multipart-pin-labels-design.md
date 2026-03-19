@@ -4,7 +4,7 @@
 
 ## Goal
 
-Restore the visible `R92` pin numbers on the bastion sheet and keep the `R92A`, `R92B`, `R92C`, and `R92D` designators aligned like the source reference, while leaving `J4` unchanged.
+Restore the visible `R92` pin numbers on the cinder sheet and keep the `R92A`, `R92B`, `R92C`, and `R92D` designators aligned like the source reference, while leaving `J4` unchanged.
 
 ## Scope
 
@@ -23,7 +23,7 @@ Restore the visible `R92` pin numbers on the bastion sheet and keep the `R92A`, 
 
 ## Current State
 
-The current multipart-owner fix resolved the overlapping inactive owners, but it exposed two narrower follow-up issues on the bastion sheet:
+The current multipart-owner fix resolved the overlapping inactive owners, but it exposed two narrower follow-up issues on the cinder sheet:
 
 1. The active `R92` owners now keep only the correct pin pairs (`1/8`, `2/7`, `3/6`, `4/5`).
 2. Those active two-pin resistor sections still pass through the generic passive-pin normalization rule that hides labels on small passive groups, so the visible pin numbers disappear entirely.

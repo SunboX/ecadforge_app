@@ -5,11 +5,11 @@ import { AltiumParser } from '../../../src/core/altium/AltiumParser.mjs'
 import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies the aether sheet preserves pin numbers on the two five-pin
+ * Verifies the moon sheet preserves pin numbers on the two five-pin
  * SN74LVC1G00 gate symbols instead of collapsing them to name-only labels.
  */
-test('parseAltiumArrayBuffer keeps gate pin numbers on the aether sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer keeps gate pin numbers on the moon sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const gatePins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '296' || pin.ownerIndex === '322'
     )
@@ -100,12 +100,12 @@ test('parseAltiumArrayBuffer keeps gate pin numbers on the aether sheet', async 
 })
 
 /**
- * Verifies lyra-sheet packages keep the top and bottom pin rows encoded by the
+ * Verifies nova-sheet packages keep the top and bottom pin rows encoded by the
  * less-common 57/49/51 conglomerate variants, including the full dual-row
  * TVS labelling used by D12.
  */
-test('parseAltiumArrayBuffer maps lyra-sheet top and bottom variant pin conglomerates', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer maps nova-sheet top and bottom variant pin conglomerates', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const d12Pins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '5547'
     )
@@ -163,11 +163,11 @@ test('parseAltiumArrayBuffer maps lyra-sheet top and bottom variant pin conglome
 })
 
 /**
- * Verifies lyra-sheet power ports preserve Altium orientation metadata so the
+ * Verifies nova-sheet power ports preserve Altium orientation metadata so the
  * renderer can honor explicit port direction before inferring from wires.
  */
-test('parseAltiumArrayBuffer keeps lyra-sheet +3.3V power-port orientation', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer keeps nova-sheet +3.3V power-port orientation', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
         documentModel.schematic.texts.some(
@@ -183,11 +183,11 @@ test('parseAltiumArrayBuffer keeps lyra-sheet +3.3V power-port orientation', asy
 })
 
 /**
- * Verifies lyra-sheet multipart unit designators keep the visible section suffix
+ * Verifies nova-sheet multipart unit designators keep the visible section suffix
  * derived from the active Altium part id instead of rendering as bare U2.
  */
-test('parseAltiumArrayBuffer appends active multipart suffixes to lyra-sheet designators', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet designators', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
         documentModel.schematic.texts.some(
@@ -222,8 +222,8 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to lyra-sheet des
  * Verifies escaped Altium active-low pin names are normalized into readable
  * labels before rendering.
  */
-test('parseAltiumArrayBuffer decodes escaped lyra-sheet pin names like RST', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer decodes escaped nova-sheet pin names like RST', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
         documentModel.schematic.pins.some(
@@ -246,11 +246,90 @@ test('parseAltiumArrayBuffer decodes escaped lyra-sheet pin names like RST', asy
 })
 
 /**
- * Verifies the lyra-sheet crystal Y2 keeps its four numbered passive pins rather
+ * Verifies escaped active-low pin labels keep readable plain text while
+ * preserving the authored overbar runs and outer pin glyph metadata.
+ */
+test('parseAltiumArrayBuffer preserves escaped active-low pin runs and outer markers', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=320|CustomY=200|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=6|OwnerIndex=700|IsNotAccesible=T|IndexInSheet=1|OwnerPartId=1|LineWidth=1' +
+            '|Color=11796480|LocationCount=5|X1=120|Y1=160|X2=220|Y2=160|X3=220|Y3=60' +
+            '|X4=120|Y4=60|X5=120|Y5=160',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=2|FormalType=1|Electrical=4' +
+            '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=140|Name=C\\\\S\\\\|Designator=1',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+            '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=120|Name=DO/IO1|Designator=2',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+            '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=100|Name=W\\\\P\\\\/IO2|Designator=3',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|SymBol_Outer=34|FormalType=1|Electrical=4' +
+            '|PinConglomerate=58|PinLength=20|Location.X=120|Location.Y=80|Name=H\\\\O\\\\L\\\\D\\\\/IO3|Designator=4',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=7|PinConglomerate=56' +
+            '|PinLength=20|Location.X=220|Location.Y=140|Name=VCC|Designator=8',
+        '|RECORD=34|OwnerIndex=700|Location.X=120|Location.Y=165|Color=8388608|FontID=1|Text=U1|Name=Designator',
+        '|RECORD=41|OwnerIndex=700|Location.X=120|Location.Y=50|Color=8388608|FontID=1|Text=FLASH|Name=Value'
+    ]
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'escaped-active-low-pin-runs.SchDoc',
+        new TextEncoder().encode(records.join('')).buffer
+    )
+    const ownerPins = documentModel.schematic.pins
+        .filter((pin) => pin.ownerIndex === '700')
+        .map((pin) => ({
+            designator: pin.designator,
+            name: pin.name,
+            symbolOuter: pin.symbolOuter || null,
+            nameSegments: pin.nameSegments || null
+        }))
+
+    assert.deepEqual(ownerPins, [
+        {
+            designator: '1',
+            name: 'CS',
+            symbolOuter: 2,
+            nameSegments: [{ text: 'CS', overline: true }]
+        },
+        {
+            designator: '2',
+            name: 'DO/IO1',
+            symbolOuter: 34,
+            nameSegments: null
+        },
+        {
+            designator: '3',
+            name: 'WP/IO2',
+            symbolOuter: 34,
+            nameSegments: [
+                { text: 'WP', overline: true },
+                { text: '/IO2', overline: false }
+            ]
+        },
+        {
+            designator: '4',
+            name: 'HOLD/IO3',
+            symbolOuter: 34,
+            nameSegments: [
+                { text: 'HOLD', overline: true },
+                { text: '/IO3', overline: false }
+            ]
+        },
+        {
+            designator: '8',
+            name: 'VCC',
+            symbolOuter: null,
+            nameSegments: null
+        }
+    ])
+})
+
+/**
+ * Verifies the nova-sheet crystal Y2 keeps its four numbered passive pins rather
  * than dropping them because the symbol spans multiple sides.
  */
-test('parseAltiumArrayBuffer keeps the lyra-sheet Y2 crystal pins as number-only labels', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer keeps the nova-sheet Y2 crystal pins as number-only labels', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const y2Pins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '6355'
     )
@@ -390,6 +469,47 @@ test('parseAltiumArrayBuffer keeps anonymous multi-side connector pins and groun
 })
 
 /**
+ * Verifies dense two-sided 48/50 pin families keep only their numeric labels
+ * so owner symbol graphics are not obscured by duplicated semantic pin names.
+ */
+test('parseAltiumArrayBuffer keeps dense two-sided 48/50 pin families number-only', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=400|CustomY=250|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=50|PinLength=10|Location.X=200|Location.Y=150|Name=BUS_A1|Designator=1',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=50|PinLength=10|Location.X=200|Location.Y=130|Name=BUS_A2|Designator=2',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=50|PinLength=10|Location.X=200|Location.Y=110|Name=CTL_A1|Designator=3',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=50|PinLength=10|Location.X=200|Location.Y=90|Name=CTL_A2|Designator=4',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=48|PinLength=10|Location.X=240|Location.Y=150|Name=OUT_B1|Designator=5',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=48|PinLength=10|Location.X=240|Location.Y=130|Name=OUT_B2|Designator=6',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=48|PinLength=10|Location.X=240|Location.Y=110|Name=OUT_B3|Designator=7',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=48|PinLength=10|Location.X=240|Location.Y=90|Name=OUT_B4|Designator=8',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=48|PinLength=10|Location.X=240|Location.Y=70|Name=ALT_B1|Designator=9',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=50|PinLength=10|Location.X=200|Location.Y=70|Name=ALT_A1|Designator=10'
+    ]
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'dense-two-sided-4850.SchDoc',
+        new TextEncoder().encode(records.join('')).buffer
+    )
+    const densePins = documentModel.schematic.pins.filter(
+        (pin) => pin.ownerIndex === '700'
+    )
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.equal(densePins.length, 10)
+    assert.equal(
+        densePins.every((pin) => pin.labelMode === 'number-only'),
+        true
+    )
+    assert.match(markup, />1</)
+    assert.match(markup, />10</)
+    assert.doesNotMatch(markup, />BUS_A1</)
+    assert.doesNotMatch(markup, />OUT_B4</)
+})
+
+/**
  * Verifies inline ground power ports preserve explicit Altium orientation so
  * the renderer does not rotate them sideways when only a horizontal wire is
  * attached at the connection point.
@@ -429,11 +549,11 @@ test('parseAltiumArrayBuffer keeps explicit ground power-port orientation on hor
 })
 
 /**
- * Verifies lyra-sheet record-14 package bodies are parsed as filled rectangles
+ * Verifies nova-sheet record-14 package bodies are parsed as filled rectangles
  * instead of diagonal line segments.
  */
-test('parseAltiumArrayBuffer keeps the lyra-sheet D12 body as a rectangle primitive', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer keeps the nova-sheet D12 body as a rectangle primitive', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
         documentModel.schematic.rectangles.some(
@@ -463,11 +583,11 @@ test('parseAltiumArrayBuffer keeps the lyra-sheet D12 body as a rectangle primit
 })
 
 /**
- * Verifies lyra-sheet inductor body arcs survive normalization with their
+ * Verifies nova-sheet inductor body arcs survive normalization with their
  * fractional center coordinates instead of being dropped entirely.
  */
-test('parseAltiumArrayBuffer keeps the lyra-sheet inductor coil arcs as record-12 primitives', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer keeps the nova-sheet inductor coil arcs as record-12 primitives', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const l52Arcs = documentModel.schematic.arcs?.filter(
         (arc) => arc.ownerIndex === '5602'
     )

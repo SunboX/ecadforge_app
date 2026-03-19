@@ -30,7 +30,7 @@ Expected: FAIL because the current matcher only scores corner anchors and misses
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 
 **Step 1: Write the failing tests**
 
@@ -66,7 +66,7 @@ Expected: FAIL because the current control-sheet parse still exposes overlapping
 
 **Files:**
 - Modify: `tests/ui/renderers.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 

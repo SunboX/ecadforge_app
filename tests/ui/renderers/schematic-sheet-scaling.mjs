@@ -60,7 +60,74 @@ test('renderSchematicSvg scales schematic content into the normalized inner fram
 
     assert.match(
         markup,
-        /<defs><clipPath id="schematic-content-clip-[^"]+"><rect x="20" y="20" width="1614" height="1129" \/><\/clipPath><\/defs><g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(130 88\.75\) scale\(1\.07\) translate\(-130 -152\)">/
+        /<defs><clipPath id="schematic-content-clip-[^"]+"><rect x="20" y="20" width="1614" height="1129" \/><\/clipPath><\/defs><g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(130 25\.10\) scale\(1\.11\) translate\(-130 -152\)">/
+    )
+})
+
+/**
+ * Verifies normalized larger sheets anchor against the dominant drawing box
+ * instead of tiny primitives that sit slightly above it.
+ */
+test('renderSchematicSvg biases normalized-sheet placement toward the dominant drawing box', () => {
+    const markup = SchematicSvgRenderer.render({
+        summary: { title: 'Dominant box anchor' },
+        schematic: {
+            sheet: {
+                width: 1654,
+                height: 1169,
+                sourceWidth: 1500,
+                sourceHeight: 950,
+                marginWidth: 20,
+                titleBlockOn: true,
+                paperSize: 'A3',
+                fonts: {
+                    1: {
+                        size: 10,
+                        family: 'Times New Roman',
+                        bold: false
+                    },
+                    8: {
+                        size: 18,
+                        family: 'Times New Roman',
+                        bold: true
+                    }
+                }
+            },
+            lines: [],
+            rectangles: [
+                {
+                    x: 130,
+                    y: 300,
+                    width: 1050,
+                    height: 699,
+                    color: '#ff6699',
+                    fill: 'transparent',
+                    isSolid: false,
+                    transparent: true,
+                    lineWidth: 1
+                }
+            ],
+            texts: [
+                {
+                    x: 130,
+                    y: 1017,
+                    text: 'small top outlier',
+                    color: '#000080',
+                    fontSize: 10,
+                    fontFamily: 'Times New Roman',
+                    fontWeight: 400
+                }
+            ],
+            components: [],
+            pins: [],
+            ports: [],
+            crosses: []
+        }
+    })
+
+    assert.match(
+        markup,
+        /<defs><clipPath id="schematic-content-clip-[^"]+"><rect x="20" y="20" width="1614" height="1129" \/><\/clipPath><\/defs><g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(130 5\.20\) scale\(1\.11\) translate\(-130 -152\)">/
     )
 })
 

@@ -210,11 +210,81 @@ test('parseAltiumArrayBuffer filters inactive op-amp multipart sections by owner
 })
 
 /**
- * Verifies the reduced lyra resistor designator keeps its left-side owner
+ * Verifies mirrored multipart transistor sections anchored from the right pin
+ * endpoint keep only their active pins and visible section suffixes.
+ */
+test('parseAltiumArrayBuffer resolves mirrored multipart transistor sections from right pin anchors', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=300|CustomY=260|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=1|LibReference=TRAN/NPN/PAIR-DEMO|PartCount=3|IndexInSheet=10' +
+            '|OwnerPartId=-1|Location.X=140|Location.Y=210|IsMirrored=T|CurrentPartId=1',
+        '|RECORD=1|LibReference=TRAN/NPN/PAIR-DEMO|PartCount=3|IndexInSheet=11' +
+            '|OwnerPartId=-1|Location.X=140|Location.Y=110|IsMirrored=T|CurrentPartId=2',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|PinConglomerate=56|PinLength=10|Location.X=130|Location.Y=210|Name=B|Designator=2',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|PinConglomerate=59|PinLength=10|Location.X=100|Location.Y=190|Name=E|Designator=1',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=1|PinConglomerate=57|PinLength=10|Location.X=100|Location.Y=230|Name=C|Designator=6',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=2|PinConglomerate=56|PinLength=10|Location.X=130|Location.Y=210|Name=B|Designator=5',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=2|PinConglomerate=59|PinLength=10|Location.X=100|Location.Y=190|Name=E|Designator=4',
+        '|RECORD=2|OwnerIndex=700|OwnerPartId=2|PinConglomerate=57|PinLength=10|Location.X=100|Location.Y=230|Name=C|Designator=3',
+        '|RECORD=34|OwnerIndex=700|OwnerPartId=-1|Location.X=145|Location.Y=221|Color=8388608|FontID=1|Text=Q1|Name=Designator|IsMirrored=T',
+        '|RECORD=41|OwnerIndex=700|OwnerPartId=-1|Location.X=145|Location.Y=211|Color=8388608|FontID=1|Text=BC846S|Name=Value|IsMirrored=T',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=1|PinConglomerate=56|PinLength=10|Location.X=130|Location.Y=110|Name=B|Designator=2',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=1|PinConglomerate=59|PinLength=10|Location.X=100|Location.Y=90|Name=E|Designator=1',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=1|PinConglomerate=57|PinLength=10|Location.X=100|Location.Y=130|Name=C|Designator=6',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=2|PinConglomerate=56|PinLength=10|Location.X=130|Location.Y=110|Name=B|Designator=5',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=2|PinConglomerate=59|PinLength=10|Location.X=100|Location.Y=90|Name=E|Designator=4',
+        '|RECORD=2|OwnerIndex=720|OwnerPartId=2|PinConglomerate=57|PinLength=10|Location.X=100|Location.Y=130|Name=C|Designator=3',
+        '|RECORD=34|OwnerIndex=720|OwnerPartId=-1|Location.X=145|Location.Y=121|Color=8388608|FontID=1|Text=Q1|Name=Designator|IsMirrored=T',
+        '|RECORD=41|OwnerIndex=720|OwnerPartId=-1|Location.X=145|Location.Y=111|Color=8388608|FontID=1|Text=BC846S|Name=Value|IsMirrored=T'
+    ]
+    const arrayBuffer = new TextEncoder().encode(records.join('')).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'mirrored-multipart-transistor.SchDoc',
+        arrayBuffer
+    )
+    const markup = SchematicSvgRenderer.render(documentModel)
+    const designators = documentModel.schematic.texts
+        .filter(
+            (text) =>
+                ['700', '720'].includes(String(text.ownerIndex || '')) &&
+                text.name === 'Designator'
+        )
+        .map((text) => ({
+            ownerIndex: String(text.ownerIndex || ''),
+            text: text.text
+        }))
+        .sort((left, right) => left.ownerIndex.localeCompare(right.ownerIndex))
+    const pinGroups = ['700', '720'].map((ownerIndex) => ({
+        ownerIndex,
+        pins: documentModel.schematic.pins
+            .filter((pin) => pin.ownerIndex === ownerIndex)
+            .map((pin) => pin.designator)
+            .sort((left, right) => Number(left) - Number(right))
+    }))
+
+    assert.deepEqual(designators, [
+        { ownerIndex: '700', text: 'Q1A' },
+        { ownerIndex: '720', text: 'Q1B' }
+    ])
+    assert.deepEqual(pinGroups, [
+        { ownerIndex: '700', pins: ['1', '2', '6'] },
+        { ownerIndex: '720', pins: ['3', '4', '5'] }
+    ])
+    assert.equal((markup.match(/class="schematic-pin-number"/g) || []).length, 6)
+    assert.match(markup, />Q1A</)
+    assert.match(markup, />Q1B</)
+    assert.doesNotMatch(markup, />Q1</)
+})
+
+/**
+ * Verifies the reduced nova resistor designator keeps its left-side owner
  * anchor instead of flipping across the body.
  */
-test('parseAltiumArrayBuffer keeps the lyra left-side resistor designator aligned', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer keeps the nova left-side resistor designator aligned', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const anchors = documentModel.schematic.texts
         .filter(
             (text) => text.text === 'R11' && text.ownerIndex === '1461'
@@ -229,11 +299,11 @@ test('parseAltiumArrayBuffer keeps the lyra left-side resistor designator aligne
 })
 
 /**
- * Verifies gate designators on the aether sheet sit just above the symbol
+ * Verifies gate designators on the moon sheet sit just above the symbol
  * body instead of touching its outline.
  */
-test('parseAltiumArrayBuffer pads aether gate designators above the body', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer pads moon gate designators above the body', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const designators = documentModel.schematic.texts
         .filter((text) => ['K29', 'K31'].includes(text.text))
         .map((text) => ({
@@ -250,11 +320,11 @@ test('parseAltiumArrayBuffer pads aether gate designators above the body', async
 })
 
 /**
- * Verifies bottom-side connector designators on the aether sheet keep their
+ * Verifies bottom-side connector designators on the moon sheet keep their
  * original left-to-right anchor instead of being pulled left under the body.
  */
-test('parseAltiumArrayBuffer keeps aether bottom connector designators left-to-right', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer keeps moon bottom connector designators left-to-right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const designator = documentModel.schematic.texts.find(
         (text) => text.text === 'P5'
     )
@@ -557,8 +627,8 @@ test('parseAltiumArrayBuffer keeps record-8 symbol circles and avoids duplicate 
  * Verifies only wire labels on open left runs flip away from nearby
  * designators, while labels attached to component pins stay left-to-right.
  */
-test('parseAltiumArrayBuffer keeps component-connected wire labels readable on the aether sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer keeps component-connected wire labels readable on the moon sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const anchors = documentModel.schematic.texts
         .filter(
             (text) =>
@@ -592,11 +662,11 @@ test('parseAltiumArrayBuffer keeps component-connected wire labels readable on t
 })
 
 /**
- * Verifies the aether sheet keeps the Q12 diode body polygon as drawable
+ * Verifies the moon sheet keeps the Q12 diode body polygon as drawable
  * line segments so the symbol triangle is visible.
  */
-test('parseAltiumArrayBuffer preserves the aether-sheet Q12 diode triangle', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer preserves the moon-sheet Q12 diode triangle', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
 
     assert.equal(
         documentModel.schematic.lines.some(
@@ -642,9 +712,9 @@ test('parseAltiumArrayBuffer preserves the aether-sheet Q12 diode triangle', asy
  * off-sheet port stack.
  */
 test(
-    'parseAltiumArrayBuffer normalizes the bastion-sheet dawn-sigil note and off-sheet ports',
+    'parseAltiumArrayBuffer normalizes the cinder-sheet dawn-sigil note and off-sheet ports',
     async () => {
-        const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+        const documentModel = await AltiumFixtureLoader.parseCinderSheet()
         const bootNote = documentModel.schematic.texts.find(
             (text) => text.text === 'Needed for Dawn Sigil!'
         )
@@ -728,6 +798,57 @@ test(
 )
 
 /**
+ * Verifies closed point-listed rectangle records stay filled dashed frames
+ * instead of falling back to one `Location`-to-`Corner` diagonal line.
+ */
+test(
+    'parseAltiumArrayBuffer keeps listed rectangle frames filled and dashed',
+    () => {
+        const records = [
+            '|HEADER=Schematic Document',
+            '|RECORD=31|CustomX=400|CustomY=250|VisibleGridSize=10|SnapGridSize=5' +
+                '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+                '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+            '|RECORD=225|IndexInSheet=2|OwnerPartId=-1|Location.X=40|Location.Y=30|Corner.X=160|Corner.Y=110' +
+                '|Color=255|AreaColor=16777215|LineStyle=1|LocationCount=4' +
+                '|X1=40|Y1=110|X2=160|Y2=110|X3=160|Y3=30|X4=40|Y4=30'
+        ]
+        const arrayBuffer = new TextEncoder().encode(records.join('')).buffer
+        const documentModel = AltiumParser.parseArrayBuffer(
+            'listed-rectangle-frame.SchDoc',
+            arrayBuffer
+        )
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.equal(documentModel.schematic.lines.length, 0)
+        assert.deepEqual(documentModel.schematic.rectangles, [
+            {
+                x: 40,
+                y: 30,
+                width: 120,
+                height: 80,
+                color: '#ff0000',
+                fill: '#ffffff',
+                isSolid: true,
+                transparent: false,
+                lineWidth: 1,
+                lineStyle: 1,
+                renderOrder: 2,
+                ownerIndex: undefined
+            }
+        ])
+        assert.match(
+            markup,
+            /<rect class="schematic-rectangle"[^>]*fill="var\(--schematic-fill-light-color\)" stroke="var\(--schematic-alert-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.doesNotMatch(
+            markup,
+            /<line x1="40" y1="220" x2="160" y2="140" stroke="var\(--schematic-alert-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+    }
+)
+
+/**
  * Verifies free text strings decode Altium justification codes into the
  * correct horizontal text anchor instead of treating one code as a special
  * centered-only case.
@@ -759,5 +880,59 @@ test(
             { text: 'DC 12V IN', anchor: 'end' },
             { text: 'StandBy', anchor: 'start' }
         ])
+    }
+)
+
+/**
+ * Verifies record-225 rectangle frames stay drawable even when binary-tail
+ * metadata truncates the printable `Color` field and drops style attributes.
+ */
+test(
+    'parseAltiumArrayBuffer restores binary-tailed rectangle frames as dashed boxes',
+    () => {
+        const printable = new TextEncoder().encode(
+            '|HEADER=Schematic Document' +
+                '|RECORD=31|CustomX=400|CustomY=250|VisibleGridSize=10|SnapGridSize=5' +
+                '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+                '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+                '|RECORD=225|IndexInSheet=9|OwnerPartId=-1|Location.X=40|Location.Y=30' +
+                '|Corner.X=160|Corner.Y=110|Color=25'
+        )
+        const tail = new Uint8Array([0xfe, 0xff, 0xff, 0xff, 0x00])
+        const bytes = new Uint8Array(printable.length + tail.length)
+        bytes.set(printable, 0)
+        bytes.set(tail, printable.length)
+
+        const documentModel = AltiumParser.parseArrayBuffer(
+            'binary-tailed-frame.SchDoc',
+            bytes.buffer
+        )
+        const markup = SchematicSvgRenderer.render(documentModel)
+
+        assert.equal(documentModel.schematic.lines.length, 0)
+        assert.deepEqual(documentModel.schematic.rectangles, [
+            {
+                x: 40,
+                y: 30,
+                width: 120,
+                height: 80,
+                color: '#ff0000',
+                fill: '#ffffff',
+                isSolid: true,
+                transparent: false,
+                lineWidth: 1,
+                lineStyle: 1,
+                renderOrder: 9,
+                ownerIndex: undefined
+            }
+        ])
+        assert.match(
+            markup,
+            /<rect class="schematic-rectangle"[^>]*fill="var\(--schematic-fill-light-color\)" stroke="var\(--schematic-alert-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
+        assert.doesNotMatch(
+            markup,
+            /<line x1="40" y1="220" x2="160" y2="140" stroke="var\(--schematic-alert-color\)" stroke-width="1" stroke-dasharray="8 5" stroke-linecap="round" \/>/
+        )
     }
 )

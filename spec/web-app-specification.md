@@ -15,7 +15,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 7. The `3D` tab renders a presentational 3D-style board summary from PCB dimensions and placements.
 8. The `BOM` tab renders grouped component rows from recovered metadata.
 9. The `Diagnostics` tab exposes parser recovery and warning messages.
-10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts.
+10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
 11. The test suite validates parser behavior, renderer output, and project structure.
 12. Runtime language switching remains available for the shell UI.
 
@@ -54,4 +54,4 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 4. The UI can load a native `.PcbDoc` and show a populated PCB view.
 5. The `BOM`, `3D`, and `Diagnostics` tabs render from the normalized model without crashing.
 6. Docs and spec files are present and linked from `README.md`.
-7. The app version shown in UI matches `package.json`.
+7. The app version shown in UI matches the single-source version in `package.json`.

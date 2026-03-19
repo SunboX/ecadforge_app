@@ -24,13 +24,13 @@ test('AppState.patch updates multiple fields', () => {
         activeView: 'bom',
         locale: 'de',
         parseStatus: 'ready',
-        statusMessage: 'Loaded sample'
+        statusMessage: 'Loaded relic'
     })
 
     assert.equal(snapshot.activeView, 'bom')
     assert.equal(snapshot.locale, 'de')
     assert.equal(snapshot.parseStatus, 'ready')
-    assert.equal(snapshot.statusMessage, 'Loaded sample')
+    assert.equal(snapshot.statusMessage, 'Loaded relic')
 })
 
 /**

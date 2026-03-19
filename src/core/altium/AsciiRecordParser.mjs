@@ -10,10 +10,11 @@ export class AsciiRecordParser {
      * @returns {{ raw: string, fields: Record<string, string | string[]> }[]}
      */
     static parse(arrayBuffer) {
-        const runs = PrintableTextDecoder.extractRuns(arrayBuffer)
+        const runs = PrintableTextDecoder.extractRunBytes(arrayBuffer)
         const records = []
 
-        for (const run of runs) {
+        for (const runBytes of runs) {
+            const run = AsciiRecordParser.#bytesToBinaryString(runBytes)
             const chunks = run.split(
                 /(?=\|(?:HEADER|RECORD|UNICODE|SELECTION|KIND)=)/g
             )
@@ -47,17 +48,28 @@ export class AsciiRecordParser {
     static #parseRecord(raw) {
         const fields = {}
         const segments = raw
-            .replace(/\n/g, '')
+            .replace(/[\r\n]/g, '')
             .split('|')
-            .map((segment) => segment.trim())
+            .map((segment) => AsciiRecordParser.#trimAscii(segment))
             .filter(Boolean)
 
         for (const segment of segments) {
             const separatorIndex = segment.indexOf('=')
             if (separatorIndex === -1) continue
 
-            const rawKey = segment.slice(0, separatorIndex).trim()
-            const value = segment.slice(separatorIndex + 1).trim()
+            const rawKey = AsciiRecordParser.#trimAscii(
+                segment.slice(0, separatorIndex)
+            )
+            const value = PrintableTextDecoder.decodeBytes(
+                AsciiRecordParser.#binaryStringToBytes(
+                    AsciiRecordParser.#trimAscii(
+                        segment.slice(separatorIndex + 1)
+                    )
+                ),
+                {
+                    encoding: rawKey.startsWith('%UTF8%') ? 'utf-8' : undefined
+                }
+            )
             const isUtf8Field = rawKey.startsWith('%UTF8%')
             const key = rawKey.replace(/^%UTF8%/, '')
             if (!key) continue
@@ -74,6 +86,42 @@ export class AsciiRecordParser {
         }
 
         return { raw, fields }
+    }
+
+    /**
+     * Converts one binary string into bytes without altering byte values.
+     * @param {string} value
+     * @returns {Uint8Array}
+     */
+    static #binaryStringToBytes(value) {
+        return Uint8Array.from(value, (character) => character.charCodeAt(0))
+    }
+
+    /**
+     * Converts one byte array into a binary string without decoding it.
+     * @param {Uint8Array} bytes
+     * @returns {string}
+     */
+    static #bytesToBinaryString(bytes) {
+        const chunkSize = 0x8000
+        let value = ''
+
+        for (let index = 0; index < bytes.length; index += chunkSize) {
+            value += String.fromCharCode(
+                ...bytes.subarray(index, index + chunkSize)
+            )
+        }
+
+        return value
+    }
+
+    /**
+     * Trims ASCII record whitespace without altering encoded field bytes.
+     * @param {string} value
+     * @returns {string}
+     */
+    static #trimAscii(value) {
+        return value.replace(/^[\t\r\n ]+|[\t\r\n ]+$/g, '')
     }
 
     /**

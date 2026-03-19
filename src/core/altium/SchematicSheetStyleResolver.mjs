@@ -10,7 +10,9 @@ export class SchematicSheetStyleResolver {
      */
     static resolveXZones(sheet) {
         const configuredXZones = Math.max(Number(sheet?.xZones || 0), 1)
-        if (Number(sheet?.sheetStyle || 0) !== 1) {
+        const paperSize = String(sheet?.paperSize || '').trim().toUpperCase()
+
+        if (Number(sheet?.sheetStyle || 0) !== 1 && !paperSize) {
             return configuredXZones
         }
 
@@ -21,14 +23,16 @@ export class SchematicSheetStyleResolver {
         }
 
         if (
-            sheet?.paperSize === 'A3' ||
+            paperSize === 'A2' ||
+            (width === 2339 && height === 1654) ||
+            paperSize === 'A3' ||
             (width === 1654 && height === 1169)
         ) {
             return 8
         }
 
         if (
-            sheet?.paperSize === 'A4' ||
+            paperSize === 'A4' ||
             (width === 1169 && height === 827)
         ) {
             return 4

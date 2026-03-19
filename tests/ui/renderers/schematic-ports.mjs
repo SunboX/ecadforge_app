@@ -378,7 +378,7 @@ test('schematic stylesheet leaves typography to recovered SVG attributes', async
  * and port primitives.
  */
 test('renderSchematicSvg renders rune off-sheet ports only once per label', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.equal((markup.match(/>RUNE_CTL</g) || []).length, 1)
@@ -414,11 +414,11 @@ test('renderSchematicSvg renders rune off-sheet ports only once per label', asyn
 })
 
 /**
- * Verifies the solace-sheet off-sheet ports keep the corrected pointed side in
+ * Verifies the dawn-sheet off-sheet ports keep the corrected pointed side in
  * the final SVG output.
  */
-test('renderSchematicSvg keeps solace-sheet off-sheet ports pointed the right way', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('renderSchematicSvg keeps dawn-sheet off-sheet ports pointed the right way', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(
@@ -440,39 +440,39 @@ test('renderSchematicSvg keeps solace-sheet off-sheet ports pointed the right wa
  * labels instead of the default horizontal left/right port geometry.
  */
 test('renderSchematicSvg rotates style-4 off-sheet ports vertically', async () => {
-    const solaceDocument = await AltiumFixtureLoader.parseSolaceSheet()
-    const solaceMarkup = SchematicSvgRenderer.render(solaceDocument)
-    const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
-    const bastionMarkup = SchematicSvgRenderer.render(bastionDocument)
+    const dawnDocument = await AltiumFixtureLoader.parseDawnSheet()
+    const dawnMarkup = SchematicSvgRenderer.render(dawnDocument)
+    const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
+    const cinderMarkup = SchematicSvgRenderer.render(cinderDocument)
 
     assert.match(
-        solaceMarkup,
+        dawnMarkup,
         /<polygon points="470,989 480,989 480,1011 475,1019 470,1011" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
     )
     assert.match(
-        solaceMarkup,
+        dawnMarkup,
         /text class="schematic-port-label" x="476\.89" y="1004" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="5\.25" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 476\.89 1004\)">GLYPH_1</
     )
     assert.match(
-        bastionMarkup,
+        cinderMarkup,
         /<polygon points="910,494 915,502 915,519 905,519 905,502" fill="var\(--schematic-fill-color\)" stroke="var\(--schematic-power-color\)" \/>/
     )
     assert.match(
-        bastionMarkup,
+        cinderMarkup,
         /text class="schematic-port-label" x="911\.46" y="506\.50" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="4\.05" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 911\.46 506\.50\)">GLYPH_0</
     )
     assert.match(
-        bastionMarkup,
+        cinderMarkup,
         /<circle class="schematic-junction" cx="910" cy="494" r="2" fill="var\(--schematic-default-ink-color\)" \/>/
     )
 })
 
 /**
- * Verifies solace-sheet off-sheet port labels shrink from the default sheet
+ * Verifies dawn-sheet off-sheet port labels shrink from the default sheet
  * font size so they fit within the yellow port outline.
  */
-test('renderSchematicSvg scales solace-sheet off-sheet port labels to fit their boxes', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('renderSchematicSvg scales dawn-sheet off-sheet port labels to fit their boxes', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
     const resolvePortLabelFontSize = (name) =>
         Number(
@@ -497,11 +497,11 @@ test('renderSchematicSvg scales solace-sheet off-sheet port labels to fit their 
 })
 
 /**
- * Verifies the solace-sheet MD/DRDM bus breakout labels and adjacent resistor
+ * Verifies the dawn-sheet MD/DRDM bus breakout labels and adjacent resistor
  * designators keep reading left-to-right like the Altium reference.
  */
-test('renderSchematicSvg keeps solace-sheet bus breakout labels left-to-right', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('renderSchematicSvg keeps dawn-sheet bus breakout labels left-to-right', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
     assert.match(

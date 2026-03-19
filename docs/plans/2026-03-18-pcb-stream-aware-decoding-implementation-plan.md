@@ -123,7 +123,7 @@ git commit -m "feat: add ole compound document parser"
 
 **Files:**
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
-- Modify: `tests/core/altium-parser/pcb-sample.mjs`
+- Modify: `tests/core/altium-parser/forge-relic.mjs`
 - Create: `tests/core/altium-parser/pcb-streams.mjs`
 
 **Step 1: Write the failing test**
@@ -156,7 +156,7 @@ assert.match(
 
 **Step 2: Run test to verify it fails**
 
-Run: `npm test -- tests/core/altium-parser/pcb-sample.mjs tests/core/altium-parser/pcb-streams.mjs`
+Run: `npm test -- tests/core/altium-parser/forge-relic.mjs tests/core/altium-parser/pcb-streams.mjs`
 
 Expected: FAIL because the current PCB parser only exposes outline, layers, and components.
 
@@ -166,7 +166,7 @@ Update the fixture loader only enough to produce the obfuscated fake OLE-backed 
 
 **Step 4: Run test to verify it still fails for the right reason**
 
-Run: `npm test -- tests/core/altium-parser/pcb-sample.mjs tests/core/altium-parser/pcb-streams.mjs`
+Run: `npm test -- tests/core/altium-parser/forge-relic.mjs tests/core/altium-parser/pcb-streams.mjs`
 
 Expected: still FAIL, now specifically because production parsing does not yet recover polygons and texts.
 
@@ -213,7 +213,7 @@ Add a `PcbPrimitiveParser` that recognizes structural field signatures for:
 
 Only promote a primitive when the required fields are genuinely present. Do not infer geometry.
 
-**Step 3: Update `AltiumParser.#parsePcb`**
+**Step 3: Update `AltiumParser.#parseForgeBoard`**
 
 Extend the normalized `pcb` payload with:
 
@@ -231,14 +231,14 @@ Also add diagnostics describing:
 
 **Step 4: Run the focused parser tests**
 
-Run: `npm test -- tests/core/altium-parser/pcb-sample.mjs tests/core/altium-parser/pcb-streams.mjs tests/core/ole-compound-document.test.mjs`
+Run: `npm test -- tests/core/altium-parser/forge-relic.mjs tests/core/altium-parser/pcb-streams.mjs tests/core/ole-compound-document.test.mjs`
 
 Expected: PASS.
 
 **Step 5: Commit**
 
 ```bash
-git add src/core/altium/PcbStreamExtractor.mjs src/core/altium/PcbPrimitiveParser.mjs src/core/altium/PrintableTextDecoder.mjs src/core/altium/AsciiRecordParser.mjs src/core/altium/AltiumParser.mjs src/core/altium/AltiumLayoutParser.mjs tests/fixtures/AltiumFixtureLoader.mjs tests/core/altium-parser/pcb-sample.mjs tests/core/altium-parser/pcb-streams.mjs
+git add src/core/altium/PcbStreamExtractor.mjs src/core/altium/PcbPrimitiveParser.mjs src/core/altium/PrintableTextDecoder.mjs src/core/altium/AsciiRecordParser.mjs src/core/altium/AltiumParser.mjs src/core/altium/AltiumLayoutParser.mjs tests/fixtures/AltiumFixtureLoader.mjs tests/core/altium-parser/forge-relic.mjs tests/core/altium-parser/pcb-streams.mjs
 git commit -m "feat: add stream-aware pcb primitive recovery"
 ```
 

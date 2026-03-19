@@ -23,7 +23,7 @@ Render Altium schematic record-`12` primitives as proper SVG arcs so inductors a
 
 ## Current State
 
-The user-provided `AtlasControl-A1.01.01F.SchDoc` reproduces the missing-inductor bug consistently:
+The user-provided `Starfall-Nova.SchDoc` reproduces the missing-inductor bug consistently:
 
 1. The parser recovers the inductor components, pins, and labels.
 2. The source file stores the coil loops as record `12` primitives with `Location`, `Radius`, `StartAngle`, and `EndAngle`.

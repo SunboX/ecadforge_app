@@ -104,28 +104,18 @@ class ServerRuntime {
     }
 
     /**
-     * Reads app version from known metadata files.
+     * Reads app version from package.json.
      * @param {string} root
      * @returns {Promise<string>}
      */
     static async readAppVersion(root) {
-        const files = [
-            path.join(root, 'package.json'),
-            path.join(root, 'api', 'app-version.json')
-        ]
-
-        for (const filePath of files) {
-            try {
-                const raw = await readFile(filePath, 'utf8')
-                const parsed = JSON.parse(raw)
-                const version = String(parsed?.version || '').trim()
-                if (version) return version
-            } catch (_error) {
-                // Ignore missing or malformed metadata files.
-            }
+        try {
+            const raw = await readFile(path.join(root, 'package.json'), 'utf8')
+            const parsed = JSON.parse(raw)
+            return String(parsed?.version || '').trim()
+        } catch (_error) {
+            return ''
         }
-
-        return ''
     }
 
     /**

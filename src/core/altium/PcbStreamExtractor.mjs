@@ -33,7 +33,7 @@ export class PcbStreamExtractor {
     /**
      * Extracts PCB content directly from one OLE-backed PcbDoc buffer.
      * @param {ArrayBuffer} arrayBuffer
-     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null}
+     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null}
      */
     static extractFromArrayBuffer(arrayBuffer) {
         if (!PcbStreamExtractor.isCompoundDocument(arrayBuffer)) {
@@ -55,7 +55,7 @@ export class PcbStreamExtractor {
      * Extracts stream-scoped printable records and known binary primitives from
      * a stream map.
      * @param {Map<string, Uint8Array>} streams
-     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } }}
+     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } }}
      */
     static extractFromStreams(streams) {
         const records = []
@@ -64,7 +64,8 @@ export class PcbStreamExtractor {
         const binaryPrimitives = {
             fills: [],
             tracks: [],
-            vias: []
+            vias: [],
+            pads: []
         }
 
         for (const [name, bytes] of streams.entries()) {
@@ -95,6 +96,8 @@ export class PcbStreamExtractor {
         const viaDataBytes = streams.get('Vias6/Data')
         const fillHeaderBytes = streams.get('Fills6/Header')
         const fillDataBytes = streams.get('Fills6/Data')
+        const padHeaderBytes = streams.get('Pads6/Header')
+        const padDataBytes = streams.get('Pads6/Data')
 
         if (trackHeaderBytes && trackDataBytes) {
             binaryPrimitives.tracks =
@@ -127,6 +130,16 @@ export class PcbStreamExtractor {
             }
         }
 
+        if (padHeaderBytes && padDataBytes) {
+            binaryPrimitives.pads = PcbBinaryPrimitiveParser.parsePadStream(
+                padHeaderBytes,
+                padDataBytes
+            )
+            if (binaryPrimitives.pads.length) {
+                usedStreamNames.add('Pads6/Data')
+            }
+        }
+
         return {
             records,
             streamNames: [...usedStreamNames].sort((left, right) =>
@@ -139,7 +152,8 @@ export class PcbStreamExtractor {
                 binaryPrimitiveCount:
                     binaryPrimitives.tracks.length +
                     binaryPrimitives.vias.length +
-                    binaryPrimitives.fills.length
+                    binaryPrimitives.fills.length +
+                    binaryPrimitives.pads.length
             }
         }
     }

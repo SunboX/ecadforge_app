@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restore the visible `R92` pin numbers on the bastion sheet and align all `R92A/B/C/D` designators like the source reference without changing `J4`.
+**Goal:** Restore the visible `R92` pin numbers on the cinder sheet and align all `R92A/B/C/D` designators like the source reference without changing `J4`.
 
 **Architecture:** Keep the fix in schematic normalization. Update passive two-pin pin-label normalization so the active multipart `R92` pairs stay visible, then narrow the owner-text anchor heuristic so near-row left-side multipart labels still flow through the side-anchor logic.
 
