@@ -8,8 +8,8 @@ import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
  * Verifies the reduced embedded PCB fixture still exposes outline, layers,
  * placement data, and a grouped BOM row.
  */
-test('parseAltiumArrayBuffer parses an embedded fake PcbDoc sample', async () => {
-    const documentModel = await AltiumFixtureLoader.parsePcb()
+test('parseAltiumArrayBuffer parses an embedded fake PcbDoc relic', async () => {
+    const documentModel = await AltiumFixtureLoader.parseForgeBoard()
 
     assert.equal(documentModel.kind, 'pcb')
     assert.equal(documentModel.fileType, 'PcbDoc')
@@ -24,7 +24,7 @@ test('parseAltiumArrayBuffer parses an embedded fake PcbDoc sample', async () =>
     assert.deepEqual(documentModel.pcb.components[0], {
         designator: 'J1',
         x: 900,
-        y: 500,
+        y: 350,
         layer: 'BOTTOM',
         pattern: 'HDR-6',
         rotation: 180,

@@ -4,7 +4,7 @@
 
 ## Goal
 
-Restore `AtlasControl-A1.01.01F.SchDoc` so the rendered schematic matches the supplied Altium screenshot instead of collapsing multipart symbols, omitting body geometry, and oversizing the page.
+Restore `Starfall-Nova.SchDoc` so the rendered schematic matches the supplied Altium screenshot instead of collapsing multipart symbols, omitting body geometry, and oversizing the page.
 
 ## Scope
 
@@ -12,7 +12,7 @@ Restore `AtlasControl-A1.01.01F.SchDoc` so the rendered schematic matches the su
 
 - Filter multipart schematic owner primitives to the active `CurrentPartId`
 - Parse record type `6` schematic polylines so symbol body outlines render
-- Recompute sheet size from corrected geometry for `AtlasControl-A1.01.01F.SchDoc`
+- Recompute sheet size from corrected geometry for `Starfall-Nova.SchDoc`
 - Add parser and renderer regression tests for the real sheet F file
 - Increment the app version in `package.json`
 
@@ -26,7 +26,7 @@ Restore `AtlasControl-A1.01.01F.SchDoc` so the rendered schematic matches the su
 
 The current parser renders sheet F incorrectly for three related reasons:
 
-1. Multipart symbol owners such as `U2` carry primitives for many `OwnerPartId` values, but the parser groups pins and texts by `OwnerIndex` alone. This merges the cinder, gate, NAND, lyra, and other subparts into one symbol body.
+1. Multipart symbol owners such as `U2` carry primitives for many `OwnerPartId` values, but the parser groups pins and texts by `OwnerIndex` alone. This merges the cinder, gate, NAND, nova, and other subparts into one symbol body.
 2. The symbol body outlines for these parts are stored as record type `6` polylines, but the parser only expands record `27` polylines and record `7` polygons. The visible rectangles and section dividers are therefore missing.
 3. The sheet-size resolver runs on that corrupted geometry, so it infers an oversized custom page instead of the expected standard page.
 
@@ -82,11 +82,11 @@ The parser will build a multipart owner selection map from component records tha
 
 ## Testing Strategy
 
-- Add a parser test that loads `AtlasControl-A1.01.01F.SchDoc` and asserts:
+- Add a parser test that loads `Starfall-Nova.SchDoc` and asserts:
   - `U2` renders as separate active parts rather than merged pin clouds
   - sheet F resolves to the expected standard page size
 - Add a renderer test that loads the same file and asserts:
-  - the `Rune Gate`, `Cinder Well`, and `Lyra / Echo` section labels appear once
+  - the `Rune Gate`, `Cinder Well`, and `Nova / Echo` section labels appear once
   - the multipart body rectangles render from record `6`
   - expected sheet chrome such as `A3` and `Sheet 5 of 6` remains visible
 

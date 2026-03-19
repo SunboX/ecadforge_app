@@ -11,40 +11,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 }
 
 /**
- * Reads the first non-empty version string from known deployment metadata.
+ * Reads the package version from one deployment metadata file.
  *
- * @param list<string> $filePaths
+ * @param string $filePath
  * @return string
  */
-function readAppVersion(array $filePaths): string
+function readAppVersion(string $filePath): string
 {
-    foreach ($filePaths as $filePath) {
-        if (!is_file($filePath) || !is_readable($filePath)) {
-            continue;
-        }
-
-        $raw = file_get_contents($filePath);
-        if (!is_string($raw) || $raw === '') {
-            continue;
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded) || !array_key_exists('version', $decoded)) {
-            continue;
-        }
-
-        $version = trim((string) $decoded['version']);
-        if ($version !== '') {
-            return $version;
-        }
+    if (!is_file($filePath) || !is_readable($filePath)) {
+        return '';
     }
 
-    return '';
+    $raw = file_get_contents($filePath);
+    if (!is_string($raw) || $raw === '') {
+        return '';
+    }
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded) || !array_key_exists('version', $decoded)) {
+        return '';
+    }
+
+    return trim((string) $decoded['version']);
 }
 
-$version = readAppVersion([
-    __DIR__ . DIRECTORY_SEPARATOR . 'app-version.json',
+$version = readAppVersion(
     dirname(__DIR__) . DIRECTORY_SEPARATOR . 'package.json'
-]);
+);
 
 echo json_encode(['version' => $version], JSON_UNESCAPED_SLASHES);

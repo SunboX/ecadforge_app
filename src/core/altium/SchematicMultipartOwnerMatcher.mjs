@@ -16,6 +16,7 @@ export class SchematicMultipartOwnerMatcher {
     static collectActiveMultipartOwnerParts(records, componentRecords) {
         const partBounds = new Map()
         const ownerBounds = new Map()
+        const directOwnerIndexesByRecord = new WeakMap()
 
         for (const record of records) {
             const ownerIndex = getField(record.fields, 'OwnerIndex')
@@ -41,7 +42,8 @@ export class SchematicMultipartOwnerMatcher {
                 minY: Number.POSITIVE_INFINITY,
                 maxX: Number.NEGATIVE_INFINITY,
                 maxY: Number.NEGATIVE_INFINITY,
-                leftPinLength: 0
+                leftPinLength: 0,
+                rightPinLength: 0
             }
 
             SchematicMultipartOwnerMatcher.#expandBounds(existingBounds, points)
@@ -49,6 +51,12 @@ export class SchematicMultipartOwnerMatcher {
             existingBounds.leftPinLength = Math.max(
                 existingBounds.leftPinLength,
                 SchematicMultipartOwnerMatcher.#collectLeftPinLength(
+                    record.fields
+                )
+            )
+            existingBounds.rightPinLength = Math.max(
+                existingBounds.rightPinLength,
+                SchematicMultipartOwnerMatcher.#collectRightPinLength(
                     record.fields
                 )
             )
@@ -70,6 +78,34 @@ export class SchematicMultipartOwnerMatcher {
             ownerBounds.set(ownerIndex, existingOwnerBounds)
         }
 
+        for (let index = 0; index < records.length; index += 1) {
+            const record = records[index]
+            if (getField(record.fields, 'RECORD') !== '1') {
+                continue
+            }
+
+            const currentPartId = String(
+                parseNumericField(record.fields, 'CurrentPartId') || ''
+            )
+            const partCount = parseNumericField(record.fields, 'PartCount') || 0
+
+            if (!currentPartId || partCount <= 1) {
+                continue
+            }
+
+            const directOwnerIndex =
+                SchematicMultipartOwnerMatcher.#findSerializedOwnerIndex(
+                    records,
+                    index
+                )
+
+            if (!directOwnerIndex) {
+                continue
+            }
+
+            directOwnerIndexesByRecord.set(record, directOwnerIndex)
+        }
+
         const activeOwnerParts = new Map()
 
         for (const record of componentRecords) {
@@ -82,6 +118,13 @@ export class SchematicMultipartOwnerMatcher {
             const isMirrored = parseBoolean(record.fields.IsMirrored)
 
             if (!currentPartId || partCount <= 1 || x === null || y === null) {
+                continue
+            }
+
+            const directOwnerIndex = directOwnerIndexesByRecord.get(record)
+
+            if (directOwnerIndex) {
+                activeOwnerParts.set(directOwnerIndex, currentPartId)
                 continue
             }
 
@@ -115,6 +158,96 @@ export class SchematicMultipartOwnerMatcher {
         }
 
         return activeOwnerParts
+    }
+
+    /**
+     * Resolves the dominant owner index serialized after one component record.
+     * This preserves multipart selection when library origins do not align with
+     * the current geometric anchor heuristics.
+     * @param {{ raw: string, fields: Record<string, string | string[]> }[]} records
+     * @param {number} componentIndex
+     * @returns {string}
+     */
+    static #findSerializedOwnerIndex(records, componentIndex) {
+        const ownerCounts = new Map()
+        const firstSeenOrder = new Map()
+
+        for (
+            let index = componentIndex + 1;
+            index < records.length;
+            index += 1
+        ) {
+            const record = records[index]
+            if (getField(record.fields, 'RECORD') === '1') {
+                break
+            }
+
+            if (
+                !SchematicMultipartOwnerMatcher.#isSerializedOwnerCandidate(
+                    record.fields
+                )
+            ) {
+                continue
+            }
+
+            const ownerIndex = getField(record.fields, 'OwnerIndex')
+
+            if (!firstSeenOrder.has(ownerIndex)) {
+                firstSeenOrder.set(ownerIndex, firstSeenOrder.size)
+            }
+
+            ownerCounts.set(ownerIndex, (ownerCounts.get(ownerIndex) || 0) + 1)
+        }
+
+        const bestOwner = [...ownerCounts.entries()].sort((left, right) => {
+            if (left[1] !== right[1]) {
+                return right[1] - left[1]
+            }
+
+            return (
+                firstSeenOrder.get(left[0]) - firstSeenOrder.get(right[0])
+            )
+        })[0]
+
+        if (!bestOwner) {
+            return ''
+        }
+
+        const secondBestCount = [...ownerCounts.values()]
+            .sort((left, right) => right - left)[1] || 0
+        const [ownerIndex, bestCount] = bestOwner
+
+        if (
+            bestCount < 3 ||
+            (secondBestCount > 0 && bestCount < secondBestCount * 3)
+        ) {
+            return ''
+        }
+
+        return ownerIndex
+    }
+
+    /**
+     * Returns true when one serialized record contributes to the dominant
+     * owner block for a placed component.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {boolean}
+     */
+    static #isSerializedOwnerCandidate(fields) {
+        const ownerIndex = getField(fields, 'OwnerIndex')
+        const recordType = getField(fields, 'RECORD')
+
+        if (!ownerIndex) {
+            return false
+        }
+
+        if (['45', '46', '48'].includes(recordType)) {
+            return false
+        }
+
+        return !(
+            recordType === '41' && getField(fields, 'Name') === 'PinUniqueId'
+        )
     }
 
     /**
@@ -196,12 +329,12 @@ export class SchematicMultipartOwnerMatcher {
     /**
      * Finds the closest part-specific multipart bounds match for one component
      * placement using the existing per-part anchor heuristics.
-     * @param {Map<string, { ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number }>} partBounds
+     * @param {Map<string, { ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number, rightPinLength: number }>} partBounds
      * @param {string} currentPartId
      * @param {number} x
      * @param {number} y
      * @param {boolean} isMirrored
-     * @returns {{ ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number, score: number } | undefined}
+     * @returns {{ ownerIndex: string, ownerPartId: string, minX: number, minY: number, maxX: number, maxY: number, leftPinLength: number, rightPinLength: number, score: number } | undefined}
      */
     static #findBestPartBoundsMatch(
         partBounds,
@@ -308,25 +441,32 @@ export class SchematicMultipartOwnerMatcher {
         const midpointY = (bounds.minY + bounds.maxY) / 2
         const scores = []
 
-        if (!isMirrored || currentPartId === '1') {
-            scores.push(Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y))
+        scores.push(Math.abs(bounds.minX - x) + Math.abs(bounds.minY - y))
 
-            if (
-                SchematicMultipartOwnerMatcher.#isCompactHorizontalMultipart(
-                    bounds
-                ) &&
-                bounds.leftPinLength > 0
-            ) {
-                scores.push(
-                    Math.abs(bounds.minX - bounds.leftPinLength - x) +
-                        Math.abs(midpointY - y)
-                )
-            }
-        } else {
+        if (
+            SchematicMultipartOwnerMatcher.#isCompactHorizontalMultipart(
+                bounds
+            ) &&
+            bounds.leftPinLength > 0
+        ) {
+            scores.push(
+                Math.abs(bounds.minX - bounds.leftPinLength - x) +
+                    Math.abs(midpointY - y)
+            )
+        }
+
+        if (isMirrored) {
             scores.push(
                 Math.abs(bounds.maxX - x) + Math.abs(bounds.minY - y),
                 Math.abs(bounds.maxX - x) + Math.abs(bounds.maxY - y)
             )
+
+            if (bounds.rightPinLength > 0) {
+                scores.push(
+                    Math.abs(bounds.maxX + bounds.rightPinLength - x) +
+                        Math.abs(midpointY - y)
+                )
+            }
         }
 
         return Math.min(...scores)
@@ -352,6 +492,33 @@ export class SchematicMultipartOwnerMatcher {
             pinLength === null ||
             pinLength <= 0 ||
             orientation !== 'left'
+        ) {
+            return 0
+        }
+
+        return pinLength
+    }
+
+    /**
+     * Collects the right pin length for one raw schematic pin record.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {number}
+     */
+    static #collectRightPinLength(fields) {
+        if (getField(fields, 'RECORD') !== '2') {
+            return 0
+        }
+
+        const pinLength = parseNumericField(fields, 'PinLength')
+        const orientation =
+            SchematicMultipartOwnerMatcher.#inferSchematicPinOrientation(
+                parseNumericField(fields, 'PinConglomerate')
+            )
+
+        if (
+            pinLength === null ||
+            pinLength <= 0 ||
+            orientation !== 'right'
         ) {
             return 0
         }

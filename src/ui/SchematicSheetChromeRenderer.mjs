@@ -66,11 +66,11 @@ export class SchematicSheetChromeRenderer {
             resolvedTitleBlock.date || buildCurrentDateValue()
 
         const titleBlockMarkup =
-            SchematicSheetChromeRenderer.#shouldUseHintedA3Layout(
+            SchematicSheetChromeRenderer.#shouldUseHintedStandardLayout(
                 sheet,
                 resolvedTitleBlock
             )
-                ? SchematicSheetChromeRenderer.#buildHintedA3TitleBlockMarkup(
+                ? SchematicSheetChromeRenderer.#buildHintedStandardTitleBlockMarkup(
                       titleBlockLayout,
                       sheet,
                       height,
@@ -103,6 +103,14 @@ export class SchematicSheetChromeRenderer {
         const sourceWidth = Number(sheet?.sourceWidth || 0)
 
         if (!footerHints || !sourceWidth || width <= sourceWidth) {
+            return titleBlock
+        }
+
+        const maxHintX = Math.max(
+            ...Object.values(footerHints).map((hint) => Number(hint?.x || 0))
+        )
+
+        if (maxHintX > sourceWidth) {
             return titleBlock
         }
 
@@ -157,10 +165,7 @@ export class SchematicSheetChromeRenderer {
         const maxX = Math.max(...footerHints.map((hint) => Number(hint.x || 0)))
         const maxY = Math.max(...footerHints.map((hint) => Number(hint.y || 0)))
         const x = Math.max(minX - 120, margin)
-        const titleBlockWidth = Math.max(
-            Math.min(maxX - minX + 160, width - margin - x),
-            280
-        )
+        const titleBlockWidth = Math.max(width - margin - x, 280)
         const topDocY = Math.max(maxY + 18, margin + 52)
         const titleBlockHeight = Math.max(topDocY - margin, 72)
 
@@ -173,29 +178,31 @@ export class SchematicSheetChromeRenderer {
     }
 
     /**
-     * Returns true when the recovered footer hints match the standard A3
-     * footer layout that needs corrected synthesized chrome.
+     * Returns true when the recovered footer hints expose enough of the
+     * standard footer to rebuild the corrected compact footer chrome.
      * @param {{ paperSize?: string } | undefined} sheet
      * @param {{ footerHints?: Partial<Record<'title' | 'documentNumber' | 'revision' | 'sheetNumber' | 'sheetTotal', { x: number, y: number }>> }} titleBlock
      * @returns {boolean}
      */
-    static #shouldUseHintedA3Layout(sheet, titleBlock) {
+    static #shouldUseHintedStandardLayout(sheet, titleBlock) {
         const footerHints = titleBlock?.footerHints || {}
 
         return (
-            String(sheet?.paperSize || '').trim().toUpperCase() === 'A3' &&
             Boolean(
                 footerHints.title &&
-                    footerHints.documentNumber &&
                     footerHints.revision &&
-                    footerHints.sheetNumber &&
-                    footerHints.sheetTotal
+                    (
+                        footerHints.documentNumber ||
+                        footerHints.sheetNumber ||
+                        footerHints.sheetTotal
+                    )
             )
         )
     }
 
     /**
-     * Builds the corrected hinted A3 title-block chrome.
+     * Builds the corrected compact title-block chrome from recovered footer
+     * hints.
      * @param {{ x: number, y: number, width: number, height: number }} layout
      * @param {{ paperSize?: string }} sheet
      * @param {number} sheetHeight
@@ -204,7 +211,7 @@ export class SchematicSheetChromeRenderer {
      * @param {string} renderedFileName
      * @returns {string}
      */
-    static #buildHintedA3TitleBlockMarkup(
+    static #buildHintedStandardTitleBlockMarkup(
         layout,
         sheet,
         sheetHeight,
@@ -242,7 +249,11 @@ export class SchematicSheetChromeRenderer {
             SchematicSheetChromeRenderer.#resolveTitleBlockFooterValueOptions(
                 titleBlock
             )
-        const sheetTotalHint = titleBlock?.footerHints?.sheetTotal
+        const useLiteralSheetHints =
+            String(sheet?.paperSize || '').trim().toUpperCase() === 'A3'
+        const sheetTotalHint = useLiteralSheetHints
+            ? titleBlock?.footerHints?.sheetTotal
+            : undefined
 
         return (
             '<g class="sheet-title-block">' +
@@ -380,7 +391,8 @@ export class SchematicSheetChromeRenderer {
                 titleBlock.title || '',
                 'var(--schematic-default-ink-color)',
                 titleBlock.footerHints?.title,
-                sheetHeight
+                sheetHeight,
+                useLiteralSheetHints
             ) +
             SchematicSheetChromeRenderer.#buildTitleBlockValueMarkup(
                 x + titleBlockWidth * 0.84,
@@ -388,7 +400,8 @@ export class SchematicSheetChromeRenderer {
                 titleBlock.documentNumber || '',
                 'var(--schematic-text-color)',
                 titleBlock.footerHints?.documentNumber,
-                sheetHeight
+                sheetHeight,
+                useLiteralSheetHints
             ) +
             SchematicSheetChromeRenderer.#buildTitleBlockValueMarkupWithResolvedY(
                 x + titleBlockWidth * 0.93,
@@ -396,7 +409,8 @@ export class SchematicSheetChromeRenderer {
                 titleBlock.revision || '',
                 'var(--schematic-default-ink-color)',
                 titleBlock.footerHints?.revision,
-                sheetHeight
+                sheetHeight,
+                useLiteralSheetHints
             ) +
             createSvgText(
                 'sheet-title-value',
@@ -412,7 +426,9 @@ export class SchematicSheetChromeRenderer {
                 footerDateY,
                 titleBlock.sheetNumber || '',
                 'var(--schematic-default-ink-color)',
-                titleBlock.footerHints?.sheetNumber,
+                useLiteralSheetHints
+                    ? titleBlock.footerHints?.sheetNumber
+                    : undefined,
                 sheetHeight
             ) +
             SchematicSheetChromeRenderer.#buildTitleBlockValueMarkupWithResolvedY(
@@ -420,7 +436,9 @@ export class SchematicSheetChromeRenderer {
                 footerDateY,
                 titleBlock.sheetTotal || '',
                 'var(--schematic-default-ink-color)',
-                titleBlock.footerHints?.sheetTotal,
+                useLiteralSheetHints
+                    ? titleBlock.footerHints?.sheetTotal
+                    : undefined,
                 sheetHeight
             ) +
             createSvgText(
@@ -439,6 +457,15 @@ export class SchematicSheetChromeRenderer {
                 renderedFileName,
                 'var(--schematic-text-color)',
                 'start',
+                footerValueOptions
+            ) +
+            createSvgText(
+                'sheet-title-value',
+                x + titleBlockWidth * 0.93,
+                footerFileY,
+                titleBlock.drawnBy || '',
+                'var(--schematic-default-ink-color)',
+                'middle',
                 footerValueOptions
             ) +
             '</g>'
@@ -701,6 +728,14 @@ export class SchematicSheetChromeRenderer {
                 'var(--schematic-text-color)',
                 'start'
             ) +
+            createSvgText(
+                'sheet-title-value',
+                x + titleBlockWidth * 0.93,
+                footerFileY,
+                titleBlock.drawnBy || '',
+                'var(--schematic-default-ink-color)',
+                'middle'
+            ) +
             '</g>'
         )
     }
@@ -758,7 +793,6 @@ export class SchematicSheetChromeRenderer {
             options
         )
     }
-
     /**
      * Builds one title-block value while preserving recovered X/color/font
      * hints and overriding the baseline to match the synthesized cell layout.
@@ -768,6 +802,7 @@ export class SchematicSheetChromeRenderer {
      * @param {string} fallbackColor
      * @param {{ x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number } | undefined} footerHint
      * @param {number} sheetHeight
+     * @param {boolean} [preserveHintX=true]
      * @returns {string}
      */
     static #buildTitleBlockValueMarkupWithResolvedY(
@@ -776,7 +811,8 @@ export class SchematicSheetChromeRenderer {
         text,
         fallbackColor,
         footerHint,
-        sheetHeight
+        sheetHeight,
+        preserveHintX = true
     ) {
         if (!footerHint) {
             return createSvgText(
@@ -791,7 +827,7 @@ export class SchematicSheetChromeRenderer {
 
         return createSvgText(
             'sheet-title-value',
-            footerHint.x,
+            preserveHintX ? footerHint.x : fallbackX,
             resolvedY,
             text,
             SchematicColorResolver.resolveColor(
@@ -816,6 +852,7 @@ export class SchematicSheetChromeRenderer {
      * @param {string} fallbackColor
      * @param {{ x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number } | undefined} footerHint
      * @param {number} sheetHeight
+     * @param {boolean} [preserveHintX=true]
      * @returns {string}
      */
     static #buildTitleBlockValueMarkup(
@@ -824,7 +861,8 @@ export class SchematicSheetChromeRenderer {
         text,
         fallbackColor,
         footerHint,
-        sheetHeight
+        sheetHeight,
+        preserveHintX = true
     ) {
         if (!footerHint) {
             return createSvgText(
@@ -839,7 +877,7 @@ export class SchematicSheetChromeRenderer {
 
         return createSvgText(
             'sheet-title-value',
-            footerHint.x,
+            preserveHintX ? footerHint.x : fallbackX,
             projectSchematicY(sheetHeight, footerHint.y),
             text,
             SchematicColorResolver.resolveColor(

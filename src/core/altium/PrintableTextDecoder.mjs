@@ -9,9 +9,23 @@ export class PrintableTextDecoder {
      * @returns {string[]}
      */
     static extractRuns(arrayBuffer, options = {}) {
+        return PrintableTextDecoder.extractRunBytes(arrayBuffer, options).map(
+            (runBytes) =>
+                PrintableTextDecoder.#normalizeRun(
+                    PrintableTextDecoder.decodeBytes(runBytes)
+                )
+        )
+    }
+
+    /**
+     * Returns printable byte runs from a binary buffer.
+     * @param {ArrayBuffer} arrayBuffer
+     * @param {{ minLength?: number }} [options]
+     * @returns {Uint8Array[]}
+     */
+    static extractRunBytes(arrayBuffer, options = {}) {
         const minLength = Number(options.minLength) || 24
         const bytes = new Uint8Array(arrayBuffer)
-        const decoder = new TextDecoder('utf-8')
         const runs = []
         let start = -1
 
@@ -24,9 +38,8 @@ export class PrintableTextDecoder {
             }
 
             if (start !== -1) {
-                PrintableTextDecoder.#pushRun(
+                PrintableTextDecoder.#pushRunBytes(
                     runs,
-                    decoder,
                     bytes,
                     start,
                     index,
@@ -37,9 +50,8 @@ export class PrintableTextDecoder {
         }
 
         if (start !== -1) {
-            PrintableTextDecoder.#pushRun(
+            PrintableTextDecoder.#pushRunBytes(
                 runs,
-                decoder,
                 bytes,
                 start,
                 bytes.length,
@@ -51,28 +63,50 @@ export class PrintableTextDecoder {
     }
 
     /**
-     * Normalizes one printable slice and appends it if meaningful.
+     * Decodes one byte slice using UTF-8 first, then GB18030 for non-UTF-8
+     * payloads such as legacy PCB library text.
+     * @param {Uint8Array} bytes
+     * @param {{ encoding?: string }} [options]
+     * @returns {string}
+     */
+    static decodeBytes(bytes, options = {}) {
+        const preferredEncoding = String(options.encoding || '').toLowerCase()
+
+        if (preferredEncoding === 'utf-8') {
+            return (
+                PrintableTextDecoder.#tryDecode(bytes, 'utf-8') ||
+                new TextDecoder('utf-8').decode(bytes)
+            )
+        }
+
+        return (
+            PrintableTextDecoder.#tryDecode(bytes, 'utf-8') ||
+            PrintableTextDecoder.#tryDecode(bytes, 'gb18030') ||
+            new TextDecoder('utf-8').decode(bytes)
+        )
+    }
+
+    /**
+     * Normalizes one printable byte slice and appends it if meaningful.
      * @param {string[]} runs
-     * @param {TextDecoder} decoder
      * @param {Uint8Array} bytes
      * @param {number} start
      * @param {number} end
      * @param {number} minLength
      */
-    static #pushRun(runs, decoder, bytes, start, end, minLength) {
+    static #pushRunBytes(runs, bytes, start, end, minLength) {
         const length = end - start
         if (length < minLength) return
 
-        const raw = decoder.decode(bytes.slice(start, end))
-        const normalized = raw
-            .replace(/\r/g, '\n')
-            .replace(/\n{2,}/g, '\n')
-            .trim()
+        const slice = bytes.slice(start, end)
+        const normalized = PrintableTextDecoder.#normalizeRun(
+            PrintableTextDecoder.decodeBytes(slice)
+        )
 
         if (normalized.length < minLength) return
         if (!normalized.includes('|') || !normalized.includes('=')) return
 
-        runs.push(normalized)
+        runs.push(slice)
     }
 
     /**
@@ -88,5 +122,28 @@ export class PrintableTextDecoder {
             (value >= 32 && value <= 126) ||
             value >= 128
         )
+    }
+
+    /**
+     * Returns one normalized printable run.
+     * @param {string} raw
+     * @returns {string}
+     */
+    static #normalizeRun(raw) {
+        return raw.replace(/\r/g, '\n').replace(/\n{2,}/g, '\n').trim()
+    }
+
+    /**
+     * Tries one strict decode and returns null when bytes are invalid for it.
+     * @param {Uint8Array} bytes
+     * @param {string} encoding
+     * @returns {string | null}
+     */
+    static #tryDecode(bytes, encoding) {
+        try {
+            return new TextDecoder(encoding, { fatal: true }).decode(bytes)
+        } catch {
+            return null
+        }
     }
 }

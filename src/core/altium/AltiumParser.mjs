@@ -124,14 +124,23 @@ export class AltiumParser {
                     ownersWithImplicitDisplayMode,
                     activeMultipartOwnerParts
                 ) &&
-                getField(record.fields, 'RECORD') !== '14' &&
+                getField(record.fields, 'RECORD') !== '211' &&
+                !SchematicPrimitiveParser.isRectangleRecord(
+                    record.fields
+                ) &&
                 !AltiumParser.#hasDisplayText(record.fields) &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
+                AltiumParser.#hasCoordinatePair(record.fields, 'Corner')
+        )
+        const regionRecords = drawableRecords.filter(
+            (record) =>
+                getField(record.fields, 'RECORD') === '211' &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Corner')
         )
         const rectangleRecords = drawableRecords.filter(
             (record) =>
-                getField(record.fields, 'RECORD') === '14' &&
+                SchematicPrimitiveParser.isRectangleRecord(record.fields) &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Location') &&
                 AltiumParser.#hasCoordinatePair(record.fields, 'Corner')
         )
@@ -252,6 +261,8 @@ export class AltiumParser {
             SchematicPrimitiveParser.parseSchematicPolygons(polygonRecords)
         const rectangles =
             SchematicPrimitiveParser.parseSchematicRectangles(rectangleRecords)
+        const regions =
+            SchematicPrimitiveParser.parseSchematicRegions(regionRecords)
         const ellipses =
             SchematicPrimitiveParser.parseSchematicEllipses(ellipseRecords)
         const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
@@ -347,6 +358,7 @@ export class AltiumParser {
             components,
             pins,
             rectangles,
+            regions,
             ports,
             crosses
         )
@@ -416,6 +428,7 @@ export class AltiumParser {
                 lines: normalizedLines,
                 polygons,
                 rectangles,
+                regions,
                 ellipses,
                 arcs,
                 directives,

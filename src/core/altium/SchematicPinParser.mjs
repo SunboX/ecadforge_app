@@ -7,7 +7,7 @@ export class SchematicPinParser {
     /**
      * Normalizes schematic pin records into drawable pin primitives.
      * @param {{ fields: Record<string, string | string[]> }[]} records
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
+     * @returns {{ x: number, y: number, length: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
      */
     static parseSchematicPins(records) {
         const groups = new Map()
@@ -46,7 +46,12 @@ export class SchematicPinParser {
                 x,
                 y,
                 length,
-                name: SchematicPinParser.#normalizeSchematicPinName(
+                conglomerate:
+                    ParserUtils.parseNumericField(
+                        record.fields,
+                        'PinConglomerate'
+                    ) || undefined,
+                ...SchematicPinParser.#parseSchematicPinName(
                     ParserUtils.getField(record.fields, 'Name')
                 ),
                 designator: ParserUtils.getField(record.fields, 'Designator'),
@@ -54,6 +59,11 @@ export class SchematicPinParser {
                 electrical:
                     ParserUtils.parseNumericField(record.fields, 'Electrical') ||
                     undefined,
+                symbolOuter:
+                    ParserUtils.parseNumericField(
+                        record.fields,
+                        'SymBol_Outer'
+                    ) || undefined,
                 ownerIndex
             })
         }
@@ -487,8 +497,8 @@ export class SchematicPinParser {
 
     /**
      * Deduces the visible pins for one schematic symbol owner.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]} pins
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
+     * @param {{ x: number, y: number, length: number, conglomerate?: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, ownerIndex: string }[]} pins
+     * @returns {{ x: number, y: number, length: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, color: string, labelColor: string, labelMode: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex: string }[]}
      */
     static #normalizeSchematicPinGroup(pins) {
         const deduped = SchematicPinParser.#dedupeSchematicPins(pins)
@@ -512,6 +522,10 @@ export class SchematicPinParser {
                         /^\d+$/.test(String(pin.name || '').trim()))
             )
         let labelMode = 'name-and-number'
+
+        if (SchematicPinParser.#isDenseTwoSidedHorizontal4850Family(deduped)) {
+            labelMode = 'number-only'
+        }
 
         if (allPassive && orientationCount > 2) {
             // Keep dense multi-side connector symbols whose contacts are only
@@ -539,7 +553,7 @@ export class SchematicPinParser {
             labelMode = 'name-only'
         }
 
-        return deduped.map((pin) => ({
+        return deduped.map(({ conglomerate, ...pin }) => ({
             ...pin,
             color: '#0000ff',
             labelColor: '#1f1f1f',
@@ -566,9 +580,42 @@ export class SchematicPinParser {
     }
 
     /**
+     * Returns true when one owner uses the dense two-sided horizontal 48/50
+     * pin family whose semantic names belong to the owner-drawn symbol body
+     * rather than to visible external pin labels.
+     * @param {{ conglomerate?: number, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
+     * @returns {boolean}
+     */
+    static #isDenseTwoSidedHorizontal4850Family(pins) {
+        if (pins.length < 6) {
+            return false
+        }
+
+        if (
+            pins.some(
+                (pin) =>
+                    pin.orientation !== 'left' && pin.orientation !== 'right'
+            )
+        ) {
+            return false
+        }
+
+        const conglomerates = new Set(
+            pins.map((pin) => Number(pin.conglomerate || 0))
+        )
+
+        return (
+            conglomerates.size > 0 &&
+            [...conglomerates].every(
+                (conglomerate) => conglomerate === 48 || conglomerate === 50
+            )
+        )
+    }
+
+    /**
      * Removes duplicate pin records emitted for alternate display modes.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]} pins
-     * @returns {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, ownerIndex: string }[]}
+     * @param {{ x: number, y: number, length: number, conglomerate?: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, ownerIndex: string }[]} pins
+     * @returns {{ x: number, y: number, length: number, conglomerate?: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, ownerIndex: string }[]}
      */
     static #dedupeSchematicPins(pins) {
         const seen = new Set()
@@ -583,7 +630,11 @@ export class SchematicPinParser {
                 pin.name,
                 pin.designator,
                 pin.orientation,
-                pin.electrical
+                pin.electrical,
+                pin.symbolOuter || '',
+                SchematicPinParser.#serializeSchematicPinNameSegments(
+                    pin.nameSegments
+                )
             ].join('::')
 
             if (seen.has(key)) continue
@@ -596,12 +647,70 @@ export class SchematicPinParser {
     }
 
     /**
-     * Removes Altium backslash escape markers from visible pin labels.
+     * Decodes Altium backslash suffix markers into visible pin text and
+     * overline runs for active-low labels.
      * @param {string} name
+     * @returns {{ name: string, nameSegments?: { text: string, overline: boolean }[] }}
+     */
+    static #parseSchematicPinName(name) {
+        const characters = []
+
+        for (const character of String(name || '').trim()) {
+            if (character === '\\') {
+                const previousCharacter = characters.at(-1)
+                if (previousCharacter) {
+                    previousCharacter.overline = true
+                }
+                continue
+            }
+
+            characters.push({
+                text: character,
+                overline: false
+            })
+        }
+
+        const normalizedName = characters
+            .map((character) => character.text)
+            .join('')
+        const nameSegments = []
+
+        for (const character of characters) {
+            const previousSegment = nameSegments.at(-1)
+            if (
+                previousSegment &&
+                previousSegment.overline === character.overline
+            ) {
+                previousSegment.text += character.text
+                continue
+            }
+
+            nameSegments.push({
+                text: character.text,
+                overline: character.overline
+            })
+        }
+
+        return {
+            name: normalizedName,
+            nameSegments: nameSegments.some((segment) => segment.overline)
+                ? nameSegments
+                : undefined
+        }
+    }
+
+    /**
+     * Serializes overline runs into a dedupe-safe signature.
+     * @param {{ text: string, overline: boolean }[] | undefined} nameSegments
      * @returns {string}
      */
-    static #normalizeSchematicPinName(name) {
-        return String(name || '').replaceAll('\\', '').trim()
+    static #serializeSchematicPinNameSegments(nameSegments) {
+        return (nameSegments || [])
+            .map(
+                (segment) =>
+                    (segment.overline ? '1' : '0') + ':' + segment.text
+            )
+            .join('|')
     }
 
     /**

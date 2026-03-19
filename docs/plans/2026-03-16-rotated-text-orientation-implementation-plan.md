@@ -14,12 +14,12 @@
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01E.SchDoc`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Moon.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
-Add a parser-backed test that loads the aether and bastion-sheet fixtures and asserts:
+Add a parser-backed test that loads the moon and cinder-sheet fixtures and asserts:
 
 ```js
 const d16 = bluetoothDocument.schematic.texts.find(
@@ -104,15 +104,15 @@ git commit -m "fix: preserve rotated text source orientation"
 
 **Files:**
 - Modify: `tests/ui/renderers.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01E.SchDoc`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Moon.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
 Add renderer assertions that distinguish opposite rotated-text transforms:
 
 ```js
-const aetherDocument = await AltiumFixtureLoader.parseAetherSheet()
+const moonDocument = await AltiumFixtureLoader.parseMoonSheet()
 const bluetoothMarkup = SchematicSvgRenderer.render(bluetoothDocument)
 
 assert.match(
@@ -120,7 +120,7 @@ assert.match(
     /<text class="schematic-label"[^>]*transform="rotate\(-90 225 612\)">D16</
 )
 
-const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
+const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
 const controlMarkup = SchematicSvgRenderer.render(controlDocument)
 
 assert.match(
@@ -133,7 +133,7 @@ assert.match(
 )
 ```
 
-Adjust the exact expected coordinates only if the parser-backed output shows a more accurate final anchor after the implementation change. The key behavior is opposite signed rotation between the aether and bastion-sheet fixtures.
+Adjust the exact expected coordinates only if the parser-backed output shows a more accurate final anchor after the implementation change. The key behavior is opposite signed rotation between the moon and cinder-sheet fixtures.
 
 **Step 2: Run test to verify it fails**
 

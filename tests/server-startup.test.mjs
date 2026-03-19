@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -183,6 +184,11 @@ test('server serves static app modules with no-store cache headers', async (t) =
  * the current app version so browser ESM graphs cannot keep stale parser code.
  */
 test('server serves versioned HTML and module imports', async (t) => {
+    const packageRaw = await readFile(
+        new URL('../package.json', import.meta.url),
+        'utf8'
+    )
+    const pkg = JSON.parse(packageRaw)
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -208,6 +214,7 @@ test('server serves versioned HTML and module imports', async (t) => {
     )
     const workerSource = await workerResponse.text()
 
+    assert.equal(appMeta.version, pkg.version)
     assert.equal(indexResponse.ok, true)
     assert.match(indexHtml, new RegExp('/style\\.css\\?v=' + appMeta.version))
     assert.match(indexHtml, new RegExp('/main\\.mjs\\?v=' + appMeta.version))

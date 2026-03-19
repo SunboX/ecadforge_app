@@ -218,11 +218,19 @@ html.is-schematic-panning body {
     color: var(--muted);
 }
 
-.schematic-svg,
-.pcb-svg {
+:is(.pcb-svg, .schematic-svg) {
     width: 100%;
     min-height: 60vh;
     border-radius: 22px;
+    background: var(--canvas);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.pcb-svg {
     --pcb-board-fill: #d8e8e4;
     --pcb-board-stroke: #0f746c;
     --pcb-surface-copper-fill: rgba(199, 109, 61, 0.15);
@@ -236,32 +244,28 @@ html.is-schematic-panning body {
     --pcb-track-color: #c7522d;
     --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
     --pcb-via-hole-fill: #0f746c;
+    --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
+    --pcb-footprint-track-color: rgba(237, 214, 62, 0.9);
     --pcb-component-top-fill: rgba(244, 219, 198, 0.92);
     --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
     --pcb-component-stroke: rgba(110, 64, 38, 0.28);
     --pcb-component-text: #22343b;
-    background: var(--canvas);
-    border: 1px solid rgba(95, 112, 124, 0.12);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.46);
-    cursor: grab;
-    user-select: none;
-    touch-action: none;
 }
 
 .schematic-svg {
-    --schematic-default-ink-color: #000080;
-    --schematic-accent-ink-color: #0000ff;
-    --schematic-text-color: #1f1f1f;
-    --schematic-sheet-label-color: #4f4f4f;
-    --schematic-power-color: #800000;
-    --schematic-port-color: #8d2b2b;
-    --schematic-alert-color: #ff0000;
-    --schematic-fill-color: #ffff80;
-    --schematic-note-fill-color: #eceb94;
-    --schematic-fill-light-color: #ffffff;
-    --schematic-pin-marker-fill: #eef3f8;
-    --schematic-note-border-color: #7b7753;
-    --schematic-sheet-backdrop-fill: rgba(255, 250, 245, 0.96);
+    --schematic-default-ink-color: #0091ac;
+    --schematic-accent-ink-color: #14c5e6;
+    --schematic-text-color: #121b22;
+    --schematic-sheet-label-color: #405662;
+    --schematic-power-color: #a84a12;
+    --schematic-port-color: #f28724;
+    --schematic-alert-color: #da2f70;
+    --schematic-fill-color: #f4dec7;
+    --schematic-note-fill-color: #efe4d1;
+    --schematic-fill-light-color: #fffaf5;
+    --schematic-pin-marker-fill: #edf4f3;
+    --schematic-note-border-color: #8a725c;
+    --schematic-sheet-backdrop-fill: rgba(253, 251, 248, 0.96);
     --schematic-sheet-backdrop-stroke: rgba(95, 112, 124, 0.12);
     --schematic-sheet-frame-stroke: rgba(95, 112, 124, 0.48);
     --schematic-node-fill: rgba(15, 116, 108, 0.9);
@@ -435,13 +439,40 @@ html.is-schematic-panning body {
     fill: var(--pcb-via-hole-fill);
 }
 
-.pcb-component rect {
+.pcb-pad__ring {
+    fill: var(--pcb-via-ring-fill);
+}
+
+.pcb-pad--smd .pcb-pad__ring {
+    fill: var(--pcb-copper-solid-fill);
+}
+
+.pcb-pad__hole {
+    fill: var(--pcb-via-hole-fill);
+}
+
+.pcb-pad__hole--slot {
+    fill: var(--pcb-via-hole-fill);
+}
+
+.pcb-footprint-fill {
+    fill: var(--pcb-footprint-fill);
+}
+
+.pcb-footprint-track {
+    fill: none;
+    stroke: var(--pcb-footprint-track-color);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pcb-component__body {
     fill: var(--pcb-component-top-fill);
     stroke: var(--pcb-component-stroke);
     stroke-width: 3;
 }
 
-.pcb-component--bottom rect {
+.pcb-component--bottom .pcb-component__body {
     fill: var(--pcb-component-bottom-fill);
 }
 

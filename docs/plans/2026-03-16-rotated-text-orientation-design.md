@@ -12,7 +12,7 @@ Fix schematic rotated-text rendering globally so Altium texts that use different
 
 - Preserve Altium source orientation metadata for visible schematic text
 - Fix SVG rendering for rotated schematic text so opposite Altium orientations produce opposite vertical flow
-- Cover the bug with parser-backed tests using the aether and bastion-sheet fixtures
+- Cover the bug with parser-backed tests using the moon and cinder-sheet fixtures
 
 ### Out Of Scope
 
@@ -82,7 +82,7 @@ Use **Approach 2**.
 
 The parser will preserve the raw Altium text orientation on normalized schematic text records. The renderer will then resolve the final signed SVG transform from that preserved orientation instead of assuming every rotated label should use the same clockwise transform.
 
-This design keeps the existing normalized `rotation` field for generic text behavior while adding enough source metadata to distinguish otherwise identical `90` degree cases. Horizontal text stays unchanged. Rotated text with `Orientation=1` should preserve the current readable direction used by the aether fixture, while `Orientation=3` text should render with the opposite vertical flow expected by the bastion-sheet resistor cluster.
+This design keeps the existing normalized `rotation` field for generic text behavior while adding enough source metadata to distinguish otherwise identical `90` degree cases. Horizontal text stays unchanged. Rotated text with `Orientation=1` should preserve the current readable direction used by the moon fixture, while `Orientation=3` text should render with the opposite vertical flow expected by the cinder-sheet resistor cluster.
 
 ## Data Flow
 
@@ -103,7 +103,7 @@ For ordinary schematic labels, the renderer will:
 ## Testing Strategy
 
 - Extend parser tests to verify rotated texts preserve source orientation metadata
-- Use the aether fixture to assert `Q12` and `WYRN` keep the expected orientation metadata
+- Use the moon fixture to assert `Q12` and `WYRN` keep the expected orientation metadata
 - Use the control-sheet fixture to assert resistor labels such as `R24` and `10K` keep their opposite orientation metadata
 - Extend renderer tests to assert the emitted SVG uses opposite signed rotations for `Orientation=1` and `Orientation=3`
 - Run focused parser and renderer tests first, then run the full suite

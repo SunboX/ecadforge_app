@@ -13,6 +13,70 @@ const {
  */
 export class SchematicPrimitiveParser {
     /**
+     * Returns true when one record belongs to the rectangle primitive family.
+     * Some record-225 frames store only `Location`/`Corner` in printable runs.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {boolean}
+     */
+    static isRectangleRecord(fields) {
+        const recordType = getField(fields, 'RECORD')
+
+        return (
+            recordType === '14' ||
+            recordType === '225' ||
+            SchematicPrimitiveParser.isListedRectangleRecord(fields)
+        )
+    }
+
+    /**
+     * Returns true when one point-listed primitive describes an axis-aligned
+     * rectangle instead of an arbitrary polyline.
+     * @param {Record<string, string | string[]>} fields
+     * @returns {boolean}
+     */
+    static isListedRectangleRecord(fields) {
+        const locationX = parseNumericField(fields, 'Location.X')
+        const locationY = parseNumericField(fields, 'Location.Y')
+        const cornerX = parseNumericField(fields, 'Corner.X')
+        const cornerY = parseNumericField(fields, 'Corner.Y')
+        const points = SchematicPrimitiveParser.#collectPolygonPoints(fields)
+
+        if (
+            locationX === null ||
+            locationY === null ||
+            cornerX === null ||
+            cornerY === null ||
+            points.length !== 4
+        ) {
+            return false
+        }
+
+        const xs = [...new Set(points.map((point) => point.x))]
+        const ys = [...new Set(points.map((point) => point.y))]
+
+        if (xs.length !== 2 || ys.length !== 2) {
+            return false
+        }
+
+        const minX = Math.min(...xs)
+        const maxX = Math.max(...xs)
+        const minY = Math.min(...ys)
+        const maxY = Math.max(...ys)
+        const corners = new Set([
+            minX + ':' + minY,
+            minX + ':' + maxY,
+            maxX + ':' + minY,
+            maxX + ':' + maxY
+        ])
+
+        return (
+            corners.has(locationX + ':' + locationY) &&
+            corners.has(cornerX + ':' + cornerY) &&
+            points.every((point) => corners.has(point.x + ':' + point.y))
+        )
+    }
+
+    /**
      * Normalizes record-7 polygon primitives into fill-capable polygons.
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @returns {{ points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[]}
@@ -49,9 +113,80 @@ export class SchematicPrimitiveParser {
     /**
      * Normalizes record-14 body primitives into drawable rectangles.
      * @param {{ fields: Record<string, string | string[]> }[]} records
-     * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string }[]}
+     * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, lineStyle: number, ownerIndex?: string }[]}
      */
     static parseSchematicRectangles(records) {
+        return records
+            .map((record, index) => {
+                const x1 = parseNumericField(record.fields, 'Location.X')
+                const y1 = parseNumericField(record.fields, 'Location.Y')
+                const x2 = parseNumericField(record.fields, 'Corner.X')
+                const y2 = parseNumericField(record.fields, 'Corner.Y')
+                const isRectangleRecord =
+                    SchematicPrimitiveParser.isRectangleRecord(record.fields)
+                const isListedRectangle =
+                    SchematicPrimitiveParser.isListedRectangleRecord(
+                        record.fields
+                    )
+                const usesFrameFallback =
+                    SchematicPrimitiveParser.#shouldUseFrameFallback(
+                        record.fields,
+                        isListedRectangle
+                    )
+                const recordType = getField(record.fields, 'RECORD')
+
+                if (x1 === null || y1 === null || x2 === null || y2 === null) {
+                    return null
+                }
+
+                return {
+                    x: Math.min(x1, x2),
+                    y: Math.min(y1, y2),
+                    width: Math.abs(x2 - x1),
+                    height: Math.abs(y2 - y1),
+                    color: usesFrameFallback
+                        ? '#ff0000'
+                        : toColor(
+                              record.fields.Color,
+                              recordType === '225' ? '#ff0000' : '#a44a1b'
+                          ),
+                    fill: usesFrameFallback
+                        ? '#ffffff'
+                        : toColor(
+                              record.fields.AreaColor,
+                              recordType === '225' ? '#ffffff' : '#ffe16f'
+                          ),
+                    isSolid:
+                        parseBoolean(record.fields.IsSolid) ||
+                        usesFrameFallback ||
+                        SchematicPrimitiveParser.#hasImplicitAreaFill(
+                            record.fields,
+                            isRectangleRecord
+                        ),
+                    transparent: usesFrameFallback
+                        ? false
+                        : parseBoolean(record.fields.Transparent),
+                    lineWidth: parseNumericField(record.fields, 'LineWidth') || 1,
+                    lineStyle: usesFrameFallback
+                        ? 1
+                        : parseNumericField(record.fields, 'LineStyle') || 0,
+                    renderOrder: SchematicPrimitiveParser.#resolveRenderOrder(
+                        record.fields,
+                        index
+                    ),
+                    ownerIndex:
+                        getField(record.fields, 'OwnerIndex') || undefined
+                }
+            })
+            .filter(Boolean)
+    }
+
+    /**
+     * Normalizes authored sheet overlay regions into rectangular overlays.
+     * @param {{ fields: Record<string, string | string[]> }[]} records
+     * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, renderOrder: number }[]}
+     */
+    static parseSchematicRegions(records) {
         return records
             .map((record, index) => {
                 const x1 = parseNumericField(record.fields, 'Location.X')
@@ -68,17 +203,12 @@ export class SchematicPrimitiveParser {
                     y: Math.min(y1, y2),
                     width: Math.abs(x2 - x1),
                     height: Math.abs(y2 - y1),
-                    color: toColor(record.fields.Color, '#a44a1b'),
-                    fill: toColor(record.fields.AreaColor, '#ffe16f'),
-                    isSolid: parseBoolean(record.fields.IsSolid),
-                    transparent: parseBoolean(record.fields.Transparent),
-                    lineWidth: parseNumericField(record.fields, 'LineWidth') || 1,
+                    color: toColor(record.fields.Color, '#ff0000'),
+                    fill: toColor(record.fields.AreaColor, '#ffffcf'),
                     renderOrder: SchematicPrimitiveParser.#resolveRenderOrder(
                         record.fields,
                         index
-                    ),
-                    ownerIndex:
-                        getField(record.fields, 'OwnerIndex') || undefined
+                    )
                 }
             })
             .filter(Boolean)
@@ -217,6 +347,40 @@ export class SchematicPrimitiveParser {
         }
 
         return fallbackOrder
+    }
+
+    /**
+     * Returns true when one closed rectangle-like record carries a visible
+     * area color even without an explicit `IsSolid=T` flag.
+     * @param {Record<string, string | string[]>} fields
+     * @param {boolean} isRectangleRecord
+     * @returns {boolean}
+     */
+    static #hasImplicitAreaFill(fields, isRectangleRecord) {
+        return (
+            isRectangleRecord &&
+            !parseBoolean(fields.Transparent) &&
+            getField(fields, 'AreaColor') !== ''
+        )
+    }
+
+    /**
+     * Returns true when one record-225 frame lost its printable style fields
+     * and therefore needs the authored dashed white-box defaults restored.
+     * @param {Record<string, string | string[]>} fields
+     * @param {boolean} isListedRectangle
+     * @returns {boolean}
+     */
+    static #shouldUseFrameFallback(fields, isListedRectangle) {
+        if (getField(fields, 'RECORD') !== '225' || isListedRectangle) {
+            return false
+        }
+
+        return (
+            getField(fields, 'AreaColor') === '' ||
+            getField(fields, 'LineStyle') === '' ||
+            !/^-?\d+$/.test(getField(fields, 'Color'))
+        )
     }
 
     /**

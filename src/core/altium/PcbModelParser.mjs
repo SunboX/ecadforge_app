@@ -1,4 +1,5 @@
 import { AltiumLayoutParser } from './AltiumLayoutParser.mjs'
+import { PcbOutlineRecovery } from './PcbOutlineRecovery.mjs'
 import { ParserUtils } from './ParserUtils.mjs'
 
 const {
@@ -17,19 +18,22 @@ export class PcbModelParser {
      * Parses a normalized PCB model.
      * @param {string} fileName
      * @param {{ raw: string, fields: Record<string, string | string[]>, sourceStream?: string }[]} records
-     * @param {{ streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null} pcbExtraction
-     * @returns {{ kind: 'pcb', fileType: 'PcbDoc', fileName: string, summary: Record<string, number | string>, diagnostics: { severity: 'info' | 'warning', message: string }[], pcb: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[], polygons: { layer: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[] }, bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[] }}
+     * @param {{ streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null} pcbExtraction
+     * @returns {{ kind: 'pcb', fileType: 'PcbDoc', fileName: string, summary: Record<string, number | string>, diagnostics: { severity: 'info' | 'warning', message: string }[], pcb: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], primitiveLayers: { layerId: number, name: string }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[], polygons: { layer: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[] }}
      */
     static parse(fileName, records, pcbExtraction = null) {
+        const boardRecords = records.filter(
+            (record) => record.sourceStream === 'Board6/Data'
+        )
         const boardRecord =
-            records.find(
+            boardRecords.find(
                 (record) =>
                     getField(record.fields, 'KIND0') &&
                     record.sourceStream === 'Board6/Data'
             ) ||
             records.find((record) => getField(record.fields, 'KIND0'))
         const layerRecord =
-            records.find(
+            boardRecords.find(
                 (record) =>
                     countMatchingKeys(record.fields, /^V9_STACK_LAYER\d+_NAME$/) > 0 &&
                     record.sourceStream === 'Board6/Data'
@@ -64,11 +68,14 @@ export class PcbModelParser {
                 record.sourceStream === 'Polygons6/Data' &&
                 getField(record.fields, 'KIND0')
         )
-        const boardOutline = AltiumLayoutParser.parseBoardOutline(
+        const fallbackBoardOutline = AltiumLayoutParser.parseBoardOutline(
             boardRecord?.fields || {}
         )
         const layers = AltiumLayoutParser.parseLayerStack(
             layerRecord?.fields || {}
+        )
+        const primitiveLayers = AltiumLayoutParser.parsePrimitiveLayerNames(
+            boardRecords.map((record) => record.fields)
         )
         const polygons = polygonRecords
             .map((record) => ({
@@ -80,6 +87,22 @@ export class PcbModelParser {
         const tracks = pcbExtraction?.binaryPrimitives?.tracks || []
         const vias = pcbExtraction?.binaryPrimitives?.vias || []
         const fills = pcbExtraction?.binaryPrimitives?.fills || []
+        const pads = pcbExtraction?.binaryPrimitives?.pads || []
+        const recoveredOutline = PcbOutlineRecovery.recoverOutline({
+            fallbackOutline: fallbackBoardOutline,
+            components: componentRecords,
+            tracks
+        })
+        const boardOutline = recoveredOutline.outline
+        const normalizedPcb = PcbOutlineRecovery.flipGeometryVertically({
+            boardOutline,
+            polygons,
+            fills,
+            tracks,
+            vias,
+            pads,
+            components: componentRecords
+        })
         const bom = PcbModelParser.#groupBomRows(
             componentRecords.map((component) => ({
                 designator: component.designator,
@@ -124,10 +147,30 @@ export class PcbModelParser {
                     ' tracks, ' +
                     vias.length +
                     ' vias, ' +
+                    pads.length +
+                    ' pads, ' +
                     fills.length +
                     ' fills, and ' +
                     polygons.length +
                     ' polygons.'
+            })
+        }
+
+        if (recoveredOutline.source === 'board-route') {
+            diagnostics.push({
+                severity: 'info',
+                message:
+                    'Recovered board outline from the authored board-route contour.'
+            })
+        }
+
+        if (recoveredOutline.source === 'mechanical-track-layer') {
+            diagnostics.push({
+                severity: 'info',
+                message:
+                    'Recovered board outline from mechanical track layer ' +
+                    recoveredOutline.layerId +
+                    '.'
             })
         }
 
@@ -157,13 +200,15 @@ export class PcbModelParser {
             },
             diagnostics,
             pcb: {
-                boardOutline,
+                boardOutline: normalizedPcb.boardOutline,
                 layers,
-                components: componentRecords,
-                polygons,
-                fills,
-                tracks,
-                vias
+                primitiveLayers,
+                components: normalizedPcb.components,
+                polygons: normalizedPcb.polygons,
+                fills: normalizedPcb.fills,
+                tracks: normalizedPcb.tracks,
+                vias: normalizedPcb.vias,
+                pads: normalizedPcb.pads
             },
             bom
         }

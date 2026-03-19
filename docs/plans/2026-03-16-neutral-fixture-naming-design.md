@@ -18,7 +18,7 @@ Remove the remaining legacy schematic identifier from the repository, replace th
 
 ### Out Of Scope
 
-- Broadly renaming the existing `AtlasControl` fake corpus
+- Broadly renaming the existing fake corpus beyond the targeted retired identifier
 - Changing parser behavior that is already generic and structure-based
 - Rewriting historical docs beyond removing the retired identifier
 

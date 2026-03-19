@@ -8,7 +8,7 @@ Recover higher-fidelity PCB primitives from native `.PcbDoc` files by parsing co
 
 The current PCB pipeline treats the entire file as one printable byte soup. That works well enough for board outline, layer stack metadata, and component placements, but it is not sufficient for Altium-style board fidelity on compound-document PCB files.
 
-For `GXDT_SN00_V11.PcbDoc`, the current app recovers:
+For `Starfall-Forge.PcbDoc`, the current app recovers:
 
 - board outline geometry
 - layer stack entries

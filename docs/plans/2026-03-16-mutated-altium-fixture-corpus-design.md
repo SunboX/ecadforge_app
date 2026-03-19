@@ -84,7 +84,7 @@ The tests will stay parser-backed. Where a test currently depends on a specific 
 
 ## Data Strategy
 
-- Keep the five current file roles: solace sheet, aether sheet, lyra sheet, bastion sheet, and PCB
+- Keep the five current file roles: dawn sheet, moon sheet, nova sheet, cinder sheet, and PCB
 - Introduce a new fake naming vocabulary shared across all files so the corpus reads like one coherent synthetic project
 - Mutate record content in-place when safe to preserve binary structure
 - If a mutation changes text width enough to shift rendered coordinates, update the exact assertions to the new observed values

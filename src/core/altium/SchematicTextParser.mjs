@@ -177,16 +177,30 @@ export class SchematicTextParser {
         const numericFooterTexts = footerTexts.filter((record) =>
             /^\d+$/.test(record.text)
         )
+        const footerDrawnBy =
+            SchematicTextParser.#extractSchematicTitleBlockFooterDrawnBy(
+                footerTexts,
+                metadata
+            )
 
         return {
             title:
-                footerHints.title?.text ||
+                SchematicTextParser.#resolveTitleBlockFooterValue(
+                    footerHints.title?.text,
+                    metadata
+                ) ||
                 SchematicTextParser.#cleanMetadataValue(metadata.title),
             revision:
-                footerHints.revision?.text ||
+                SchematicTextParser.#resolveTitleBlockFooterValue(
+                    footerHints.revision?.text,
+                    metadata
+                ) ||
                 SchematicTextParser.#cleanMetadataValue(metadata.revision),
             documentNumber: SchematicTextParser.#cleanMetadataValue(
-                footerHints.documentNumber?.text || metadata.documentnumber
+                SchematicTextParser.#resolveTitleBlockFooterValue(
+                    footerHints.documentNumber?.text,
+                    metadata
+                ) || metadata.documentnumber
             ),
             sheetNumber:
                 footerHints.sheetNumber?.text ||
@@ -199,7 +213,9 @@ export class SchematicTextParser {
             date: SchematicTextParser.#cleanMetadataValue(
                 metadata.currentdate || metadata.date
             ),
-            drawnBy: SchematicTextParser.#cleanMetadataValue(metadata.drawnby),
+            drawnBy:
+                SchematicTextParser.#cleanMetadataValue(metadata.drawnby) ||
+                footerDrawnBy,
             footerHints:
                 SchematicTextParser.#stripSchematicTitleBlockHintText(
                     footerHints
@@ -268,9 +284,16 @@ export class SchematicTextParser {
     static #collectSchematicTitleBlockFooterHints(footerTexts) {
         const rows = SchematicTextParser.#groupTitleBlockFooterRows(footerTexts)
         const topRow = rows[0] || []
-        const bottomRow = rows.at(-1) || []
         const middleRow = rows.length > 2 ? rows[1] || [] : []
-        const numericBottomRow = bottomRow.filter((record) =>
+        const sheetRow =
+            [...rows]
+                .reverse()
+                .find(
+                    (row) =>
+                        row.filter((record) => /^\d+$/.test(record.text)).length >=
+                        2
+                ) || []
+        const numericSheetRow = sheetRow.filter((record) =>
             /^\d+$/.test(record.text)
         )
         const topRowHasVisibleTitleText = topRow.some(
@@ -290,9 +313,9 @@ export class SchematicTextParser {
             hints.revision = middleRow.at(-1)
         }
 
-        if (numericBottomRow.length) {
-            hints.sheetNumber = numericBottomRow[0]
-            hints.sheetTotal = numericBottomRow.at(-1)
+        if (numericSheetRow.length) {
+            hints.sheetNumber = numericSheetRow[0]
+            hints.sheetTotal = numericSheetRow.at(-1)
         }
 
         return hints
@@ -323,6 +346,50 @@ export class SchematicTextParser {
         }
 
         return rows
+    }
+
+    /**
+     * Resolves one visible footer placeholder against hidden sheet metadata.
+     * @param {string | undefined} text
+     * @param {Record<string, string>} metadata
+     * @returns {string}
+     */
+    static #resolveTitleBlockFooterValue(text, metadata) {
+        const resolved = SchematicTextParser.#resolveSchematicTemplateText(
+            text,
+            metadata
+        )
+
+        if (String(resolved || '').startsWith('=')) {
+            return ''
+        }
+
+        return SchematicTextParser.#cleanMetadataValue(resolved)
+    }
+
+    /**
+     * Extracts a visible footer `Drawn By` value from the bottom-most footer
+     * row when hidden metadata does not provide one.
+     * @param {{ text: string, x: number, y: number, color: string, fontSize: number, fontFamily: string, fontWeight: number }[]} footerTexts
+     * @param {Record<string, string>} metadata
+     * @returns {string}
+     */
+    static #extractSchematicTitleBlockFooterDrawnBy(footerTexts, metadata) {
+        const bottomRow =
+            SchematicTextParser.#groupTitleBlockFooterRows(footerTexts).at(-1) ||
+            []
+        const candidates = bottomRow
+            .map((record) =>
+                SchematicTextParser.#resolveTitleBlockFooterValue(
+                    record.text,
+                    metadata
+                )
+            )
+            .filter(
+                (value) => value && /^\d+$/.test(String(value).trim()) === false
+            )
+
+        return candidates.at(-1) || ''
     }
 
     /**

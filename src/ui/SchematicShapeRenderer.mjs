@@ -9,7 +9,7 @@ const { escapeHtml, formatNumber, projectSchematicY } = SchematicSvgUtils
 export class SchematicShapeRenderer {
     /**
      * Builds one schematic polygon primitive.
-     * @param {{ points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }} polygon
+     * @param {{ points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, lineStyle?: number }} polygon
      * @param {number} sheetHeight
      * @returns {string}
      */
@@ -47,13 +47,18 @@ export class SchematicShapeRenderer {
             ) +
             '" stroke-width="' +
             formatNumber(Math.max(polygon.lineWidth || 1, 0.8)) +
-            '" stroke-linejoin="round" />'
+            '"' +
+            SchematicShapeRenderer.#buildSchematicStrokeStyleAttributes(
+                polygon.lineWidth,
+                polygon.lineStyle
+            ) +
+            ' stroke-linejoin="round" />'
         )
     }
 
     /**
      * Builds one schematic rectangle primitive.
-     * @param {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number }} rectangle
+     * @param {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, lineStyle?: number }} rectangle
      * @param {number} sheetHeight
      * @returns {string}
      */
@@ -85,7 +90,12 @@ export class SchematicShapeRenderer {
             ) +
             '" stroke-width="' +
             formatNumber(Math.max(rectangle.lineWidth || 1, 0.8)) +
-            '" />'
+            '"' +
+            SchematicShapeRenderer.#buildSchematicStrokeStyleAttributes(
+                rectangle.lineWidth,
+                rectangle.lineStyle
+            ) +
+            ' />'
         )
     }
 
@@ -198,6 +208,29 @@ export class SchematicShapeRenderer {
         }
 
         return ellipse.fill || 'none'
+    }
+
+    /**
+     * Returns SVG stroke attributes for one schematic outline style.
+     * @param {number | undefined} lineWidth
+     * @param {number | undefined} lineStyle
+     * @returns {string}
+     */
+    static #buildSchematicStrokeStyleAttributes(lineWidth, lineStyle) {
+        if (Number(lineStyle || 0) !== 1) {
+            return ''
+        }
+
+        const dashLength = Math.max(Number(lineWidth || 1) * 8, 8)
+        const gapLength = Math.max(Number(lineWidth || 1) * 5, 5)
+
+        return (
+            ' stroke-dasharray="' +
+            formatNumber(dashLength) +
+            ' ' +
+            formatNumber(gapLength) +
+            '" stroke-linecap="round"'
+        )
     }
 
     /**

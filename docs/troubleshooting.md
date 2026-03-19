@@ -17,7 +17,7 @@ PORT=3100 npm start
 ## All-Inkl LIVE returns `/api/app-meta` 404
 
 - Confirm the FTP workflow has uploaded the repository `api/` directory to `/api/`.
-- Verify `/api/app-version.json` is present on LIVE and matches `package.json`.
+- Verify the repository root `package.json` is present on LIVE and readable by the PHP runtime.
 - If your host does not honor `api/.htaccess`, the browser will retry `/api/app-meta.php`.
 
 ## Native file shows little or no geometry

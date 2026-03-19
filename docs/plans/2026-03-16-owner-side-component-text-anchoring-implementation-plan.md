@@ -14,14 +14,14 @@
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
 Add a parser-backed test that loads the control-sheet fixture and asserts the left and right resistor pairs keep the expected stacked anchors:
 
 ```js
-const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+const documentModel = await AltiumFixtureLoader.parseCinderSheet()
 const anchors = documentModel.schematic.texts
     .filter((text) =>
         ['R51', 'R56'].includes(text.text) ||
@@ -57,14 +57,14 @@ Expected: FAIL because the current control-sheet `R51` designator still resolves
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/AtlasControl-A1.01.01F.SchDoc`
+- Reference: `tests/fixtures/altium/Starfall-Nova.SchDoc`
 
 **Step 1: Write the failing test**
 
-Add a lyra-sheet regression that locks a pre-existing left-side stacked case:
+Add a nova-sheet regression that locks a pre-existing left-side stacked case:
 
 ```js
-const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 const anchors = documentModel.schematic.texts
     .filter(
         (text) =>
@@ -87,7 +87,7 @@ assert.deepEqual(anchors, [
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: FAIL because the current lyra `R11` designator still resolves to `anchor: 'end'`.
+Expected: FAIL because the current nova `R11` designator still resolves to `anchor: 'end'`.
 
 ### Task 3: Implement consistent owner-side text anchoring
 
@@ -122,7 +122,7 @@ Keep raw `x` and `y` coordinates unchanged.
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: PASS for the new bastion-sheet and lyra assertions and all existing parser checks.
+Expected: PASS for the new cinder-sheet and nova assertions and all existing parser checks.
 
 ### Task 4: Refactor only if needed to keep the rule readable
 

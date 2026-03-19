@@ -5,11 +5,11 @@ import { AltiumParser } from '../../../src/core/altium/AltiumParser.mjs'
 import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies recovered aether-sheet geometry occupies a reasonable share of
+ * Verifies recovered moon-sheet geometry occupies a reasonable share of
  * the parsed page size so the rendered sheet does not appear undersized.
  */
-test('parseAltiumArrayBuffer infers a tight-enough aether sheet size', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer infers a tight-enough moon sheet size', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     assert.equal(documentModel.schematic.sheet.paperSize, 'A4')
     assert.equal(documentModel.schematic.sheet.width, 1169)
     assert.equal(documentModel.schematic.sheet.height, 827)
@@ -19,8 +19,8 @@ test('parseAltiumArrayBuffer infers a tight-enough aether sheet size', async () 
  * Verifies larger recovered pages snap to the next matching ISO paper size
  * instead of shrinking tightly to visible geometry.
  */
-test('parseAltiumArrayBuffer resolves the sample solace sheet to A3', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('parseAltiumArrayBuffer resolves the sample dawn sheet to A3', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
 
     assert.equal(documentModel.schematic.sheet.paperSize, 'A3')
     assert.equal(documentModel.schematic.sheet.width, 1654)
@@ -85,11 +85,41 @@ test('parseAltiumArrayBuffer keeps declared custom sheet size for non-standard s
 })
 
 /**
- * Verifies solace-sheet off-sheet ports keep the same pointed side Altium uses
+ * Verifies custom-style sheets fall back to the next fitting standard page
+ * when authored geometry overruns the declared custom page envelope.
+ */
+test('parseAltiumArrayBuffer promotes overflowing custom sheets to the next fitting standard page', () => {
+    const arrayBuffer = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|SheetStyle=2|CustomX=1500|CustomY=950|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|Size2=14|FontName2=Times New Roman|Bold2=T|Rotation2=0' +
+            '|RECORD=13|Location.X=140|Location.Y=60|Corner.X=2135|Corner.Y=1532|Color=8388608|LineWidth=1' +
+            '|RECORD=4|Location.X=1900|Location.Y=90|Color=8388608|FontID=2|Text=STARFALL-CINDER' +
+            '|RECORD=4|Location.X=2130|Location.Y=90|Color=255|FontID=2|Text=SIGIL-VAULT' +
+            '|RECORD=4|Location.X=2125|Location.Y=60|Color=8388608|FontID=1|Text=01'
+    ).buffer
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'overflowing-custom-sheet.SchDoc',
+        arrayBuffer
+    )
+
+    assert.equal(documentModel.schematic.sheet.paperSize, 'A2')
+    assert.equal(documentModel.schematic.sheet.width, 2339)
+    assert.equal(documentModel.schematic.sheet.height, 1654)
+    assert.equal(documentModel.schematic.sheet.sourceWidth, 1500)
+    assert.equal(documentModel.schematic.sheet.sourceHeight, 950)
+    assert.equal(documentModel.schematic.sheet.xZones, 8)
+    assert.equal(documentModel.schematic.sheet.yZones, 4)
+})
+
+/**
+ * Verifies dawn-sheet off-sheet ports keep the same pointed side Altium uses
  * when explicit port style is omitted from the stored record.
  */
-test('parseAltiumArrayBuffer infers solace-sheet port direction from connectivity', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('parseAltiumArrayBuffer infers dawn-sheet port direction from connectivity', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
     const resolveDirection = (name) =>
         documentModel.schematic.ports.find((port) => port.name === name)
             ?.direction
@@ -106,12 +136,12 @@ test('parseAltiumArrayBuffer infers solace-sheet port direction from connectivit
  * horizontal left/right symbol.
  */
 test('parseAltiumArrayBuffer infers vertical style-4 port direction from connectivity', async () => {
-    const solaceDocument = await AltiumFixtureLoader.parseSolaceSheet()
-    const bastionDocument = await AltiumFixtureLoader.parseBastionSheet()
-    const mc1 = solaceDocument.schematic.ports.find(
+    const dawnDocument = await AltiumFixtureLoader.parseDawnSheet()
+    const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
+    const mc1 = dawnDocument.schematic.ports.find(
         (port) => port.name === 'GLYPH_1' && port.x === 475 && port.y === 150
     )
-    const mc0 = bastionDocument.schematic.ports.find(
+    const mc0 = cinderDocument.schematic.ports.find(
         (port) => port.name === 'GLYPH_0' && port.x === 910 && port.y === 650
     )
 
@@ -150,11 +180,11 @@ test('parseAltiumArrayBuffer infers vertical style-4 port direction from connect
 })
 
 /**
- * Verifies record-26 bus trunks on the solace sheet survive normalization so
+ * Verifies record-26 bus trunks on the dawn sheet survive normalization so
  * grouped net routes render instead of disappearing entirely.
  */
-test('parseAltiumArrayBuffer preserves solace-sheet bus trunks', async () => {
-    const documentModel = await AltiumFixtureLoader.parseSolaceSheet()
+test('parseAltiumArrayBuffer preserves dawn-sheet bus trunks', async () => {
+    const documentModel = await AltiumFixtureLoader.parseDawnSheet()
 
     assert.equal(
         documentModel.schematic.lines.some(
@@ -181,11 +211,11 @@ test('parseAltiumArrayBuffer preserves solace-sheet bus trunks', async () => {
 })
 
 /**
- * Verifies the lyra sheet keeps only the active multipart U2 sections,
+ * Verifies the nova sheet keeps only the active multipart U2 sections,
  * preserving one label per visible section and snapping back to A3.
  */
-test('parseAltiumArrayBuffer restores active multipart sections on the lyra sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseLyraSheet()
+test('parseAltiumArrayBuffer restores active multipart sections on the nova sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const u2Pins = documentModel.schematic.pins.filter((pin) =>
         ['1672', '2172', '3833'].includes(pin.ownerIndex)
     )
@@ -193,7 +223,7 @@ test('parseAltiumArrayBuffer restores active multipart sections on the lyra shee
         [
             'Rune Gate',
             'Cinder Well',
-            'Lyra / Echo',
+            'Nova / Echo',
             'NAND FLASH',
             'Digital Audio',
             'Ethernet MAC',
@@ -211,16 +241,16 @@ test('parseAltiumArrayBuffer restores active multipart sections on the lyra shee
         sectionLabels
             .map((text) => text.text)
             .sort((left, right) => left.localeCompare(right)),
-        ['Cinder Well', 'Lyra / Echo', 'Rune Gate']
+        ['Cinder Well', 'Nova / Echo', 'Rune Gate']
     )
 })
 
 /**
- * Verifies aether-sheet component texts anchor according to their owner
+ * Verifies moon-sheet component texts anchor according to their owner
  * geometry instead of using one blanket rule for every designator.
  */
-test('parseAltiumArrayBuffer anchors aether-sheet component texts from owner geometry', async () => {
-    const documentModel = await AltiumFixtureLoader.parseAetherSheet()
+test('parseAltiumArrayBuffer anchors moon-sheet component texts from owner geometry', async () => {
+    const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const anchors = documentModel.schematic.texts
         .filter((text) =>
             ['C70', 'C82', 'C68', 'R148', 'R134', 'C187', 'C190'].includes(
@@ -247,11 +277,11 @@ test('parseAltiumArrayBuffer anchors aether-sheet component texts from owner geo
 })
 
 /**
- * Verifies bastion-sheet multipart designators keep side-aware anchors on the
+ * Verifies cinder-sheet multipart designators keep side-aware anchors on the
  * reduced fake resistor sections.
  */
-test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on the bastion sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on the cinder sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const anchors = documentModel.schematic.texts
         .filter(
             (text) => ['Q51', 'Q56'].includes(text.text)
@@ -275,11 +305,11 @@ test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on th
 
 /**
  * Verifies the multipart resistor stack keeps the active suffixes on the
- * repeated bastion-sheet sections while leaving the single connector
+ * repeated cinder-sheet sections while leaving the single connector
  * designator unsuffixed.
  */
-test('parseAltiumArrayBuffer resolves multipart designators without suffixing the bastion-sheet connector', async () => {
-    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+test('parseAltiumArrayBuffer resolves multipart designators without suffixing the cinder-sheet connector', async () => {
+    const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const designators = documentModel.schematic.texts
         .filter(
             (text) =>
@@ -308,11 +338,11 @@ test('parseAltiumArrayBuffer resolves multipart designators without suffixing th
 })
 
 /**
- * Verifies each multipart bastion-sheet owner keeps only its active pin pair
+ * Verifies each multipart cinder-sheet owner keeps only its active pin pair
  * instead of rendering all four overlapping owner-part variants.
  */
-test('parseAltiumArrayBuffer keeps only active multipart resistor pin pairs on the bastion sheet', async () => {
-    const documentModel = await AltiumFixtureLoader.parseBastionSheet()
+test('parseAltiumArrayBuffer keeps only active multipart resistor pin pairs on the cinder sheet', async () => {
+    const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const pinGroups = ['4010', '4050', '4088', '4126'].map((ownerIndex) => ({
         ownerIndex,
         pins: documentModel.schematic.pins

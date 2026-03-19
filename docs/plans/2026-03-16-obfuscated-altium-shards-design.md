@@ -26,7 +26,7 @@ Use small, test-owned printable-record fixtures assembled from obfuscated shard 
 
 ## Fixture Strategy
 
-- Keep the current logical fixture roles where useful: solace, aether, lyra, bastion, and PCB.
+- Keep the current logical fixture roles where useful: dawn, moon, nova, cinder, and PCB.
 - Each role becomes a composition of only the required records: sheet header, fonts, owner/component records, visible text, lines, pins, ports, note boxes, multipart records, and PCB outline/component records as needed.
 - Obfuscation is lightweight and reversible in test code only, so the repo does not store readable source-derived record payloads.
 

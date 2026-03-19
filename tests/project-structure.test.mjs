@@ -35,7 +35,6 @@ test('required project files exist', async () => {
         'docs/troubleshooting.md',
         'api/.htaccess',
         'api/app-meta.php',
-        'api/app-version.json',
         'src/AppMetaLoader.mjs',
         'src/favicon.svg',
         'src/index.html',
@@ -57,11 +56,12 @@ test('required project files exist', async () => {
         'tests/core/altium-parser/schematic-symbols.mjs',
         'tests/core/altium-parser/schematic-layout.mjs',
         'tests/core/altium-parser/schematic-regressions.mjs',
-        'tests/core/altium-parser/pcb-sample.mjs',
+        'tests/core/altium-parser/forge-relic.mjs',
+        'tests/fixtures/AltiumFixtureLoader.mjs',
         'tests/ui/renderers.test.mjs',
         'tests/ui/renderers/schematic-core.mjs',
         'tests/ui/renderers/schematic-ports.mjs',
-        'tests/ui/renderers/schematic-fixtures.mjs',
+        'tests/ui/renderers/starlit-relics.mjs',
         'tests/ui/renderers/output-renderers.mjs',
         'tests/project-structure.test.mjs',
         'tests/mjs-line-limit.test.mjs',
@@ -148,17 +148,23 @@ test('app shell includes localized footer metadata and footer-only version UI', 
 })
 
 /**
- * Verifies deployed app metadata stays aligned with the package version.
+ * Verifies runtime metadata is sourced only from package.json.
  */
-test('deployed app version metadata matches package version', async () => {
+test('runtime app metadata uses package.json as the only version source', async () => {
     const packageRaw = await readFile(new URL('package.json', root), 'utf8')
-    const appVersionRaw = await readFile(
-        new URL('api/app-version.json', root),
+    const serverRaw = await readFile(new URL('src/server.mjs', root), 'utf8')
+    const phpEndpointRaw = await readFile(
+        new URL('api/app-meta.php', root),
         'utf8'
     )
 
     const pkg = JSON.parse(packageRaw)
-    const appVersion = JSON.parse(appVersionRaw)
 
-    assert.equal(appVersion.version, pkg.version)
+    assert.equal(await exists('api/app-version.json'), false)
+    assert.equal(typeof pkg.version, 'string')
+    assert.notEqual(pkg.version.trim(), '')
+    assert.match(serverRaw, /package\.json/)
+    assert.match(phpEndpointRaw, /package\.json/)
+    assert.doesNotMatch(serverRaw, /app-version\.json/)
+    assert.doesNotMatch(phpEndpointRaw, /app-version\.json/)
 })

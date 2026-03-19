@@ -1,7 +1,7 @@
 import { gunzipSync } from 'node:zlib'
 import { AltiumParser } from '../../src/core/altium/AltiumParser.mjs'
 
-const AETHER_CORE_CHUNKS = [
+const MOON_CORE_CHUNKS = [
     'H4sIAAAAAAAAE+Vdy24jyZX9ldrY8ANdlfHI14ILipRESnyJpFiiNg2WlK4izCI1FGu6C8jtYGaAwRgwZjFf4M3M0l55Gg14MRt/h1+r/gUjkyIzIjIj8kaS',
     'kUXSjV40RbXynJs37jsiwv55rduvVxAJu9/Mg2Vz/hh8W0GWEzafO4tV9eEheJ6+mwWV4fr73mS5aj5WUPKpPn1+mk0+txePQQWFrcXDZDVdzF/fVYhFko/j',
     'CkZ2WFss58Ey/m77Yf1NazoP3k4fVx8qKKwtZotlBTkuQo5nhXCE8VfN+eBDEKxYiGDAFgfY8lnAxDRgrA0Y+5QDjBEL2GIAW74BwEQfsOdJJRyRSQBjZAAw',
@@ -61,7 +61,7 @@ const AETHER_CORE_CHUNKS = [
     '+doAAA==',
 ]
 
-const LYRA_CORE_CHUNKS = [
+const NOVA_CORE_CHUNKS = [
     'H4sIAAAAAAAAE+Wd627jyLWoX0V/9v4TSGRdeKkDeAOSKHdrZF1MypcOBBjOWHvGOB6r41bvSW8Y8zh5iyBAXiivcFBFiaxVEmWSVqnMOvmT8XQnXh/rsu6r',
     'XuNBfxpHZyh4HT4/LP82fE5+XS7XZ5S+Tn9/Xr7M7l/Ww4ezNnpN1j+elmf4Nfl19ftkuZ7c/7Y8m79erH6+Xz+unju3ZzRw8x+/nPnIfZ2+PC6f1+LfnKHX',
     '/upp9XKGcPg6X/5tffYn0iHXr1fPj3/9vhxGZxfjyey6G396LZDI9ytLhFwgEXIrinQ5/3T1+XbWLRIpwJVF8oBEzKsm0PWs17+5+POsSCDm1vhGCIgUKt8I',
@@ -222,7 +222,7 @@ const LYRA_CORE_CHUNKS = [
     'HDLxp9t/jcT/VQeHYfq/4f9eSD++f/nl8fnMe+1+X/+6ejlL/+v/AbYQJPfvAwMA',
 ]
 
-const BASTION_CORE_CHUNKS = [
+const CINDER_CORE_CHUNKS = [
     'H4sIAAAAAAAAE+Vd227jNhD9mval2EK8SdSDHrZx0nib2FnHue1L4SZC1oDXTh0XbQB9T/+iKNAf6i8UcrIJSYujISUq2u0+re0gPjM85JzhIZVisr83ngwy',
     'worx78t8PVze5H9kVKakGN6PVpu319f5/fyXRZ5Ni+1nw+XpxzzfZPHjz5/M1pvhTUZeXg3m93eL2cPx6ibPSHG0up5t5qvl95eZlPTl5VUWM1HsrdbLfL39',
     'LPr84vGTo/kyv5jfbD5mpNhbLVbrjMQJIbGMCl/EiQdioSHmREVMgyOW7ohToiGmqYpYKIg5CYE49UCc2HOcEgUxTUMgJpEz5DRi9iSnSfAkE+IBObVmuQwn',
@@ -261,86 +261,86 @@ const BASTION_CORE_CHUNKS = [
  */
 export class AltiumFixtureLoader {
     /**
-     * Returns the fake bastion-sheet file name.
+     * Returns the fake cinder-sheet file name.
      * @returns {string}
      */
-    static get bastionSheetFileName() {
-        return 'LumenVeil-A1.01.01G.SchDoc'
+    static get cinderSheetFileName() {
+        return 'Starfall-Cinder.SchDoc'
     }
 
     /**
-     * Returns the fake solace-sheet file name.
+     * Returns the fake dawn-sheet file name.
      * @returns {string}
      */
-    static get solaceSheetFileName() {
-        return 'LumenVeil-A1.01.01A.SchDoc'
+    static get dawnSheetFileName() {
+        return 'Starfall-Dawn.SchDoc'
     }
 
     /**
-     * Returns the fake aether-sheet file name.
+     * Returns the fake moon-sheet file name.
      * @returns {string}
      */
-    static get aetherSheetFileName() {
-        return 'LumenVeil-A1.01.01E.SchDoc'
+    static get moonSheetFileName() {
+        return 'Starfall-Moon.SchDoc'
     }
 
     /**
-     * Returns the fake lyra-sheet file name.
+     * Returns the fake nova-sheet file name.
      * @returns {string}
      */
-    static get lyraSheetFileName() {
-        return 'LumenVeil-A1.01.01F.SchDoc'
+    static get novaSheetFileName() {
+        return 'Starfall-Nova.SchDoc'
     }
 
     /**
      * Returns the fake PCB file name.
      * @returns {string}
      */
-    static get pcbFileName() {
-        return 'LumenVeil-A1.01.08.PcbDoc'
+    static get forgeBoardFileName() {
+        return 'Starfall-Forge.PcbDoc'
     }
 
     /**
-     * Parses the fake solace-sheet fixture.
+     * Parses the fake dawn-sheet fixture.
      * @returns {Promise<ReturnType<typeof AltiumParser.parseArrayBuffer>>}
      */
-    static async parseSolaceSheet() {
+    static async parseDawnSheet() {
         return AltiumFixtureLoader.#parseFixture(
-            this.solaceSheetFileName,
-            AltiumFixtureLoader.#buildSolaceSheetBuffer()
+            this.dawnSheetFileName,
+            AltiumFixtureLoader.#buildDawnSheetBuffer()
         )
     }
 
     /**
-     * Parses the fake bastion-sheet fixture.
+     * Parses the fake cinder-sheet fixture.
      * @returns {Promise<ReturnType<typeof AltiumParser.parseArrayBuffer>>}
      */
-    static async parseBastionSheet() {
+    static async parseCinderSheet() {
         return AltiumFixtureLoader.#parseFixture(
-            this.bastionSheetFileName,
-            AltiumFixtureLoader.#buildBastionSheetBuffer()
+            this.cinderSheetFileName,
+            AltiumFixtureLoader.#buildCinderSheetBuffer()
         )
     }
 
     /**
-     * Parses the fake aether-sheet fixture.
+     * Parses the fake moon-sheet fixture.
      * @returns {Promise<ReturnType<typeof AltiumParser.parseArrayBuffer>>}
      */
-    static async parseAetherSheet() {
+    static async parseMoonSheet() {
         return AltiumFixtureLoader.#parseFixture(
-            this.aetherSheetFileName,
-            AltiumFixtureLoader.#buildAetherSheetBuffer()
+            this.moonSheetFileName,
+            AltiumFixtureLoader.#buildMoonSheetBuffer()
         )
     }
 
     /**
-     * Parses the fake lyra-sheet fixture.
+     * Parses the fake nova-sheet fixture.
      * @returns {Promise<ReturnType<typeof AltiumParser.parseArrayBuffer>>}
      */
-    static async parseLyraSheet() {
+    static async parseNovaSheet() {
         return AltiumFixtureLoader.#parseFixture(
-            this.lyraSheetFileName,
-            AltiumFixtureLoader.#buildLyraSheetBuffer()
+            this.novaSheetFileName,
+            AltiumFixtureLoader.#buildNovaSheetBuffer()
         )
     }
 
@@ -348,10 +348,10 @@ export class AltiumFixtureLoader {
      * Parses the fake PCB fixture.
      * @returns {Promise<ReturnType<typeof AltiumParser.parseArrayBuffer>>}
      */
-    static async parsePcb() {
+    static async parseForgeBoard() {
         return AltiumFixtureLoader.#parseFixture(
-            this.pcbFileName,
-            AltiumFixtureLoader.#buildPcbBuffer()
+            this.forgeBoardFileName,
+            AltiumFixtureLoader.#buildForgeBoardBuffer()
         )
     }
 
@@ -368,15 +368,15 @@ export class AltiumFixtureLoader {
     }
 
     /**
-     * Builds the fake solace-sheet buffer.
+     * Builds the fake dawn-sheet buffer.
      * @returns {ArrayBuffer}
      */
-    static #buildSolaceSheetBuffer() {
+    static #buildDawnSheetBuffer() {
         return AltiumFixtureLoader.#encodeSource(
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0',
-                '|RECORD=41|Name=Title|Text=LUMEN-VEIL-A1|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=1|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -416,15 +416,15 @@ export class AltiumFixtureLoader {
     }
 
     /**
-     * Builds the fake aether-sheet buffer.
+     * Builds the fake moon-sheet buffer.
      * @returns {ArrayBuffer}
      */
-    static #buildAetherSheetBuffer() {
+    static #buildMoonSheetBuffer() {
         return AltiumFixtureLoader.#encodeSource(
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1169|CustomY=827|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=5|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=12|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=22|FontName5=Times New Roman|Bold5=F|Rotation5=0',
-                '|RECORD=41|Name=Title|Text=LUMEN-VEIL-A1|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=4|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -445,21 +445,21 @@ export class AltiumFixtureLoader {
                 '|RECORD=13|Location.X=915|Location.Y=285|Corner.X=925|Corner.Y=285|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=915|Location.Y=275|Corner.X=915|Corner.Y=295|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=1100|Location.Y=760|Corner.X=1110|Corner.Y=760|Color=16777215|LineWidth=1',
-                AltiumFixtureLoader.#decodeCompressedChunks(AETHER_CORE_CHUNKS)
+                AltiumFixtureLoader.#decodeCompressedChunks(MOON_CORE_CHUNKS)
             ].join('')
         )
     }
 
     /**
-     * Builds the fake lyra-sheet buffer.
+     * Builds the fake nova-sheet buffer.
      * @returns {ArrayBuffer}
      */
-    static #buildLyraSheetBuffer() {
+    static #buildNovaSheetBuffer() {
         return AltiumFixtureLoader.#encodeSource(
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=8|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=10|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=10|FontName5=Times New Roman|Bold5=F|Rotation5=0|Size6=10|FontName6=Times New Roman|Bold6=F|Rotation6=0|Size7=10|FontName7=Times New Roman|Bold7=F|Rotation7=0|Size8=10|FontName8=Times New Roman|Bold8=F|Rotation8=0',
-                '|RECORD=41|Name=Title|Text=LUMEN-VEIL-A1|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=5|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -470,21 +470,21 @@ export class AltiumFixtureLoader {
                 '|RECORD=1|LibReference=IC/FAKE/CONTROL-HUB|PartCount=11|DisplayModeCount=1|IndexInSheet=189|OwnerPartId=-1|Location.X=315|Location.Y=225|CurrentPartId=2|UniqueID=XVWFTEXE|Color=128|PartIDLocked=T|DesignItemId=IC/FAKE/CONTROL-HUB|AllPinCount=217',
                 '|RECORD=17|Style=2|ShowNetName=T|Orientation=1|Location.X=100|Location.Y=1010|Color=128|FontID=1|Text=+3.3V',
                 '|RECORD=17|Style=4|ShowNetName=T|Orientation=3|Location.X=1240|Location.Y=815|Color=128|FontID=1|Text=GND',
-                AltiumFixtureLoader.#decodeCompressedChunks(LYRA_CORE_CHUNKS)
+                AltiumFixtureLoader.#decodeCompressedChunks(NOVA_CORE_CHUNKS)
             ].join('')
         )
     }
 
     /**
-     * Builds the fake bastion-sheet buffer.
+     * Builds the fake cinder-sheet buffer.
      * @returns {ArrayBuffer}
      */
-    static #buildBastionSheetBuffer() {
+    static #buildCinderSheetBuffer() {
         return AltiumFixtureLoader.#encodeSource(
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=5|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=10|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=8|FontName5=Times New Roman|Bold5=T|Rotation5=0',
-                '|RECORD=41|Name=Title|Text=LUMEN-RUNE-G1|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=STARFALL-CINDER|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=6|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -509,7 +509,7 @@ export class AltiumFixtureLoader {
                 '|RECORD=4|OwnerIndex=3652|Location.X=415|Location.Y=325|Orientation=3|Rotation=90|Color=8388608|FontID=1|Text=4K7',
                 '|RECORD=13|Location.X=900|Location.Y=675|Corner.X=910|Corner.Y=675|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=910|Location.Y=675|Corner.X=920|Corner.Y=675|Color=8388608|LineWidth=1',
-                AltiumFixtureLoader.#decodeCompressedChunks(BASTION_CORE_CHUNKS)
+                AltiumFixtureLoader.#decodeCompressedChunks(CINDER_CORE_CHUNKS)
             ].join('')
         )
     }
@@ -518,7 +518,7 @@ export class AltiumFixtureLoader {
      * Builds the fake PCB buffer.
      * @returns {ArrayBuffer}
      */
-    static #buildPcbBuffer() {
+    static #buildForgeBoardBuffer() {
         return AltiumFixtureLoader.#encodeSource(
             [
                 '|HEADER=PCB 6.0 Binary File',
@@ -596,7 +596,7 @@ export class AltiumFixtureLoader {
             ],
             ['VVNCIHBvcnQ=', 'Rune Gate'],
             ['UG93ZXI=', 'Cinder Well'],
-            ['U3lzdGVtIC8gTUlESQ==', 'Lyra / Echo'],
+            ['U3lzdGVtIC8gTUlESQ==', 'Nova / Echo'],
             ['QlRfVUFSVA==', 'LYRA_LINK'],
             ['U0FNNTkxNl9DZmcz', 'LYRA_CFG3'],
             ['Q1BVX0lSUQ==', 'AURA_IRQ'],

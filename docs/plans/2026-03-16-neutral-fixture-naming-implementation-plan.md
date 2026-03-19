@@ -19,7 +19,7 @@
 
 **Step 1: Write the failing test**
 
-Update the active tests to call a neutral fixture helper such as `parseBastionSheet()` and rename the legacy fixture-specific test titles/comments to behavior-focused names.
+Update the active tests to call a neutral fixture helper such as `parseCinderSheet()` and rename the legacy fixture-specific test titles/comments to behavior-focused names.
 
 **Step 2: Run test to verify it fails**
 
@@ -45,8 +45,8 @@ git commit -m "test: rename neutral schematic fixture coverage"
 ### Task 2: Rename and sanitize the schematic fixture
 
 **Files:**
-- Create: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
-- Modify: `tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc`
+- Create: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Modify: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
 - Delete: the prior sheet-G fixture path
 
 **Step 1: Write the failing test**
@@ -70,7 +70,7 @@ Expected: PASS with the renamed fixture.
 **Step 5: Commit**
 
 ```bash
-git add tests/fixtures/altium/AtlasControl-A1.01.01G.SchDoc
+git add tests/fixtures/altium/Starfall-Cinder.SchDoc
 git commit -m "test: sanitize neutral schematic fixture data"
 ```
 

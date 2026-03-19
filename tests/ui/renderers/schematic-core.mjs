@@ -345,7 +345,7 @@ test('renderSchematicSvg renders junction dots only for connected wire tees', ()
  */
 test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: AltiumFixtureLoader.aetherSheetFileName,
+        fileName: AltiumFixtureLoader.moonSheetFileName,
         summary: { title: 'Projected schematic' },
         schematic: {
             sheet: {
@@ -357,7 +357,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 xZones: 4,
                 yZones: 4,
                 titleBlock: {
-                    title: 'LUMEN-VEIL-A1',
+                    title: 'STARFALL-ARC',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '4',
@@ -515,7 +515,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     )
     assert.match(markup, /x1="90" y1="70" x2="80" y2="70"/)
     assert.doesNotMatch(markup, /class="schematic-pin-number"[^>]*>2</)
-    assert.match(markup, /LUMEN-VEIL-A1/)
+    assert.match(markup, /STARFALL-ARC/)
     assert.match(markup, /Sheet 4 of 6/)
     assert.match(markup, /sheet-zone-label/)
     assert.equal((markup.match(/class="sheet-zone-separator"/g) || []).length, 12)
@@ -539,7 +539,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     assert.match(markup, /Number/)
     assert.match(markup, /Date:/)
     assert.match(markup, /Drawn By:/)
-    assert.match(markup, /LumenVeil-A1\.01\.01E\.SchDoc/)
+    assert.match(markup, /Starfall-Moon\.SchDoc/)
     assert.match(markup, /schematic-port/)
     assert.match(markup, /schematic-cross/)
 })
@@ -669,8 +669,8 @@ test('renderSchematicSvg renders normalized schematic arcs as SVG paths', () => 
  */
 test('renderSchematicSvg renders the resolved paper size in the title block', () => {
     const markup = SchematicSvgRenderer.render({
-        fileName: AltiumFixtureLoader.solaceSheetFileName,
-        summary: { title: 'Solace schematic' },
+        fileName: AltiumFixtureLoader.dawnSheetFileName,
+        summary: { title: 'Dawn schematic' },
         schematic: {
             sheet: {
                 width: 300,
@@ -680,7 +680,7 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
                 marginWidth: 10,
                 paperSize: 'A3',
                 titleBlock: {
-                    title: 'LUMEN-VEIL-A1',
+                    title: 'STARFALL-ARC',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '1',
@@ -696,6 +696,75 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
     })
 
     assert.match(markup, />A3</)
+})
+
+/**
+ * Verifies already-expanded footer hints stay on-sheet after custom-page
+ * promotion instead of being shifted by the old source-width delta again.
+ */
+test('renderSchematicSvg keeps expanded A2 footer hints on-sheet and renders drawn-by', () => {
+    const markup = SchematicSvgRenderer.render({
+        fileName: 'expanded-footer-hints.SchDoc',
+        summary: { title: 'Expanded footer hints schematic' },
+        schematic: {
+            sheet: {
+                width: 2339,
+                height: 1654,
+                sourceWidth: 1500,
+                borderOn: true,
+                titleBlockOn: true,
+                marginWidth: 20,
+                xZones: 4,
+                yZones: 4,
+                paperSize: 'A2',
+                titleBlock: {
+                    title: 'STARFALL-CINDER',
+                    revision: '01',
+                    documentNumber: 'SIGIL-VAULT',
+                    sheetNumber: '8',
+                    sheetTotal: '8',
+                    date: '3/19/2026',
+                    drawnBy: 'OR',
+                    footerHints: {
+                        title: {
+                            x: 1900,
+                            y: 90,
+                            color: '#000080',
+                            fontSize: 14,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 700
+                        },
+                        documentNumber: {
+                            x: 2130,
+                            y: 90,
+                            color: '#ff0000',
+                            fontSize: 14,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 700
+                        },
+                        revision: {
+                            x: 2125,
+                            y: 60,
+                            color: '#000080',
+                            fontSize: 10,
+                            fontFamily: 'Times New Roman',
+                            fontWeight: 400
+                        }
+                    }
+                }
+            },
+            lines: [],
+            texts: [],
+            components: []
+        }
+    })
+
+    assert.match(markup, /<rect x="1780" y="1546" width="539" height="88" \/>/)
+    assert.match(markup, />STARFALL-CINDER</)
+    assert.match(markup, />SIGIL-VAULT</)
+    assert.match(markup, />01</)
+    assert.match(markup, />OR</)
+    assert.doesNotMatch(markup, /<rect x="1780" y="1546" width="390" height="88" \/>/)
 })
 
 /**

@@ -70,7 +70,7 @@ Implement option 2.
 
 ### Tests
 
-- Add a parser regression on the fake solace sheet proving the `DRDM[0..1]` and `N[7..0]` bus trunks are present and marked as buses.
+- Add a parser regression on the fake dawn sheet proving the `DRDM[0..1]` and `N[7..0]` bus trunks are present and marked as buses.
 - Add a renderer regression proving bus lines emit a thicker stroke than ordinary wires.
 
 ### Docs and Release Hygiene

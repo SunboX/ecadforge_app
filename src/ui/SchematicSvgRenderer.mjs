@@ -6,10 +6,12 @@ import { SchematicPowerPortRenderer } from './SchematicPowerPortRenderer.mjs'
 import { SchematicNoteRenderer } from './SchematicNoteRenderer.mjs'
 import { SchematicDirectiveRenderer } from './SchematicDirectiveRenderer.mjs'
 import { SchematicShapeRenderer } from './SchematicShapeRenderer.mjs'
+import { SchematicPinSvgRenderer } from './SchematicPinSvgRenderer.mjs'
 import { SchematicColorResolver } from './SchematicColorResolver.mjs'
 import { SchematicSheetChromeRenderer } from './SchematicSheetChromeRenderer.mjs'
 import { SchematicContentLayout } from './SchematicContentLayout.mjs'
 import { SchematicOwnerPinLabelLayout } from './SchematicOwnerPinLabelLayout.mjs'
+import { SchematicRegionRenderer } from './SchematicRegionRenderer.mjs'
 
 const {
     createSvgText,
@@ -24,7 +26,7 @@ const {
 export class SchematicSvgRenderer {
     /**
      * Renders a normalized schematic model into SVG markup.
-     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, sourceWidth?: number, sourceHeight?: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean, ownerIndex?: string, renderOrder?: number }[], polygons?: { points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string, renderOrder?: number }[], directives?: { x: number, y: number, color: string, name: string, orientation?: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, isMirrored?: boolean, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex?: string }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
+     * @param {{ fileName?: string, summary: { title?: string }, schematic?: { sheet: { width: number, height: number, sourceWidth?: number, sourceHeight?: number, paperSize?: string, borderOn?: boolean, titleBlockOn?: boolean, marginWidth?: number, xZones?: number, yZones?: number, titleBlock?: { title?: string, revision?: string, documentNumber?: string, sheetNumber?: string, sheetTotal?: string, date?: string, drawnBy?: string } }, lines: { x1: number, y1: number, x2: number, y2: number, color: string, width: number, lineStyle?: number, isBus?: boolean, ownerIndex?: string, renderOrder?: number }[], polygons?: { points: { x: number, y: number }[], color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], rectangles?: { x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], regions?: { x: number, y: number, width: number, height: number, color: string, fill: string, renderOrder?: number }[], ellipses?: { x: number, y: number, radiusX: number, radiusY: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, ownerIndex?: string, renderOrder?: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, color: string, width: number, ownerIndex?: string, renderOrder?: number }[], directives?: { x: number, y: number, color: string, name: string, orientation?: number }[], texts: { x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, isMirrored?: boolean, anchor?: 'start' | 'middle' | 'end', powerPortDirection?: 'up' | 'down' | 'left' | 'right', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }[], components: { x: number, y: number, designator: string }[], pins?: { x: number, y: number, length: number, name: string, nameSegments?: { text: string, overline: boolean }[], designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, symbolOuter?: number, color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex?: string }[], ports?: { x: number, y: number, width: number, height: number, name: string, fill: string, color: string, direction?: 'left' | 'right' | 'up' | 'down', shape?: 'single' | 'double' | 'plain' }[], crosses?: { x: number, y: number, size: number, color: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -39,6 +41,7 @@ export class SchematicSvgRenderer {
         const lines = schematic.lines.slice(0, 2500)
         const polygons = (schematic.polygons || []).slice(0, 1000)
         const rectangles = (schematic.rectangles || []).slice(0, 500)
+        const regions = (schematic.regions || []).slice(0, 250)
         const ellipses = (schematic.ellipses || []).slice(0, 500)
         const arcs = (schematic.arcs || []).slice(0, 1000)
         const directives = (schematic.directives || []).slice(0, 250)
@@ -61,6 +64,7 @@ export class SchematicSvgRenderer {
             schematic.sheet,
             documentModel?.fileName
         )
+        const regionMarkup = SchematicRegionRenderer.buildMarkup(regions, height)
         const contentTransform =
             SchematicContentLayout.buildTransform(width, height, schematic)
         const contentClipId =
@@ -158,7 +162,7 @@ export class SchematicSvgRenderer {
             )
         const pinMarkup = pins
             .map((pin) =>
-                SchematicSvgRenderer.#buildSchematicPinMarkup(
+                SchematicPinSvgRenderer.buildMarkup(
                     pin,
                     height,
                     schematic.sheet,
@@ -258,6 +262,9 @@ export class SchematicSvgRenderer {
             '</g>' +
             '</g>' +
             frameMarkup +
+            '<g class="schematic-regions">' +
+            regionMarkup +
+            '</g>' +
             '</svg></section>'
         )
     }
@@ -595,315 +602,6 @@ export class SchematicSvgRenderer {
             !text.rotation &&
             Number(text.fontSize || 0) >= 20
         )
-    }
-
-    /**
-     * Builds one schematic pin including its stub and visible labels.
-     * @param {{ x: number, y: number, length: number, name: string, designator: string, orientation: 'left' | 'right' | 'top' | 'bottom', electrical?: number, color: string, labelColor?: string, labelMode?: 'hidden' | 'number-only' | 'name-only' | 'name-and-number', ownerIndex?: string }} pin
-     * @param {number} sheetHeight
-     * @param {{ fonts?: Record<string, { size: number, family: string, bold: boolean }> }} sheet
-     * @param {Set<string>} rotatedVerticalNumberOwners
-     * @param {Set<string>} explicitOwnerPinNameLabels
-     * @param {Map<string, number>} explicitOwnerPinLabelOffsets
-     * @returns {string}
-     */
-    static #buildSchematicPinMarkup(
-        pin,
-        sheetHeight,
-        sheet,
-        rotatedVerticalNumberOwners,
-        explicitOwnerPinNameLabels,
-        explicitOwnerPinLabelOffsets
-    ) {
-        const geometry = SchematicSvgRenderer.#projectSchematicPinGeometry(pin)
-        if (!geometry) return ''
-
-        const textOptions =
-            SchematicTypography.buildViewerSchematicFontOptions(sheet)
-        const projectedY = projectSchematicY(sheetHeight, pin.y)
-        const projectedInnerY = projectSchematicY(sheetHeight, geometry.bodyY)
-        const projectedOuterY = projectSchematicY(sheetHeight, geometry.outerY)
-        const texts = []
-        const labelColor = SchematicColorResolver.resolveColor(
-            pin.labelColor || pin.color,
-            '--schematic-text-color'
-        )
-        const labelMode = pin.labelMode || 'name-and-number'
-        const rotateTopNumber =
-            pin.orientation === 'top' &&
-            rotatedVerticalNumberOwners.has(String(pin.ownerIndex || ''))
-        const ownerPinLabelKey =
-            SchematicOwnerPinLabelLayout.buildOwnerPinLabelKey(
-                pin.ownerIndex,
-                pin.name
-            )
-        const hasExplicitOwnerPinName =
-            Boolean(pin.name) && explicitOwnerPinNameLabels.has(ownerPinLabelKey)
-        if (pin.orientation === 'left') {
-            if (labelMode !== 'hidden' && labelMode !== 'name-only') {
-                const numberX = hasExplicitOwnerPinName
-                    ? SchematicOwnerPinLabelLayout.resolveExplicitOwnerPinNumberX(
-                          pin,
-                          geometry.bodyX - 2,
-                          explicitOwnerPinLabelOffsets
-                      )
-                    : geometry.bodyX - 2
-                texts.push(
-                    createSvgText(
-                        'schematic-pin-number',
-                        numberX,
-                        projectedY - 1,
-                        pin.designator,
-                        labelColor,
-                        'end',
-                        textOptions
-                    )
-                )
-            }
-
-            if (
-                labelMode !== 'hidden' &&
-                labelMode !== 'number-only' &&
-                pin.name &&
-                pin.name !== pin.designator &&
-                !hasExplicitOwnerPinName
-            ) {
-                texts.push(
-                    createSvgText(
-                        'schematic-pin-name',
-                        geometry.bodyX + (labelMode === 'name-only' ? 10 : 4),
-                        projectedY + 3,
-                        pin.name,
-                        labelColor,
-                        'start',
-                        textOptions
-                    )
-                )
-            }
-        }
-        if (pin.orientation === 'right') {
-            if (labelMode !== 'hidden' && labelMode !== 'name-only') {
-                const numberX = hasExplicitOwnerPinName
-                    ? SchematicOwnerPinLabelLayout.resolveExplicitOwnerPinNumberX(
-                          pin,
-                          geometry.bodyX + 2,
-                          explicitOwnerPinLabelOffsets
-                      )
-                    : geometry.bodyX + 2
-                texts.push(
-                    createSvgText(
-                        'schematic-pin-number',
-                        numberX,
-                        projectedY - 1,
-                        pin.designator,
-                        labelColor,
-                        'start',
-                        textOptions
-                    )
-                )
-            }
-
-            if (
-                labelMode !== 'hidden' &&
-                labelMode !== 'number-only' &&
-                pin.name &&
-                pin.name !== pin.designator &&
-                !hasExplicitOwnerPinName
-            ) {
-                texts.push(
-                    createSvgText(
-                        'schematic-pin-name',
-                        geometry.bodyX - (labelMode === 'name-only' ? 10 : 4),
-                        projectedY + 3,
-                        pin.name,
-                        labelColor,
-                        'end',
-                        textOptions
-                    )
-                )
-            }
-        }
-        if (
-            labelMode !== 'hidden' &&
-            labelMode !== 'name-only' &&
-            (pin.orientation === 'top' || pin.orientation === 'bottom')
-        ) {
-            texts.push(
-                createSvgText(
-                    'schematic-pin-number',
-                    pin.orientation === 'top' ? geometry.bodyX - 2 : geometry.bodyX - 2,
-                    pin.orientation === 'top'
-                        ? projectedInnerY - 6
-                        : projectedInnerY + 7,
-                    pin.designator,
-                    labelColor,
-                    'middle',
-                    pin.orientation === 'top' && !rotateTopNumber
-                        ? textOptions
-                        : { ...textOptions, rotation: -90 }
-                )
-            )
-        }
-        if (
-            labelMode !== 'hidden' &&
-            labelMode !== 'number-only' &&
-            pin.name &&
-            pin.name !== pin.designator &&
-            !hasExplicitOwnerPinName &&
-            (pin.orientation === 'top' || pin.orientation === 'bottom')
-        ) {
-            texts.push(
-                createSvgText(
-                    'schematic-pin-name',
-                    pin.orientation === 'top' ? geometry.bodyX : geometry.bodyX + 4,
-                    pin.orientation === 'top'
-                        ? projectedInnerY + 4
-                        : projectedInnerY - 4,
-                    pin.name,
-                    labelColor,
-                    pin.orientation === 'top' ? 'end' : 'start',
-                    { ...textOptions, rotation: -90 }
-                )
-            )
-        }
-        const markerMarkup = SchematicSvgRenderer.#buildSchematicPinMarkerMarkup(
-            pin,
-            geometry,
-            sheetHeight
-        )
-
-        return (
-            '<g class="schematic-pin"><line class="schematic-pin-line" x1="' +
-            formatNumber(geometry.bodyX) +
-            '" y1="' +
-            formatNumber(projectedInnerY) +
-            '" x2="' +
-            formatNumber(geometry.outerX) +
-            '" y2="' +
-            formatNumber(projectedOuterY) +
-            '" stroke="' +
-            escapeHtml(
-                SchematicColorResolver.resolveColor(
-                    pin.color,
-                    '--schematic-accent-ink-color'
-                )
-            ) +
-            '" />' +
-            markerMarkup +
-            texts.join('') +
-            '</g>'
-        )
-    }
-
-    /**
-     * Builds the Altium-style twin-triangle pin-type marker on horizontal pins.
-     * @param {{ electrical?: number, orientation: 'left' | 'right' | 'top' | 'bottom', labelColor?: string, color: string }} pin
-     * @param {{ bodyX: number, bodyY: number }} geometry
-     * @param {number} sheetHeight
-     * @returns {string}
-     */
-    static #buildSchematicPinMarkerMarkup(pin, geometry, sheetHeight) {
-        if (Number(pin.electrical || 0) !== 1) {
-            return ''
-        }
-
-        if (pin.orientation !== 'left' && pin.orientation !== 'right') {
-            return ''
-        }
-
-        const direction = pin.orientation === 'left' ? 1 : -1
-        const bodyTipX = geometry.bodyX
-        const bodyBaseX = geometry.bodyX - direction * 5
-        const wireBaseX = geometry.bodyX - direction * 8
-        const wireTipX = geometry.bodyX - direction * 13
-        const halfHeight = 3
-        const projectedY = projectSchematicY(sheetHeight, geometry.bodyY)
-        const fillColor = SchematicColorResolver.resolveFill(
-            'var(--schematic-pin-marker-fill)',
-            '--schematic-fill-light-color'
-        )
-        const strokeColor = SchematicColorResolver.resolveColor(
-            pin.labelColor || pin.color,
-            '--schematic-text-color'
-        )
-
-        return (
-            '<g class="schematic-pin-marker"><polygon points="' +
-            escapeHtml(
-                [
-                    [bodyBaseX, projectedY - halfHeight],
-                    [bodyBaseX, projectedY + halfHeight],
-                    [bodyTipX, projectedY]
-                ]
-                    .map(
-                        ([x, y]) =>
-                            formatNumber(x) + ',' + formatNumber(y)
-                    )
-                    .join(' ')
-            ) +
-            '" fill="' +
-            escapeHtml(fillColor) +
-            '" stroke="' +
-            escapeHtml(strokeColor) +
-            '" stroke-width="0.75" vector-effect="non-scaling-stroke" /><polygon points="' +
-            escapeHtml(
-                [
-                    [wireBaseX, projectedY - halfHeight],
-                    [wireBaseX, projectedY + halfHeight],
-                    [wireTipX, projectedY]
-                ]
-                    .map(
-                        ([x, y]) =>
-                            formatNumber(x) + ',' + formatNumber(y)
-                    )
-                    .join(' ')
-            ) +
-            '" fill="' +
-            escapeHtml(fillColor) +
-            '" stroke="' +
-            escapeHtml(strokeColor) +
-            '" stroke-width="0.75" vector-effect="non-scaling-stroke" /></g>'
-        )
-    }
-
-    /**
-     * Computes the inner endpoint for a schematic pin stub.
-     * @param {{ x: number, y: number, length: number, orientation: 'left' | 'right' | 'top' | 'bottom' }} pin
-     * @returns {{ bodyX: number, bodyY: number, outerX: number, outerY: number } | null}
-     */
-    static #projectSchematicPinGeometry(pin) {
-        switch (pin.orientation) {
-            case 'left':
-                return {
-                    bodyX: pin.x,
-                    bodyY: pin.y,
-                    outerX: pin.x - pin.length,
-                    outerY: pin.y
-                }
-            case 'right':
-                return {
-                    bodyX: pin.x,
-                    bodyY: pin.y,
-                    outerX: pin.x + pin.length,
-                    outerY: pin.y
-                }
-            case 'top':
-                return {
-                    bodyX: pin.x,
-                    bodyY: pin.y,
-                    outerX: pin.x,
-                    outerY: pin.y + pin.length
-                }
-            case 'bottom':
-                return {
-                    bodyX: pin.x,
-                    bodyY: pin.y,
-                    outerX: pin.x,
-                    outerY: pin.y - pin.length
-                }
-            default:
-                return null
-        }
     }
 
     /**
