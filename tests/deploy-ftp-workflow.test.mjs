@@ -31,3 +31,20 @@ test('ftp workflow excludes api htaccess from FTP sync', async () => {
         /name: Deploy api to \.\/api\/[\s\S]*?exclude: \|[\s\S]*?\*\*\/\.htaccess/
     )
 })
+
+/**
+ * Verifies the FTP workflow deploys the package manifest to the LIVE document
+ * root so the PHP metadata endpoint can read the current app version.
+ */
+test('ftp workflow deploys package.json to the live root on dependency changes', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+
+    assert.match(workflow, /name: Stage package manifest for LIVE/)
+    assert.match(workflow, /if: steps\.changes\.outputs\.deps == 'true'/)
+    assert.match(workflow, /mkdir -p \.deploy-root/)
+    assert.match(workflow, /cp package\.json \.deploy-root\/package\.json/)
+    assert.match(
+        workflow,
+        /name: Deploy package manifest to \.\/[\s\S]*?local-dir: \.\/\.deploy-root\/[\s\S]*?server-dir: \.\//
+    )
+})

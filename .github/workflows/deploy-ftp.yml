@@ -123,6 +123,58 @@ jobs:
               if: steps.deploy_api.outcome == 'failure' && steps.deploy_api_retry.outcome == 'failure'
               run: exit 1
 
+            - name: Stage package manifest for LIVE
+              if: steps.changes.outputs.deps == 'true'
+              run: |
+                  rm -rf .deploy-root
+                  mkdir -p .deploy-root
+                  cp package.json .deploy-root/package.json
+
+            - name: Deploy package manifest to ./
+              id: deploy_package_manifest
+              if: steps.changes.outputs.deps == 'true'
+              continue-on-error: true
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./.deploy-root/
+                  server-dir: ./
+                  timeout: 60000
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-root-meta-state.json
+
+            - name: Retry deploy package manifest to ./
+              id: deploy_package_manifest_retry
+              if: steps.deploy_package_manifest.outcome == 'failure'
+              uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+              with:
+                  server: ${{ secrets.FTP_SERVER }}
+                  username: ${{ secrets.FTP_USERNAME }}
+                  password: ${{ secrets.FTP_PASSWORD }}
+                  protocol: ftp
+                  local-dir: ./.deploy-root/
+                  server-dir: ./
+                  timeout: 60000
+                  exclude: |
+                      **/.DS_Store
+                      **/.env
+                      **/.env.*
+                      **/*.env
+                      **/*.env.*
+                  state-name: .ftp-deploy-root-meta-state.json
+
+            - name: Ensure package manifest deploy succeeded
+              if: steps.deploy_package_manifest.outcome == 'failure' && steps.deploy_package_manifest_retry.outcome == 'failure'
+              run: exit 1
+
             - name: Deploy docs to ./docs/
               id: deploy_docs
               if: steps.changes.outputs.docs == 'true'

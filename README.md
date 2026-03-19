@@ -4,6 +4,8 @@ Browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files.
 
 Open schematics, inspect PCB layouts, and explore 3D boards directly in your browser — with more ECAD formats coming soon.
 
+LIVE: [https://ecadforge.app/](https://ecadforge.app/)
+
 ## Features
 
 - Client-side parsing for native Altium files with no server-side preprocessing
@@ -20,7 +22,7 @@ Open schematics, inspect PCB layouts, and explore 3D boards directly in your bro
 - `src/core/altium/`: printable-record extraction and normalized Altium parsers
 - `src/ui/`: viewer shell and markup renderers
 - `src/workers/altium-parser.worker.mjs`: off-main-thread native parsing
-- `api/`: deployable PHP metadata endpoint and version manifest for FTP hosts
+- `api/`: deployable PHP metadata endpoint for FTP/shared-hosting deployments
 - `tests/`: parser, renderer, state, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting
 - `spec/`: product scope and acceptance criteria
@@ -42,6 +44,8 @@ npm start
 ```
 
 Open `http://localhost:3000/` and load a native `.SchDoc` or `.PcbDoc` file.
+
+Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
 
 ## Test
 
