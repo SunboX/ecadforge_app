@@ -357,7 +357,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 xZones: 4,
                 yZones: 4,
                 titleBlock: {
-                    title: 'STARFALL-ARC',
+                    title: 'SKYLACE-ARC',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '4',
@@ -387,7 +387,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
                 {
                     x: 120,
                     y: 70,
-                    text: '+3.3V',
+                    text: 'AURA_3V3',
                     color: '#800000',
                     hidden: false,
                     recordType: '17',
@@ -478,7 +478,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     assert.match(markup, /<line x1="20" y1="20" x2="50" y2="20"/)
     assert.match(
         markup,
-        /<text class="schematic-label" x="100" y="31" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="21" font-family="Times New Roman"/
+        /<text class="schematic-label" x="20" y="20" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="21" font-family="Times New Roman"/
     )
     assert.match(markup, /schematic-power-port--rail/)
     assert.match(
@@ -515,7 +515,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     )
     assert.match(markup, /x1="90" y1="70" x2="80" y2="70"/)
     assert.doesNotMatch(markup, /class="schematic-pin-number"[^>]*>2</)
-    assert.match(markup, /STARFALL-ARC/)
+    assert.match(markup, /SKYLACE-ARC/)
     assert.match(markup, /Sheet 4 of 6/)
     assert.match(markup, /sheet-zone-label/)
     assert.equal((markup.match(/class="sheet-zone-separator"/g) || []).length, 12)
@@ -539,7 +539,7 @@ test('renderSchematicSvg inverts schematic Y coordinates for SVG', () => {
     assert.match(markup, /Number/)
     assert.match(markup, /Date:/)
     assert.match(markup, /Drawn By:/)
-    assert.match(markup, /Starfall-Moon\.SchDoc/)
+    assert.match(markup, /Skylace-Moon\.SchDoc/)
     assert.match(markup, /schematic-port/)
     assert.match(markup, /schematic-cross/)
 })
@@ -680,7 +680,7 @@ test('renderSchematicSvg renders the resolved paper size in the title block', ()
                 marginWidth: 10,
                 paperSize: 'A3',
                 titleBlock: {
-                    title: 'STARFALL-ARC',
+                    title: 'SKYLACE-ARC',
                     revision: '01',
                     documentNumber: '',
                     sheetNumber: '1',
@@ -718,7 +718,7 @@ test('renderSchematicSvg keeps expanded A2 footer hints on-sheet and renders dra
                 yZones: 4,
                 paperSize: 'A2',
                 titleBlock: {
-                    title: 'STARFALL-CINDER',
+                    title: 'SKYLACE-CINDER',
                     revision: '01',
                     documentNumber: 'SIGIL-VAULT',
                     sheetNumber: '8',
@@ -760,7 +760,7 @@ test('renderSchematicSvg keeps expanded A2 footer hints on-sheet and renders dra
     })
 
     assert.match(markup, /<rect x="1780" y="1546" width="539" height="88" \/>/)
-    assert.match(markup, />STARFALL-CINDER</)
+    assert.match(markup, />SKYLACE-CINDER</)
     assert.match(markup, />SIGIL-VAULT</)
     assert.match(markup, />01</)
     assert.match(markup, />OR</)

@@ -43,3 +43,17 @@ test('shouldReloadForStaleModules detects stale loaded modules', () => {
         false
     )
 })
+
+/**
+ * Verifies stale-tab reloads change the page URL itself so browsers fetch a
+ * fresh HTML shell instead of reusing an already-open document state.
+ */
+test('buildReloadUrl appends the current server version to the page URL', () => {
+    assert.equal(
+        AppRuntimeVersion.buildReloadUrl(
+            'http://localhost:3000/?foo=1',
+            '1.1.104'
+        ),
+        'http://localhost:3000/?foo=1&reload=1.1.104'
+    )
+})

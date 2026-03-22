@@ -80,7 +80,7 @@ Use **Approach 3**.
 
 Treat each native fixture as a mutation target rather than a template to leave mostly untouched. Rewrite high-signal visible content and metadata across all five files: titles, document labels, component designators where practical, library references, room and hierarchy names, source descriptions, and selected text labels that the tests currently assert. Preserve the structural record classes that exercise the parser: rotated texts, style-4 ports, multipart passive owners, note boxes, dashed callouts, bus labels, connector pin columns, PCB board-outline primitives, and component placements.
 
-The tests will stay parser-backed. Where a test currently depends on a specific string such as `Q12`, `WYRN`, `Q24`, `GLYPH_0`, `GLYPH_1`, `AURA_IRQ`, `AURA_CS`, `GLYPH_CS`, `Q92A`, or `P4`, update both the fixture payload and the assertion together. Keep exact coordinate and rotation assertions where they are the regression contract; only relax selectors when the name itself is incidental to the behavior.
+The tests will stay parser-backed. Where a test currently depends on a specific string such as `SIGIL12`, `WYRN`, `SIGIL24`, `GLYPH_0`, `GLYPH_1`, `AURA_IRQ`, `AURA_CS`, `GLYPH_CS`, `SIGIL92A`, or `PIER4`, update both the fixture payload and the assertion together. Keep exact coordinate and rotation assertions where they are the regression contract; only relax selectors when the name itself is incidental to the behavior.
 
 ## Data Strategy
 

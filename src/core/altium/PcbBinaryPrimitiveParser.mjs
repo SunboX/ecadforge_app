@@ -3,6 +3,10 @@
  * PcbDoc files.
  */
 export class PcbBinaryPrimitiveParser {
+    static #ARC_OBJECT_ID = 1
+
+    static #ARC_RECORD_MIN_BYTE_LENGTH = 45
+
     static #TRACK_OBJECT_ID = 4
 
     static #PAD_OBJECT_ID = 2
@@ -118,6 +122,73 @@ export class PcbBinaryPrimitiveParser {
             layerCode: view.getUint16(46, true),
             layerId: view.getUint8(5)
         }))
+    }
+
+    /**
+     * Decodes one length-prefixed arc stream.
+     * @param {Uint8Array | ArrayBuffer} headerBytes
+     * @param {Uint8Array | ArrayBuffer} dataBytes
+     * @returns {{ x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode: number, layerId: number }[]}
+     */
+    static parseArcStream(headerBytes, dataBytes) {
+        const count = PcbBinaryPrimitiveParser.#readRecordCount(headerBytes)
+        const normalizedData = PcbBinaryPrimitiveParser.#toUint8Array(dataBytes)
+
+        if (!count) {
+            return []
+        }
+
+        let offset = 0
+        const arcs = []
+
+        for (let index = 0; index < count; index += 1) {
+            if (offset + 5 > normalizedData.byteLength) {
+                return []
+            }
+
+            const objectId = normalizedData[offset]
+            offset += 1
+
+            if (objectId !== PcbBinaryPrimitiveParser.#ARC_OBJECT_ID) {
+                return []
+            }
+
+            const payloadLength = new DataView(
+                normalizedData.buffer,
+                normalizedData.byteOffset + offset,
+                4
+            ).getUint32(0, true)
+            offset += 4
+
+            if (
+                payloadLength < PcbBinaryPrimitiveParser.#ARC_RECORD_MIN_BYTE_LENGTH ||
+                offset + payloadLength > normalizedData.byteLength
+            ) {
+                return []
+            }
+
+            const payload = new DataView(
+                normalizedData.buffer,
+                normalizedData.byteOffset + offset,
+                payloadLength
+            )
+            const layerId = payload.getUint8(0)
+
+            arcs.push({
+                x: PcbBinaryPrimitiveParser.#readMil(payload, 13),
+                y: PcbBinaryPrimitiveParser.#readMil(payload, 17),
+                radius: PcbBinaryPrimitiveParser.#readMil(payload, 21),
+                startAngle: payload.getFloat64(25, true),
+                endAngle: payload.getFloat64(33, true),
+                width: PcbBinaryPrimitiveParser.#readMil(payload, 41),
+                layerCode: layerId,
+                layerId
+            })
+
+            offset += payloadLength
+        }
+
+        return arcs
     }
 
     /**

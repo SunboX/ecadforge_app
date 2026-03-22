@@ -287,7 +287,7 @@ test('parseAltiumArrayBuffer keeps the nova left-side resistor designator aligne
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const anchors = documentModel.schematic.texts
         .filter(
-            (text) => text.text === 'R11' && text.ownerIndex === '1461'
+            (text) => text.text === 'GLINT11' && text.ownerIndex === '1461'
         )
         .map((text) => ({
             text: text.text,
@@ -295,7 +295,7 @@ test('parseAltiumArrayBuffer keeps the nova left-side resistor designator aligne
         }))
         .sort((left, right) => left.text.localeCompare(right.text))
 
-    assert.deepEqual(anchors, [{ text: 'R11', anchor: 'end' }])
+    assert.deepEqual(anchors, [{ text: 'GLINT11', anchor: 'end' }])
 })
 
 /**
@@ -305,7 +305,7 @@ test('parseAltiumArrayBuffer keeps the nova left-side resistor designator aligne
 test('parseAltiumArrayBuffer pads moon gate designators above the body', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const designators = documentModel.schematic.texts
-        .filter((text) => ['K29', 'K31'].includes(text.text))
+        .filter((text) => ['KITE29', 'KITE31'].includes(text.text))
         .map((text) => ({
             text: text.text,
             y: text.y,
@@ -314,8 +314,8 @@ test('parseAltiumArrayBuffer pads moon gate designators above the body', async (
         .sort((left, right) => left.text.localeCompare(right.text))
 
     assert.deepEqual(designators, [
-        { text: 'K29', y: 224, anchor: 'start' },
-        { text: 'K31', y: 234, anchor: 'start' }
+        { text: 'KITE29', y: 224, anchor: 'start' },
+        { text: 'KITE31', y: 234, anchor: 'start' }
     ])
 })
 
@@ -326,7 +326,7 @@ test('parseAltiumArrayBuffer pads moon gate designators above the body', async (
 test('parseAltiumArrayBuffer keeps moon bottom connector designators left-to-right', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const designator = documentModel.schematic.texts.find(
-        (text) => text.text === 'P5'
+        (text) => text.text === 'PIER5'
     )
 
     assert.deepEqual(
@@ -337,7 +337,7 @@ test('parseAltiumArrayBuffer keeps moon bottom connector designators left-to-rig
             anchor: designator?.anchor
         },
         {
-            text: 'P5',
+            text: 'PIER5',
             x: 974,
             y: 244,
             anchor: 'start'
@@ -385,6 +385,57 @@ test('parseAltiumArrayBuffer preserves solid schematic polygons and outline line
             .length,
         3
     )
+})
+
+/**
+ * Verifies solid owner body rectangles without IndexInSheet stay behind their
+ * owner's indexed contact primitives instead of inheriting unrelated global
+ * rectangle-order offsets from elsewhere on the sheet.
+ */
+test('parseAltiumArrayBuffer infers missing owner body render order from contained indexed geometry', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=500|CustomY=300|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=14|OwnerIndex=700|OwnerPartId=1|Location.X=300|Location.Y=330|Corner.X=350|Corner.Y=520|LineWidth=1|Color=128|AreaColor=11599871|IsSolid=T',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=1|OwnerPartId=1|Location.X=319|Location.Y=497|Corner.X=338|Corner.Y=503|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=2|OwnerPartId=1|Location.X=328|Location.Y=500|Corner.X=350|Corner.Y=500|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=3|OwnerPartId=1|Location.X=319|Location.Y=477|Corner.X=338|Corner.Y=483|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=4|OwnerPartId=1|Location.X=328|Location.Y=480|Corner.X=350|Corner.Y=480|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=5|OwnerPartId=1|Location.X=319|Location.Y=457|Corner.X=338|Corner.Y=463|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=6|OwnerPartId=1|Location.X=328|Location.Y=460|Corner.X=350|Corner.Y=460|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=7|OwnerPartId=1|Location.X=319|Location.Y=437|Corner.X=338|Corner.Y=443|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=8|OwnerPartId=1|Location.X=328|Location.Y=440|Corner.X=350|Corner.Y=440|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=9|OwnerPartId=1|Location.X=319|Location.Y=417|Corner.X=338|Corner.Y=423|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=10|OwnerPartId=1|Location.X=328|Location.Y=420|Corner.X=350|Corner.Y=420|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=11|OwnerPartId=1|Location.X=319|Location.Y=397|Corner.X=338|Corner.Y=403|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=12|OwnerPartId=1|Location.X=328|Location.Y=400|Corner.X=350|Corner.Y=400|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=13|OwnerPartId=1|Location.X=319|Location.Y=367|Corner.X=338|Corner.Y=373|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=14|OwnerPartId=1|Location.X=328|Location.Y=370|Corner.X=350|Corner.Y=370|LineWidth=1|Color=16711680',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=15|OwnerPartId=1|Location.X=319|Location.Y=347|Corner.X=338|Corner.Y=353|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=16|OwnerPartId=1|Location.X=328|Location.Y=350|Corner.X=350|Corner.Y=350|LineWidth=1|Color=16711680'
+    ]
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'side-view-stack-order.SchDoc',
+        new TextEncoder().encode(records.join('')).buffer
+    )
+    const ownerRectangles = documentModel.schematic.rectangles.filter(
+        (rectangle) => rectangle.ownerIndex === '700'
+    )
+    const bodyRectangle = ownerRectangles.find(
+        (rectangle) =>
+            rectangle.x === 300 &&
+            rectangle.y === 330 &&
+            rectangle.width === 50 &&
+            rectangle.height === 190
+    )
+
+    assert.deepEqual(
+        ownerRectangles.map((rectangle) => rectangle.renderOrder),
+        [0.5, 1, 3, 5, 7, 9, 11, 13, 15]
+    )
+    assert.equal(bodyRectangle?.renderOrder, 0.5)
 })
 
 /**
@@ -662,10 +713,10 @@ test('parseAltiumArrayBuffer keeps component-connected wire labels readable on t
 })
 
 /**
- * Verifies the moon sheet keeps the Q12 diode body polygon as drawable
+ * Verifies the moon sheet keeps the SIGIL12 diode body polygon as drawable
  * line segments so the symbol triangle is visible.
  */
-test('parseAltiumArrayBuffer preserves the moon-sheet Q12 diode triangle', async () => {
+test('parseAltiumArrayBuffer preserves the moon-sheet SIGIL12 diode triangle', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
 
     assert.equal(

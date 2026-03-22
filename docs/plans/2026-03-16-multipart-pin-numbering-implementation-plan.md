@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Remove overlapping pin numbers from control-sheet multipart resistor networks and make visible multipart designators render as `R92A/B/C/D` while keeping the connector as `J4`.
+**Goal:** Remove overlapping pin numbers from control-sheet multipart resistor networks and make visible multipart designators render as `GLINT92A/B/C/D` while keeping the connector as `PORT4`.
 
 **Architecture:** Keep the fix inside schematic normalization. Extend multipart owner matching so left-anchored passive owners resolve to their active `OwnerPartId`, then tighten multipart designator decoration so suffixes only appear when multiple active owners share the same base designator text.
 
@@ -30,17 +30,17 @@ Expected: FAIL because the current matcher only scores corner anchors and misses
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
 **Step 1: Write the failing tests**
 
 Add one parser-backed control-sheet regression that asserts:
 
-- the visible designator texts include `R92A`, `R92B`, `R92C`, and `R92D`
-- the visible designator texts include `J4`
-- the visible designator texts do not include `J4A`
+- the visible designator texts include `GLINT92A`, `GLINT92B`, `GLINT92C`, and `GLINT92D`
+- the visible designator texts include `PORT4`
+- the visible designator texts do not include `PORT4A`
 
-Add one parser-backed control-sheet pin regression that asserts each multipart `R92` owner exposes exactly two pin designators after normalization:
+Add one parser-backed control-sheet pin regression that asserts each multipart `GLINT92` owner exposes exactly two pin designators after normalization:
 
 ```js
 const pinGroups = [...new Set(['4010', '4050', '4088', '4126'])].map(
@@ -60,29 +60,29 @@ Assert the groups resolve to the expected active pairs instead of four overlappi
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: FAIL because the current control-sheet parse still exposes overlapping `R92` owner pins and `J4A`.
+Expected: FAIL because the current control-sheet parse still exposes overlapping `GLINT92` owner pins and `PORT4A`.
 
 ### Task 3: Lock the rendered control-sheet labels in a failing SVG regression
 
 **Files:**
 - Modify: `tests/ui/renderers.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
 Add a control-sheet renderer regression that renders the parsed fixture and asserts:
 
-- `>R92A<`, `>R92B<`, `>R92C<`, and `>R92D<` are present
-- `>J4<` is present
-- `>J4A<` is absent
+- `>GLINT92A<`, `>GLINT92B<`, `>GLINT92C<`, and `>GLINT92D<` are present
+- `>PORT4<` is present
+- `>PORT4A<` is absent
 
-If practical, also assert the specific overlapping inactive pin numbers for one `R92` section are absent from the rendered markup.
+If practical, also assert the specific overlapping inactive pin numbers for one `GLINT92` section are absent from the rendered markup.
 
 **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/ui/renderers.test.mjs`
 
-Expected: FAIL because the current renderer output still contains `J4A` and the unsuffixed `R92` texts.
+Expected: FAIL because the current renderer output still contains `PORT4A` and the unsuffixed `GLINT92` texts.
 
 ### Task 4: Implement passive multipart owner matching
 
@@ -119,7 +119,7 @@ Change multipart designator decoration so it:
 - starts from the active multipart owners already selected by the matcher
 - groups visible `Designator` texts by their current base text
 - appends the formatted multipart suffix only when more than one active owner shares that same base text
-- leaves single visible multipart designators such as `J4` unchanged
+- leaves single visible multipart designators such as `PORT4` unchanged
 
 Keep the existing suffix formatting and avoid changing non-designator texts.
 

@@ -148,6 +148,35 @@ test('app shell includes localized footer metadata and footer-only version UI', 
 })
 
 /**
+ * Verifies the app shell exposes only the multi-file picker and does not ship
+ * a dedicated project-folder picker button.
+ */
+test('app shell uses one multi-file picker instead of a folder picker button', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const englishRaw = await readFile(new URL('src/i18n/en.json', root), 'utf8')
+    const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
+
+    const englishMessages = JSON.parse(englishRaw)
+    const germanMessages = JSON.parse(germanRaw)
+
+    assert.match(indexRaw, /id="fileInput"/)
+    assert.match(indexRaw, /type="file"/)
+    assert.match(indexRaw, /multiple/)
+    assert.doesNotMatch(indexRaw, /id="folderInput"/)
+    assert.doesNotMatch(indexRaw, /webkitdirectory/)
+    assert.equal(englishMessages['app.dropHint'], 'Drag PCB files here')
+    assert.equal(germanMessages['app.dropHint'], 'PCB-Dateien hier ablegen')
+    assert.equal(
+        englishMessages['status.ready'],
+        'Drop a native SchDoc, PcbDoc, or companion model file to begin.'
+    )
+    assert.equal(
+        germanMessages['status.ready'],
+        'Native SchDoc-, PcbDoc- oder Begleitmodell-Datei ablegen, um zu starten.'
+    )
+})
+
+/**
  * Verifies runtime metadata is sourced only from package.json.
  */
 test('runtime app metadata uses package.json as the only version source', async () => {

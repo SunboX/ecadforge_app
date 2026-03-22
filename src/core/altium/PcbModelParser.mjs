@@ -18,8 +18,8 @@ export class PcbModelParser {
      * Parses a normalized PCB model.
      * @param {string} fileName
      * @param {{ raw: string, fields: Record<string, string | string[]>, sourceStream?: string }[]} records
-     * @param {{ streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null} pcbExtraction
-     * @returns {{ kind: 'pcb', fileType: 'PcbDoc', fileName: string, summary: Record<string, number | string>, diagnostics: { severity: 'info' | 'warning', message: string }[], pcb: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], primitiveLayers: { layerId: number, name: string }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[], polygons: { layer: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[] }}
+     * @param {{ streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null} pcbExtraction
+     * @returns {{ kind: 'pcb', fileType: 'PcbDoc', fileName: string, summary: Record<string, number | string>, diagnostics: { severity: 'info' | 'warning', message: string }[], pcb: { boardOutline: { widthMil: number, heightMil: number, minX: number, minY: number, segments: Array<Record<string, number | string>> }, layers: { index: number, name: string, layerId: number | null }[], primitiveLayers: { layerId: number, name: string }[], components: { designator: string, x: number, y: number, layer: string, pattern: string, rotation: number, source: string, description: string, height: number | null }[], polygons: { layer: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number, layerId: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number, layerId: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, bom: { designators: string[], quantity: number, pattern: string, source: string, value: string }[] }}
      */
     static parse(fileName, records, pcbExtraction = null) {
         const boardRecords = records.filter(
@@ -85,9 +85,20 @@ export class PcbModelParser {
             }))
             .filter((polygon) => polygon.segments.length > 0)
         const tracks = pcbExtraction?.binaryPrimitives?.tracks || []
+        const arcs = pcbExtraction?.binaryPrimitives?.arcs || []
         const vias = pcbExtraction?.binaryPrimitives?.vias || []
         const fills = pcbExtraction?.binaryPrimitives?.fills || []
         const pads = pcbExtraction?.binaryPrimitives?.pads || []
+        const extractedEmbeddedModels = Array.isArray(
+            pcbExtraction?.embeddedModels?.models
+        )
+            ? pcbExtraction.embeddedModels.models
+            : []
+        const extractedComponentBodies = Array.isArray(
+            pcbExtraction?.embeddedModels?.componentBodies
+        )
+            ? pcbExtraction.embeddedModels.componentBodies
+            : []
         const recoveredOutline = PcbOutlineRecovery.recoverOutline({
             fallbackOutline: fallbackBoardOutline,
             components: componentRecords,
@@ -99,10 +110,15 @@ export class PcbModelParser {
             polygons,
             fills,
             tracks,
+            arcs,
             vias,
             pads,
             components: componentRecords
         })
+        const componentBodies = PcbModelParser.#normalizeComponentBodies(
+            extractedComponentBodies,
+            boardOutline
+        )
         const bom = PcbModelParser.#groupBomRows(
             componentRecords.map((component) => ({
                 designator: component.designator,
@@ -145,6 +161,8 @@ export class PcbModelParser {
                     'Decoded ' +
                     tracks.length +
                     ' tracks, ' +
+                    arcs.length +
+                    ' arcs, ' +
                     vias.length +
                     ' vias, ' +
                     pads.length +
@@ -153,6 +171,16 @@ export class PcbModelParser {
                     ' fills, and ' +
                     polygons.length +
                     ' polygons.'
+            })
+        }
+
+        if (extractedEmbeddedModels.length) {
+            diagnostics.push({
+                severity: 'info',
+                message:
+                    'Recovered ' +
+                    extractedEmbeddedModels.length +
+                    ' embedded 3D model payloads.'
             })
         }
 
@@ -194,6 +222,7 @@ export class PcbModelParser {
                 bomRowCount: bom.length,
                 polygonCount: polygons.length,
                 trackCount: tracks.length,
+                arcCount: arcs.length,
                 viaCount: vias.length,
                 boardWidthMil: Math.round(boardOutline.widthMil),
                 boardHeightMil: Math.round(boardOutline.heightMil)
@@ -207,8 +236,11 @@ export class PcbModelParser {
                 polygons: normalizedPcb.polygons,
                 fills: normalizedPcb.fills,
                 tracks: normalizedPcb.tracks,
+                arcs: normalizedPcb.arcs,
                 vias: normalizedPcb.vias,
-                pads: normalizedPcb.pads
+                pads: normalizedPcb.pads,
+                embeddedModels: extractedEmbeddedModels,
+                componentBodies
             },
             bom
         }
@@ -247,5 +279,48 @@ export class PcbModelParser {
         return [...groupedRows.values()].sort((left, right) =>
             left.pattern.localeCompare(right.pattern)
         )
+    }
+
+    /**
+     * Flips embedded component-body placements into the viewer coordinate
+     * system.
+     * @param {{ sourceStream: string, layer: string, identifier: string, modelId: string, checksum: number | null, embedded: boolean, name: string, positionMil: { x: number, y: number }, rotationDeg: number, modelRotationDeg: { x: number, y: number, z: number }, dzMil: number, overallHeightMil: number | null, standoffHeightMil: number | null }[]} componentBodies
+     * @param {{ minY: number, heightMil: number }} boardOutline
+     * @returns {{ sourceStream: string, layer: string, identifier: string, modelId: string, checksum: number | null, embedded: boolean, name: string, positionMil: { x: number, y: number }, rotationDeg: number, modelRotationDeg: { x: number, y: number, z: number }, dzMil: number, overallHeightMil: number | null, standoffHeightMil: number | null }[]}
+     */
+    static #normalizeComponentBodies(componentBodies, boardOutline) {
+        const maxY =
+            Number(boardOutline?.minY || 0) + Number(boardOutline?.heightMil || 0)
+        const mirrorY = (value) =>
+            Number(boardOutline?.minY || 0) + maxY - Number(value || 0)
+
+        return componentBodies.map((componentBody) => ({
+            ...componentBody,
+            positionMil: {
+                x: Number(componentBody.positionMil?.x || 0),
+                y: mirrorY(componentBody.positionMil?.y || 0)
+            },
+            rotationDeg: PcbModelParser.#normalizeAngle(
+                360 - Number(componentBody.rotationDeg || 0)
+            ),
+            modelRotationDeg: {
+                x: Number(componentBody.modelRotationDeg?.x || 0),
+                y: Number(componentBody.modelRotationDeg?.y || 0),
+                z: PcbModelParser.#normalizeAngle(
+                    360 - Number(componentBody.modelRotationDeg?.z || 0)
+                )
+            }
+        }))
+    }
+
+    /**
+     * Normalizes one angle into the range [0, 360).
+     * @param {number} angle
+     * @returns {number}
+     */
+    static #normalizeAngle(angle) {
+        const normalized = Number(angle || 0) % 360
+
+        return normalized < 0 ? normalized + 360 : normalized
     }
 }

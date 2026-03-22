@@ -2,22 +2,24 @@
 
 ## 1. Goal
 
-Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files with client-side parsing, normalized document models, and browser views for schematic, PCB, 3D summary, BOM, and diagnostics.
+Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files with client-side parsing, normalized document models, and browser views for schematic, PCB, interactive 3D, BOM, and diagnostics.
 
 ## 2. Functional Requirements
 
 1. The app starts via `npm start` and serves the browser app locally.
-2. The app accepts standalone native `.SchDoc` and `.PcbDoc` files through drag-and-drop or file selection.
+2. The app accepts standalone native `.SchDoc` and `.PcbDoc` files, companion `.PrjPcb`/`WRL`/`STEP` assets, and project-folder selections through drag-and-drop or file selection.
 3. Parsing runs client-side in browser JavaScript with worker offload and main-thread fallback.
 4. The app normalizes recovered native data into a shared viewer model.
-5. The `Schematic` tab renders recovered schematic geometry and text.
+5. The `Schematic` tab renders recovered schematic geometry, hierarchy markers, embedded-image placements, and text.
 6. The `PCB` tab renders recovered board outline, layer metadata, and component placements.
-7. The `3D` tab renders a presentational 3D-style board summary from PCB dimensions and placements.
+7. The `3D` tab renders an interactive PCB scene with orbit, pan, zoom, procedural board/package geometry, embedded STEP extraction from lone `.PcbDoc` files, and companion-model resolution when matching session assets are available.
 8. The `BOM` tab renders grouped component rows from recovered metadata.
-9. The `Diagnostics` tab exposes parser recovery and warning messages.
+9. The `Diagnostics` tab exposes parser recovery, connectivity, and warning messages.
 10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
 11. The test suite validates parser behavior, renderer output, and project structure.
 12. Runtime language switching remains available for the shell UI.
+13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
+14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
 
 ## 3. Non-Functional Requirements
 
@@ -31,7 +33,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 ## 4. Architecture
 
 1. `src/core/`: state and domain primitives.
-2. `src/core/altium/`: binary-to-printable recovery and normalized Altium parsing.
+2. `src/core/altium/`: binary-to-printable recovery, targeted OLE-backed recovery where required, and normalized Altium parsing.
 3. `src/ui/`: view/render modules.
 4. `src/AppController.mjs`: orchestration and action layer.
 5. `src/workers/altium-parser.worker.mjs`: worker parser entrypoint.
@@ -45,6 +47,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 3. Escape parser-derived text before inserting it into the DOM.
 4. Document any external network call behavior.
 5. Do not upload native design files anywhere.
+6. Resolve embedded schematic images from the local file container only; never fetch remote image assets during parsing.
 
 ## 6. Acceptance Criteria
 
@@ -53,5 +56,8 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 3. The UI can load a native `.SchDoc` and show a populated schematic view.
 4. The UI can load a native `.PcbDoc` and show a populated PCB view.
 5. The `BOM`, `3D`, and `Diagnostics` tabs render from the normalized model without crashing.
-6. Docs and spec files are present and linked from `README.md`.
-7. The app version shown in UI matches the single-source version in `package.json`.
+6. The `3D` tab remains usable from a lone `.PcbDoc`, renders embedded STEP payloads when the board file contains them, and upgrades to companion `WRL`/`STEP` models when the user also loads matching files in the same session.
+7. Docs and spec files are present and linked from `README.md`.
+8. The app version shown in UI matches the single-source version in `package.json`.
+9. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
+10. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads or conflicting explicit net names.

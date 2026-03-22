@@ -17,3 +17,18 @@ test('buildParserWorkerUrl appends a cache-busting key', () => {
         'http://localhost:3000/workers/altium-parser.worker.mjs?v=12345'
     )
 })
+
+/**
+ * Verifies 3D scene worker URLs get the same cache-busting query key.
+ */
+test('buildScene3dWorkerUrl appends a cache-busting key', () => {
+    const workerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
+        'http://localhost:3000/main.mjs',
+        '12345'
+    )
+
+    assert.equal(
+        workerUrl.href,
+        'http://localhost:3000/workers/pcb-scene3d.worker.mjs?v=12345'
+    )
+})

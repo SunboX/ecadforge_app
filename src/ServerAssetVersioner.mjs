@@ -25,6 +25,37 @@ export class ServerAssetVersioner {
     }
 
     /**
+     * Rewrites relative JavaScript specifiers in browser ESM source so the
+     * current asset version propagates through transitive local import graphs.
+     * @param {string} source
+     * @param {string} versionKey
+     * @returns {string}
+     */
+    static rewriteRelativeJavaScriptSpecifiers(source, versionKey) {
+        const patterns = [
+            /(from\s+['"])(\.{1,2}\/[^'"]+\.(?:mjs|js)(?:\?[^'"]*)?)(['"])/g,
+            /(import\s+['"])(\.{1,2}\/[^'"]+\.(?:mjs|js)(?:\?[^'"]*)?)(['"])/g,
+            /(import\s*\(\s*['"])(\.{1,2}\/[^'"]+\.(?:mjs|js)(?:\?[^'"]*)?)(['"]\s*\))/g,
+            /(new URL\(\s*['"])(\.{1,2}\/[^'"]+\.(?:mjs|js)(?:\?[^'"]*)?)(['"]\s*,\s*import\.meta\.url\s*\))/g
+        ]
+
+        return patterns.reduce(
+            (rewrittenSource, pattern) =>
+                rewrittenSource.replace(
+                    pattern,
+                    (_match, prefix, specifier, suffix) =>
+                        prefix +
+                        ServerAssetVersioner.appendVersionQuery(
+                            specifier,
+                            versionKey
+                        ) +
+                        suffix
+                ),
+            String(source || '')
+        )
+    }
+
+    /**
      * Rewrites the static HTML shell to request versioned CSS and JS assets.
      * @param {string} source
      * @param {string} versionKey
@@ -60,26 +91,42 @@ export class ServerAssetVersioner {
      * @returns {string}
      */
     static rewriteJavaScriptModule(source, versionKey) {
-        const patterns = [
-            /(from\s+['"])(\.{1,2}\/[^'"]+\.mjs(?:\?[^'"]*)?)(['"])/g,
-            /(import\s+['"])(\.{1,2}\/[^'"]+\.mjs(?:\?[^'"]*)?)(['"])/g,
-            /(import\s*\(\s*['"])(\.{1,2}\/[^'"]+\.mjs(?:\?[^'"]*)?)(['"]\s*\))/g,
-            /(new URL\(\s*['"])(\.{1,2}\/[^'"]+\.mjs(?:\?[^'"]*)?)(['"]\s*,\s*import\.meta\.url\s*\))/g
-        ]
+        const rewrittenSource =
+            ServerAssetVersioner.rewriteRelativeJavaScriptSpecifiers(
+                source,
+                versionKey
+            )
 
-        return patterns.reduce(
-            (rewrittenSource, pattern) =>
-                rewrittenSource.replace(
-                    pattern,
-                    (_match, prefix, specifier, suffix) =>
-                        prefix +
-                        ServerAssetVersioner.appendVersionQuery(
-                            specifier,
-                            versionKey
-                        ) +
-                        suffix
-                ),
-            String(source || '')
-        )
+        return rewrittenSource
+            .replace(
+                /(from\s+['"])fflate(['"])/g,
+                (_match, prefix, suffix) =>
+                    prefix +
+                    ServerAssetVersioner.appendVersionQuery(
+                        '/vendor/fflate/esm/browser.js',
+                        versionKey
+                    ) +
+                    suffix
+            )
+            .replace(
+                /(import\s+['"])fflate(['"])/g,
+                (_match, prefix, suffix) =>
+                    prefix +
+                    ServerAssetVersioner.appendVersionQuery(
+                        '/vendor/fflate/esm/browser.js',
+                        versionKey
+                    ) +
+                    suffix
+            )
+            .replace(
+                /(import\s*\(\s*['"])fflate(['"]\s*\))/g,
+                (_match, prefix, suffix) =>
+                    prefix +
+                    ServerAssetVersioner.appendVersionQuery(
+                        '/vendor/fflate/esm/browser.js',
+                        versionKey
+                    ) +
+                    suffix
+            )
     }
 }

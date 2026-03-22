@@ -265,7 +265,7 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static get cinderSheetFileName() {
-        return 'Starfall-Cinder.SchDoc'
+        return 'Skylace-Cinder.SchDoc'
     }
 
     /**
@@ -273,7 +273,7 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static get dawnSheetFileName() {
-        return 'Starfall-Dawn.SchDoc'
+        return 'Skylace-Dawn.SchDoc'
     }
 
     /**
@@ -281,7 +281,7 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static get moonSheetFileName() {
-        return 'Starfall-Moon.SchDoc'
+        return 'Skylace-Moon.SchDoc'
     }
 
     /**
@@ -289,7 +289,7 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static get novaSheetFileName() {
-        return 'Starfall-Nova.SchDoc'
+        return 'Skylace-Nova.SchDoc'
     }
 
     /**
@@ -297,7 +297,7 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static get forgeBoardFileName() {
-        return 'Starfall-Forge.PcbDoc'
+        return 'Skylace-Forge.PcbDoc'
     }
 
     /**
@@ -376,7 +376,7 @@ export class AltiumFixtureLoader {
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0',
-                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=SKYLACE-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=1|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -400,16 +400,16 @@ export class AltiumFixtureLoader {
                 '|RECORD=13|Location.X=310|Location.Y=680|Corner.X=340|Corner.Y=680|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=310|Location.Y=675|Corner.X=310|Corner.Y=695|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=310|Location.Y=665|Corner.X=310|Corner.Y=685|Color=8388608|LineWidth=1',
-                '|RECORD=25|Location.X=300|Location.Y=820|Color=128|FontID=1|Text=MD11',
-                '|RECORD=25|Location.X=300|Location.Y=780|Color=128|FontID=1|Text=MD7',
-                '|RECORD=25|Location.X=300|Location.Y=740|Color=128|FontID=1|Text=MD3',
-                '|RECORD=25|Location.X=310|Location.Y=690|Color=128|FontID=1|Text=DRDM1',
-                '|RECORD=25|Location.X=310|Location.Y=680|Color=128|FontID=1|Text=DRDM0',
-                '|RECORD=25|Location.X=335|Location.Y=820|Color=8388608|FontID=1|Text=R97|Name=Designator',
-                '|RECORD=25|Location.X=330|Location.Y=780|Color=8388608|FontID=1|Text=R154|Name=Designator',
-                '|RECORD=25|Location.X=330|Location.Y=740|Color=8388608|FontID=1|Text=R162|Name=Designator',
-                '|RECORD=25|Location.X=340|Location.Y=690|Color=8388608|FontID=1|Text=R53|Name=Designator',
-                '|RECORD=25|Location.X=340|Location.Y=680|Color=8388608|FontID=1|Text=R18|Name=Designator',
+                '|RECORD=25|Location.X=300|Location.Y=820|Color=128|FontID=1|Text=MIST11',
+                '|RECORD=25|Location.X=300|Location.Y=780|Color=128|FontID=1|Text=MIST7',
+                '|RECORD=25|Location.X=300|Location.Y=740|Color=128|FontID=1|Text=MIST3',
+                '|RECORD=25|Location.X=310|Location.Y=690|Color=128|FontID=1|Text=VEIL1',
+                '|RECORD=25|Location.X=310|Location.Y=680|Color=128|FontID=1|Text=VEIL0',
+                '|RECORD=25|Location.X=335|Location.Y=820|Color=8388608|FontID=1|Text=GLINT97|Name=Designator',
+                '|RECORD=25|Location.X=330|Location.Y=780|Color=8388608|FontID=1|Text=GLINT154|Name=Designator',
+                '|RECORD=25|Location.X=330|Location.Y=740|Color=8388608|FontID=1|Text=GLINT162|Name=Designator',
+                '|RECORD=25|Location.X=340|Location.Y=690|Color=8388608|FontID=1|Text=GLINT53|Name=Designator',
+                '|RECORD=25|Location.X=340|Location.Y=680|Color=8388608|FontID=1|Text=GLINT18|Name=Designator',
                 '|RECORD=13|Location.X=1500|Location.Y=1050|Corner.X=1510|Corner.Y=1050|Color=16777215|LineWidth=1'
             ].join('')
         )
@@ -424,14 +424,14 @@ export class AltiumFixtureLoader {
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1169|CustomY=827|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=5|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=12|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=22|FontName5=Times New Roman|Bold5=F|Rotation5=0',
-                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=SKYLACE-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=4|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
                 '|RECORD=4|Location.X=1005|Location.Y=30|Color=8388608|FontID=1|Text=4',
                 '|RECORD=4|Location.X=1025|Location.Y=30|Color=8388608|FontID=1|Text=6',
-                '|RECORD=34|OwnerIndex=33|Location.X=255|Location.Y=215|Color=8388608|FontID=1|Text=R94|Name=Designator|IsHidden=T',
-                '|RECORD=34|OwnerIndex=34|Location.X=225|Location.Y=215|Color=8388608|FontID=2|Text=Q12|Name=Designator|IsHidden=T',
+                '|RECORD=34|OwnerIndex=33|Location.X=255|Location.Y=215|Color=8388608|FontID=1|Text=GLINT94|Name=Designator|IsHidden=T',
+                '|RECORD=34|OwnerIndex=34|Location.X=225|Location.Y=215|Color=8388608|FontID=2|Text=SIGIL12|Name=Designator|IsHidden=T',
                 '|RECORD=1|LibReference=RES/FAKE/0402/4K7|PartCount=2|DisplayModeCount=4|IndexInSheet=32|OwnerPartId=-1|Location.X=255|Location.Y=215|Orientation=1|CurrentPartId=1|UniqueID=TJXTQTOI|Color=128|DesignItemId=RES/FAKE/0402/4K7|AllPinCount=2',
                 '|RECORD=1|LibReference=DIODE/FAKE/SIG-SMD2|PartCount=2|DisplayModeCount=1|IndexInSheet=33|OwnerPartId=-1|Location.X=225|Location.Y=270|CurrentPartId=1|UniqueID=DGEVAINZ|Color=128|DesignItemId=DIODE/FAKE/SIG-SMD2|AllPinCount=2',
                 '|RECORD=1|LibReference=IC/FAKE/MCU-MODULE-A|PartCount=2|DisplayModeCount=1|IndexInSheet=76|OwnerPartId=-1|Location.X=455|Location.Y=595|CurrentPartId=1|UniqueID=TXWDYHCY|Color=128|DesignItemId=IC/FAKE/MCU-MODULE-A|AllPinCount=39',
@@ -459,7 +459,7 @@ export class AltiumFixtureLoader {
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=8|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=10|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=10|FontName5=Times New Roman|Bold5=F|Rotation5=0|Size6=10|FontName6=Times New Roman|Bold6=F|Rotation6=0|Size7=10|FontName7=Times New Roman|Bold7=F|Rotation7=0|Size8=10|FontName8=Times New Roman|Bold8=F|Rotation8=0',
-                '|RECORD=41|Name=Title|Text=STARFALL-ARC|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=SKYLACE-ARC|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=5|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -468,7 +468,7 @@ export class AltiumFixtureLoader {
                 '|RECORD=1|LibReference=IC/FAKE/CONTROL-HUB|PartCount=11|DisplayModeCount=1|IndexInSheet=103|OwnerPartId=-1|Location.X=280|Location.Y=650|CurrentPartId=1|UniqueID=CUHRMWJA|Color=128|PartIDLocked=T|DesignItemId=IC/FAKE/CONTROL-HUB|AllPinCount=217',
                 '|RECORD=1|LibReference=IC/FAKE/CONTROL-HUB|PartCount=11|DisplayModeCount=1|IndexInSheet=104|OwnerPartId=-1|Location.X=670|Location.Y=800|CurrentPartId=10|UniqueID=JNNJTMWM|Color=128|PartIDLocked=T|DesignItemId=IC/FAKE/CONTROL-HUB|AllPinCount=217',
                 '|RECORD=1|LibReference=IC/FAKE/CONTROL-HUB|PartCount=11|DisplayModeCount=1|IndexInSheet=189|OwnerPartId=-1|Location.X=315|Location.Y=225|CurrentPartId=2|UniqueID=XVWFTEXE|Color=128|PartIDLocked=T|DesignItemId=IC/FAKE/CONTROL-HUB|AllPinCount=217',
-                '|RECORD=17|Style=2|ShowNetName=T|Orientation=1|Location.X=100|Location.Y=1010|Color=128|FontID=1|Text=+3.3V',
+                '|RECORD=17|Style=2|ShowNetName=T|Orientation=1|Location.X=100|Location.Y=1010|Color=128|FontID=1|Text=AURA_3V3',
                 '|RECORD=17|Style=4|ShowNetName=T|Orientation=3|Location.X=1240|Location.Y=815|Color=128|FontID=1|Text=GND',
                 AltiumFixtureLoader.#decodeCompressedChunks(NOVA_CORE_CHUNKS)
             ].join('')
@@ -484,7 +484,7 @@ export class AltiumFixtureLoader {
             [
                 '|HEADER=Schematic Document',
                 '|RECORD=31|CustomX=1654|CustomY=1169|VisibleGridSize=10|SnapGridSize=5|BorderOn=T|TitleBlockOn=T|CustomMarginWidth=20|CustomXZones=6|CustomYZones=4|FontIdCount=5|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0|Size2=10|FontName2=Times New Roman|Bold2=F|Rotation2=0|Size3=10|FontName3=Times New Roman|Bold3=F|Rotation3=0|Size4=10|FontName4=Times New Roman|Bold4=F|Rotation4=0|Size5=8|FontName5=Times New Roman|Bold5=T|Rotation5=0',
-                '|RECORD=41|Name=Title|Text=STARFALL-CINDER|IsHidden=T',
+                '|RECORD=41|Name=Title|Text=SKYLACE-CINDER|IsHidden=T',
                 '|RECORD=41|Name=Revision|Text=01|IsHidden=T',
                 '|RECORD=41|Name=SheetNumber|Text=6|IsHidden=T',
                 '|RECORD=41|Name=SheetTotal|Text=6|IsHidden=T',
@@ -505,7 +505,7 @@ export class AltiumFixtureLoader {
                 '|RECORD=25|Location.X=340|Location.Y=470|Color=128|FontID=1|Text=AURA_IRQ',
                 '|RECORD=25|Location.X=340|Location.Y=480|Color=128|FontID=1|Text=AURA_CS',
                 '|RECORD=25|Location.X=340|Location.Y=490|Color=128|FontID=1|Text=GLYPH_CS',
-                '|RECORD=4|Location.X=415|Location.Y=375|Orientation=3|Rotation=90|Color=8388608|FontID=1|Text=Q24',
+                '|RECORD=4|Location.X=415|Location.Y=375|Orientation=3|Rotation=90|Color=8388608|FontID=1|Text=SIGIL24',
                 '|RECORD=4|OwnerIndex=3652|Location.X=415|Location.Y=325|Orientation=3|Rotation=90|Color=8388608|FontID=1|Text=4K7',
                 '|RECORD=13|Location.X=900|Location.Y=675|Corner.X=910|Corner.Y=675|Color=8388608|LineWidth=1',
                 '|RECORD=13|Location.X=910|Location.Y=675|Corner.X=920|Corner.Y=675|Color=8388608|LineWidth=1',
@@ -566,13 +566,63 @@ export class AltiumFixtureLoader {
      * @returns {string}
      */
     static #obfuscateFixtureString(value) {
-        return AltiumFixtureLoader.#fixtureStringReplacements().reduce(
-            (currentValue, [encodedSourceValue, replacementValue]) =>
-                currentValue.split(
-                    Buffer.from(encodedSourceValue, 'base64').toString('utf8')
-                ).join(replacementValue),
-            value
+        const exactReplacementValue =
+            AltiumFixtureLoader.#fixtureStringReplacements().reduce(
+                (currentValue, [encodedSourceValue, replacementValue]) =>
+                    currentValue
+                        .split(
+                            Buffer.from(encodedSourceValue, 'base64').toString(
+                                'utf8'
+                            )
+                        )
+                        .join(replacementValue),
+                value
+            )
+
+        const wholeStringReplacementValue =
+            AltiumFixtureLoader.#fixtureWholeStringReplacements().get(
+                exactReplacementValue
+            ) || exactReplacementValue
+
+        return AltiumFixtureLoader.#obfuscateFixtureDesignator(
+            wholeStringReplacementValue
         )
+    }
+
+    /**
+     * Rewrites bare fixture designators to fantasy prefixes without touching
+     * longer descriptive strings.
+     * @param {string} value
+     * @returns {string}
+     */
+    static #obfuscateFixtureDesignator(value) {
+        const designatorMatch =
+            /^(?<prefix>[CDJKPQRUY])(?<suffix>\d+[A-Z]?)$/u.exec(value)
+
+        if (!designatorMatch?.groups) {
+            return value
+        }
+
+        const replacementPrefixes = {
+            C: 'ORB',
+            D: 'EMBER',
+            J: 'PORT',
+            K: 'KITE',
+            P: 'PIER',
+            Q: 'SIGIL',
+            R: 'GLINT',
+            U: 'WYRN',
+            Y: 'CHIME'
+        }
+
+        const replacementPrefix =
+            replacementPrefixes[designatorMatch.groups.prefix]
+
+        if (!replacementPrefix) {
+            return value
+        }
+
+        return replacementPrefix + designatorMatch.groups.suffix
     }
 
     /**
@@ -612,6 +662,29 @@ export class AltiumFixtureLoader {
             ['fCAxMC0tPjExLjI4OTZNSHogfA==', '| 10-->Star Chime    |'],
             ['fCAxMS0tPjEyLjI4OE1IeiAgIHw=', '| 11-->Night Bell    |']
         ]
+    }
+
+    /**
+     * Returns whole-string fixture replacements that must not rewrite substrings.
+     * @returns {Map<string, string>}
+     */
+    static #fixtureWholeStringReplacements() {
+        return new Map(
+            [
+                ['U1RBUkZBTEwtQVJD', 'SKYLACE-ARC'],
+                ['U1RBUkZBTEwtQ0lOREVS', 'SKYLACE-CINDER'],
+                ['KzMuM1Y=', 'AURA_3V3'],
+                ['UlNU', 'VEIL_RST'],
+                ['TUQxMQ==', 'MIST11'],
+                ['TUQ3', 'MIST7'],
+                ['TUQz', 'MIST3'],
+                ['RFJETTE=', 'VEIL1'],
+                ['RFJETTA=', 'VEIL0']
+            ].map(([encodedSourceValue, replacementValue]) => [
+                Buffer.from(encodedSourceValue, 'base64').toString('utf8'),
+                replacementValue
+            ])
+        )
     }
 
     /**

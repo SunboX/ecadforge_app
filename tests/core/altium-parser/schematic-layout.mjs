@@ -96,7 +96,7 @@ test('parseAltiumArrayBuffer promotes overflowing custom sheets to the next fitt
             '|FontIdCount=2|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
             '|Size2=14|FontName2=Times New Roman|Bold2=T|Rotation2=0' +
             '|RECORD=13|Location.X=140|Location.Y=60|Corner.X=2135|Corner.Y=1532|Color=8388608|LineWidth=1' +
-            '|RECORD=4|Location.X=1900|Location.Y=90|Color=8388608|FontID=2|Text=STARFALL-CINDER' +
+            '|RECORD=4|Location.X=1900|Location.Y=90|Color=8388608|FontID=2|Text=SKYLACE-CINDER' +
             '|RECORD=4|Location.X=2130|Location.Y=90|Color=255|FontID=2|Text=SIGIL-VAULT' +
             '|RECORD=4|Location.X=2125|Location.Y=60|Color=8388608|FontID=1|Text=01'
     ).buffer
@@ -211,7 +211,7 @@ test('parseAltiumArrayBuffer preserves dawn-sheet bus trunks', async () => {
 })
 
 /**
- * Verifies the nova sheet keeps only the active multipart U2 sections,
+ * Verifies the nova sheet keeps only the active multipart WYRN2 sections,
  * preserving one label per visible section and snapping back to A3.
  */
 test('parseAltiumArrayBuffer restores active multipart sections on the nova sheet', async () => {
@@ -253,7 +253,15 @@ test('parseAltiumArrayBuffer anchors moon-sheet component texts from owner geome
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const anchors = documentModel.schematic.texts
         .filter((text) =>
-            ['C70', 'C82', 'C68', 'R148', 'R134', 'C187', 'C190'].includes(
+            [
+                'ORB70',
+                'ORB82',
+                'ORB68',
+                'GLINT148',
+                'GLINT134',
+                'ORB187',
+                'ORB190'
+            ].includes(
                 text.text
             )
         )
@@ -266,13 +274,13 @@ test('parseAltiumArrayBuffer anchors moon-sheet component texts from owner geome
         )
 
     assert.deepEqual(anchors, [
-        { text: 'C68', anchor: 'start' },
-        { text: 'C70', anchor: 'start' },
-        { text: 'C82', anchor: 'start' },
-        { text: 'C187', anchor: 'start' },
-        { text: 'C190', anchor: 'start' },
-        { text: 'R134', anchor: 'end' },
-        { text: 'R148', anchor: 'end' }
+        { text: 'GLINT134', anchor: 'end' },
+        { text: 'GLINT148', anchor: 'end' },
+        { text: 'ORB68', anchor: 'start' },
+        { text: 'ORB70', anchor: 'start' },
+        { text: 'ORB82', anchor: 'start' },
+        { text: 'ORB187', anchor: 'start' },
+        { text: 'ORB190', anchor: 'start' }
     ])
 })
 
@@ -283,9 +291,7 @@ test('parseAltiumArrayBuffer anchors moon-sheet component texts from owner geome
 test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on the cinder sheet', async () => {
     const documentModel = await AltiumFixtureLoader.parseCinderSheet()
     const anchors = documentModel.schematic.texts
-        .filter(
-            (text) => ['Q51', 'Q56'].includes(text.text)
-        )
+        .filter((text) => ['SIGIL51', 'SIGIL56'].includes(text.text))
         .map((text) => ({
             text: text.text,
             ownerIndex: String(text.ownerIndex || ''),
@@ -298,8 +304,8 @@ test('parseAltiumArrayBuffer keeps side-aware resistor designators aligned on th
         )
 
     assert.deepEqual(anchors, [
-        { text: 'Q51', ownerIndex: '2891', anchor: 'end' },
-        { text: 'Q56', ownerIndex: '2953', anchor: 'start' }
+        { text: 'SIGIL51', ownerIndex: '2891', anchor: 'end' },
+        { text: 'SIGIL56', ownerIndex: '2953', anchor: 'start' }
     ])
 })
 
@@ -325,14 +331,14 @@ test('parseAltiumArrayBuffer resolves multipart designators without suffixing th
         .sort((left, right) => left.ownerIndex.localeCompare(right.ownerIndex))
 
     assert.deepEqual(designators, [
-        { ownerIndex: '4010', text: 'Q92B', anchor: 'end' },
-        { ownerIndex: '4050', text: 'Q92A', anchor: 'end' },
-        { ownerIndex: '4088', text: 'Q92C', anchor: 'end' },
-        { ownerIndex: '4126', text: 'Q92D', anchor: 'end' },
-        { ownerIndex: '4164', text: 'P4', anchor: 'start' }
+        { ownerIndex: '4010', text: 'SIGIL92B', anchor: 'end' },
+        { ownerIndex: '4050', text: 'SIGIL92A', anchor: 'end' },
+        { ownerIndex: '4088', text: 'SIGIL92C', anchor: 'end' },
+        { ownerIndex: '4126', text: 'SIGIL92D', anchor: 'end' },
+        { ownerIndex: '4164', text: 'PIER4', anchor: 'start' }
     ])
     assert.equal(
-        documentModel.schematic.texts.some((text) => text.text === 'P4A'),
+        documentModel.schematic.texts.some((text) => text.text === 'PIER4A'),
         false
     )
 })

@@ -39,6 +39,35 @@ test('renderSchematicSvg preserves owner primitive order and literal neutral pol
 })
 
 /**
+ * Verifies owner body rectangles without IndexInSheet render before indexed
+ * side-view contact pads so the full visible pad stack stays on top.
+ */
+test('renderSchematicSvg keeps missing-order owner bodies behind indexed connector pads', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=500|CustomY=600|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=14|OwnerIndex=700|OwnerPartId=1|Location.X=300|Location.Y=330|Corner.X=350|Corner.Y=520|LineWidth=1|Color=128|AreaColor=11599871|IsSolid=T',
+        '|RECORD=14|OwnerIndex=700|IndexInSheet=1|OwnerPartId=1|Location.X=319|Location.Y=497|Corner.X=338|Corner.Y=503|LineWidth=1|Color=16711680|AreaColor=16711680|IsSolid=T',
+        '|RECORD=13|OwnerIndex=700|IndexInSheet=2|OwnerPartId=1|Location.X=328|Location.Y=500|Corner.X=350|Corner.Y=500|LineWidth=1|Color=16711680'
+    ]
+    const documentModel = AltiumParser.parseArrayBuffer(
+        'side-view-stack-order.SchDoc',
+        new TextEncoder().encode(records.join('')).buffer
+    )
+    const markup = SchematicSvgRenderer.render(documentModel)
+    const bodySnippet =
+        '<rect class="schematic-rectangle" x="300" y="80" width="50" height="190"'
+    const padSnippet =
+        '<rect class="schematic-rectangle" x="319" y="97" width="19" height="6"'
+
+    assert.notEqual(markup.indexOf(bodySnippet), -1)
+    assert.notEqual(markup.indexOf(padSnippet), -1)
+    assert.ok(markup.indexOf(bodySnippet) < markup.indexOf(padSnippet))
+})
+
+/**
  * Verifies ground power ports attached at a wire tee prefer the downward
  * symbol orientation and contribute a junction branch at the connection point.
  */

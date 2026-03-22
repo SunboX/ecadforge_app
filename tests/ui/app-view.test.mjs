@@ -43,7 +43,7 @@ class FakeEventTarget {
      * @returns {void}
      */
     dispatch(type, event = {}) {
-        const payload = { ...event, type, currentTarget: this, target: this }
+        const payload = { type, currentTarget: this, target: this, ...event }
         ;[...(this.#listeners.get(type) || [])].forEach((listener) =>
             listener(payload)
         )
@@ -111,6 +111,8 @@ class FakeNode extends FakeEventTarget {
         this._innerHTML = ''
         this.textContent = ''
         this.value = ''
+        this.hidden = false
+        this.classList = new FakeClassList()
     }
 
     /**
@@ -121,6 +123,9 @@ class FakeNode extends FakeEventTarget {
      */
     setAttribute(name, value) {
         this.#attributes.set(name, String(value))
+        if (name === 'hidden') {
+            this.hidden = true
+        }
     }
 
     /**
@@ -130,6 +135,27 @@ class FakeNode extends FakeEventTarget {
      */
     getAttribute(name) {
         return this.#attributes.get(name) || null
+    }
+
+    /**
+     * Removes one attribute value.
+     * @param {string} name
+     * @returns {void}
+     */
+    removeAttribute(name) {
+        this.#attributes.delete(name)
+        if (name === 'hidden') {
+            this.hidden = false
+        }
+    }
+
+    /**
+     * Returns the closest matching ancestor when supported.
+     * @param {string} _selector
+     * @returns {any}
+     */
+    closest(_selector) {
+        return null
     }
 
     /**
@@ -193,6 +219,121 @@ class FakeTabsNode extends FakeNode {
 }
 
 /**
+ * Minimal viewer stage node for layout class assertions.
+ */
+class FakeViewerStageNode extends FakeNode {}
+
+/**
+ * Minimal document rail button node.
+ */
+class FakeDocumentRailButton extends FakeNode {
+    /**
+     * @param {string} documentId
+     * @param {string[]} classNames
+     * @param {string} pressed
+     * @param {string} markup
+     */
+    constructor(documentId, classNames, pressed, markup) {
+        super()
+        this.setAttribute('data-document-id', documentId)
+        this.setAttribute('aria-pressed', pressed)
+        this.classList = new FakeClassList(classNames)
+        this._innerHTML = markup
+        this.textContent = markup.replace(/<[^>]+>/g, ' ').trim()
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeDocumentRailButton | null}
+     */
+    closest(selector) {
+        return selector === '[data-document-id]' ? this : null
+    }
+}
+
+/**
+ * Minimal rail node that exposes parsed document preview buttons.
+ */
+class FakeDocumentRailNode extends FakeNode {
+    /** @type {Map<string, FakeDocumentRailButton>} */
+    #buttonsById
+
+    constructor() {
+        super()
+        this.#buttonsById = new Map()
+    }
+
+    /**
+     * @param {string} value
+     */
+    set innerHTML(value) {
+        this._innerHTML = String(value)
+        this.#buttonsById = new Map()
+
+        for (const match of this._innerHTML.matchAll(
+            /<button class="([^"]*document-rail__item[^"]*)"[^>]*data-document-id="([^"]+)"[^>]*aria-pressed="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g
+        )) {
+            const button = new FakeDocumentRailButton(
+                match[2],
+                match[1].split(/\s+/).filter(Boolean),
+                match[3],
+                match[4]
+            )
+            this.#buttonsById.set(match[2], button)
+        }
+    }
+
+    /**
+     * @returns {string}
+     */
+    get innerHTML() {
+        return this._innerHTML || ''
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeDocumentRailButton | null}
+     */
+    querySelector(selector) {
+        const idMatch = selector.match(/^\[data-document-id="([^"]+)"\]$/)
+        if (idMatch) {
+            return this.#buttonsById.get(idMatch[1]) || null
+        }
+
+        return null
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeDocumentRailButton[]}
+     */
+    querySelectorAll(selector) {
+        if (
+            selector === '[data-document-id]' ||
+            selector === '.document-rail__item'
+        ) {
+            return [...this.#buttonsById.values()]
+        }
+
+        return []
+    }
+
+    /**
+     * Dispatches a click event as if one rail button was selected.
+     * @param {string} documentId
+     * @returns {void}
+     */
+    clickDocument(documentId) {
+        const button = this.#buttonsById.get(documentId)
+        if (!button) {
+            return
+        }
+
+        this.dispatch('click', { target: button })
+    }
+}
+
+/**
  * Minimal fake document used by rendered schematic integration tests.
  */
 class FakeDocument extends FakeEventTarget {
@@ -208,6 +349,8 @@ class FakeDocument extends FakeEventTarget {
             ['#appVersion', new FakeNode()],
             ['#localeSelect', new FakeNode()],
             ['#summaryGrid', new FakeNode()],
+            ['#viewerStage', new FakeViewerStageNode()],
+            ['#documentRail', new FakeDocumentRailNode()],
             ['#viewContent', new FakeContentNode(this)],
             ['#activeDocumentName', new FakeNode()],
             ['#viewTabs', new FakeTabsNode()],
@@ -277,6 +420,16 @@ class FakeSvgElement extends FakeEventTarget {
 }
 
 /**
+ * Minimal 3D viewport node.
+ */
+class FakeScene3dViewportNode extends FakeNode {}
+
+/**
+ * Minimal 3D loading overlay node.
+ */
+class FakeScene3dLoadingNode extends FakeNode {}
+
+/**
  * Minimal content node that parses rendered schematic markup.
  */
 class FakeContentNode extends FakeNode {
@@ -286,6 +439,12 @@ class FakeContentNode extends FakeNode {
     /** @type {Map<string, FakeSvgElement>} */
     #svgBySelector
 
+    /** @type {Map<string, FakeScene3dViewportNode>} */
+    #sceneViewportBySelector
+
+    /** @type {Map<string, FakeScene3dLoadingNode>} */
+    #sceneLoadingBySelector
+
     /**
      * @param {FakeDocument} ownerDocument
      */
@@ -293,6 +452,8 @@ class FakeContentNode extends FakeNode {
         super()
         this.#ownerDocument = ownerDocument
         this.#svgBySelector = new Map()
+        this.#sceneViewportBySelector = new Map()
+        this.#sceneLoadingBySelector = new Map()
     }
 
     /**
@@ -302,6 +463,8 @@ class FakeContentNode extends FakeNode {
         this.textContent = ''
         this._innerHTML = String(value)
         this.#svgBySelector = new Map()
+        this.#sceneViewportBySelector = new Map()
+        this.#sceneLoadingBySelector = new Map()
 
         for (const match of this._innerHTML.matchAll(
             /<svg class="([^"]+)" viewBox="([^"]+)"/g
@@ -316,6 +479,16 @@ class FakeContentNode extends FakeNode {
             for (const className of classNames) {
                 this.#svgBySelector.set('.' + className, svg)
             }
+        }
+
+        if (this._innerHTML.includes('data-scene-3d-viewport')) {
+            const viewport = new FakeScene3dViewportNode()
+            this.#sceneViewportBySelector.set('[data-scene-3d-viewport]', viewport)
+        }
+
+        if (this._innerHTML.includes('data-scene-3d-loading')) {
+            const loading = new FakeScene3dLoadingNode()
+            this.#sceneLoadingBySelector.set('[data-scene-3d-loading]', loading)
         }
     }
 
@@ -332,7 +505,12 @@ class FakeContentNode extends FakeNode {
      * @returns {FakeSvgElement | null}
      */
     querySelector(selector) {
-        return this.#svgBySelector.get(selector) || null
+        return (
+            this.#svgBySelector.get(selector) ||
+            this.#sceneViewportBySelector.get(selector) ||
+            this.#sceneLoadingBySelector.get(selector) ||
+            null
+        )
     }
 }
 
@@ -341,41 +519,47 @@ class FakeContentNode extends FakeNode {
  * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: any }}
  */
 function createSchematicSnapshot() {
+    const documentModel = {
+        fileName: 'demo.SchDoc',
+        kind: 'schematic',
+        diagnostics: [],
+        summary: {
+            title: 'Demo schematic',
+            componentCount: 0,
+            lineCount: 1,
+            textCount: 0,
+            bomRowCount: 0
+        },
+        schematic: {
+            sheet: { width: 200, height: 100 },
+            lines: [
+                {
+                    x1: 0,
+                    y1: 0,
+                    x2: 200,
+                    y2: 0,
+                    color: '#000080',
+                    width: 1
+                }
+            ],
+            texts: [],
+            components: [],
+            pins: [],
+            ports: [],
+            crosses: []
+        },
+        bom: []
+    }
+
     return {
         activeView: 'schematic',
         locale: 'en',
         parseStatus: 'ready',
         statusMessage: 'File parsed successfully.',
         activeFileName: 'demo.SchDoc',
-        documentModel: {
-            kind: 'schematic',
-            diagnostics: [],
-            summary: {
-                title: 'Demo schematic',
-                componentCount: 0,
-                lineCount: 1,
-                textCount: 0,
-                bomRowCount: 0
-            },
-            schematic: {
-                sheet: { width: 200, height: 100 },
-                lines: [
-                    {
-                        x1: 0,
-                        y1: 0,
-                        x2: 200,
-                        y2: 0,
-                        color: '#000080',
-                        width: 1
-                    }
-                ],
-                texts: [],
-                components: [],
-                pins: [],
-                ports: [],
-                crosses: []
-            }
-        }
+        documents: [{ id: 'doc-1', documentModel }],
+        activeDocumentId: 'doc-1',
+        documentModel
     }
 }
 
@@ -384,103 +568,143 @@ function createSchematicSnapshot() {
  * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: any }}
  */
 function createPcbSnapshot() {
+    const documentModel = {
+        fileName: 'demo.PcbDoc',
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {
+            title: 'Demo board',
+            componentCount: 1,
+            layerCount: 2,
+            outlineSegmentCount: 4,
+            bomRowCount: 1,
+            polygonCount: 1,
+            trackCount: 1,
+            viaCount: 1,
+            boardWidthMil: 1000,
+            boardHeightMil: 500
+        },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            layers: [{ name: 'Top Layer' }, { name: 'Bottom Layer' }],
+            polygons: [
+                {
+                    layer: 'TOP',
+                    segments: [
+                        {
+                            type: 'line',
+                            x1: 100,
+                            y1: 100,
+                            x2: 300,
+                            y2: 100
+                        },
+                        {
+                            type: 'line',
+                            x1: 300,
+                            y1: 100,
+                            x2: 300,
+                            y2: 250
+                        },
+                        {
+                            type: 'line',
+                            x1: 300,
+                            y1: 250,
+                            x2: 100,
+                            y2: 250
+                        },
+                        { type: 'line', x1: 100, y1: 250, x2: 100, y2: 100 }
+                    ]
+                }
+            ],
+            fills: [{ x1: 340, y1: 120, x2: 420, y2: 180, layerCode: 256 }],
+            tracks: [
+                {
+                    x1: 130,
+                    y1: 320,
+                    x2: 520,
+                    y2: 320,
+                    width: 12,
+                    layerCode: 256
+                }
+            ],
+            vias: [{ x: 520, y: 320, diameter: 24, holeDiameter: 10 }],
+            components: [
+                {
+                    designator: 'U1',
+                    x: 200,
+                    y: 250,
+                    rotation: 90,
+                    layer: 'TOP',
+                    pattern: 'QFN'
+                }
+            ]
+        },
+        bom: [
+            {
+                designators: ['U1'],
+                quantity: 1,
+                pattern: 'QFN',
+                source: 'IC/FAKE/QFN',
+                value: 'Demo'
+            }
+        ]
+    }
+
     return {
         activeView: 'pcb',
         locale: 'en',
         parseStatus: 'ready',
         statusMessage: 'File parsed successfully.',
         activeFileName: 'demo.PcbDoc',
-        documentModel: {
-            kind: 'pcb',
-            diagnostics: [],
-            summary: {
-                title: 'Demo board',
-                componentCount: 1,
-                layerCount: 2,
-                outlineSegmentCount: 4,
-                bomRowCount: 1,
-                polygonCount: 1,
-                trackCount: 1,
-                viaCount: 1,
-                boardWidthMil: 1000,
-                boardHeightMil: 500
-            },
-            pcb: {
-                boardOutline: {
-                    minX: 0,
-                    minY: 0,
-                    widthMil: 1000,
-                    heightMil: 500,
-                    segments: [
-                        { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
-                        { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
-                        { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
-                        { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
-                    ]
-                },
-                layers: [{ name: 'Top Layer' }, { name: 'Bottom Layer' }],
-                polygons: [
-                    {
-                        layer: 'TOP',
-                        segments: [
-                            {
-                                type: 'line',
-                                x1: 100,
-                                y1: 100,
-                                x2: 300,
-                                y2: 100
-                            },
-                            {
-                                type: 'line',
-                                x1: 300,
-                                y1: 100,
-                                x2: 300,
-                                y2: 250
-                            },
-                            {
-                                type: 'line',
-                                x1: 300,
-                                y1: 250,
-                                x2: 100,
-                                y2: 250
-                            },
-                            { type: 'line', x1: 100, y1: 250, x2: 100, y2: 100 }
-                        ]
-                    }
-                ],
-                fills: [{ x1: 340, y1: 120, x2: 420, y2: 180, layerCode: 256 }],
-                tracks: [
-                    {
-                        x1: 130,
-                        y1: 320,
-                        x2: 520,
-                        y2: 320,
-                        width: 12,
-                        layerCode: 256
-                    }
-                ],
-                vias: [{ x: 520, y: 320, diameter: 24, holeDiameter: 10 }],
-                components: [
-                    {
-                        designator: 'U1',
-                        x: 200,
-                        y: 250,
-                        rotation: 90,
-                        layer: 'TOP',
-                        pattern: 'QFN'
-                    }
-                ]
-            },
-            bom: [
-                {
-                    designators: ['U1'],
-                    quantity: 1,
-                    pattern: 'QFN',
-                    source: 'IC/FAKE/QFN',
-                    value: 'Demo'
-                }
-            ]
+        documents: [{ id: 'doc-1', documentModel }],
+        activeDocumentId: 'doc-1',
+        documentModel
+    }
+}
+
+/**
+ * Builds a snapshot with multiple loaded documents.
+ * @param {string} [activeView]
+ * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents: { id: string, documentModel: any }[], activeDocumentId: string, documentModel: any }}
+ */
+function createMultiDocumentSnapshot(activeView = 'schematic') {
+    const schematicSnapshot = createSchematicSnapshot()
+    const pcbSnapshot = createPcbSnapshot()
+    const documents = [
+        {
+            id: 'doc-1',
+            documentModel: schematicSnapshot.documentModel
+        },
+        {
+            id: 'doc-2',
+            documentModel: pcbSnapshot.documentModel
         }
+    ]
+    const activeDocumentId = 'doc-2'
+    const activeDocument =
+        documents.find((entry) => entry.id === activeDocumentId)?.documentModel ||
+        null
+
+    return {
+        activeView,
+        locale: 'en',
+        parseStatus: 'ready',
+        statusMessage: 'File parsed successfully.',
+        activeFileName: String(activeDocument?.fileName || ''),
+        documents,
+        activeDocumentId,
+        documentModel: activeDocument
     }
 }
 
@@ -592,4 +816,159 @@ test('AppView wires zoom and drag onto the rendered pcb svg', () => {
     })
 
     assert.equal(svg.getAttribute('viewBox'), '-372.46 -327.71 1435.6 950.6')
+})
+
+/**
+ * Verifies AppView hides the document rail for a single open document.
+ */
+test('AppView hides the document rail when only one document is open', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createSchematicSnapshot())
+
+    const rail = fakeDocument.querySelector('#documentRail')
+
+    assert.equal(rail.hidden, true)
+    assert.equal(rail.innerHTML, '')
+})
+
+/**
+ * Verifies AppView renders multiple preview cards and marks the active one
+ * when the current tab is supported by multiple open files.
+ */
+test('AppView renders a multi-document rail with an active preview card', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createMultiDocumentSnapshot('diagnostics'))
+
+    const rail = fakeDocument.querySelector('#documentRail')
+    const activeButton = rail.querySelector('[data-document-id="doc-2"]')
+
+    assert.equal(rail.hidden, false)
+    assert.match(rail.innerHTML, /demo\.SchDoc/)
+    assert.match(rail.innerHTML, /demo\.PcbDoc/)
+    assert.equal(activeButton?.getAttribute('aria-pressed'), 'true')
+    assert.equal(activeButton?.classList.contains('is-active'), true)
+})
+
+/**
+ * Verifies AppView emits the selected document id when a preview card is
+ * clicked.
+ */
+test('AppView binds document selection clicks from the preview rail', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindDocumentSelection((documentId) => {
+        received.push(documentId)
+    })
+    view.render(createMultiDocumentSnapshot('diagnostics'))
+
+    fakeDocument.querySelector('#documentRail').clickDocument('doc-1')
+
+    assert.deepEqual(received, ['doc-1'])
+})
+
+/**
+ * Verifies AppView hides the rail when only one document supports schematic
+ * view.
+ */
+test('AppView hides the rail when only one document supports schematic view', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createMultiDocumentSnapshot('schematic'))
+
+    const rail = fakeDocument.querySelector('#documentRail')
+
+    assert.equal(rail.hidden, true)
+    assert.doesNotMatch(rail.innerHTML, /demo\.SchDoc/)
+    assert.doesNotMatch(rail.innerHTML, /demo\.PcbDoc/)
+})
+
+/**
+ * Verifies AppView hides the rail when only one document supports the current
+ * active tab.
+ */
+test('AppView hides the rail when only one document supports the active tab', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const snapshot = createMultiDocumentSnapshot('pcb')
+
+    view.render(snapshot)
+
+    const rail = fakeDocument.querySelector('#documentRail')
+
+    assert.equal(rail.hidden, true)
+    assert.doesNotMatch(rail.innerHTML, /demo\.SchDoc/)
+    assert.doesNotMatch(rail.innerHTML, /demo\.PcbDoc/)
+})
+
+/**
+ * Verifies the rail no longer renders unsupported fallback cards for filtered
+ * views.
+ */
+test('AppView omits unsupported documents instead of rendering fallback cards', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createMultiDocumentSnapshot('schematic'))
+
+    const rail = fakeDocument.querySelector('#documentRail')
+
+    assert.doesNotMatch(rail.innerHTML, /Not available for this file\./)
+    assert.doesNotMatch(rail.innerHTML, /document-preview__fallback/)
+})
+
+/**
+ * Verifies AppView attaches and disposes the interactive 3D scene controller.
+ */
+test('AppView attaches and disposes the 3D scene controller around 3D renders', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+    class FakeScene3dController {
+        /**
+         * @param {FakeScene3dViewportNode} viewportNode
+         * @param {any} documentModel
+         */
+        constructor(viewportNode, documentModel) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.isDisposed = false
+            createdControllers.push(this)
+        }
+
+        /**
+         * @returns {void}
+         */
+        dispose() {
+            this.isDisposed = true
+        }
+    }
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel) =>
+            new FakeScene3dController(viewportNode, documentModel)
+    })
+    const threeSnapshot = {
+        ...createPcbSnapshot(),
+        activeView: '3d'
+    }
+
+    view.render(threeSnapshot)
+
+    const viewport = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('[data-scene-3d-viewport]')
+
+    assert.ok(viewport)
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].viewportNode, viewport)
+    assert.equal(createdControllers[0].documentModel, threeSnapshot.documentModel)
+
+    view.render(createPcbSnapshot())
+
+    assert.equal(createdControllers[0].isDisposed, true)
 })

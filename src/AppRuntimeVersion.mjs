@@ -55,4 +55,30 @@ export class AppRuntimeVersion {
                 normalizedLoadedVersion !== normalizedServerVersion
         )
     }
+
+    /**
+     * Builds one hard-reload URL that changes the page URL itself so the
+     * browser cannot keep serving an already-open stale HTML shell.
+     * @param {string} pageUrl
+     * @param {string} serverVersion
+     * @returns {string}
+     */
+    static buildReloadUrl(pageUrl, serverVersion) {
+        const normalizedPageUrl = String(pageUrl || '').trim()
+        const normalizedServerVersion = String(serverVersion || '').trim()
+        if (!normalizedPageUrl) {
+            return normalizedPageUrl
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedPageUrl)
+            parsedUrl.searchParams.set(
+                'reload',
+                normalizedServerVersion || String(Date.now())
+            )
+            return parsedUrl.toString()
+        } catch (_error) {
+            return normalizedPageUrl
+        }
+    }
 }

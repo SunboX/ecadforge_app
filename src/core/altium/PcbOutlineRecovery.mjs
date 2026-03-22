@@ -15,6 +15,10 @@ export class PcbOutlineRecovery {
 
     static #MIN_COMPONENT_MARGIN_MIL = 120
 
+    static #MAX_DIRECT_RENDER_BOARD_ROUTE_SEGMENTS = 12
+
+    static #MAX_DIRECT_RENDER_ARC_SWEEP_DEGREES = 120
+
     /**
      * Selects a recoverable board outline from mechanical track layers.
      * @param {{ fallbackOutline: { minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }, components: { x: number, y: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerId?: number }[] }} options
@@ -86,8 +90,8 @@ export class PcbOutlineRecovery {
     /**
      * Mirrors one normalized PCB model vertically so the SVG matches the
      * authored top-view orientation.
-     * @param {{ boardOutline: { minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }, polygons?: { layer?: string, segments: Array<Record<string, number | string>> }[], fills?: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks?: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], vias?: { x: number, y: number, diameter: number, holeDiameter: number }[], pads?: { x: number, y: number, rotation?: number }[], components?: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] }} pcb
-     * @returns {{ boardOutline: { minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }, polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, rotation?: number }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] }}
+     * @param {{ boardOutline: { minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }, polygons?: { layer?: string, segments: Array<Record<string, number | string>> }[], fills?: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks?: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[], vias?: { x: number, y: number, diameter: number, holeDiameter: number }[], pads?: { x: number, y: number, rotation?: number, holeRotation?: number | null }[], components?: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] }} pcb
+     * @returns {{ boardOutline: { minX: number, minY: number, widthMil: number, heightMil: number, segments: Array<Record<string, number | string>> }, polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, rotation?: number, holeRotation?: number | null }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] }}
      */
     static flipGeometryVertically(pcb) {
         const outline = pcb?.boardOutline
@@ -124,6 +128,16 @@ export class PcbOutlineRecovery {
                 y1: mirrorY(track.y1),
                 y2: mirrorY(track.y2)
             })),
+            arcs: (pcb?.arcs || []).map((arc) => ({
+                ...arc,
+                y: mirrorY(arc.y),
+                startAngle: PcbOutlineRecovery.#normalizeAngle(
+                    360 - Number(arc.startAngle || 0)
+                ),
+                endAngle: PcbOutlineRecovery.#normalizeAngle(
+                    360 - Number(arc.endAngle || 0)
+                )
+            })),
             vias: (pcb?.vias || []).map((via) => ({
                 ...via,
                 y: mirrorY(via.y)
@@ -133,7 +147,14 @@ export class PcbOutlineRecovery {
                 y: mirrorY(pad.y),
                 rotation: PcbOutlineRecovery.#normalizeAngle(
                     360 - Number(pad.rotation || 0)
-                )
+                ),
+                holeRotation:
+                    pad?.holeRotation === null ||
+                    pad?.holeRotation === undefined
+                        ? pad?.holeRotation ?? null
+                        : PcbOutlineRecovery.#normalizeAngle(
+                              360 - Number(pad.holeRotation || 0)
+                          )
             })),
             components: (pcb?.components || []).map((component) => ({
                 ...component,
@@ -330,6 +351,14 @@ export class PcbOutlineRecovery {
 
         if (!bounds.widthMil || !bounds.heightMil) {
             return null
+        }
+
+        if (
+            PcbOutlineRecovery.#isDirectlyRenderableBoardRoute(
+                fallbackOutline
+            )
+        ) {
+            return fallbackOutline
         }
 
         const resolutionMil =
@@ -566,6 +595,72 @@ export class PcbOutlineRecovery {
         }
 
         return null
+    }
+
+    /**
+     * Returns true when one authored board-route contour is already simple
+     * enough to render directly without silhouette recovery.
+     * @param {{ segments?: Array<Record<string, number | string>> } | undefined} outline
+     * @returns {boolean}
+     */
+    static #isDirectlyRenderableBoardRoute(outline) {
+        const segments = outline?.segments || []
+
+        if (
+            !segments.length ||
+            segments.length >
+                PcbOutlineRecovery.#MAX_DIRECT_RENDER_BOARD_ROUTE_SEGMENTS
+        ) {
+            return false
+        }
+
+        const arcSegments = segments.filter((segment) => segment.type === 'arc')
+
+        if (!arcSegments.length) {
+            return false
+        }
+
+        if (
+            arcSegments.some(
+                (segment) =>
+                    PcbOutlineRecovery.#computeArcSweep(segment) >
+                    PcbOutlineRecovery.#MAX_DIRECT_RENDER_ARC_SWEEP_DEGREES
+            )
+        ) {
+            return false
+        }
+
+        return PcbOutlineRecovery.#isClosedOutlinePath(segments)
+    }
+
+    /**
+     * Returns true when consecutive outline segments connect closely enough to
+     * form one closed authored contour.
+     * @param {Array<Record<string, number | string>>} segments
+     * @returns {boolean}
+     */
+    static #isClosedOutlinePath(segments) {
+        if (!segments.length) {
+            return false
+        }
+
+        for (let index = 0; index < segments.length; index += 1) {
+            const current = segments[index]
+            const next = segments[(index + 1) % segments.length]
+            const deltaX =
+                Number(current.x2 || 0) - Number(next.x1 || 0)
+            const deltaY =
+                Number(current.y2 || 0) - Number(next.y1 || 0)
+
+            if (
+                Math.hypot(deltaX, deltaY) >
+                PcbOutlineRecovery.#BOARD_ROUTE_CLOSURE_MIL
+            ) {
+                return false
+            }
+        }
+
+        return true
     }
 
     /**
@@ -812,6 +907,27 @@ export class PcbOutlineRecovery {
         }
 
         return points
+    }
+
+    /**
+     * Computes one normalized positive arc sweep in degrees.
+     * @param {Record<string, number | string>} segment
+     * @returns {number}
+     */
+    static #computeArcSweep(segment) {
+        const startAngle = Number(segment.startAngle || 0)
+        const endAngle = Number(segment.endAngle || 0)
+        let delta = endAngle - startAngle
+
+        if (Math.abs(delta) < 1e-6) {
+            delta = 360
+        }
+
+        if (delta < 0) {
+            delta += 360
+        }
+
+        return delta
     }
 
     /**

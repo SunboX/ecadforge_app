@@ -142,6 +142,149 @@ html.is-schematic-panning body {
 .viewer-stage {
     min-height: 68vh;
     overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.viewer-stage.is-multi-document {
+    grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.viewer-main {
+    min-width: 0;
+}
+
+.document-rail {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    max-height: 68vh;
+    overflow: auto;
+    padding: 0.35rem;
+    border-radius: 24px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.72),
+            rgba(255, 248, 241, 0.94)
+        ),
+        radial-gradient(
+            circle at top left,
+            rgba(184, 90, 37, 0.1),
+            transparent 44%
+        ),
+        radial-gradient(
+            circle at top right,
+            rgba(15, 116, 108, 0.12),
+            transparent 42%
+        );
+    border: 1px solid rgba(95, 112, 124, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.document-rail[hidden] {
+    display: none;
+}
+
+.document-rail__item {
+    border: 1px solid rgba(95, 112, 124, 0.14);
+    border-radius: 22px;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.68);
+    color: var(--text);
+    display: grid;
+    gap: 0.7rem;
+    cursor: pointer;
+    text-align: left;
+    transition:
+        transform 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background 160ms ease;
+}
+
+.document-rail__item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(184, 90, 37, 0.28);
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.document-rail__item.is-active {
+    border-color: rgba(184, 90, 37, 0.52);
+    box-shadow:
+        0 0 0 1px rgba(15, 116, 108, 0.32),
+        0 16px 30px rgba(35, 44, 50, 0.12);
+}
+
+.document-rail__preview {
+    display: grid;
+    align-items: stretch;
+    min-height: 160px;
+    padding: 0.7rem;
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, rgba(243, 240, 234, 0.98), rgba(230, 226, 218, 0.98)),
+        radial-gradient(
+            circle at top left,
+            rgba(255, 255, 255, 0.92),
+            transparent 40%
+        );
+    overflow: hidden;
+}
+
+.document-rail__name {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--text);
+}
+
+.document-preview__svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    min-height: 0;
+    border-radius: 12px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(247, 244, 238, 0.92)),
+        repeating-linear-gradient(
+            90deg,
+            rgba(184, 90, 37, 0.03) 0 1px,
+            transparent 1px 24px
+        );
+    border: 1px solid rgba(95, 112, 124, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.54);
+}
+
+.document-preview__summary,
+.document-preview__fallback {
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: 0.35rem;
+    min-height: 100%;
+    padding: 0.25rem;
+    color: #22343b;
+}
+
+.document-preview__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+.document-preview__summary strong {
+    font-size: 1.05rem;
+}
+
+.document-preview__summary small,
+.document-preview__fallback {
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #405662;
 }
 
 .viewer-empty,
@@ -230,6 +373,13 @@ html.is-schematic-panning body {
     touch-action: none;
 }
 
+.document-preview__svg--pcb,
+.document-preview__svg--schematic {
+    cursor: default;
+    user-select: none;
+    touch-action: auto;
+}
+
 .pcb-svg {
     --pcb-board-fill: #d8e8e4;
     --pcb-board-stroke: #0f746c;
@@ -252,7 +402,48 @@ html.is-schematic-panning body {
     --pcb-component-text: #22343b;
 }
 
+.document-preview__svg--pcb {
+    --pcb-board-fill: #d8e8e4;
+    --pcb-board-stroke: #0f746c;
+    --pcb-surface-copper-fill: rgba(199, 109, 61, 0.15);
+    --pcb-subsurface-copper-fill: rgba(114, 84, 62, 0.06);
+    --pcb-surface-fill: rgba(199, 109, 61, 0.34);
+    --pcb-subsurface-fill: rgba(114, 84, 62, 0.08);
+    --pcb-surface-track-color: rgba(199, 82, 45, 0.88);
+    --pcb-subsurface-track-color: rgba(112, 84, 62, 0.2);
+    --pcb-copper-fill: rgba(196, 118, 70, 0.24);
+    --pcb-copper-solid-fill: rgba(196, 118, 70, 0.78);
+    --pcb-track-color: #c7522d;
+    --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
+    --pcb-via-hole-fill: #0f746c;
+    --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
+    --pcb-footprint-track-color: rgba(237, 214, 62, 0.9);
+    --pcb-component-top-fill: rgba(244, 219, 198, 0.92);
+    --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
+    --pcb-component-stroke: rgba(110, 64, 38, 0.28);
+    --pcb-component-text: #22343b;
+}
+
 .schematic-svg {
+    --schematic-default-ink-color: #0091ac;
+    --schematic-accent-ink-color: #14c5e6;
+    --schematic-text-color: #121b22;
+    --schematic-sheet-label-color: #405662;
+    --schematic-power-color: #a84a12;
+    --schematic-port-color: #f28724;
+    --schematic-alert-color: #da2f70;
+    --schematic-fill-color: #f4dec7;
+    --schematic-note-fill-color: #efe4d1;
+    --schematic-fill-light-color: #fffaf5;
+    --schematic-pin-marker-fill: #edf4f3;
+    --schematic-note-border-color: #8a725c;
+    --schematic-sheet-backdrop-fill: rgba(253, 251, 248, 0.96);
+    --schematic-sheet-backdrop-stroke: rgba(95, 112, 124, 0.12);
+    --schematic-sheet-frame-stroke: rgba(95, 112, 124, 0.48);
+    --schematic-node-fill: rgba(15, 116, 108, 0.9);
+}
+
+.document-preview__svg--schematic {
     --schematic-default-ink-color: #0091ac;
     --schematic-accent-ink-color: #14c5e6;
     --schematic-text-color: #121b22;
@@ -403,6 +594,12 @@ html.is-schematic-panning body {
     stroke-linejoin: round;
 }
 
+.pcb-arc {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .pcb-copper--surface .pcb-polygon {
     fill: var(--pcb-surface-copper-fill);
 }
@@ -423,7 +620,15 @@ html.is-schematic-panning body {
     stroke: var(--pcb-surface-track-color);
 }
 
+.pcb-copper--surface .pcb-arc {
+    stroke: var(--pcb-surface-track-color);
+}
+
 .pcb-copper--subsurface .pcb-track {
+    stroke: var(--pcb-subsurface-track-color);
+}
+
+.pcb-copper--subsurface .pcb-arc {
     stroke: var(--pcb-subsurface-track-color);
 }
 
@@ -466,6 +671,13 @@ html.is-schematic-panning body {
     stroke-linejoin: round;
 }
 
+.pcb-footprint-arc {
+    fill: none;
+    stroke: var(--pcb-footprint-track-color);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .pcb-component__body {
     fill: var(--pcb-component-top-fill);
     stroke: var(--pcb-component-stroke);
@@ -486,6 +698,24 @@ html.is-schematic-panning body {
 .bom-panel {
     display: grid;
     gap: 1rem;
+}
+
+@media (max-width: 860px) {
+    .viewer-stage.is-multi-document {
+        grid-template-columns: 1fr;
+    }
+
+    .document-rail {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(180px, 220px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-height: none;
+    }
+
+    .document-rail__preview {
+        min-height: 132px;
+    }
 }
 
 .bom-table {
@@ -557,9 +787,42 @@ html.is-schematic-panning body {
     gap: 1.2rem;
 }
 
+.scene-3d__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.scene-3d__preset {
+    border: 1px solid rgba(95, 112, 124, 0.16);
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    background: rgba(255, 255, 255, 0.76);
+    color: var(--text);
+    cursor: pointer;
+    transition:
+        transform 140ms ease,
+        border-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.scene-3d__preset:hover {
+    transform: translateY(-1px);
+    border-color: rgba(184, 90, 37, 0.34);
+    box-shadow: 0 10px 18px rgba(35, 44, 50, 0.1);
+}
+
+.scene-3d__preset.is-active,
+.scene-3d__preset[aria-pressed='true'] {
+    background: linear-gradient(135deg, var(--brand), var(--accent));
+    color: #fff;
+    border-color: transparent;
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(35, 44, 50, 0.14);
+}
+
 .scene-3d__stage {
     position: relative;
-    min-height: 380px;
     border-radius: 28px;
     overflow: hidden;
     background:
@@ -568,59 +831,150 @@ html.is-schematic-panning body {
             rgba(255, 255, 255, 0.82),
             transparent 48%
         ),
-        linear-gradient(180deg, #fff7f1 0%, #edf5f1 100%);
+            linear-gradient(180deg, #fff7f1 0%, #edf5f1 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    align-items: start;
+}
+
+.scene-3d__viewport {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    align-self: start;
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.18),
+            transparent 44%
+        ),
+        linear-gradient(180deg, rgba(24, 31, 35, 0.06), rgba(255, 255, 255, 0));
+}
+
+.scene-3d__canvas-mount {
+    position: absolute;
+    inset: 0;
+}
+
+.scene-3d__loading {
+    position: absolute;
+    inset: 0;
     display: grid;
     place-items: center;
-}
-
-.scene-3d__shadow {
-    position: absolute;
-    width: 52%;
-    height: 16%;
-    border-radius: 50%;
-    background: rgba(24, 32, 38, 0.12);
-    filter: blur(16px);
-    transform: translateY(108px);
-}
-
-.scene-3d__board {
-    position: relative;
-    width: min(56vw, 520px);
-    aspect-ratio: 1.45;
-    border-radius: 34px;
+    gap: 0.9rem;
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--muted);
     background:
-        linear-gradient(145deg, #1a7f72, #0b5a51),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent);
-    border: 10px solid rgba(244, 218, 196, 0.46);
-    transform: rotateX(60deg) rotateZ(-32deg);
-    box-shadow:
-        0 34px 60px rgba(11, 90, 81, 0.18),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        radial-gradient(
+            circle at top,
+            rgba(255, 255, 255, 0.78),
+            rgba(255, 247, 241, 0.92) 48%,
+            rgba(237, 245, 241, 0.95)
+        );
+    backdrop-filter: blur(8px);
+    z-index: 1;
 }
 
-.scene-3d__trace {
-    position: absolute;
-    height: 10px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #efc47d, #ed9951);
+.scene-3d__loading[hidden] {
+    display: none;
 }
 
-.scene-3d__trace--one {
-    width: 48%;
-    top: 24%;
-    left: 16%;
+.scene-3d__loading p {
+    margin: 0;
 }
 
-.scene-3d__trace--two {
-    width: 30%;
-    top: 49%;
-    left: 36%;
+.scene-3d__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
 }
 
-.scene-3d__trace--three {
-    width: 42%;
-    top: 70%;
-    left: 22%;
+.scene-3d__canvas:active {
+    cursor: grabbing;
+}
+
+.scene-3d__controls {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.76);
+    border-left: 1px solid rgba(95, 112, 124, 0.12);
+    backdrop-filter: blur(10px);
+}
+
+.scene-3d__toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    color: var(--text);
+}
+
+.scene-3d__toggle input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--accent);
+}
+
+.scene-3d__selection {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+}
+
+.scene-3d__selection-title {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.scene-3d__selection-empty {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.scene-3d__selection-list {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.scene-3d__selection-field {
+    display: grid;
+    gap: 0.14rem;
+}
+
+.scene-3d__selection-field dt {
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.scene-3d__selection-field dd {
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.scene-3d__diagnostics {
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    color: var(--muted);
+    line-height: 1.45;
 }
 
 .scene-3d__stats {
@@ -672,6 +1026,15 @@ html.is-schematic-panning body {
     .summary-grid,
     .scene-3d__stats {
         grid-template-columns: 1fr;
+    }
+
+    .scene-3d__stage {
+        grid-template-columns: 1fr;
+    }
+
+    .scene-3d__controls {
+        border-left: 0;
+        border-top: 1px solid rgba(95, 112, 124, 0.12);
     }
 
     .viewer-stage {

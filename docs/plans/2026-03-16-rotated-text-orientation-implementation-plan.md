@@ -14,8 +14,8 @@
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
@@ -23,13 +23,13 @@ Add a parser-backed test that loads the moon and cinder-sheet fixtures and asser
 
 ```js
 const d16 = bluetoothDocument.schematic.texts.find(
-    (text) => text.text === 'D16'
+    (text) => text.text === 'EMBER16'
 )
 const jtag = bluetoothDocument.schematic.texts.find(
     (text) => text.text === 'JTAG'
 )
 const r24 = controlDocument.schematic.texts.find(
-    (text) => text.text === 'R24'
+    (text) => text.text === 'GLINT24'
 )
 const r24Value = controlDocument.schematic.texts.find(
     (text) => text.text === '10K' && text.ownerIndex === '3652'
@@ -104,8 +104,8 @@ git commit -m "fix: preserve rotated text source orientation"
 
 **Files:**
 - Modify: `tests/ui/renderers.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
@@ -117,7 +117,7 @@ const bluetoothMarkup = SchematicSvgRenderer.render(bluetoothDocument)
 
 assert.match(
     bluetoothMarkup,
-    /<text class="schematic-label"[^>]*transform="rotate\(-90 225 612\)">D16</
+    /<text class="schematic-label"[^>]*transform="rotate\(-90 225 612\)">EMBER16</
 )
 
 const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
@@ -125,7 +125,7 @@ const controlMarkup = SchematicSvgRenderer.render(controlDocument)
 
 assert.match(
     controlMarkup,
-    /<text class="schematic-label"[^>]*transform="rotate\(90 415 794\)">R24</
+    /<text class="schematic-label"[^>]*transform="rotate\(90 415 794\)">GLINT24</
 )
 assert.match(
     controlMarkup,

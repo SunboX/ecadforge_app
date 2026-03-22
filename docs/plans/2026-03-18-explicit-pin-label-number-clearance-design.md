@@ -26,7 +26,7 @@ Keep synthetic left/right pin numbers clear of explicit owner pin-name labels af
 
 The renderer now snaps mirrored explicit owner pin-name labels such as `S`, `D`, and `G` to the matched pin axis.
 
-1. The explicit owner `S` label for `Q2` moves from authored `x=481` to rendered `x=489`.
+1. The explicit owner `S` label for `SIGIL2` moves from authored `x=481` to rendered `x=489`.
 2. The synthetic left-pin number `2` still renders from the old default lane at `x=487`.
 3. That old number lane now overlaps the corrected explicit label lane.
 4. The overlap is not unique to this one file; any left/right pin that hides its synthetic name because an explicit owner label exists can hit the same crowding after a horizontal label correction.

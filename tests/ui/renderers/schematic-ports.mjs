@@ -319,7 +319,7 @@ test('renderSchematicSvg prefers explicit power-port direction over wire inferen
                 {
                     x: 150,
                     y: 50,
-                    text: '+3.3V',
+                    text: 'AURA_3V3',
                     color: '#800000',
                     hidden: false,
                     recordType: '17',
@@ -506,42 +506,42 @@ test('renderSchematicSvg keeps dawn-sheet bus breakout labels left-to-right', as
 
     assert.match(
         markup,
-        /<text class="schematic-label" x="300" y="349" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MD11</
+        /<text class="schematic-label" x="300" y="349" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MIST11</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="300" y="389" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MD7</
+        /<text class="schematic-label" x="300" y="389" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MIST7</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="300" y="429" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MD3</
+        /<text class="schematic-label" x="300" y="429" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>MIST3</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="310" y="479" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>DRDM1</
+        /<text class="schematic-label" x="310" y="479" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>VEIL1</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="310" y="489" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>DRDM0</
+        /<text class="schematic-label" x="310" y="489" fill="var\(--schematic-power-color\)" text-anchor="start"[^>]*>VEIL0</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="335" y="349" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R97</
+        /<text class="schematic-label" x="335" y="349" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>GLINT97</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="330" y="389" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R154</
+        /<text class="schematic-label" x="330" y="389" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>GLINT154</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="330" y="429" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R162</
+        /<text class="schematic-label" x="330" y="429" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>GLINT162</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="340" y="479" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R53</
+        /<text class="schematic-label" x="340" y="479" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>GLINT53</
     )
     assert.match(
         markup,
-        /<text class="schematic-label" x="340" y="489" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>R18</
+        /<text class="schematic-label" x="340" y="489" fill="var\(--schematic-default-ink-color\)" text-anchor="start"[^>]*>GLINT18</
     )
 })

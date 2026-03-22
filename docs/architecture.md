@@ -9,8 +9,10 @@
 - `src/core/altium/PrintableTextDecoder.mjs`: printable-run extraction from binary native files
 - `src/core/altium/AsciiRecordParser.mjs`: pipe-delimited native record parsing
 - `src/core/altium/AltiumParser.mjs`: normalized schematic and PCB model builder
+- `src/core/altium/Schematic*Parser.mjs`: schematic record-family normalizers for symbols, connectivity markers, images, and nets
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
-- `src/ui/*Renderer.mjs`: pure markup renderers for schematic, PCB, BOM, and 3D summary views
+- `src/ui/*Renderer.mjs`: pure markup renderers for schematic, PCB, BOM, and the 3D scene shell
+- `src/ui/PcbScene3d*.mjs`: interactive Three.js scene builder, controller, runtime, STEP importer, and model registries/loaders
 - `src/workers/altium-parser.worker.mjs`: parser offload worker
 - `src/server.mjs`: local static server and metadata endpoints
 - `api/app-meta.php`: PHP metadata endpoint for FTP/shared-hosting deployments
@@ -24,18 +26,20 @@ The current parser is intentionally pragmatic:
 2. Extract long printable runs from the binary document
 3. Parse pipe-delimited Altium-style key/value records from those runs
 4. Normalize the recovered data into one shared viewer model
-5. Feed schematic, PCB, BOM, 3D-summary, and diagnostics views from that normalized model
+5. Build additive schematic hierarchy, embedded-image, and connectivity metadata where supported
+6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model
 
-This is not full binary/OLE reconstruction yet. It is a browser-only recovery strategy that already works well enough on the provided sample corpus to render useful views while keeping the implementation pure JavaScript.
+This is still not full binary reconstruction. It is a browser-first recovery strategy that mixes printable record parsing with targeted OLE stream access where the format clearly requires it, such as embedded schematic images, embedded PCB STEP payloads, and richer PCB stream recovery.
 
 ## Data Flow
 
-1. User selects or drops a `.SchDoc` or `.PcbDoc`
-2. `AppController` reads the file and posts it to the parser worker
+1. User selects or drops one or more `.SchDoc`, `.PcbDoc`, or companion model files
+2. `AppController` stores any companion 3D assets in session state and posts native design files to the parser worker
 3. `altium-parser.worker.mjs` runs `parseAltiumArrayBuffer`
-4. The normalized document model is posted back to the main thread
-5. `AppState` stores parse status and the recovered model
-6. `AppView` renders the active tab from the normalized model
+4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
+5. `AppState` stores parse status, the recovered document models, and session companion assets
+6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
+7. The 3D runtime resolves embedded STEP payloads from the normalized PCB model first, then falls back to companion `WRL`/`STEP` assets from the active session
 
 ## Styling
 

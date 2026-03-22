@@ -12,6 +12,8 @@ import { SchematicSheetChromeRenderer } from './SchematicSheetChromeRenderer.mjs
 import { SchematicContentLayout } from './SchematicContentLayout.mjs'
 import { SchematicOwnerPinLabelLayout } from './SchematicOwnerPinLabelLayout.mjs'
 import { SchematicRegionRenderer } from './SchematicRegionRenderer.mjs'
+import { SchematicSheetSymbolRenderer } from './SchematicSheetSymbolRenderer.mjs'
+import { SchematicImageRenderer } from './SchematicImageRenderer.mjs'
 
 const {
     createSvgText,
@@ -50,6 +52,11 @@ export class SchematicSvgRenderer {
         const pins = (schematic.pins || []).slice(0, 1000)
         const ports = (schematic.ports || []).slice(0, 250)
         const crosses = (schematic.crosses || []).slice(0, 250)
+        const sheetSymbols = (schematic.sheetSymbols || []).slice(0, 250)
+        const sheetEntries = (schematic.sheetEntries || []).slice(0, 500)
+        const authoredJunctions = (schematic.junctions || []).slice(0, 500)
+        const busEntries = (schematic.busEntries || []).slice(0, 500)
+        const images = (schematic.images || []).slice(0, 100)
         const drawableComponents = components.filter(
             (component) =>
                 SchematicSvgRenderer.#isDrawableSchematicComponent(component) &&
@@ -128,14 +135,39 @@ export class SchematicSvgRenderer {
                 arcs,
                 height
             )
+        const sheetSymbolMarkup =
+            SchematicSheetSymbolRenderer.buildSheetSymbolMarkup(
+                sheetSymbols,
+                height
+            )
+        const sheetEntryMarkup =
+            SchematicSheetSymbolRenderer.buildSheetEntryMarkup(
+                sheetEntries,
+                height
+            )
+        const busEntryMarkup = busEntries
+            .map((busEntry) =>
+                SchematicSvgRenderer.#buildSchematicBusEntryMarkup(
+                    busEntry,
+                    height
+                )
+            )
+            .join('')
+        const authoredJunctionMarkup = authoredJunctions
+            .map((junction) =>
+                SchematicSvgRenderer.#buildAuthoredSchematicJunctionMarkup(
+                    junction,
+                    height
+                )
+            )
+            .join('')
+        const imageMarkup = SchematicImageRenderer.buildMarkup(images, height)
 
         const textMarkup = resolvedTexts
             .map((text) =>
                 SchematicSvgRenderer.#buildSchematicTextMarkup(
                     text,
-                    width,
                     height,
-                    schematic.sheet,
                     lines,
                     pins
                 )
@@ -239,6 +271,15 @@ export class SchematicSvgRenderer {
             '<g class="schematic-owner-geometry" stroke-linecap="round">' +
             ownerGeometryMarkup +
             '</g>' +
+            '<g class="schematic-sheet-symbols">' +
+            sheetSymbolMarkup +
+            '</g>' +
+            '<g class="schematic-bus-entries" stroke-linecap="round">' +
+            busEntryMarkup +
+            '</g>' +
+            '<g class="schematic-images">' +
+            imageMarkup +
+            '</g>' +
             '<g class="schematic-pins" stroke-linecap="round">' +
             pinMarkup +
             '</g>' +
@@ -254,10 +295,14 @@ export class SchematicSvgRenderer {
             '<g class="schematic-components">' +
             componentMarkup +
             '</g>' +
+            '<g class="schematic-sheet-entries">' +
+            sheetEntryMarkup +
+            '</g>' +
             '<g class="schematic-texts">' +
             textMarkup +
             '</g>' +
             '<g class="schematic-junctions">' +
+            authoredJunctionMarkup +
             junctionMarkup +
             '</g>' +
             '</g>' +
@@ -488,21 +533,12 @@ export class SchematicSvgRenderer {
     /**
      * Builds one free text primitive with font metadata.
      * @param {{ x: number, y: number, text: string, color: string, recordType?: string, style?: number, fontSize?: number, fontFamily?: string, fontWeight?: number, rotation?: number, sourceOrientation?: number, isMirrored?: boolean, anchor?: 'start' | 'middle' | 'end', cornerX?: number, cornerY?: number, fill?: string, borderColor?: string, isSolid?: boolean, showBorder?: boolean, textMargin?: number, noteLines?: string[] }} text
-     * @param {number} sheetWidth
      * @param {number} sheetHeight
-     * @param {{ marginWidth?: number }} sheet
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} lines
      * @param {{ x: number, y: number, length: number, name?: string, ownerIndex?: string, orientation: 'left' | 'right' | 'top' | 'bottom' }[]} pins
      * @returns {string}
      */
-    static #buildSchematicTextMarkup(
-        text,
-        sheetWidth,
-        sheetHeight,
-        sheet,
-        lines,
-        pins
-    ) {
+    static #buildSchematicTextMarkup(text, sheetHeight, lines, pins) {
         const matchedOwnerPin =
             SchematicOwnerPinLabelLayout.findExplicitOwnerPinLabelMatch(
                 text,
@@ -523,9 +559,7 @@ export class SchematicSvgRenderer {
         }
         const placement = SchematicSvgRenderer.#resolveSchematicTextPlacement(
             text,
-            sheetWidth,
             sheetHeight,
-            sheet,
             matchedOwnerPin
         )
 
@@ -550,31 +584,11 @@ export class SchematicSvgRenderer {
     /**
      * Resolves final text placement for schematic free-text annotations.
      * @param {{ x: number, y: number, text: string, recordType?: string, fontSize?: number, rotation?: number, anchor?: 'start' | 'middle' | 'end' }} text
-     * @param {number} sheetWidth
      * @param {number} sheetHeight
-     * @param {{ marginWidth?: number }} sheet
      * @param {{ x: number, y: number, name?: string, ownerIndex?: string, orientation: 'left' | 'right' | 'top' | 'bottom' } | null} matchedOwnerPin
      * @returns {{ x: number, y: number, anchor: 'start' | 'middle' | 'end' }}
      */
-    static #resolveSchematicTextPlacement(
-        text,
-        sheetWidth,
-        sheetHeight,
-        sheet,
-        matchedOwnerPin
-    ) {
-        if (SchematicSvgRenderer.#isSheetHeaderText(text)) {
-            const margin = Math.max(Number(sheet?.marginWidth || 20), 10)
-            return {
-                x: sheetWidth / 2,
-                y: Math.max(
-                    sheetHeight * 0.16,
-                    margin * 2 + (text.fontSize || 0) * 0.5
-                ),
-                anchor: 'middle'
-            }
-        }
-
+    static #resolveSchematicTextPlacement(text, sheetHeight, matchedOwnerPin) {
         const mirroredOwnerPinPlacement =
             SchematicOwnerPinLabelLayout.resolveMirroredOwnerPinLabelPlacement(
                 text,
@@ -589,19 +603,6 @@ export class SchematicSvgRenderer {
             ),
             anchor: text.anchor || 'start'
         }
-    }
-
-    /**
-     * Returns true when a text primitive behaves like a page title.
-     * @param {{ recordType?: string, fontSize?: number, rotation?: number }} text
-     * @returns {boolean}
-     */
-    static #isSheetHeaderText(text) {
-        return (
-            text.recordType === '4' &&
-            !text.rotation &&
-            Number(text.fontSize || 0) >= 20
-        )
     }
 
     /**
@@ -647,6 +648,58 @@ export class SchematicSvgRenderer {
                 )
             ) +
             '" /></g>'
+        )
+    }
+
+    /**
+     * Builds one authored schematic junction dot.
+     * @param {{ x: number, y: number, color: string }} junction
+     * @param {number} sheetHeight
+     * @returns {string}
+     */
+    static #buildAuthoredSchematicJunctionMarkup(junction, sheetHeight) {
+        return (
+            '<circle class="schematic-authored-junction" cx="' +
+            formatNumber(junction.x) +
+            '" cy="' +
+            formatNumber(projectSchematicY(sheetHeight, junction.y)) +
+            '" r="2.4" fill="' +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    junction.color,
+                    '--schematic-default-ink-color'
+                )
+            ) +
+            '" />'
+        )
+    }
+
+    /**
+     * Builds one schematic bus-entry line marker.
+     * @param {{ x1: number, y1: number, x2: number, y2: number, color: string, width: number }} busEntry
+     * @param {number} sheetHeight
+     * @returns {string}
+     */
+    static #buildSchematicBusEntryMarkup(busEntry, sheetHeight) {
+        return (
+            '<line class="schematic-bus-entry" x1="' +
+            formatNumber(busEntry.x1) +
+            '" y1="' +
+            formatNumber(projectSchematicY(sheetHeight, busEntry.y1)) +
+            '" x2="' +
+            formatNumber(busEntry.x2) +
+            '" y2="' +
+            formatNumber(projectSchematicY(sheetHeight, busEntry.y2)) +
+            '" stroke="' +
+            escapeHtml(
+                SchematicColorResolver.resolveColor(
+                    busEntry.color,
+                    '--schematic-default-ink-color'
+                )
+            ) +
+            '" stroke-width="' +
+            formatNumber(Math.max(Number(busEntry.width || 1), 0.8)) +
+            '" />'
         )
     }
 

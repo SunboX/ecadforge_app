@@ -178,6 +178,125 @@ test('PcbOutlineRecovery closes small board-route scallops before rendering', ()
 })
 
 /**
+ * Verifies simple authored rounded board routes stay arc-based instead of
+ * being rasterized into stepped corner segments.
+ */
+test('PcbOutlineRecovery preserves simple authored rounded board-route arcs', () => {
+    const roundedOutline = {
+        minX: 3031.4961,
+        minY: 2362.2047,
+        widthMil: 1220.4724,
+        heightMil: 1299.2126,
+        segments: [
+            {
+                type: 'line',
+                x1: 3031.4961,
+                y1: 2412.2047,
+                x2: 3031.4961,
+                y2: 3611.4173
+            },
+            {
+                type: 'arc',
+                x1: 3031.4961,
+                y1: 3611.4173,
+                x2: 3081.4961,
+                y2: 3661.4173,
+                cx: 3081.4961,
+                cy: 3611.4173,
+                radius: 50,
+                startAngle: 90,
+                endAngle: 180
+            },
+            {
+                type: 'line',
+                x1: 3081.4961,
+                y1: 3661.4173,
+                x2: 4201.9685,
+                y2: 3661.4173
+            },
+            {
+                type: 'arc',
+                x1: 4201.9685,
+                y1: 3661.4173,
+                x2: 4251.9685,
+                y2: 3611.4173,
+                cx: 4201.9685,
+                cy: 3611.4173,
+                radius: 50,
+                startAngle: 0,
+                endAngle: 90
+            },
+            {
+                type: 'line',
+                x1: 4251.9685,
+                y1: 3611.4173,
+                x2: 4251.9685,
+                y2: 2412.2047
+            },
+            {
+                type: 'arc',
+                x1: 4251.9685,
+                y1: 2412.2047,
+                x2: 4201.9685,
+                y2: 2362.2047,
+                cx: 4201.9685,
+                cy: 2412.2047,
+                radius: 50,
+                startAngle: 270,
+                endAngle: 360
+            },
+            {
+                type: 'line',
+                x1: 4201.9685,
+                y1: 2362.2047,
+                x2: 3081.4961,
+                y2: 2362.2047
+            },
+            {
+                type: 'arc',
+                x1: 3081.4961,
+                y1: 2362.2047,
+                x2: 3031.4961,
+                y2: 2412.2047,
+                cx: 3081.4961,
+                cy: 2412.2047,
+                radius: 50,
+                startAngle: 180,
+                endAngle: 270
+            },
+            {
+                type: 'line',
+                x1: 3031.4961,
+                y1: 2412.2047,
+                x2: 3031.4961,
+                y2: 2412.2047
+            }
+        ]
+    }
+    const recovered = PcbOutlineRecovery.recoverOutline({
+        fallbackOutline: roundedOutline,
+        components: [
+            { x: 3380, y: 2720 },
+            { x: 3870, y: 3270 }
+        ],
+        tracks: []
+    })
+
+    assert.equal(recovered.source, 'board-route')
+    assert.equal(recovered.outline.segments.length, 9)
+    assert.equal(
+        recovered.outline.segments.filter((segment) => segment.type === 'arc')
+            .length,
+        4
+    )
+    assert.equal(
+        recovered.outline.segments.filter((segment) => segment.type === 'line')
+            .length,
+        5
+    )
+})
+
+/**
  * Verifies the PCB top-view normalization mirrors Y coordinates around the
  * recovered board outline instead of leaving the board upside down.
  */
@@ -209,6 +328,7 @@ test('PcbOutlineRecovery flips PCB geometry into top-view SVG coordinates', () =
         fills: [{ x1: 640, y1: 120, x2: 720, y2: 180, layerId: 1, layerCode: 256 }],
         tracks: [{ x1: 260, y1: 200, x2: 860, y2: 200, width: 12, layerId: 1, layerCode: 256 }],
         vias: [{ x: 860, y: 200, diameter: 24, holeDiameter: 10 }],
+        pads: [{ x: 700, y: 150, rotation: 90, holeRotation: 15 }],
         components: [{ designator: 'U1', x: 500, y: 180, rotation: 0, layer: 'TOP', pattern: 'QFN' }]
     })
 
@@ -217,6 +337,9 @@ test('PcbOutlineRecovery flips PCB geometry into top-view SVG coordinates', () =
     assert.equal(normalized.tracks[0].y1, 520)
     assert.equal(normalized.tracks[0].y2, 520)
     assert.equal(normalized.vias[0].y, 520)
+    assert.equal(normalized.pads[0].y, 570)
+    assert.equal(normalized.pads[0].rotation, 270)
+    assert.equal(normalized.pads[0].holeRotation, 345)
     assert.equal(normalized.components[0].y, 540)
     assert.equal(normalized.fills[0].y1, 540)
     assert.equal(normalized.fills[0].y2, 600)

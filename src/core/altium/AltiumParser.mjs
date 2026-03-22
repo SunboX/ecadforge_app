@@ -12,6 +12,11 @@ import { PcbModelParser } from './PcbModelParser.mjs'
 import { PcbStreamExtractor } from './PcbStreamExtractor.mjs'
 import { SchematicMultipartOwnerMatcher } from './SchematicMultipartOwnerMatcher.mjs'
 import { SchematicSheetStyleResolver } from './SchematicSheetStyleResolver.mjs'
+import { SchematicSheetParser } from './SchematicSheetParser.mjs'
+import { SchematicJunctionParser } from './SchematicJunctionParser.mjs'
+import { SchematicBusEntryParser } from './SchematicBusEntryParser.mjs'
+import { SchematicImageParser } from './SchematicImageParser.mjs'
+import { SchematicNetlistBuilder } from './SchematicNetlistBuilder.mjs'
 const {
     countMatchingKeys,
     getDisplayText,
@@ -50,7 +55,9 @@ export class AltiumParser {
     static parseArrayBuffer(fileName, arrayBuffer) {
         const records = AsciiRecordParser.parse(arrayBuffer)
         const fileType = AltiumParser.#sniffFileType(fileName, records)
-        if (fileType === 'SchDoc') return AltiumParser.#parseSchematic(fileName, records)
+        if (fileType === 'SchDoc') {
+            return AltiumParser.#parseSchematic(fileName, records, arrayBuffer)
+        }
         if (fileType === 'PcbDoc') {
             const pcbExtraction = PcbStreamExtractor.extractFromArrayBuffer(
                 arrayBuffer
@@ -84,9 +91,10 @@ export class AltiumParser {
      * Normalizes a schematic document.
      * @param {string} fileName
      * @param {{ raw: string, fields: Record<string, string | string[]> }[]} records
+     * @param {ArrayBuffer} arrayBuffer
      * @returns {ReturnType<typeof AltiumParser.parseArrayBuffer>}
      */
-    static #parseSchematic(fileName, records) {
+    static #parseSchematic(fileName, records, arrayBuffer) {
         const componentRecords = records.filter(
             (record) => getField(record.fields, 'RECORD') === '1'
         )
@@ -125,6 +133,8 @@ export class AltiumParser {
                     activeMultipartOwnerParts
                 ) &&
                 getField(record.fields, 'RECORD') !== '211' &&
+                getField(record.fields, 'RECORD') !== '30' &&
+                getField(record.fields, 'RECORD') !== '37' &&
                 !SchematicPrimitiveParser.isRectangleRecord(
                     record.fields
                 ) &&
@@ -179,6 +189,10 @@ export class AltiumParser {
         const crossRecords = drawableRecords.filter(
             (record) => getField(record.fields, 'RECORD') === '22'
         )
+        const recordIndexAwareRecords = records.map((record, recordIndex) => ({
+            ...record,
+            recordIndex
+        }))
         const relatedTexts = new Map()
 
         for (const record of records) {
@@ -259,15 +273,39 @@ export class AltiumParser {
         ]
         const polygons =
             SchematicPrimitiveParser.parseSchematicPolygons(polygonRecords)
-        const rectangles =
-            SchematicPrimitiveParser.parseSchematicRectangles(rectangleRecords)
-        const regions =
-            SchematicPrimitiveParser.parseSchematicRegions(regionRecords)
+        const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
         const ellipses =
             SchematicPrimitiveParser.parseSchematicEllipses(ellipseRecords)
-        const arcs = SchematicPrimitiveParser.parseSchematicArcs(arcRecords)
+        const rectangles =
+            SchematicPrimitiveParser.inferMissingOwnerRectangleRenderOrders(
+                rectangleRecords,
+                SchematicPrimitiveParser.parseSchematicRectangles(
+                    rectangleRecords
+                ),
+                lines,
+                polygons,
+                ellipses,
+                arcs
+            )
+        const regions =
+            SchematicPrimitiveParser.parseSchematicRegions(regionRecords)
         const directives =
             SchematicDirectiveParser.parseSchematicDirectives(directiveRecords)
+        const { sheetSymbols, sheetEntries } =
+            SchematicSheetParser.parse(recordIndexAwareRecords)
+        const junctions =
+            SchematicJunctionParser.parseSchematicJunctions(
+                recordIndexAwareRecords
+            )
+        const busEntries =
+            SchematicBusEntryParser.parseSchematicBusEntries(
+                recordIndexAwareRecords
+            )
+        const { images, diagnostics: imageDiagnostics } =
+            SchematicImageParser.parseSchematicImages(
+                recordIndexAwareRecords,
+                arrayBuffer
+            )
 
         const pins = parseSchematicPins(pinRecords)
         const ports = parseSchematicPorts(portRecords, lines)
@@ -410,6 +448,18 @@ export class AltiumParser {
                     'Sheet metadata record 31 was not found. Using fallback dimensions.'
             })
         }
+        diagnostics.push(...imageDiagnostics)
+        const { nets, diagnostics: netDiagnostics } =
+            SchematicNetlistBuilder.build({
+                lines: normalizedLines,
+                texts: anchoredTexts,
+                pins,
+                ports,
+                junctions,
+                busEntries,
+                sheetEntries
+            })
+        diagnostics.push(...netDiagnostics)
 
         return {
             kind: 'schematic',
@@ -436,7 +486,16 @@ export class AltiumParser {
                 components,
                 pins,
                 ports,
-                crosses
+                crosses,
+                sheetSymbols: sheetSymbols.map(
+                    ({ sourceRecordIndex, indexInSheet, ...sheetSymbol }) =>
+                        sheetSymbol
+                ),
+                sheetEntries,
+                junctions,
+                busEntries,
+                images,
+                nets
             },
             bom
         }

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restore correct Altium-style pin number and internal label placement for `U6`, `U29`, and `U31` in `Starfall-Moon.SchDoc`.
+**Goal:** Restore correct Altium-style pin number and internal label placement for `WYRN6`, `WYRN29`, and `WYRN31` in `Skylace-Moon.SchDoc`.
 
 **Architecture:** Fix the root cause in the normalized pin parser so the affected five-pin gate symbols preserve `name-and-number` labeling, then update the schematic SVG renderer to place horizontal pin numbers outside the symbol body and pin names inside the body. Verify the behavior against the real source file and keep the change limited to parser label-mode selection and SVG pin text placement.
 
@@ -19,16 +19,16 @@
 
 **Step 1: Write the failing test**
 
-Add tests that parse `tests/fixtures/altium/Starfall-Moon.SchDoc` and assert:
+Add tests that parse `tests/fixtures/altium/Skylace-Moon.SchDoc` and assert:
 
-- `U29` and `U31` pins are not normalized as `name-only`
+- `WYRN29` and `WYRN31` pins are not normalized as `name-only`
 - rendered SVG contains numeric pin labels for those symbols
-- rendered `U6` horizontal pin numbers are outside the symbol body while names remain inside
+- rendered `WYRN6` horizontal pin numbers are outside the symbol body while names remain inside
 
 **Step 2: Run test to verify it fails**
 
 Run: `npm test -- tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs`
-Expected: FAIL because `U29` and `U31` currently lose their pin numbers and `U6` horizontal number placement is wrong.
+Expected: FAIL because `WYRN29` and `WYRN31` currently lose their pin numbers and `WYRN6` horizontal number placement is wrong.
 
 **Step 3: Write minimal implementation**
 
@@ -37,7 +37,7 @@ Do not change production code until the new tests fail for the expected reasons.
 **Step 4: Run test to verify it still fails for the right reason**
 
 Run: `npm test -- tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs`
-Expected: FAIL with assertions tied to missing gate pin numbers and misplaced `U6` label columns.
+Expected: FAIL with assertions tied to missing gate pin numbers and misplaced `WYRN6` label columns.
 
 **Step 5: Commit**
 
