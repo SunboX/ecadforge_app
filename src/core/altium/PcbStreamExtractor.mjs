@@ -1,5 +1,6 @@
 import { AsciiRecordParser } from './AsciiRecordParser.mjs'
 import { PcbBinaryPrimitiveParser } from './PcbBinaryPrimitiveParser.mjs'
+import { PcbEmbeddedModelExtractor } from './PcbEmbeddedModelExtractor.mjs'
 import { OleCompoundDocument } from '../ole/OleCompoundDocument.mjs'
 import { OleConstants } from '../ole/OleConstants.mjs'
 
@@ -33,7 +34,7 @@ export class PcbStreamExtractor {
     /**
      * Extracts PCB content directly from one OLE-backed PcbDoc buffer.
      * @param {ArrayBuffer} arrayBuffer
-     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null}
+     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } } | null}
      */
     static extractFromArrayBuffer(arrayBuffer) {
         if (!PcbStreamExtractor.isCompoundDocument(arrayBuffer)) {
@@ -55,7 +56,7 @@ export class PcbStreamExtractor {
      * Extracts stream-scoped printable records and known binary primitives from
      * a stream map.
      * @param {Map<string, Uint8Array>} streams
-     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } }}
+     * @returns {{ records: Array<{ raw: string, fields: Record<string, string | string[]>, sourceStream: string }>, streamNames: string[], binaryPrimitives: { fills: { x1: number, y1: number, x2: number, y2: number, layerCode: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode: number, layerId: number }[], vias: { x: number, y: number, diameter: number, holeDiameter: number }[], pads: { x: number, y: number, sizeTopX: number, sizeTopY: number, sizeMidX: number, sizeMidY: number, sizeBottomX: number, sizeBottomY: number, holeDiameter: number, shapeTop: number, shapeMid: number, shapeBottom: number, rotation: number, isPlated: boolean }[] }, diagnostics: { printableRecordCount: number, printableStreamCount: number, binaryPrimitiveCount: number } }}
      */
     static extractFromStreams(streams) {
         const records = []
@@ -64,6 +65,7 @@ export class PcbStreamExtractor {
         const binaryPrimitives = {
             fills: [],
             tracks: [],
+            arcs: [],
             vias: [],
             pads: []
         }
@@ -90,6 +92,8 @@ export class PcbStreamExtractor {
             usedStreamNames.add(name)
         }
 
+        const arcHeaderBytes = streams.get('Arcs6/Header')
+        const arcDataBytes = streams.get('Arcs6/Data')
         const trackHeaderBytes = streams.get('Tracks6/Header')
         const trackDataBytes = streams.get('Tracks6/Data')
         const viaHeaderBytes = streams.get('Vias6/Header')
@@ -98,6 +102,16 @@ export class PcbStreamExtractor {
         const fillDataBytes = streams.get('Fills6/Data')
         const padHeaderBytes = streams.get('Pads6/Header')
         const padDataBytes = streams.get('Pads6/Data')
+
+        if (arcHeaderBytes && arcDataBytes) {
+            binaryPrimitives.arcs = PcbBinaryPrimitiveParser.parseArcStream(
+                arcHeaderBytes,
+                arcDataBytes
+            )
+            if (binaryPrimitives.arcs.length) {
+                usedStreamNames.add('Arcs6/Data')
+            }
+        }
 
         if (trackHeaderBytes && trackDataBytes) {
             binaryPrimitives.tracks =
@@ -140,16 +154,32 @@ export class PcbStreamExtractor {
             }
         }
 
+        const embeddedModels = PcbEmbeddedModelExtractor.extractFromStreams(
+            streams
+        )
+
+        if (embeddedModels.models.length || embeddedModels.componentBodies.length) {
+            usedStreamNames.add('Models/Data')
+            embeddedModels.models.forEach((model) =>
+                usedStreamNames.add(model.sourceStream)
+            )
+            embeddedModels.componentBodies.forEach((componentBody) =>
+                usedStreamNames.add(componentBody.sourceStream)
+            )
+        }
+
         return {
             records,
             streamNames: [...usedStreamNames].sort((left, right) =>
                 left.localeCompare(right)
             ),
             binaryPrimitives,
+            embeddedModels,
             diagnostics: {
                 printableRecordCount: records.length,
                 printableStreamCount: printableStreamNames.size,
                 binaryPrimitiveCount:
+                    binaryPrimitives.arcs.length +
                     binaryPrimitives.tracks.length +
                     binaryPrimitives.vias.length +
                     binaryPrimitives.fills.length +

@@ -46,10 +46,10 @@ git commit -m "test: lock mutated altium fixture vocabulary"
 ### Task 2: Mutate the schematic fixture corpus
 
 **Files:**
-- Modify: `tests/fixtures/altium/Starfall-Dawn.SchDoc`
-- Modify: `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Modify: `tests/fixtures/altium/Starfall-Nova.SchDoc`
-- Modify: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Modify: `tests/fixtures/altium/Skylace-Dawn.SchDoc`
+- Modify: `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Modify: `tests/fixtures/altium/Skylace-Nova.SchDoc`
+- Modify: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
@@ -78,14 +78,14 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/fixtures/altium/Starfall-Dawn.SchDoc tests/fixtures/altium/Starfall-Moon.SchDoc tests/fixtures/altium/Starfall-Nova.SchDoc tests/fixtures/altium/Starfall-Cinder.SchDoc tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs
+git add tests/fixtures/altium/Skylace-Dawn.SchDoc tests/fixtures/altium/Skylace-Moon.SchDoc tests/fixtures/altium/Skylace-Nova.SchDoc tests/fixtures/altium/Skylace-Cinder.SchDoc tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs
 git commit -m "test: mutate schematic fixture corpus"
 ```
 
 ### Task 3: Mutate the PCB fixture corpus
 
 **Files:**
-- Modify: `tests/fixtures/altium/Starfall-Forge.PcbDoc`
+- Modify: `tests/fixtures/altium/Skylace-Forge.PcbDoc`
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
@@ -114,7 +114,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/fixtures/altium/Starfall-Forge.PcbDoc tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs
+git add tests/fixtures/altium/Skylace-Forge.PcbDoc tests/core/altium-parser.test.mjs tests/ui/renderers.test.mjs
 git commit -m "test: mutate pcb fixture corpus"
 ```
 

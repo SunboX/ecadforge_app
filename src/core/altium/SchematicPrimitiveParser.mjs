@@ -182,6 +182,74 @@ export class SchematicPrimitiveParser {
     }
 
     /**
+     * Infers paint order for solid owner body rectangles whose printable
+     * record lost IndexInSheet. Those bodies should stay behind their owner's
+     * indexed contact/detail primitives rather than inheriting unrelated
+     * global rectangle-list offsets from elsewhere on the sheet.
+     * @param {{ fields: Record<string, string | string[]> }[]} rectangleRecords
+     * @param {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, lineStyle: number, renderOrder: number, ownerIndex?: string }[]} rectangles
+     * @param {{ x1: number, y1: number, x2: number, y2: number, renderOrder?: number, ownerIndex?: string }[]} lines
+     * @param {{ points: { x: number, y: number }[], renderOrder?: number, ownerIndex?: string }[]} polygons
+     * @param {{ x: number, y: number, radiusX: number, radiusY: number, renderOrder?: number, ownerIndex?: string }[]} ellipses
+     * @param {{ x: number, y: number, radius: number, radiusY?: number, renderOrder?: number, ownerIndex?: string }[]} arcs
+     * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, isSolid: boolean, transparent: boolean, lineWidth: number, lineStyle: number, renderOrder: number, ownerIndex?: string }[]}
+     */
+    static inferMissingOwnerRectangleRenderOrders(
+        rectangleRecords,
+        rectangles,
+        lines,
+        polygons,
+        ellipses,
+        arcs
+    ) {
+        const rectangleMetaQueues =
+            SchematicPrimitiveParser.#buildRectangleRecordMetaQueues(
+                rectangleRecords
+            )
+        const normalizedRectangles = rectangles.map((rectangle) => ({
+            rectangle,
+            hasExplicitOrder:
+                SchematicPrimitiveParser.#shiftRectangleMeta(
+                    rectangleMetaQueues,
+                    rectangle
+                )?.hasExplicitOrder || false
+        }))
+        const ownerGeometryItems =
+            SchematicPrimitiveParser.#buildOwnerGeometryItems(
+                normalizedRectangles,
+                lines,
+                polygons,
+                ellipses,
+                arcs
+            )
+
+        return normalizedRectangles.map(({ rectangle, hasExplicitOrder }) => {
+            if (
+                hasExplicitOrder ||
+                !rectangle.ownerIndex ||
+                rectangle.isSolid !== true
+            ) {
+                return rectangle
+            }
+
+            const inferredRenderOrder =
+                SchematicPrimitiveParser.#inferMissingOwnerRectangleRenderOrder(
+                    rectangle,
+                    ownerGeometryItems.get(String(rectangle.ownerIndex)) || []
+                )
+
+            if (inferredRenderOrder === null) {
+                return rectangle
+            }
+
+            return {
+                ...rectangle,
+                renderOrder: inferredRenderOrder
+            }
+        })
+    }
+
+    /**
      * Normalizes authored sheet overlay regions into rectangular overlays.
      * @param {{ fields: Record<string, string | string[]> }[]} records
      * @returns {{ x: number, y: number, width: number, height: number, color: string, fill: string, renderOrder: number }[]}
@@ -347,6 +415,230 @@ export class SchematicPrimitiveParser {
         }
 
         return fallbackOrder
+    }
+
+    /**
+     * Builds one stable geometry-key queue for rectangle source metadata.
+     * @param {{ fields: Record<string, string | string[]> }[]} records
+     * @returns {Map<string, { hasExplicitOrder: boolean }[]>}
+     */
+    static #buildRectangleRecordMetaQueues(records) {
+        const queues = new Map()
+
+        for (const record of records) {
+            const x1 = parseNumericField(record.fields, 'Location.X')
+            const y1 = parseNumericField(record.fields, 'Location.Y')
+            const x2 = parseNumericField(record.fields, 'Corner.X')
+            const y2 = parseNumericField(record.fields, 'Corner.Y')
+
+            if (x1 === null || y1 === null || x2 === null || y2 === null) {
+                continue
+            }
+
+            const key = SchematicPrimitiveParser.#buildRectangleGeometryKey({
+                ownerIndex: getField(record.fields, 'OwnerIndex') || undefined,
+                x: Math.min(x1, x2),
+                y: Math.min(y1, y2),
+                width: Math.abs(x2 - x1),
+                height: Math.abs(y2 - y1)
+            })
+
+            if (!queues.has(key)) {
+                queues.set(key, [])
+            }
+
+            queues.get(key).push({
+                hasExplicitOrder:
+                    parseNumericField(record.fields, 'IndexInSheet') !== null
+            })
+        }
+
+        return queues
+    }
+
+    /**
+     * Consumes one rectangle source-metadata queue entry for a normalized body.
+     * @param {Map<string, { hasExplicitOrder: boolean }[]>} queues
+     * @param {{ ownerIndex?: string, x: number, y: number, width: number, height: number }} rectangle
+     * @returns {{ hasExplicitOrder: boolean } | null}
+     */
+    static #shiftRectangleMeta(queues, rectangle) {
+        const key = SchematicPrimitiveParser.#buildRectangleGeometryKey(rectangle)
+        const queue = queues.get(key)
+
+        if (!queue?.length) {
+            return null
+        }
+
+        return queue.shift() || null
+    }
+
+    /**
+     * Builds one geometry key that stays stable across raw and normalized
+     * rectangle representations.
+     * @param {{ ownerIndex?: string, x: number, y: number, width: number, height: number }} rectangle
+     * @returns {string}
+     */
+    static #buildRectangleGeometryKey(rectangle) {
+        return [
+            String(rectangle.ownerIndex || ''),
+            Number(rectangle.x),
+            Number(rectangle.y),
+            Number(rectangle.width),
+            Number(rectangle.height)
+        ].join(':')
+    }
+
+    /**
+     * Collects owner-geometry bounds that can help infer one missing owner
+     * body render order.
+     * @param {{ rectangle: { ownerIndex?: string, x: number, y: number, width: number, height: number, renderOrder: number }, hasExplicitOrder: boolean }[]} rectangles
+     * @param {{ x1: number, y1: number, x2: number, y2: number, renderOrder?: number, ownerIndex?: string }[]} lines
+     * @param {{ points: { x: number, y: number }[], renderOrder?: number, ownerIndex?: string }[]} polygons
+     * @param {{ x: number, y: number, radiusX: number, radiusY: number, renderOrder?: number, ownerIndex?: string }[]} ellipses
+     * @param {{ x: number, y: number, radius: number, radiusY?: number, renderOrder?: number, ownerIndex?: string }[]} arcs
+     * @returns {Map<string, { renderOrder: number, minX: number, maxX: number, minY: number, maxY: number }[]>}
+     */
+    static #buildOwnerGeometryItems(
+        rectangles,
+        lines,
+        polygons,
+        ellipses,
+        arcs
+    ) {
+        const ownerItems = new Map()
+
+        for (const { rectangle, hasExplicitOrder } of rectangles) {
+            if (!rectangle.ownerIndex || !hasExplicitOrder) {
+                continue
+            }
+
+            SchematicPrimitiveParser.#pushOwnerGeometryItem(ownerItems, {
+                ownerIndex: String(rectangle.ownerIndex),
+                renderOrder: Number(rectangle.renderOrder),
+                minX: rectangle.x,
+                maxX: rectangle.x + rectangle.width,
+                minY: rectangle.y,
+                maxY: rectangle.y + rectangle.height
+            })
+        }
+
+        for (const line of lines) {
+            if (!line.ownerIndex) {
+                continue
+            }
+
+            SchematicPrimitiveParser.#pushOwnerGeometryItem(ownerItems, {
+                ownerIndex: String(line.ownerIndex),
+                renderOrder: Number(line.renderOrder),
+                minX: Math.min(Number(line.x1), Number(line.x2)),
+                maxX: Math.max(Number(line.x1), Number(line.x2)),
+                minY: Math.min(Number(line.y1), Number(line.y2)),
+                maxY: Math.max(Number(line.y1), Number(line.y2))
+            })
+        }
+
+        for (const polygon of polygons) {
+            if (!polygon.ownerIndex || !polygon.points?.length) {
+                continue
+            }
+
+            const xs = polygon.points.map((point) => Number(point.x))
+            const ys = polygon.points.map((point) => Number(point.y))
+
+            SchematicPrimitiveParser.#pushOwnerGeometryItem(ownerItems, {
+                ownerIndex: String(polygon.ownerIndex),
+                renderOrder: Number(polygon.renderOrder),
+                minX: Math.min(...xs),
+                maxX: Math.max(...xs),
+                minY: Math.min(...ys),
+                maxY: Math.max(...ys)
+            })
+        }
+
+        for (const ellipse of ellipses) {
+            if (!ellipse.ownerIndex) {
+                continue
+            }
+
+            SchematicPrimitiveParser.#pushOwnerGeometryItem(ownerItems, {
+                ownerIndex: String(ellipse.ownerIndex),
+                renderOrder: Number(ellipse.renderOrder),
+                minX: Number(ellipse.x) - Number(ellipse.radiusX),
+                maxX: Number(ellipse.x) + Number(ellipse.radiusX),
+                minY: Number(ellipse.y) - Number(ellipse.radiusY),
+                maxY: Number(ellipse.y) + Number(ellipse.radiusY)
+            })
+        }
+
+        for (const arc of arcs) {
+            if (!arc.ownerIndex) {
+                continue
+            }
+
+            const radiusY = Number(arc.radiusY || arc.radius)
+
+            SchematicPrimitiveParser.#pushOwnerGeometryItem(ownerItems, {
+                ownerIndex: String(arc.ownerIndex),
+                renderOrder: Number(arc.renderOrder),
+                minX: Number(arc.x) - Number(arc.radius),
+                maxX: Number(arc.x) + Number(arc.radius),
+                minY: Number(arc.y) - radiusY,
+                maxY: Number(arc.y) + radiusY
+            })
+        }
+
+        return ownerItems
+    }
+
+    /**
+     * Stores one owner-geometry candidate for missing-body order inference.
+     * @param {Map<string, { renderOrder: number, minX: number, maxX: number, minY: number, maxY: number }[]>} ownerItems
+     * @param {{ ownerIndex: string, renderOrder: number, minX: number, maxX: number, minY: number, maxY: number }} item
+     * @returns {void}
+     */
+    static #pushOwnerGeometryItem(ownerItems, item) {
+        if (!Number.isFinite(item.renderOrder)) {
+            return
+        }
+
+        if (!ownerItems.has(item.ownerIndex)) {
+            ownerItems.set(item.ownerIndex, [])
+        }
+
+        ownerItems.get(item.ownerIndex).push({
+            ...item
+        })
+    }
+
+    /**
+     * Infers one missing owner-body render order from contained indexed
+     * geometry. Missing-order bodies should sit just behind the earliest
+     * indexed sibling primitive contained inside the same owner body.
+     * @param {{ x: number, y: number, width: number, height: number, renderOrder: number }} rectangle
+     * @param {{ renderOrder: number, minX: number, maxX: number, minY: number, maxY: number }[]} ownerItems
+     * @returns {number | null}
+     */
+    static #inferMissingOwnerRectangleRenderOrder(rectangle, ownerItems) {
+        const containedItems = ownerItems.filter(
+            (item) =>
+                item.minX >= rectangle.x &&
+                item.maxX <= rectangle.x + rectangle.width &&
+                item.minY >= rectangle.y &&
+                item.maxY <= rectangle.y + rectangle.height
+        )
+
+        if (!containedItems.length) {
+            return null
+        }
+
+        const earliestContainedRenderOrder = Math.min(
+            ...containedItems.map((item) => Number(item.renderOrder))
+        )
+
+        return Number.isFinite(earliestContainedRenderOrder)
+            ? earliestContainedRenderOrder - 0.5
+            : null
     }
 
     /**

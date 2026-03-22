@@ -1,8 +1,9 @@
 {
     "name": "ecadforge_app",
-    "version": "1.2.9",
+    "version": "1.3.41",
     "description": "Browser-based viewer for native Altium schematic and PCB files",
     "private": true,
+    "license": "PolyForm-Noncommercial-1.0.0",
     "type": "module",
     "scripts": {
         "start": "node src/server.mjs",
@@ -11,7 +12,10 @@
         "check:format": "prettier --check ."
     },
     "dependencies": {
-        "express": "^5.1.0"
+        "express": "^5.1.0",
+        "fflate": "^0.8.2",
+        "occt-import-js": "^0.0.23",
+        "three": "^0.183.2"
     },
     "devDependencies": {
         "prettier": "^3.4.2"

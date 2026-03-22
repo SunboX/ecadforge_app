@@ -91,6 +91,47 @@ class PcbBinaryPrimitiveTestFactory {
     }
 
     /**
+     * Creates a one-arc stream pair.
+     * @returns {{ headerBytes: Uint8Array, dataBytes: Uint8Array }}
+     */
+    static createArcStream() {
+        const headerBytes = new Uint8Array(4)
+        const dataBytes = new Uint8Array(65)
+        const headerView = new DataView(headerBytes.buffer)
+        const dataView = new DataView(dataBytes.buffer)
+        const payloadOffset = 5
+
+        headerView.setUint32(0, 1, true)
+        dataView.setUint8(0, 1)
+        dataView.setUint32(1, 60, true)
+        dataView.setUint8(payloadOffset, 33)
+        PcbBinaryPrimitiveTestFactory.#writeMil(
+            dataView,
+            payloadOffset + 13,
+            420
+        )
+        PcbBinaryPrimitiveTestFactory.#writeMil(
+            dataView,
+            payloadOffset + 17,
+            360
+        )
+        PcbBinaryPrimitiveTestFactory.#writeMil(
+            dataView,
+            payloadOffset + 21,
+            48
+        )
+        dataView.setFloat64(payloadOffset + 25, 90, true)
+        dataView.setFloat64(payloadOffset + 33, 180, true)
+        PcbBinaryPrimitiveTestFactory.#writeMil(
+            dataView,
+            payloadOffset + 41,
+            6
+        )
+
+        return { headerBytes, dataBytes }
+    }
+
+    /**
      * Creates a one-pad stream pair with one plated mounting-hole pad.
      * @returns {{ headerBytes: Uint8Array, dataBytes: Uint8Array }}
      */
@@ -288,6 +329,30 @@ test('PcbBinaryPrimitiveParser decodes fill streams', () => {
                 x2: 11049.1471,
                 y2: 8916.6876,
                 layerCode: 256,
+                layerId: 33
+            }
+        ]
+    )
+})
+
+/**
+ * Verifies fixed-size binary arc records decode authored circular geometry.
+ */
+test('PcbBinaryPrimitiveParser decodes arc streams', () => {
+    const { headerBytes, dataBytes } =
+        PcbBinaryPrimitiveTestFactory.createArcStream()
+
+    assert.deepEqual(
+        PcbBinaryPrimitiveParser.parseArcStream(headerBytes, dataBytes),
+        [
+            {
+                x: 420,
+                y: 360,
+                radius: 48,
+                startAngle: 90,
+                endAngle: 180,
+                width: 6,
+                layerCode: 33,
                 layerId: 33
             }
         ]

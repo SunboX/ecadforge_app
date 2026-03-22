@@ -38,11 +38,11 @@ Expected: PASS
 
 **Files:**
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
-- Delete: `tests/fixtures/altium/Starfall-Dawn.SchDoc`
-- Delete: `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Delete: `tests/fixtures/altium/Starfall-Nova.SchDoc`
-- Delete: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
-- Delete: `tests/fixtures/altium/Starfall-Forge.PcbDoc`
+- Delete: `tests/fixtures/altium/Skylace-Dawn.SchDoc`
+- Delete: `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Delete: `tests/fixtures/altium/Skylace-Nova.SchDoc`
+- Delete: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
+- Delete: `tests/fixtures/altium/Skylace-Forge.PcbDoc`
 
 **Step 1: Write the failing test**
 

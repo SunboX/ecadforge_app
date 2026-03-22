@@ -468,15 +468,11 @@ export class SchematicTextParser {
      * @returns {'start' | 'middle' | 'end'}
      */
     static #inferTextAnchor(fields, recordType, name, text, font, rotation) {
-        const normalizedName = String(name || '').trim().toLowerCase()
         const explicitAnchor =
             SchematicTextParser.#resolveSchematicTextJustificationAnchor(fields)
 
         if (recordType === '17') return 'middle'
         if (explicitAnchor) return explicitAnchor
-        if (font.size >= 20 && !normalizedName && /\S/.test(text)) {
-            return 'middle'
-        }
 
         return 'start'
     }
@@ -577,6 +573,16 @@ export class SchematicTextParser {
      */
     static #resolveTextRotation(fields, font, recordType) {
         if (recordType === '17') return 0
+        if (recordType === '25') {
+            const orientation = ParserUtils.parseNumericField(
+                fields,
+                'Orientation'
+            )
+
+            if (orientation === 1 || orientation === 3) {
+                return 90
+            }
+        }
 
         const explicitRotation = ParserUtils.parseNumericField(fields, 'Rotation')
         if (explicitRotation !== null) return explicitRotation

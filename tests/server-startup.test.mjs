@@ -180,6 +180,178 @@ test('server serves static app modules with no-store cache headers', async (t) =
 })
 
 /**
+ * Verifies the server exposes vendored Three.js browser modules with the same
+ * no-store policy used by the app source.
+ */
+test('server serves browser vendor modules with no-store cache headers', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' + String(port) + '/vendor/three/build/three.module.js'
+    )
+
+    assert.equal(response.ok, true)
+    assert.match(
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
+ * Verifies Three.js addon loader modules are rewritten for direct browser use
+ * instead of retaining bare package imports.
+ */
+test('server rewrites browser vendor addon modules away from bare three imports', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/three/examples/jsm/loaders/VRMLLoader.js'
+    )
+    const source = await response.text()
+
+    assert.equal(response.ok, true)
+    assert.doesNotMatch(source, /from 'three'/)
+    assert.match(
+        source,
+        /from ['"]\/vendor\/three\/build\/three\.module\.js(?:\?v=[^'"]+)?['"]/
+    )
+})
+
+/**
+ * Verifies the served Three.js core module graph keeps the requested app
+ * version on its internal relative imports so browser ESM caches cannot mix
+ * fresh app code with stale Three internals.
+ */
+test('server rewrites Three.js build module relative imports with the current version key', async (t) => {
+    const packageRaw = await readFile(
+        new URL('../package.json', import.meta.url),
+        'utf8'
+    )
+    const pkg = JSON.parse(packageRaw)
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/three/build/three.module.js?v=' +
+            encodeURIComponent(String(pkg.version))
+    )
+    const source = await response.text()
+
+    assert.equal(response.ok, true)
+    assert.match(
+        source,
+        new RegExp(
+            "from ['\"]\\./three\\.core\\.js\\?v=" + pkg.version + "['\"]"
+        )
+    )
+})
+
+/**
+ * Verifies browser-served parser modules do not retain Node-only compression
+ * imports in the frontend module graph.
+ */
+test('server rewrites browser parser modules away from node-only zlib imports', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/core/altium/PcbEmbeddedModelExtractor.mjs'
+    )
+    const source = await response.text()
+
+    assert.equal(response.ok, true)
+    assert.doesNotMatch(source, /node:zlib/)
+    assert.match(
+        source,
+        /from ['"]\/vendor\/fflate\/esm\/browser\.js(?:\?v=[^'"]+)?['"]/
+    )
+})
+
+/**
+ * Verifies the browser-runnable STEP importer assets are served from the local
+ * vendor path with the same cache policy as other runtime assets.
+ */
+test('server serves browser STEP importer javascript and wasm assets', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const jsResponse = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/occt-import-js/dist/occt-import-js.js'
+    )
+    const wasmResponse = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/occt-import-js/dist/occt-import-js.wasm'
+    )
+
+    assert.equal(jsResponse.ok, true)
+    assert.equal(wasmResponse.ok, true)
+    assert.match(
+        String(jsResponse.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+    assert.match(
+        String(wasmResponse.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
  * Verifies the server rewrites frontend entrypoints and module imports with
  * the current app version so browser ESM graphs cannot keep stale parser code.
  */

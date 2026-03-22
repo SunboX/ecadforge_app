@@ -22,7 +22,7 @@ test('parseAltiumArrayBuffer parses an embedded fake SchDoc sample', async () =>
         2
     )
     assert.equal(documentModel.bom.length, 0)
-    assert.equal(documentModel.summary.title, 'STARFALL-ARC')
+    assert.equal(documentModel.summary.title, 'SKYLACE-ARC')
 })
 
 /**
@@ -210,14 +210,14 @@ test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
             (text) =>
                 text.text === 'WYRN' &&
                 Math.abs(text.fontSize - 22) < 0.02 &&
-                text.anchor === 'middle'
+                text.anchor === 'start'
         ),
         true
     )
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
-                text.text === '+3.3V' &&
+                text.text === 'AURA_3V3' &&
                 text.recordType === '17' &&
                 text.style === 2 &&
                 text.rotation === 0 &&
@@ -234,7 +234,7 @@ test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
-                text.text === 'Q12' &&
+                text.text === 'SIGIL12' &&
                 text.rotation === 90 &&
                 text.anchor === 'start'
         ),
@@ -289,7 +289,7 @@ test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
         true
     )
     assert.deepEqual(documentModel.schematic.sheet.titleBlock, {
-        title: 'STARFALL-ARC',
+        title: 'SKYLACE-ARC',
         revision: '01',
         documentNumber: '',
         sheetNumber: '4',
@@ -359,7 +359,7 @@ test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
     assert.equal(documentModel.schematic.sheet.yZones, 4)
     assert.equal(
         documentModel.schematic.texts.some(
-            (text) => text.text === 'STARFALL-ARC' || text.text === '01'
+            (text) => text.text === 'SKYLACE-ARC' || text.text === '01'
         ),
         false
     )
@@ -430,10 +430,10 @@ test('parseAltiumArrayBuffer decodes moon sheet colors and wires', async () => {
             }))
             .sort((left, right) => left.x - right.x || left.y - right.y),
         [
-            { x: 225, y: 270, designator: 'Q12' },
-            { x: 255, y: 215, designator: 'R94' },
-            { x: 455, y: 595, designator: 'U6' },
-            { x: 950, y: 540, designator: 'J6' }
+            { x: 225, y: 270, designator: 'SIGIL12' },
+            { x: 255, y: 215, designator: 'GLINT94' },
+            { x: 455, y: 595, designator: 'WYRN6' },
+            { x: 950, y: 540, designator: 'PORT6' }
         ]
     )
 })
@@ -447,27 +447,27 @@ test(
     async () => {
         const moonDocument = await AltiumFixtureLoader.parseMoonSheet()
         const cinderDocument = await AltiumFixtureLoader.parseCinderSheet()
-        const d16 = moonDocument.schematic.texts.find(
-            (text) => text.text === 'Q12'
+        const sigil12Text = moonDocument.schematic.texts.find(
+            (text) => text.text === 'SIGIL12'
         )
         const jtag = moonDocument.schematic.texts.find(
             (text) => text.text === 'WYRN'
         )
-        const r24 = cinderDocument.schematic.texts.find(
-            (text) => text.text === 'Q24'
+        const sigil24Text = cinderDocument.schematic.texts.find(
+            (text) => text.text === 'SIGIL24'
         )
-        const r24Value = cinderDocument.schematic.texts.find(
+        const sigil24Value = cinderDocument.schematic.texts.find(
             (text) => text.text === '4K7' && text.ownerIndex === '3652'
         )
 
         assert.deepEqual(
             {
-                text: d16?.text,
-                rotation: d16?.rotation,
-                sourceOrientation: d16?.sourceOrientation
+                text: sigil12Text?.text,
+                rotation: sigil12Text?.rotation,
+                sourceOrientation: sigil12Text?.sourceOrientation
             },
             {
-                text: 'Q12',
+                text: 'SIGIL12',
                 rotation: 90,
                 sourceOrientation: 1
             }
@@ -486,21 +486,21 @@ test(
         )
         assert.deepEqual(
             {
-                text: r24?.text,
-                rotation: r24?.rotation,
-                sourceOrientation: r24?.sourceOrientation
+                text: sigil24Text?.text,
+                rotation: sigil24Text?.rotation,
+                sourceOrientation: sigil24Text?.sourceOrientation
             },
             {
-                text: 'Q24',
+                text: 'SIGIL24',
                 rotation: 90,
                 sourceOrientation: 3
             }
         )
         assert.deepEqual(
             {
-                text: r24Value?.text,
-                rotation: r24Value?.rotation,
-                sourceOrientation: r24Value?.sourceOrientation
+                text: sigil24Value?.text,
+                rotation: sigil24Value?.rotation,
+                sourceOrientation: sigil24Value?.sourceOrientation
             },
             {
                 text: '4K7',

@@ -18,7 +18,7 @@
 
 **Step 1: Write the failing test**
 
-Add a fixture-backed test that loads `Starfall-Dawn.SchDoc` and asserts:
+Add a fixture-backed test that loads `Skylace-Dawn.SchDoc` and asserts:
 
 - a line exists from `(300,700)` to `(300,680)`
 - a line exists from `(415,550)` to `(415,460)`

@@ -2,14 +2,14 @@
  * Viewer state container with subscription support.
  */
 export class AppState {
-    /** @type {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }} */
+    /** @type {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[] }} */
     #state
 
-    /** @type {Set<(snapshot: { activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }) => void>} */
+    /** @type {Set<(snapshot: { activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }) => void>} */
     #listeners
 
     /**
-     * @param {{ activeView?: string, locale?: string, parseStatus?: string, statusMessage?: string, activeFileName?: string, documentModel?: object | null }} [initial]
+     * @param {{ activeView?: string, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string }[] }} [initial]
      */
     constructor(initial = {}) {
         this.#state = {
@@ -17,48 +17,65 @@ export class AppState {
             locale: String(initial.locale || 'en'),
             parseStatus: AppState.#sanitizeStatus(initial.parseStatus),
             statusMessage: String(initial.statusMessage || ''),
-            activeFileName: String(initial.activeFileName || ''),
-            documentModel: initial.documentModel || null
+            documents: AppState.#sanitizeDocuments(initial.documents),
+            activeDocumentId: String(initial.activeDocumentId || ''),
+            sessionAssets: AppState.#sanitizeSessionAssets(initial.sessionAssets)
         }
+        this.#normalizeDocumentSelection()
         this.#listeners = new Set()
     }
 
     /**
      * Returns a readonly snapshot.
-     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }}
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     getSnapshot() {
-        return Object.freeze({ ...this.#state })
+        const activeEntry = AppState.#findActiveDocumentEntry(
+            this.#state.documents,
+            this.#state.activeDocumentId
+        )
+
+        return Object.freeze({
+            ...this.#state,
+            documents: this.#state.documents.map((entry) => ({ ...entry })),
+            sessionAssets: this.#state.sessionAssets.map((asset) => ({
+                ...asset
+            })),
+            activeFileName: String(activeEntry?.documentModel?.fileName || ''),
+            documentModel: activeEntry?.documentModel || null
+        })
     }
 
     /**
      * Sets one state field and notifies listeners.
-     * @param {'activeView' | 'locale' | 'parseStatus' | 'statusMessage' | 'activeFileName' | 'documentModel'} key
-     * @param {string | object | null} value
-     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }}
+     * @param {'activeView' | 'locale' | 'parseStatus' | 'statusMessage' | 'documents' | 'activeDocumentId' | 'sessionAssets'} key
+     * @param {string | object[] | null} value
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     setValue(key, value) {
         this.#applyValue(key, value)
+        this.#normalizeDocumentSelection()
 
         return this.#emit()
     }
 
     /**
      * Applies multiple state fields.
-     * @param {{ activeView?: string, locale?: string, parseStatus?: string, statusMessage?: string, activeFileName?: string, documentModel?: object | null }} patch
-     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }}
+     * @param {{ activeView?: string, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string }[] }} patch
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     patch(patch) {
         for (const key of Object.keys(patch)) {
             this.#applyValue(key, patch[key])
         }
+        this.#normalizeDocumentSelection()
 
         return this.#emit()
     }
 
     /**
      * Subscribes to state changes.
-     * @param {(snapshot: { activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }) => void} callback
+     * @param {(snapshot: { activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }) => void} callback
      * @returns {() => void}
      */
     subscribe(callback) {
@@ -76,7 +93,7 @@ export class AppState {
 
     /**
      * Emits a fresh state snapshot to all listeners.
-     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documentModel: object | null }}
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #emit() {
         const snapshot = this.getSnapshot()
@@ -106,13 +123,29 @@ export class AppState {
             this.#state.statusMessage = String(value || '')
         }
 
-        if (key === 'activeFileName') {
-            this.#state.activeFileName = String(value || '')
+        if (key === 'documents') {
+            this.#state.documents = AppState.#sanitizeDocuments(value)
         }
 
-        if (key === 'documentModel') {
-            this.#state.documentModel = value || null
+        if (key === 'activeDocumentId') {
+            this.#state.activeDocumentId = String(value || '')
         }
+
+        if (key === 'sessionAssets') {
+            this.#state.sessionAssets = AppState.#sanitizeSessionAssets(value)
+        }
+    }
+
+    /**
+     * Normalizes the active document selection against the current session
+     * document list.
+     * @returns {void}
+     */
+    #normalizeDocumentSelection() {
+        this.#state.activeDocumentId = AppState.#resolveActiveDocumentId(
+            this.#state.documents,
+            this.#state.activeDocumentId
+        )
     }
 
     /**
@@ -141,5 +174,91 @@ export class AppState {
         const supported = new Set(['idle', 'loading', 'ready', 'error'])
         const normalized = String(value || 'idle')
         return supported.has(normalized) ? normalized : 'idle'
+    }
+
+    /**
+     * Normalizes session document entries.
+     * @param {unknown} value
+     * @returns {{ id: string, documentModel: object }[]}
+     */
+    static #sanitizeDocuments(value) {
+        if (!Array.isArray(value)) {
+            return []
+        }
+
+        return value
+            .filter(
+                (entry) =>
+                    entry &&
+                    typeof entry === 'object' &&
+                    typeof entry.id === 'string' &&
+                    entry.id &&
+                    entry.documentModel &&
+                    typeof entry.documentModel === 'object'
+            )
+            .map((entry) => ({
+                id: entry.id,
+                documentModel: entry.documentModel
+            }))
+    }
+
+    /**
+     * Normalizes session companion assets.
+     * @param {unknown} value
+     * @returns {{ name: string, relativePath: string, file: any, format: string }[]}
+     */
+    static #sanitizeSessionAssets(value) {
+        if (!Array.isArray(value)) {
+            return []
+        }
+
+        return value
+            .filter(
+                (entry) =>
+                    entry &&
+                    typeof entry === 'object' &&
+                    typeof entry.name === 'string' &&
+                    entry.name &&
+                    typeof entry.relativePath === 'string' &&
+                    entry.relativePath &&
+                    typeof entry.format === 'string' &&
+                    entry.format
+            )
+            .map((entry) => ({
+                name: entry.name,
+                relativePath: entry.relativePath,
+                file: entry.file,
+                format: entry.format
+            }))
+    }
+
+    /**
+     * Resolves the active document id to an existing session entry.
+     * @param {{ id: string, documentModel: object }[]} documents
+     * @param {string} activeDocumentId
+     * @returns {string}
+     */
+    static #resolveActiveDocumentId(documents, activeDocumentId) {
+        if (!documents.length) {
+            return ''
+        }
+
+        if (documents.some((entry) => entry.id === activeDocumentId)) {
+            return activeDocumentId
+        }
+
+        return documents[0].id
+    }
+
+    /**
+     * Finds the active document entry for the current session snapshot.
+     * @param {{ id: string, documentModel: object }[]} documents
+     * @param {string} activeDocumentId
+     * @returns {{ id: string, documentModel: object } | null}
+     */
+    static #findActiveDocumentEntry(documents, activeDocumentId) {
+        return (
+            documents.find((entry) => entry.id === activeDocumentId) || null
+        )
     }
 }

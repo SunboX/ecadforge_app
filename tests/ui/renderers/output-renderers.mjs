@@ -95,6 +95,93 @@ test('renderPcbSvg renders board outline, copper primitives, and placements', ()
 })
 
 /**
+ * Verifies rounded board-outline corners use the short wrapped SVG arc sweep
+ * instead of flipping outward or inward at the page corners.
+ */
+test('renderPcbSvg keeps wrapped board-outline corner arcs on the short sweep', () => {
+    const markup = PcbSvgRenderer.render({
+        summary: { title: 'Rounded board' },
+        pcb: {
+            boardOutline: {
+                minX: 3031.4961,
+                minY: 2362.2047,
+                widthMil: 1220.4724,
+                heightMil: 1299.2126,
+                segments: [
+                    { type: 'line', x1: 3031.4961, y1: 3611.4173, x2: 3031.4961, y2: 2412.2047 },
+                    {
+                        type: 'arc',
+                        x1: 3031.4961,
+                        y1: 2412.2047,
+                        x2: 3081.4961,
+                        y2: 2362.2047,
+                        cx: 3081.4961,
+                        cy: 2412.2047,
+                        radius: 50,
+                        startAngle: 270,
+                        endAngle: 180
+                    },
+                    { type: 'line', x1: 3081.4961, y1: 2362.2047, x2: 4201.9685, y2: 2362.2047 },
+                    {
+                        type: 'arc',
+                        x1: 4201.9685,
+                        y1: 2362.2047,
+                        x2: 4251.9685,
+                        y2: 2412.2047,
+                        cx: 4201.9685,
+                        cy: 2412.2047,
+                        radius: 50,
+                        startAngle: 0,
+                        endAngle: 270
+                    },
+                    { type: 'line', x1: 4251.9685, y1: 2412.2047, x2: 4251.9685, y2: 3611.4173 },
+                    {
+                        type: 'arc',
+                        x1: 4251.9685,
+                        y1: 3611.4173,
+                        x2: 4201.9685,
+                        y2: 3661.4173,
+                        cx: 4201.9685,
+                        cy: 3611.4173,
+                        radius: 50,
+                        startAngle: 90,
+                        endAngle: 0
+                    },
+                    { type: 'line', x1: 4201.9685, y1: 3661.4173, x2: 3081.4961, y2: 3661.4173 },
+                    {
+                        type: 'arc',
+                        x1: 3081.4961,
+                        y1: 3661.4173,
+                        x2: 3031.4961,
+                        y2: 3611.4173,
+                        cx: 3081.4961,
+                        cy: 3611.4173,
+                        radius: 50,
+                        startAngle: 180,
+                        endAngle: 90
+                    },
+                    { type: 'line', x1: 3031.4961, y1: 3611.4173, x2: 3031.4961, y2: 3611.4173 }
+                ]
+            },
+            layers: [{ name: 'Top Layer' }],
+            polygons: [],
+            fills: [],
+            tracks: [],
+            arcs: [],
+            vias: [],
+            pads: [],
+            components: []
+        }
+    })
+
+    assert.match(
+        markup,
+        /<path class="board-outline" d="M 3031\.50 3611\.42 L 3031\.50 2412\.20 A 50 50 0 0 1 3081\.50 2362\.20 L 4201\.97 2362\.20 A 50 50 0 0 1 4251\.97 2412\.20 L 4251\.97 3611\.42 A 50 50 0 0 1 4201\.97 3661\.42 L 3081\.50 3661\.42 A 50 50 0 0 1 3031\.50 3611\.42 L 3031\.50 3611\.42 Z" \/>/
+    )
+    assert.doesNotMatch(markup, /A 50 50 0 0 0/)
+})
+
+/**
  * Verifies PCB renderer separates top-facing and buried copper primitives.
  */
 test('renderPcbSvg groups surface and subsurface copper separately', () => {
@@ -295,6 +382,135 @@ test('renderPcbSvg renders authored footprint detail for top-side packages', () 
 })
 
 /**
+ * Verifies authored footprint arcs render from top-side documentation layers
+ * and suppress the synthetic fallback body even when no tracks or pads exist.
+ */
+test('renderPcbSvg renders authored footprint arcs for rounded package outlines', () => {
+    const markup = PcbSvgRenderer.render({
+        summary: { title: 'Rounded footprint board' },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            layers: [{ name: 'Top Layer' }],
+            primitiveLayers: [{ layerId: 33, name: 'Top Overlay' }],
+            polygons: [],
+            fills: [],
+            tracks: [],
+            arcs: [
+                {
+                    x: 200,
+                    y: 220,
+                    radius: 48,
+                    startAngle: 90,
+                    endAngle: 180,
+                    width: 6,
+                    layerCode: 33,
+                    layerId: 33
+                }
+            ],
+            vias: [],
+            pads: [],
+            components: [
+                {
+                    designator: 'J3',
+                    x: 200,
+                    y: 220,
+                    rotation: 0,
+                    layer: 'TOP',
+                    pattern: 'GENERIC-ARC'
+                }
+            ]
+        }
+    })
+
+    assert.match(markup, /pcb-footprint-arc/)
+    assert.doesNotMatch(markup, /class="pcb-component pcb-component--top"[^>]*><rect class="pcb-component__body"/)
+    assert.match(markup, />J3<\/text>/)
+})
+
+/**
+ * Verifies wrapped PCB arc angles render as the short rounded corner and that
+ * equal start and end angles still render authored circles instead of dots.
+ */
+test('renderPcbSvg normalizes wrapped footprint arcs and start-equals-end circles', () => {
+    const markup = PcbSvgRenderer.render({
+        summary: { title: 'Wrapped footprint arcs' },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            layers: [{ name: 'Top Layer' }],
+            primitiveLayers: [{ layerId: 33, name: 'Top Overlay' }],
+            polygons: [],
+            fills: [],
+            tracks: [],
+            arcs: [
+                {
+                    x: 3964.2125,
+                    y: 2576.5812,
+                    radius: 25.0001,
+                    startAngle: 0,
+                    endAngle: 296,
+                    width: 5,
+                    layerCode: 33,
+                    layerId: 33
+                },
+                {
+                    x: 3899.2126,
+                    y: 2572.8976,
+                    radius: 25,
+                    startAngle: 0,
+                    endAngle: 0,
+                    width: 5,
+                    layerCode: 33,
+                    layerId: 33
+                }
+            ],
+            vias: [],
+            pads: [],
+            components: [
+                {
+                    designator: 'J3',
+                    x: 3920,
+                    y: 2580,
+                    rotation: 0,
+                    layer: 'TOP',
+                    pattern: 'WRAPPED-ARC'
+                }
+            ]
+        }
+    })
+
+    assert.match(
+        markup,
+        /<path class="pcb-footprint-arc" d="M 3989\.21 2576\.58 A 25 25 0 0 0 3975\.17 2554\.11" stroke-width="5" fill="none" \/>/
+    )
+    assert.match(
+        markup,
+        /<circle class="pcb-footprint-arc" cx="3899\.21" cy="2572\.90" r="25" stroke-width="5" fill="none" \/>/
+    )
+})
+
+/**
  * Verifies large pad-defined packages do not render a synthetic center body
  * when real footprint pads are already present near the component origin.
  */
@@ -386,6 +602,94 @@ test('renderPcbSvg omits synthetic bodies for pad-defined packages', () => {
     assert.doesNotMatch(markup, /class="pcb-component pcb-component--top"[^>]*><rect class="pcb-component__body"/)
     assert.doesNotMatch(markup, /dominant-baseline="middle">L1<\/text>/)
     assert.match(markup, />L1<\/text>/)
+})
+
+/**
+ * Verifies larger unknown packages still suppress the synthetic component body
+ * when authored pads define the footprint beyond the small fallback heuristic.
+ */
+test('renderPcbSvg omits synthetic bodies for large unknown packages with authored pads', () => {
+    const markup = PcbSvgRenderer.render({
+        summary: { title: 'Wide regulator board' },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            layers: [{ name: 'Top Layer' }],
+            primitiveLayers: [],
+            polygons: [],
+            fills: [],
+            tracks: [],
+            vias: [],
+            pads: [
+                {
+                    x: 160,
+                    y: 200,
+                    sizeTopX: 92,
+                    sizeTopY: 130,
+                    sizeMidX: 92,
+                    sizeMidY: 130,
+                    sizeBottomX: 92,
+                    sizeBottomY: 130,
+                    holeDiameter: 0,
+                    shapeTop: 2,
+                    shapeMid: 2,
+                    shapeBottom: 2,
+                    rotation: 0,
+                    isPlated: false,
+                    hasRoundedRect: false,
+                    roundedRectShapeTop: null,
+                    cornerRadiusTop: null,
+                    offsetTopX: 0,
+                    offsetTopY: 0
+                },
+                {
+                    x: 440,
+                    y: 200,
+                    sizeTopX: 92,
+                    sizeTopY: 130,
+                    sizeMidX: 92,
+                    sizeMidY: 130,
+                    sizeBottomX: 92,
+                    sizeBottomY: 130,
+                    holeDiameter: 0,
+                    shapeTop: 2,
+                    shapeMid: 2,
+                    shapeBottom: 2,
+                    rotation: 0,
+                    isPlated: false,
+                    hasRoundedRect: false,
+                    roundedRectShapeTop: null,
+                    cornerRadiusTop: null,
+                    offsetTopX: 0,
+                    offsetTopY: 0
+                }
+            ],
+            components: [
+                {
+                    designator: 'U9',
+                    x: 300,
+                    y: 200,
+                    rotation: 0,
+                    layer: 'TOP',
+                    pattern: 'GENERIC-WIDE'
+                }
+            ]
+        }
+    })
+
+    assert.match(markup, /pcb-pad [^"]*pcb-pad--smd/)
+    assert.doesNotMatch(markup, /class="pcb-component pcb-component--top"[^>]*><rect class="pcb-component__body"/)
+    assert.match(markup, />U9<\/text>/)
 })
 
 /**
@@ -568,6 +872,24 @@ test('pcb viewer stylesheet defines surface and subsurface copper styling', asyn
     assert.match(css, /\.pcb-copper--surface \.pcb-polygon\s*\{/)
     assert.match(css, /\.pcb-copper--subsurface \.pcb-polygon\s*\{/)
     assert.match(css, /\.pcb-svg\.is-panning\s*\{/)
+})
+
+/**
+ * Verifies the document rail uses the app's light surface palette instead of
+ * a dark dock treatment.
+ */
+test('viewer stylesheet keeps the document rail on the light app palette', async () => {
+    const cssPath = new URL('../../../src/styles/20-viewer.css', import.meta.url)
+    const css = await readFile(cssPath, 'utf8')
+    const railBlock = css.match(/\.document-rail\s*\{[^}]*\}/)?.[0]
+    const railItemBlock = css.match(/\.document-rail__item\s*\{[^}]*\}/)?.[0]
+
+    assert.ok(railBlock)
+    assert.ok(railItemBlock)
+    assert.match(railBlock, /rgba\(255,\s*255,\s*255,\s*0\.72\)/)
+    assert.match(railBlock, /rgba\(255,\s*248,\s*241,\s*0\.94\)/)
+    assert.match(railItemBlock, /background:\s*rgba\(255,\s*255,\s*255,\s*0\.68\);/)
+    assert.doesNotMatch(railBlock, /rgba\(30,\s*36,\s*41,\s*0\.96\)/)
 })
 
 /**

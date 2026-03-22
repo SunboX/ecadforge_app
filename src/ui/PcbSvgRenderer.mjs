@@ -1,16 +1,16 @@
+import { PcbArcUtils } from './PcbArcUtils.mjs'
+import { PcbFootprintPrimitiveSelector } from './PcbFootprintPrimitiveSelector.mjs'
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
-
 /**
  * Renders normalized PCB models into HTML and SVG markup.
  */
 export class PcbSvgRenderer {
     static #PAD_SHAPE_RECTANGULAR = 2
-
     static #PAD_HOLE_SHAPE_SLOT = 2
-
+    static #GENERIC_DETAIL_SEARCH_HALF_EXTENT = 240
     /**
      * Renders a normalized PCB model into HTML and SVG markup.
-     * @param {{ summary: { title?: string }, pcb?: { boardOutline: { segments: Array<Record<string, number | string>>, minX: number, minY: number, widthMil: number, heightMil: number }, layers: { name: string }[], primitiveLayers?: { layerId: number, name: string }[], polygons?: { layer?: string, segments: Array<Record<string, number | string>> }[], fills?: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks?: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], vias?: { x: number, y: number, diameter: number, holeDiameter: number }[], pads?: { x: number, y: number, sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, holeDiameter?: number, shapeTop?: number, shapeMid?: number, shapeBottom?: number, rotation?: number, isPlated?: boolean }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] } }} documentModel
+     * @param {{ summary: { title?: string }, pcb?: { boardOutline: { segments: Array<Record<string, number | string>>, minX: number, minY: number, widthMil: number, heightMil: number }, layers: { name: string }[], primitiveLayers?: { layerId: number, name: string }[], polygons?: { layer?: string, segments: Array<Record<string, number | string>> }[], fills?: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks?: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], arcs?: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[], vias?: { x: number, y: number, diameter: number, holeDiameter: number }[], pads?: { x: number, y: number, sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, holeDiameter?: number, shapeTop?: number, shapeMid?: number, shapeBottom?: number, rotation?: number, isPlated?: boolean }[], components: { designator: string, x: number, y: number, rotation: number, layer: string, pattern: string }[] } }} documentModel
      * @returns {string}
      */
     static render(documentModel) {
@@ -18,23 +18,26 @@ export class PcbSvgRenderer {
         if (!pcb) {
             return '<section class="viewer-empty">No PCB entities were recovered from this file.</section>'
         }
-
         const outline = pcb.boardOutline
         const polygons = pcb.polygons || []
         const fills = pcb.fills || []
         const tracks = pcb.tracks || []
+        const arcs = pcb.arcs || []
         const vias = pcb.vias || []
         const pads = pcb.pads || []
         const components = pcb.components.slice(0, 260)
         const copperGroups = PcbSvgRenderer.#splitCopperPrimitives(
             polygons,
             fills,
-            tracks
+            tracks,
+            arcs
         )
-        const footprintPrimitives = PcbSvgRenderer.#splitFootprintPrimitives(
+        const footprintPrimitives = PcbFootprintPrimitiveSelector.select(
             pcb.primitiveLayers || [],
             fills,
-            tracks
+            tracks,
+            arcs,
+            'top'
         )
         const path = PcbSvgRenderer.#buildBoardPath(outline.segments)
         const clipPathId = 'pcb-board-clip'
@@ -54,6 +57,11 @@ export class PcbSvgRenderer {
                 ...copperGroups.surface.tracks,
                 ...copperGroups.subsurface.tracks,
                 ...footprintPrimitives.tracks
+            ],
+            [
+                ...copperGroups.surface.arcs,
+                ...copperGroups.subsurface.arcs,
+                ...footprintPrimitives.arcs
             ],
             vias,
             pads
@@ -124,11 +132,19 @@ export class PcbSvgRenderer {
                         '" />'
                 )
                 .join('')
+        const arcMarkup = (arcList, visibilityClass) =>
+            arcList
+                .map((arc) =>
+                    PcbArcUtils.buildMarkup(
+                        arc,
+                        'pcb-arc pcb-arc--' + visibilityClass
+                    )
+                )
+                .join('')
         const viaMarkup = vias
             .map((via) => {
                 const ringRadius = Math.max((via.diameter || 0) / 2, 1)
                 const holeRadius = Math.max((via.holeDiameter || 0) / 2, 0.6)
-
                 return (
                     '<g class="pcb-via">' +
                     '<circle class="pcb-via__pad" cx="' +
@@ -158,7 +174,6 @@ export class PcbSvgRenderer {
                 const y = Math.min(fill.y1, fill.y2)
                 const width = Math.abs(fill.x2 - fill.x1)
                 const height = Math.abs(fill.y2 - fill.y1)
-
                 return (
                     '<rect class="pcb-footprint-fill" x="' +
                     SchematicSvgUtils.formatNumber(x) +
@@ -192,6 +207,9 @@ export class PcbSvgRenderer {
                     '" />'
             )
             .join('')
+        const footprintArcMarkup = footprintPrimitives.arcs
+            .map((arc) => PcbArcUtils.buildMarkup(arc, 'pcb-footprint-arc'))
+            .join('')
 
         const componentMarkup = components
             .map((component) => {
@@ -221,7 +239,6 @@ export class PcbSvgRenderer {
                           Math.max(bodyGeometry.height / 5, 4)
                       ) +
                       '" />'
-
                 return (
                     '<g class="pcb-component pcb-component--' +
                     SchematicSvgUtils.escapeHtml(component.layer.toLowerCase()) +
@@ -243,7 +260,6 @@ export class PcbSvgRenderer {
                 )
             })
             .join('')
-
         return (
             '<section class="svg-panel">' +
             '<header class="svg-panel__header"><h3>' +
@@ -277,11 +293,13 @@ export class PcbSvgRenderer {
             polygonMarkup(copperGroups.subsurface.polygons, 'subsurface') +
             fillMarkup(copperGroups.subsurface.fills, 'subsurface') +
             trackMarkup(copperGroups.subsurface.tracks, 'subsurface') +
+            arcMarkup(copperGroups.subsurface.arcs, 'subsurface') +
             '</g>' +
             '<g class="pcb-copper pcb-copper--surface">' +
             polygonMarkup(copperGroups.surface.polygons, 'surface') +
             fillMarkup(copperGroups.surface.fills, 'surface') +
             trackMarkup(copperGroups.surface.tracks, 'surface') +
+            arcMarkup(copperGroups.surface.arcs, 'surface') +
             padMarkup +
             viaMarkup +
             '</g>' +
@@ -289,6 +307,7 @@ export class PcbSvgRenderer {
             '<g class="pcb-footprints">' +
             footprintFillMarkup +
             footprintTrackMarkup +
+            footprintArcMarkup +
             '</g>' +
             '<path class="board-outline board-outline--stroke" d="' +
             SchematicSvgUtils.escapeHtml(path) +
@@ -309,7 +328,6 @@ export class PcbSvgRenderer {
         if (!segments.length) {
             return 'M 0 0 L 1000 0 L 1000 600 L 0 600 Z'
         }
-
         const [first] = segments
         let path =
             'M ' +
@@ -320,23 +338,14 @@ export class PcbSvgRenderer {
         for (const segment of segments) {
             if (segment.type === 'arc') {
                 const radius = Math.max(Number(segment.radius) || 0, 1)
-                const delta = Math.abs(
-                    (Number(segment.endAngle) || 0) -
-                        (Number(segment.startAngle) || 0)
-                )
-                const largeArc = delta > 180 ? 1 : 0
-                const sweep =
-                    (Number(segment.endAngle) || 0) >=
-                    (Number(segment.startAngle) || 0)
-                        ? 1
-                        : 0
+                const sweep = PcbArcUtils.resolveShortSweepFromCenter(segment)
                 path +=
                     ' A ' +
                     SchematicSvgUtils.formatNumber(radius) +
                     ' ' +
                     SchematicSvgUtils.formatNumber(radius) +
                     ' 0 ' +
-                    largeArc +
+                    '0' +
                     ' ' +
                     sweep +
                     ' ' +
@@ -345,7 +354,6 @@ export class PcbSvgRenderer {
                     SchematicSvgUtils.formatNumber(segment.y2)
                 continue
             }
-
             path +=
                 ' L ' +
                 SchematicSvgUtils.formatNumber(segment.x2) +
@@ -363,14 +371,14 @@ export class PcbSvgRenderer {
      * @param {{ segments: Array<Record<string, number | string>> }[]} polygons
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} fills
      * @param {{ x1: number, y1: number, x2: number, y2: number }[]} tracks
+     * @param {{ x: number, y: number, radius: number, width?: number }[]} arcs
      * @param {{ x: number, y: number, diameter: number }[]} vias
      * @param {{ x: number, y: number, sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, holeDiameter?: number }[]} pads
      * @returns {string}
      */
-    static #buildViewBox(outline, components, polygons, fills, tracks, vias, pads) {
+    static #buildViewBox(outline, components, polygons, fills, tracks, arcs, vias, pads) {
         const xs = [outline.minX, outline.minX + outline.widthMil]
         const ys = [outline.minY, outline.minY + outline.heightMil]
-
         for (const segment of outline.segments || []) {
             xs.push(Number(segment.x1) || 0, Number(segment.x2) || 0)
             ys.push(Number(segment.y1) || 0, Number(segment.y2) || 0)
@@ -393,25 +401,24 @@ export class PcbSvgRenderer {
             ys.push(track.y1, track.y2)
         }
 
+        for (const arc of arcs) {
+            PcbArcUtils.pushExtents(xs, ys, arc)
+        }
+
         for (const via of vias) {
             const radius = (via.diameter || 0) / 2
-
             xs.push(via.x - radius, via.x + radius)
             ys.push(via.y - radius, via.y + radius)
         }
-
         for (const pad of pads) {
             const size = PcbSvgRenderer.#resolvePadSurfaceSize(pad)
-
             xs.push(pad.x - size.width / 2, pad.x + size.width / 2)
             ys.push(pad.y - size.height / 2, pad.y + size.height / 2)
         }
-
         for (const component of components) {
             const bodyGeometry = PcbSvgRenderer.#footprintSize(
                 component.pattern
             )
-
             xs.push(
                 component.x - bodyGeometry.width / 2,
                 component.x + bodyGeometry.width / 2
@@ -427,7 +434,6 @@ export class PcbSvgRenderer {
         const maxX = Math.max(...xs)
         const maxY = Math.max(...ys)
         const padding = 240
-
         return [
             minX - padding,
             minY - padding,
@@ -439,21 +445,70 @@ export class PcbSvgRenderer {
     }
 
     /**
-     * Returns a small footprint size heuristic.
+     * Resolves a small footprint-size heuristic and whether the pattern matched
+     * a known package family instead of the generic fallback guess.
+     * @param {string} pattern
+     * @returns {{ width: number, height: number, isRecognized: boolean }}
+     */
+    static #footprintProfile(pattern) {
+        const normalized = String(pattern || '').toUpperCase()
+        if (normalized.includes('0402')) {
+            return { width: 52, height: 28, isRecognized: true }
+        }
+        if (normalized.includes('0603')) {
+            return { width: 72, height: 36, isRecognized: true }
+        }
+        if (normalized.includes('0805')) {
+            return { width: 92, height: 48, isRecognized: true }
+        }
+        if (normalized.includes('SOT')) {
+            return { width: 140, height: 90, isRecognized: true }
+        }
+        if (normalized.includes('QFN') || normalized.includes('QFP')) {
+            return { width: 180, height: 180, isRecognized: true }
+        }
+        if (normalized.includes('SC70')) {
+            return { width: 110, height: 70, isRecognized: true }
+        }
+
+        return { width: 96, height: 60, isRecognized: false }
+    }
+
+    /**
+     * Returns a small footprint size heuristic for fallback body rendering.
      * @param {string} pattern
      * @returns {{ width: number, height: number }}
      */
     static #footprintSize(pattern) {
-        const normalized = String(pattern || '').toUpperCase()
-        if (normalized.includes('0402')) return { width: 52, height: 28 }
-        if (normalized.includes('0603')) return { width: 72, height: 36 }
-        if (normalized.includes('0805')) return { width: 92, height: 48 }
-        if (normalized.includes('SOT')) return { width: 140, height: 90 }
-        if (normalized.includes('QFN') || normalized.includes('QFP')) {
-            return { width: 180, height: 180 }
+        const footprint = PcbSvgRenderer.#footprintProfile(pattern)
+        return {
+            width: footprint.width,
+            height: footprint.height
         }
-        if (normalized.includes('SC70')) return { width: 110, height: 70 }
-        return { width: 96, height: 60 }
+    }
+
+    /**
+     * Builds the local search box used to decide whether a component already
+     * has authored pads or outline primitives and therefore should not render
+     * a synthetic rounded body.
+     * @param {{ x: number, y: number, pattern: string }} component
+     * @returns {{ minX: number, maxX: number, minY: number, maxY: number }}
+     */
+    static #footprintDetailBounds(component) {
+        const footprint = PcbSvgRenderer.#footprintProfile(component.pattern)
+        const halfWidth = footprint.isRecognized
+            ? footprint.width / 2 + 36
+            : PcbSvgRenderer.#GENERIC_DETAIL_SEARCH_HALF_EXTENT
+        const halfHeight = footprint.isRecognized
+            ? footprint.height / 2 + 36
+            : PcbSvgRenderer.#GENERIC_DETAIL_SEARCH_HALF_EXTENT
+
+        return {
+            minX: Number(component.x) - halfWidth,
+            maxX: Number(component.x) + halfWidth,
+            minY: Number(component.y) - halfHeight,
+            maxY: Number(component.y) + halfHeight
+        }
     }
 
     /**
@@ -597,18 +652,12 @@ export class PcbSvgRenderer {
      * Returns true when one component already has authored local geometry from
      * selected top-side documentation layers.
      * @param {{ x: number, y: number, pattern: string }} component
-     * @param {{ fills: { x1: number, y1: number, x2: number, y2: number }[], tracks: { x1: number, y1: number, x2: number, y2: number }[] }} footprintPrimitives
+     * @param {{ fills: { x1: number, y1: number, x2: number, y2: number }[], tracks: { x1: number, y1: number, x2: number, y2: number }[], arcs: { x: number, y: number, radius: number, width?: number }[] }} footprintPrimitives
      * @param {{ x: number, y: number, sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, rotation?: number, offsetTopX?: number, offsetTopY?: number, holeDiameter?: number }[]} pads
      * @returns {boolean}
      */
     static #hasAuthoredFootprintDetail(component, footprintPrimitives, pads) {
-        const footprint = PcbSvgRenderer.#footprintSize(component.pattern)
-        const bounds = {
-            minX: Number(component.x) - footprint.width / 2 - 36,
-            maxX: Number(component.x) + footprint.width / 2 + 36,
-            minY: Number(component.y) - footprint.height / 2 - 36,
-            maxY: Number(component.y) + footprint.height / 2 + 36
-        }
+        const bounds = PcbSvgRenderer.#footprintDetailBounds(component)
 
         return (
             (footprintPrimitives.tracks || []).some((track) =>
@@ -616,6 +665,9 @@ export class PcbSvgRenderer {
             ) ||
             (footprintPrimitives.fills || []).some((fill) =>
                 PcbSvgRenderer.#fillIntersectsBounds(fill, bounds)
+            ) ||
+            (footprintPrimitives.arcs || []).some((arc) =>
+                PcbArcUtils.intersectsBounds(arc, bounds)
             ) ||
             (pads || []).some((pad) =>
                 PcbSvgRenderer.#padIntersectsBounds(pad, bounds)
@@ -665,7 +717,6 @@ export class PcbSvgRenderer {
         if (pad.hasRoundedRect && Number.isInteger(pad.roundedRectShapeTop)) {
             return Number(pad.roundedRectShapeTop)
         }
-
         return Number(pad.shapeTop || 0)
     }
 
@@ -712,19 +763,25 @@ export class PcbSvgRenderer {
      * @param {{ layer?: string, segments: Array<Record<string, number | string>> }[]} polygons
      * @param {{ x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[]} fills
      * @param {{ x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[]} tracks
-     * @returns {{ surface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[] }, subsurface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[] } }}
+     * @param {{ x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[]} arcs
+     * @returns {{ surface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[] }, subsurface: { polygons: { layer?: string, segments: Array<Record<string, number | string>> }[], fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[], arcs: { x: number, y: number, radius: number, startAngle: number, endAngle: number, width: number, layerCode?: number, layerId?: number }[] } }}
      */
-    static #splitCopperPrimitives(polygons, fills, tracks) {
+    static #splitCopperPrimitives(polygons, fills, tracks, arcs) {
         const copperFills = fills.filter((fill) =>
             PcbSvgRenderer.#isCopperLayerId(fill.layerId)
         )
         const copperTracks = tracks.filter((track) =>
             PcbSvgRenderer.#isCopperLayerId(track.layerId)
         )
+        const copperArcs = arcs.filter((arc) =>
+            PcbSvgRenderer.#isCopperLayerId(arc.layerId)
+        )
         const surfaceTrackLayerCode =
             PcbSvgRenderer.#resolveSurfaceLayerCode(copperTracks)
         const surfaceFillLayerCode =
             PcbSvgRenderer.#resolveSurfaceLayerCode(copperFills)
+        const surfaceArcLayerCode =
+            PcbSvgRenderer.#resolveSurfaceLayerCode(copperArcs)
 
         return {
             surface: {
@@ -736,6 +793,9 @@ export class PcbSvgRenderer {
                 ),
                 tracks: copperTracks.filter(
                     (track) => track.layerCode === surfaceTrackLayerCode
+                ),
+                arcs: copperArcs.filter(
+                    (arc) => arc.layerCode === surfaceArcLayerCode
                 )
             },
             subsurface: {
@@ -747,56 +807,11 @@ export class PcbSvgRenderer {
                 ),
                 tracks: copperTracks.filter(
                     (track) => track.layerCode !== surfaceTrackLayerCode
+                ),
+                arcs: copperArcs.filter(
+                    (arc) => arc.layerCode !== surfaceArcLayerCode
                 )
             }
-        }
-    }
-
-    /**
-     * Selects authored top-side footprint outline primitives from non-copper
-     * overlay and mechanical documentation layers.
-     * @param {{ layerId: number, name: string }[]} primitiveLayers
-     * @param {{ x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[]} fills
-     * @param {{ x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[]} tracks
-     * @returns {{ fills: { x1: number, y1: number, x2: number, y2: number, layerCode?: number, layerId?: number }[], tracks: { x1: number, y1: number, x2: number, y2: number, width: number, layerCode?: number, layerId?: number }[] }}
-     */
-    static #splitFootprintPrimitives(primitiveLayers, fills, tracks) {
-        const prioritizedLayerMatchers = [
-            (layerName) => PcbSvgRenderer.#isTopOverlayLayerName(layerName),
-            (layerName) => PcbSvgRenderer.#isTopAssemblyLayerName(layerName),
-            (layerName) =>
-                PcbSvgRenderer.#isPlacementOutlineLayerName(layerName),
-            (layerName) => PcbSvgRenderer.#isTopMechanicLayerName(layerName)
-        ]
-
-        for (const matchesLayerName of prioritizedLayerMatchers) {
-            const layerIds = new Set(
-                primitiveLayers
-                    .filter((layer) => matchesLayerName(layer.name))
-                    .map((layer) => Number(layer.layerId))
-                    .filter((layerId) => Number.isInteger(layerId))
-            )
-
-            if (!layerIds.size) {
-                continue
-            }
-
-            const layerFills = fills.filter((fill) => layerIds.has(fill.layerId))
-            const layerTracks = tracks.filter((track) =>
-                layerIds.has(track.layerId)
-            )
-
-            if (layerFills.length || layerTracks.length) {
-                return {
-                    fills: layerFills,
-                    tracks: layerTracks
-                }
-            }
-        }
-
-        return {
-            fills: [],
-            tracks: []
         }
     }
 
@@ -809,7 +824,6 @@ export class PcbSvgRenderer {
         const layerCodes = primitives
             .map((primitive) => primitive.layerCode)
             .filter((layerCode) => Number.isFinite(layerCode))
-
         return layerCodes.length ? Math.min(...layerCodes) : null
     }
 
@@ -820,57 +834,6 @@ export class PcbSvgRenderer {
      */
     static #isSurfacePolygon(polygon) {
         return String(polygon.layer || '').trim().toUpperCase() === 'TOP'
-    }
-
-    /**
-     * Returns true when one primitive layer name typically carries authored
-     * top-side package outlines or reference markings.
-     * @param {string} layerName
-     * @returns {boolean}
-     */
-    static #isTopOverlayLayerName(layerName) {
-        const normalized = String(layerName || '').trim().toUpperCase()
-
-        return normalized.includes('TOP OVERLAY')
-    }
-
-    /**
-     * Returns true when one primitive layer name typically carries top-side
-     * assembly outline geometry.
-     * @param {string} layerName
-     * @returns {boolean}
-     */
-    static #isTopAssemblyLayerName(layerName) {
-        return String(layerName || '')
-            .trim()
-            .toUpperCase()
-            .includes('TOP ASSEMBLY')
-    }
-
-    /**
-     * Returns true when one primitive layer name typically carries top-side
-     * placement or courtyard outlines.
-     * @param {string} layerName
-     * @returns {boolean}
-     */
-    static #isPlacementOutlineLayerName(layerName) {
-        return String(layerName || '')
-            .trim()
-            .toUpperCase()
-            .includes('PLACEMENT OUTLINE')
-    }
-
-    /**
-     * Returns true when one primitive layer name typically carries top-side
-     * mechanical outline geometry.
-     * @param {string} layerName
-     * @returns {boolean}
-     */
-    static #isTopMechanicLayerName(layerName) {
-        return String(layerName || '')
-            .trim()
-            .toUpperCase()
-            .includes('TOP MECHANIC')
     }
 
     /**

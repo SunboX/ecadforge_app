@@ -6,18 +6,18 @@
 
 Make schematic symbol pin labeling match the Altium-style layout shown in the provided screenshots:
 
-- `U6` pin numbers must align cleanly in the external number column
-- `U6` internal labels must align consistently inside the symbol body
-- `U29` and `U31` must render both pin names and pin numbers
-- `U29` and `U31` internal labels must align consistently inside the symbol body
+- `WYRN6` pin numbers must align cleanly in the external number column
+- `WYRN6` internal labels must align consistently inside the symbol body
+- `WYRN29` and `WYRN31` must render both pin names and pin numbers
+- `WYRN29` and `WYRN31` internal labels must align consistently inside the symbol body
 
 ## Scope
 
 ### In Scope
 
-- Fix the normalized pin label mode for small logic gates like `U29` and `U31`
+- Fix the normalized pin label mode for small logic gates like `WYRN29` and `WYRN31`
 - Fix horizontal pin label placement in the SVG schematic renderer
-- Add tests that cover the provided `Starfall-Moon.SchDoc` case directly
+- Add tests that cover the provided `Skylace-Moon.SchDoc` case directly
 - Increment the app version in `package.json`
 
 ### Out Of Scope
@@ -30,8 +30,8 @@ Make schematic symbol pin labeling match the Altium-style layout shown in the pr
 
 The parsed source file shows two distinct issues:
 
-1. `U29` and `U31` are normalized with `labelMode: 'name-only'`, so the renderer never receives instructions to draw pin numbers.
-2. `U6` uses `labelMode: 'name-and-number'`, but the current renderer places horizontal pin numbers with side-dependent offsets that do not match the intended outside-number / inside-name layout.
+1. `WYRN29` and `WYRN31` are normalized with `labelMode: 'name-only'`, so the renderer never receives instructions to draw pin numbers.
+2. `WYRN6` uses `labelMode: 'name-and-number'`, but the current renderer places horizontal pin numbers with side-dependent offsets that do not match the intended outside-number / inside-name layout.
 
 ## Approaches Considered
 
@@ -82,7 +82,7 @@ Infer symbol body bounds from owner geometry and compute all pin text placement 
 
 Use **Approach 2**.
 
-The parser will stop classifying the five-pin `SN74LVC1G00DCKR` gate symbols as `name-only`, so their numeric designators remain available to the renderer. The renderer will then use a consistent horizontal-pin layout:
+The parser will stop classifying the small five-pin twin-gate symbols as `name-only`, so their numeric designators remain available to the renderer. The renderer will then use a consistent horizontal-pin layout:
 
 - left pins: number outside, name inside
 - right pins: number outside, name inside
@@ -91,9 +91,9 @@ This matches the visual structure in the supplied screenshots and keeps the data
 
 ## Testing Strategy
 
-- Add a parser-backed renderer test that loads `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Assert that `U29` and `U31` produce visible numeric pin labels
-- Assert that `U6` renders pin numbers in the outer column and names in the inner column
+- Add a parser-backed renderer test that loads `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Assert that `WYRN29` and `WYRN31` produce visible numeric pin labels
+- Assert that `WYRN6` renders pin numbers in the outer column and names in the inner column
 - Run the focused renderer/parser tests first, then the full `npm test` suite
 
 ## Risks

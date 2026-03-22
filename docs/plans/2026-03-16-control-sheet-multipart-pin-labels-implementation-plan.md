@@ -2,15 +2,15 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Restore the visible `R92` pin numbers on the cinder sheet and align all `R92A/B/C/D` designators like the source reference without changing `J4`.
+**Goal:** Restore the visible `GLINT92` pin numbers on the cinder sheet and align all `GLINT92A/B/C/D` designators like the source reference without changing `PORT4`.
 
-**Architecture:** Keep the fix in schematic normalization. Update passive two-pin pin-label normalization so the active multipart `R92` pairs stay visible, then narrow the owner-text anchor heuristic so near-row left-side multipart labels still flow through the side-anchor logic.
+**Architecture:** Keep the fix in schematic normalization. Update passive two-pin pin-label normalization so the active multipart `GLINT92` pairs stay visible, then narrow the owner-text anchor heuristic so near-row left-side multipart labels still flow through the side-anchor logic.
 
 **Tech Stack:** Node.js, ESM modules, native `node:test`, parser-backed Altium fixtures, SVG renderer tests
 
 ---
 
-### Task 1: Add parser regressions for the control-sheet `R92` pin labels
+### Task 1: Add parser regressions for the control-sheet `GLINT92` pin labels
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
@@ -21,13 +21,13 @@ Extend the existing control-sheet multipart tests so they also assert:
 
 - owners `4010`, `4050`, `4088`, and `4126` still expose only their active pin pairs
 - those pins render with `labelMode === 'number-only'`
-- all four `R92A/B/C/D` designator texts resolve to `anchor === 'end'`
+- all four `GLINT92A/B/C/D` designator texts resolve to `anchor === 'end'`
 
 **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: FAIL because the current parser hides the `R92` pin numbers and preserves `R92B` as `anchor: 'start'`.
+Expected: FAIL because the current parser hides the `GLINT92` pin numbers and preserves `GLINT92B` as `anchor: 'start'`.
 
 ### Task 2: Add a renderer regression for the visible control-sheet output
 
@@ -38,16 +38,16 @@ Expected: FAIL because the current parser hides the `R92` pin numbers and preser
 
 Extend the existing control-sheet multipart renderer regression so it also asserts:
 
-- the rendered output contains `R92A`, `R92B`, `R92C`, `R92D`, and `J4`
-- the rendered output does not contain `J4A`
-- the rendered output contains the expected visible `R92` pin numbers for at least one upper and one lower section
-- the rendered `R92B` label uses `text-anchor="end"`
+- the rendered output contains `GLINT92A`, `GLINT92B`, `GLINT92C`, `GLINT92D`, and `PORT4`
+- the rendered output does not contain `PORT4A`
+- the rendered output contains the expected visible `GLINT92` pin numbers for at least one upper and one lower section
+- the rendered `GLINT92B` label uses `text-anchor="end"`
 
 **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/ui/renderers.test.mjs`
 
-Expected: FAIL because the current renderer no longer emits those `R92` pin numbers and keeps `R92B` left-aligned.
+Expected: FAIL because the current renderer no longer emits those `GLINT92` pin numbers and keeps `GLINT92B` left-aligned.
 
 ### Task 3: Implement the minimal parser fix for passive multipart two-pin labels
 

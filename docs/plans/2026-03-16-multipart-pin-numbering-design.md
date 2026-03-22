@@ -4,7 +4,7 @@
 
 ## Goal
 
-Fix overlapping pin numbers on control-sheet multipart resistor-network symbols and make visible multipart designators match the reference output: `R92A`, `R92B`, `R92C`, `R92D`, while keeping the connector designator as `J4`.
+Fix overlapping pin numbers on control-sheet multipart resistor-network symbols and make visible multipart designators match the reference output: `GLINT92A`, `GLINT92B`, `GLINT92C`, `GLINT92D`, while keeping the connector designator as `PORT4`.
 
 ## Scope
 
@@ -26,11 +26,11 @@ Fix overlapping pin numbers on control-sheet multipart resistor-network symbols 
 
 The current parser already has multipart-owner filtering, but it misses this control-sheet resistor-network pattern.
 
-1. The raw `YC124` owners for `R92` contain four `OwnerPartId` pin/body variants at the same symbol location.
+1. The raw `AURIC124` owners for `GLINT92` contain four `OwnerPartId` pin/body variants at the same symbol location.
 2. `SchematicMultipartOwnerMatcher` only resolves owners whose component placement aligns with the visible part bounds corner.
 3. These passive resistor-network component placements are anchored at the left pin endpoint, not at the part-bounds corner, so owners `4010`, `4050`, `4088`, and `4126` never get an active part match.
 4. Because those owners stay unmatched, `AltiumParser.#isDrawableSchematicRecord()` keeps all four part-specific pin pairs, and the SVG renderer draws overlapping pin numbers like `1/2/3/4` and `5/6/7/8`.
-5. Separately, `SchematicTextPostProcessor.decorateMultipartDesignators()` appends a suffix to any matched multipart owner, which incorrectly turns the connector designator `J4` into `J4A`.
+5. Separately, `SchematicTextPostProcessor.decorateMultipartDesignators()` appends a suffix to any matched multipart owner, which incorrectly turns the connector designator `PORT4` into `PORT4A`.
 
 ## Approaches Considered
 
@@ -42,7 +42,7 @@ Extend owner-part matching so it understands left-anchored passive symbols, then
 
 - Fixes the root cause in normalized data
 - Removes overlapping pin numbers before rendering
-- Produces `R92A/B/C/D` while leaving the single visible `J4` untouched
+- Produces `GLINT92A/B/C/D` while leaving the single visible `PORT4` untouched
 - Keeps the SVG renderer simple
 
 **Cons**
@@ -63,7 +63,7 @@ Leave multipart matching unchanged and collapse stacked pins later by geometry.
 
 - Treats symptoms instead of owner selection
 - Risks dropping legitimate coincident pins on other symbols
-- Does not solve the incorrect `J4A` suffix cleanly
+- Does not solve the incorrect `PORT4A` suffix cleanly
 
 ### Approach 3: Suppress Duplicate Numbers Only In The SVG Renderer
 
@@ -86,7 +86,7 @@ Use **Approach 1**.
 
 The multipart owner matcher will be expanded so passive multipart symbols can match against the actual component anchor used in the source file, not just the part-bounds corner. For the control-sheet resistor networks, that means deriving bounds that include the outer pin endpoints and accepting a left-edge midpoint anchor for non-mirrored passive owners. Once those owners resolve to the active `OwnerPartId`, the existing drawable-record filtering can drop the inactive pin/body variants before pin normalization.
 
-Multipart designator decoration will also become stricter. Instead of appending a suffix to every matched multipart owner, the post-processor will only append suffixes for active owners that share the same visible base designator with at least one other active owner. That keeps grouped multipart symbols like `R92` and `U2` suffixed, while preserving single visible multipart connectors such as `J4`.
+Multipart designator decoration will also become stricter. Instead of appending a suffix to every matched multipart owner, the post-processor will only append suffixes for active owners that share the same visible base designator with at least one other active owner. That keeps grouped multipart symbols like `GLINT92` and `WYRN2` suffixed, while preserving single visible multipart connectors such as `PORT4`.
 
 ## Data Flow
 
@@ -102,8 +102,8 @@ The schematic parsing pipeline stays in the parser layer:
 ## Testing Strategy
 
 - Add a matcher unit test covering a left-anchored passive multipart owner whose component location sits on the outer pin endpoint instead of the part-bounds corner
-- Add a control-sheet parser regression that asserts the `R92` sections resolve to suffixed designators and each section exposes only one visible left/right pin number pair
-- Add a control-sheet renderer regression that checks for `R92A/B/C/D`, verifies `J4` is still rendered, and confirms `J4A` is absent
+- Add a control-sheet parser regression that asserts the `GLINT92` sections resolve to suffixed designators and each section exposes only one visible left/right pin number pair
+- Add a control-sheet renderer regression that checks for `GLINT92A/B/C/D`, verifies `PORT4` is still rendered, and confirms `PORT4A` is absent
 - Run the focused matcher/parser/renderer tests first, then the full test suite
 
 ## Risks

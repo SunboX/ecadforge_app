@@ -27,7 +27,7 @@ The current pipeline loses an important piece of Altium text metadata.
 1. The parser resolves visible text rotation into a generic `rotation` value.
 2. Distinct Altium text orientations such as `Orientation=1` and `Orientation=3` both normalize to `rotation: 90` in the current implementation.
 3. The SVG renderer then emits the same clockwise `rotate(-90 ...)` transform for both cases.
-4. This works for texts such as `D16` and `JTAG`, but it breaks control-sheet resistor labels because their source coordinates assume the opposite vertical baseline direction.
+4. This works for texts such as `EMBER16` and `JTAG`, but it breaks control-sheet resistor labels because their source coordinates assume the opposite vertical baseline direction.
 
 ## Approaches Considered
 
@@ -103,8 +103,8 @@ For ordinary schematic labels, the renderer will:
 ## Testing Strategy
 
 - Extend parser tests to verify rotated texts preserve source orientation metadata
-- Use the moon fixture to assert `Q12` and `WYRN` keep the expected orientation metadata
-- Use the control-sheet fixture to assert resistor labels such as `R24` and `10K` keep their opposite orientation metadata
+- Use the moon fixture to assert `SIGIL12` and `WYRN` keep the expected orientation metadata
+- Use the control-sheet fixture to assert resistor labels such as `GLINT24` and `10K` keep their opposite orientation metadata
 - Extend renderer tests to assert the emitted SVG uses opposite signed rotations for `Orientation=1` and `Orientation=3`
 - Run focused parser and renderer tests first, then run the full suite
 

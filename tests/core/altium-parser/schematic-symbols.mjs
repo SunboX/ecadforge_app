@@ -6,7 +6,7 @@ import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
  * Verifies the moon sheet preserves pin numbers on the two five-pin
- * SN74LVC1G00 gate symbols instead of collapsing them to name-only labels.
+ * twin-gate symbols instead of collapsing them to name-only labels.
  */
 test('parseAltiumArrayBuffer keeps gate pin numbers on the moon sheet', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
@@ -102,7 +102,7 @@ test('parseAltiumArrayBuffer keeps gate pin numbers on the moon sheet', async ()
 /**
  * Verifies nova-sheet packages keep the top and bottom pin rows encoded by the
  * less-common 57/49/51 conglomerate variants, including the full dual-row
- * TVS labelling used by D12.
+ * package labelling used by EMBER12.
  */
 test('parseAltiumArrayBuffer maps nova-sheet top and bottom variant pin conglomerates', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
@@ -166,14 +166,14 @@ test('parseAltiumArrayBuffer maps nova-sheet top and bottom variant pin conglome
  * Verifies nova-sheet power ports preserve Altium orientation metadata so the
  * renderer can honor explicit port direction before inferring from wires.
  */
-test('parseAltiumArrayBuffer keeps nova-sheet +3.3V power-port orientation', async () => {
+test('parseAltiumArrayBuffer keeps nova-sheet AURA_3V3 power-port orientation', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
         documentModel.schematic.texts.some(
             (text) =>
                 text.recordType === '17' &&
-                text.text === '+3.3V' &&
+                text.text === 'AURA_3V3' &&
                 text.x === 100 &&
                 text.y === 1010 &&
                 text.powerPortDirection === 'up'
@@ -184,7 +184,7 @@ test('parseAltiumArrayBuffer keeps nova-sheet +3.3V power-port orientation', asy
 
 /**
  * Verifies nova-sheet multipart unit designators keep the visible section suffix
- * derived from the active Altium part id instead of rendering as bare U2.
+ * derived from the active Altium part id instead of rendering as bare WYRN2.
  */
 test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet designators', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
@@ -194,7 +194,7 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet des
             (text) =>
                 text.ownerIndex === '1672' &&
                 text.name === 'Designator' &&
-                text.text === 'U2A'
+                text.text === 'WYRN2A'
         ),
         true
     )
@@ -203,7 +203,7 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet des
             (text) =>
                 text.ownerIndex === '3833' &&
                 text.name === 'Designator' &&
-                text.text === 'U2B'
+                text.text === 'WYRN2B'
         ),
         true
     )
@@ -212,7 +212,7 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet des
             (text) =>
                 text.ownerIndex === '2172' &&
                 text.name === 'Designator' &&
-                text.text === 'U2J'
+                text.text === 'WYRN2J'
         ),
         true
     )
@@ -222,7 +222,7 @@ test('parseAltiumArrayBuffer appends active multipart suffixes to nova-sheet des
  * Verifies escaped Altium active-low pin names are normalized into readable
  * labels before rendering.
  */
-test('parseAltiumArrayBuffer decodes escaped nova-sheet pin names like RST', async () => {
+test('parseAltiumArrayBuffer decodes escaped nova-sheet pin names like VEIL_RST', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(
@@ -231,7 +231,7 @@ test('parseAltiumArrayBuffer decodes escaped nova-sheet pin names like RST', asy
                 pin.ownerIndex === '3833' &&
                 pin.designator === '1' &&
                 pin.orientation === 'left' &&
-                pin.name === 'RST'
+                pin.name === 'VEIL_RST'
         ),
         true
     )
@@ -325,10 +325,10 @@ test('parseAltiumArrayBuffer preserves escaped active-low pin runs and outer mar
 })
 
 /**
- * Verifies the nova-sheet crystal Y2 keeps its four numbered passive pins rather
+ * Verifies the nova-sheet crystal CHIME2 keeps its four numbered passive pins rather
  * than dropping them because the symbol spans multiple sides.
  */
-test('parseAltiumArrayBuffer keeps the nova-sheet Y2 crystal pins as number-only labels', async () => {
+test('parseAltiumArrayBuffer keeps the nova-sheet CHIME2 crystal pins as number-only labels', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const y2Pins = documentModel.schematic.pins.filter(
         (pin) => pin.ownerIndex === '6355'
@@ -552,7 +552,7 @@ test('parseAltiumArrayBuffer keeps explicit ground power-port orientation on hor
  * Verifies nova-sheet record-14 package bodies are parsed as filled rectangles
  * instead of diagonal line segments.
  */
-test('parseAltiumArrayBuffer keeps the nova-sheet D12 body as a rectangle primitive', async () => {
+test('parseAltiumArrayBuffer keeps the nova-sheet EMBER12 body as a rectangle primitive', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 
     assert.equal(

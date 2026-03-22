@@ -9,8 +9,8 @@ import { Scene3dRenderer } from '../../../src/ui/Scene3dRenderer.mjs'
 import { SchematicSvgRenderer } from '../../../src/ui/SchematicSvgRenderer.mjs'
 
 /**
- * Verifies the moon sheet renders U6 pin numbers outside the body and
- * restores missing U29/U31 gate pin numbers.
+ * Verifies the moon sheet renders WYRN6 pin numbers outside the body and
+ * restores missing WYRN29/WYRN31 gate pin numbers.
  */
 test('renderSchematicSvg aligns moon-sheet pin number and name columns', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
@@ -70,23 +70,23 @@ test('renderSchematicSvg aligns moon-sheet pin number and name columns', async (
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">K29</
+        /text class="schematic-label" x="619" y="603" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">KITE29</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">C187</
+        /text class="schematic-label" x="715" y="622" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">ORB187</
     )
     assert.match(
         markup,
-        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">P5</
+        /text class="schematic-label" x="974" y="583" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">PIER5</
     )
 })
 
 /**
- * Verifies the moon-sheet D16 diode symbol includes the triangle body
+ * Verifies the moon-sheet SIGIL12 diode symbol includes the triangle body
  * linework from the source polygon primitive.
  */
-test('renderSchematicSvg renders the moon Q12 diode triangle', async () => {
+test('renderSchematicSvg renders the moon SIGIL12 diode triangle', async () => {
     const documentModel = await AltiumFixtureLoader.parseMoonSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
@@ -114,7 +114,7 @@ test('renderSchematicSvg keeps cinder-sheet non-mirrored orientation-3 labels cl
 
     assert.match(
         markup,
-        /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
+        /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">SIGIL24</
     )
     assert.match(
         markup,
@@ -123,10 +123,10 @@ test('renderSchematicSvg keeps cinder-sheet non-mirrored orientation-3 labels cl
 })
 
 /**
- * Verifies the nova sheet renders one copy of each visible U2 section
+ * Verifies the nova sheet renders one copy of each visible WYRN2 section
  * and includes the multipart body outlines recovered from record 6.
  */
-test('renderSchematicSvg restores multipart U2 bodies on the nova sheet', async () => {
+test('renderSchematicSvg restores multipart WYRN2 bodies on the nova sheet', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
@@ -153,8 +153,8 @@ test('renderSchematicSvg keeps late nova-sheet labels beyond the old text cap', 
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
-    assert.match(markup, />U9</)
-    assert.match(markup, />U11</)
+    assert.match(markup, />WYRN9</)
+    assert.match(markup, />WYRN11</)
     assert.match(markup, />NOVA_SEND</)
     assert.match(markup, />LYRA_LINK</)
 })
@@ -302,15 +302,15 @@ test('renderSchematicSvg keeps nova-sheet boot wire labels anchored to the right
  * Verifies the nova block renders multipart unit suffixes, readable
  * decoded pin names, and the crystal pin numbers shown in Altium.
  */
-test('renderSchematicSvg restores nova-sheet multipart suffixes and Y2 crystal pin numbers', async () => {
+test('renderSchematicSvg restores nova-sheet multipart suffixes and CHIME2 crystal pin numbers', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
-    assert.match(markup, />U2A</)
-    assert.match(markup, />U2B</)
-    assert.match(markup, />U2J</)
-    assert.doesNotMatch(markup, />U2</)
-    assert.match(markup, />RST</)
+    assert.match(markup, />WYRN2A</)
+    assert.match(markup, />WYRN2B</)
+    assert.match(markup, />WYRN2J</)
+    assert.doesNotMatch(markup, />WYRN2</)
+    assert.match(markup, />VEIL_RST</)
     assert.doesNotMatch(markup, /\\R\\S\\T\\/)
     assert.match(
         markup,
@@ -331,10 +331,10 @@ test('renderSchematicSvg restores nova-sheet multipart suffixes and Y2 crystal p
 })
 
 /**
- * Verifies nova-sheet D12 renders as the filled dual-row TVS package from the
+ * Verifies nova-sheet EMBER12 renders as the filled dual-row package from the
  * Altium reference instead of a diagonal line with partial labels.
  */
-test('renderSchematicSvg renders the nova-sheet D12 package body and both pin rows', async () => {
+test('renderSchematicSvg renders the nova-sheet EMBER12 package body and both pin rows', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
@@ -397,11 +397,11 @@ test('renderSchematicSvg renders the nova-sheet D12 package body and both pin ro
 })
 
 /**
- * Verifies the nova-sheet D12 ground power port falls back to the default
+ * Verifies the nova-sheet EMBER12 ground power port falls back to the default
  * downward ground symbol instead of treating ground orientation 3 like a
  * right-facing rail direction.
  */
-test('renderSchematicSvg keeps the nova-sheet D12 ground power port downward', async () => {
+test('renderSchematicSvg keeps the nova-sheet EMBER12 ground power port downward', async () => {
     const documentModel = await AltiumFixtureLoader.parseNovaSheet()
     const markup = SchematicSvgRenderer.render(documentModel)
 
@@ -546,15 +546,15 @@ test(
 
         assert.match(
             moonMarkup,
-            /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">Q12</
+            /<text class="schematic-label" x="225" y="612" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 225 612\)">SIGIL12</
         )
         assert.match(
             moonMarkup,
-            /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="21" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
+            /<text class="schematic-label" x="995" y="552" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="21" font-family="Times New Roman" font-weight="400" transform="rotate\(-90 995 552\)">WYRN</
         )
         assert.match(
             cinderMarkup,
-            /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">Q24</
+            /<text class="schematic-label" x="415" y="794" fill="var\(--schematic-default-ink-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400" transform="rotate\(90 415 794\)">SIGIL24</
         )
         assert.match(
             cinderMarkup,
@@ -565,7 +565,7 @@ test(
 
 /**
  * Verifies the cinder-sheet multipart resistor labels render with section suffixes,
- * while the nearby connector keeps its raw cinder-sheet designator.
+ * while the nearby connector keeps its raw fantasy designator.
  */
 test(
     'renderSchematicSvg renders multipart resistor suffixes without suffixing the cinder-sheet connector',
@@ -573,15 +573,15 @@ test(
         const documentModel = await AltiumFixtureLoader.parseCinderSheet()
         const markup = SchematicSvgRenderer.render(documentModel)
 
-        assert.match(markup, />Q92A</)
+        assert.match(markup, />SIGIL92A</)
         assert.match(
             markup,
-            /<text class="schematic-label" x="934" y="235" fill="var\(--schematic-default-ink-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">Q92B</
+            /<text class="schematic-label" x="934" y="235" fill="var\(--schematic-default-ink-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">SIGIL92B</
         )
-        assert.match(markup, />Q92C</)
-        assert.match(markup, />Q92D</)
-        assert.match(markup, />P4</)
-        assert.doesNotMatch(markup, />P4A</)
+        assert.match(markup, />SIGIL92C</)
+        assert.match(markup, />SIGIL92D</)
+        assert.match(markup, />PIER4</)
+        assert.doesNotMatch(markup, />PIER4A</)
         assert.match(
             markup,
             /text class="schematic-pin-number" x="968" y="233" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">2</

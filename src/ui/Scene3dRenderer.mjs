@@ -1,9 +1,9 @@
 /**
- * Renders presentational 3D board summaries.
+ * Renders the interactive 3D scene shell.
  */
 export class Scene3dRenderer {
     /**
-     * Renders a presentational 3D board summary.
+     * Renders the interactive 3D scene shell.
      * @param {{ pcb?: { boardOutline: { widthMil: number, heightMil: number }, components: { designator: string }[] }, bom: { quantity: number }[] }} documentModel
      * @returns {string}
      */
@@ -24,7 +24,25 @@ export class Scene3dRenderer {
             ' x ' +
             heightMil +
             ' mil board envelope</p></header>' +
-            '<div class="scene-3d__stage"><div class="scene-3d__shadow"></div><div class="scene-3d__board"><span class="scene-3d__trace scene-3d__trace--one"></span><span class="scene-3d__trace scene-3d__trace--two"></span><span class="scene-3d__trace scene-3d__trace--three"></span></div></div>' +
+            '<div class="scene-3d__toolbar" aria-label="3D camera presets">' +
+            '<button class="scene-3d__preset" type="button" data-scene-3d-preset="top">Top</button>' +
+            '<button class="scene-3d__preset" type="button" data-scene-3d-preset="bottom">Bottom</button>' +
+            '<button class="scene-3d__preset" type="button" data-scene-3d-preset="isometric">Isometric</button>' +
+            '</div>' +
+            '<div class="scene-3d__stage">' +
+            '<div class="scene-3d__viewport" aria-label="Interactive 3D PCB view">' +
+            '<div class="scene-3d__canvas-mount" data-scene-3d-viewport></div>' +
+            '<div class="scene-3d__loading" data-scene-3d-loading aria-live="polite">' +
+            '<div class="viewer-loading__pulse"></div><p>Preparing 3D scene...</p></div>' +
+            '</div>' +
+            '<aside class="scene-3d__controls" aria-label="3D detail toggles">' +
+            '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="external-models" />External models</label>' +
+            '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="fallback-bodies" />Fallback bodies</label>' +
+            '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="copper" />Copper detail</label>' +
+            '<section class="scene-3d__selection" aria-live="polite"><h4 class="scene-3d__selection-title">Component inspector</h4><p class="scene-3d__selection-empty">Click a component to inspect it.</p></section>' +
+            '</aside>' +
+            '</div>' +
+            '<div class="scene-3d__diagnostics" aria-live="polite">Companion models will be used when matching WRL or STEP files are loaded in the session.</div>' +
             '<dl class="scene-3d__stats"><div><dt>Footprint</dt><dd>' +
             widthMil +
             ' x ' +

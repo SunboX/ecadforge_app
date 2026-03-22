@@ -46,6 +46,8 @@ class PcbStreamTestFactory {
      */
     static createStreamMap() {
         const streams = new Map()
+        const arcStream =
+            PcbStreamTestFactory.#createArcStream()
         const trackStream =
             PcbStreamTestFactory.#createTrackStream()
         const viaStream =
@@ -61,6 +63,8 @@ class PcbStreamTestFactory {
             PcbStreamTestFactory.createComponentStream()
         )
         streams.set('Polygons6/Data', PcbStreamTestFactory.createPolygonStream())
+        streams.set('Arcs6/Header', arcStream.headerBytes)
+        streams.set('Arcs6/Data', arcStream.dataBytes)
         streams.set('Tracks6/Header', trackStream.headerBytes)
         streams.set('Tracks6/Data', trackStream.dataBytes)
         streams.set('Vias6/Header', viaStream.headerBytes)
@@ -71,6 +75,31 @@ class PcbStreamTestFactory {
         streams.set('Pads6/Data', padStream.dataBytes)
 
         return streams
+    }
+
+    /**
+     * Creates one synthetic arc stream pair.
+     * @returns {{ headerBytes: Uint8Array, dataBytes: Uint8Array }}
+     */
+    static #createArcStream() {
+        const headerBytes = new Uint8Array(4)
+        const dataBytes = new Uint8Array(65)
+        const headerView = new DataView(headerBytes.buffer)
+        const dataView = new DataView(dataBytes.buffer)
+        const payloadOffset = 5
+
+        headerView.setUint32(0, 1, true)
+        dataView.setUint8(0, 1)
+        dataView.setUint32(1, 60, true)
+        dataView.setUint8(payloadOffset, 33)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 13, 420)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 17, 360)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 21, 48)
+        dataView.setFloat64(payloadOffset + 25, 90, true)
+        dataView.setFloat64(payloadOffset + 33, 180, true)
+        PcbStreamTestFactory.#writeMil(dataView, payloadOffset + 41, 6)
+
+        return { headerBytes, dataBytes }
     }
 
     /**
@@ -228,6 +257,7 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
 
     assert.equal(extracted.records.length, 4)
     assert.deepEqual(extracted.streamNames, [
+        'Arcs6/Data',
         'Board6/Data',
         'Components6/Data',
         'Fills6/Data',
@@ -265,6 +295,18 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
             layerId: 0
         }
     ])
+    assert.deepEqual(extracted.binaryPrimitives.arcs, [
+        {
+            x: 420,
+            y: 360,
+            radius: 48,
+            startAngle: 90,
+            endAngle: 180,
+            width: 6,
+            layerCode: 33,
+            layerId: 33
+        }
+    ])
     assert.deepEqual(extracted.binaryPrimitives.pads, [
         {
             x: 320,
@@ -291,4 +333,8 @@ test('PcbStreamExtractor extracts printable and binary PCB streams', () => {
             offsetTopY: 0
         }
     ])
+    assert.deepEqual(extracted.embeddedModels, {
+        models: [],
+        componentBodies: []
+    })
 })

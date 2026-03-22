@@ -203,7 +203,7 @@ test('renderSchematicSvg uses footer title-block hints for promoted A2 placement
                 yZones: 4,
                 paperSize: 'A2',
                 titleBlock: {
-                    title: 'STARFALL-CINDER',
+                    title: 'SKYLACE-CINDER',
                     revision: '01',
                     documentNumber: 'SIGIL-VAULT',
                     sheetNumber: '8',
@@ -256,7 +256,7 @@ test('renderSchematicSvg uses footer title-block hints for promoted A2 placement
     )
     assert.match(
         markup,
-        /<text class="sheet-title-value" x="1947.09" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">STARFALL-CINDER</
+        /<text class="sheet-title-value" x="1947.09" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">SKYLACE-CINDER</
     )
     assert.match(
         markup,
@@ -276,7 +276,7 @@ test('renderSchematicSvg uses footer title-block hints for promoted A2 placement
     )
     assert.doesNotMatch(
         markup,
-        /<text class="sheet-title-value" x="1900" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">STARFALL-CINDER</
+        /<text class="sheet-title-value" x="1900" y="1564" fill="var\(--schematic-default-ink-color\)" text-anchor="middle" font-size="14" font-family="Times New Roman" font-weight="700">SKYLACE-CINDER</
     )
     assert.doesNotMatch(
         markup,

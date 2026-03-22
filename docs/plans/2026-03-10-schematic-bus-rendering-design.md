@@ -10,8 +10,8 @@ The current schematic parser normalizes straight lines plus record-`6` and recor
 
 Examples from the fake power-sheet fixture:
 
-- `RECORD=26 ... X1=300 Y1=700 X2=300 Y2=680` is the `DRDM[0..1]` bus trunk.
-- `RECORD=26 ... X1=415 Y1=550 X2=415 Y2=460` is the `N[7..0]` bus trunk.
+- `RECORD=26 ... X1=300 Y1=700 X2=300 Y2=680` is the `VEIL[0..1]` bus trunk.
+- `RECORD=26 ... X1=415 Y1=550 X2=415 Y2=460` is the `RUNE[7..0]` bus trunk.
 
 ## Options Considered
 
@@ -70,7 +70,7 @@ Implement option 2.
 
 ### Tests
 
-- Add a parser regression on the fake dawn sheet proving the `DRDM[0..1]` and `N[7..0]` bus trunks are present and marked as buses.
+- Add a parser regression on the fake dawn sheet proving the `VEIL[0..1]` and `RUNE[7..0]` bus trunks are present and marked as buses.
 - Add a renderer regression proving bus lines emit a thicker stroke than ordinary wires.
 
 ### Docs and Release Hygiene

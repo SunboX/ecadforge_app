@@ -11,11 +11,13 @@ self.addEventListener('message', (event) => {
         )
         self.postMessage({
             type: 'parser:success',
+            requestId: String(payload.requestId || ''),
             documentModel
         })
     } catch (error) {
         self.postMessage({
             type: 'parser:error',
+            requestId: String(payload.requestId || ''),
             message:
                 error instanceof Error ? error.message : 'Parser worker failed.'
         })

@@ -20,7 +20,7 @@ Remove every legacy vendor-specific identifier from the repository and replace t
 
 - Reworking parser behavior unrelated to fixture ownership or naming
 - Redesigning the current regression suite beyond what is needed to support fake fixtures
-- Removing generic technical labels such as `Zephyr Node` or `Rune Gate` that are not vendor-specific references
+- Removing generic technical labels such as `Zephyr Node` or `Wyrm Gate` that are not vendor-specific references
 
 ## Current State
 

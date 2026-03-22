@@ -2,7 +2,7 @@
 
 **Problem**
 
-The PCB viewer currently renders component bodies as synthetic rounded rectangles derived from the footprint name. That hides the authored footprint geometry present in native `.PcbDoc` files, especially for fine-pitch ICs, connectors, and outline-heavy footprints. In the supplied `Starfall-Forge.PcbDoc`, the renderer drops all surface-mount pads and never draws top-side overlay or mechanical footprint outlines, so detailed packages collapse into generic blocks.
+The PCB viewer currently renders component bodies as synthetic rounded rectangles derived from the footprint name. That hides the authored footprint geometry present in native `.PcbDoc` files, especially for fine-pitch ICs, connectors, and outline-heavy footprints. In the supplied `Skylace-Forge.PcbDoc`, the renderer drops all surface-mount pads and never draws top-side overlay or mechanical footprint outlines, so detailed packages collapse into generic blocks.
 
 **Chosen Approach**
 

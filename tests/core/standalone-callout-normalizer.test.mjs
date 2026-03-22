@@ -148,7 +148,7 @@ test(
             {
                 x: 325,
                 y: 540,
-                text: '+3.3V',
+                text: 'AURA_3V3',
                 color: '#800000',
                 hidden: false,
                 name: '',
@@ -192,7 +192,7 @@ test(
             {
                 x: 585,
                 y: 575,
-                text: '+3.3V',
+                text: 'AURA_3V3',
                 color: '#800000',
                 hidden: false,
                 name: '',
@@ -230,9 +230,9 @@ test(
         )
 
         assert.deepEqual(dashedBounds, {
-            minX: 288,
+            minX: 282,
             minY: 526,
-            maxX: 408,
+            maxX: 403,
             maxY: 590
         })
         assert.deepEqual(
@@ -242,7 +242,7 @@ test(
                 anchor: note?.anchor
             },
             {
-                x: 348,
+                x: 343,
                 y: 576,
                 anchor: 'middle'
             }

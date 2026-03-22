@@ -14,7 +14,7 @@
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
 **Step 1: Write the failing test**
 
@@ -24,7 +24,7 @@ Add a parser-backed test that loads the control-sheet fixture and asserts the le
 const documentModel = await AltiumFixtureLoader.parseCinderSheet()
 const anchors = documentModel.schematic.texts
     .filter((text) =>
-        ['R51', 'R56'].includes(text.text) ||
+        ['GLINT51', 'GLINT56'].includes(text.text) ||
         (text.text === '10K' &&
             ['2891', '2953'].includes(String(text.ownerIndex || '')))
     )
@@ -41,9 +41,9 @@ const anchors = documentModel.schematic.texts
 
 assert.deepEqual(anchors, [
     { text: '10K', ownerIndex: '2891', anchor: 'start' },
-    { text: 'R51', ownerIndex: '2891', anchor: 'start' },
+    { text: 'GLINT51', ownerIndex: '2891', anchor: 'start' },
     { text: '10K', ownerIndex: '2953', anchor: 'start' },
-    { text: 'R56', ownerIndex: '2953', anchor: 'start' }
+    { text: 'GLINT56', ownerIndex: '2953', anchor: 'start' }
 ])
 ```
 
@@ -51,13 +51,13 @@ assert.deepEqual(anchors, [
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: FAIL because the current control-sheet `R51` designator still resolves to `anchor: 'end'`.
+Expected: FAIL because the current control-sheet `GLINT51` designator still resolves to `anchor: 'end'`.
 
 ### Task 2: Add one secondary regression for the same bug class
 
 **Files:**
 - Modify: `tests/core/altium-parser.test.mjs`
-- Reference: `tests/fixtures/altium/Starfall-Nova.SchDoc`
+- Reference: `tests/fixtures/altium/Skylace-Nova.SchDoc`
 
 **Step 1: Write the failing test**
 
@@ -68,7 +68,7 @@ const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 const anchors = documentModel.schematic.texts
     .filter(
         (text) =>
-            ['R11', '12K'].includes(text.text) &&
+            ['GLINT11', '12K'].includes(text.text) &&
             text.ownerIndex === '1461'
     )
     .map((text) => ({
@@ -79,7 +79,7 @@ const anchors = documentModel.schematic.texts
 
 assert.deepEqual(anchors, [
     { text: '12K', anchor: 'start' },
-    { text: 'R11', anchor: 'start' }
+    { text: 'GLINT11', anchor: 'start' }
 ])
 ```
 
@@ -87,7 +87,7 @@ assert.deepEqual(anchors, [
 
 Run: `node --test tests/core/altium-parser.test.mjs`
 
-Expected: FAIL because the current nova `R11` designator still resolves to `anchor: 'end'`.
+Expected: FAIL because the current nova `GLINT11` designator still resolves to `anchor: 'end'`.
 
 ### Task 3: Implement consistent owner-side text anchoring
 

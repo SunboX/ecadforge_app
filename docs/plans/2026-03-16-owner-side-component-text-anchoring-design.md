@@ -4,7 +4,7 @@
 
 ## Goal
 
-Fix left-side stacked schematic designators such as `R51` so they align with the existing visible owner-side value text without shifting the value itself.
+Fix left-side stacked schematic designators such as `GLINT51` so they align with the existing visible owner-side value text without shifting the value itself.
 
 ## Scope
 
@@ -28,7 +28,7 @@ The current post-processing pass anchors visible designators from owner geometry
 1. Raw Altium records can place both a component designator and its visible value on the same side of a vertical two-pin part.
 2. For left-side cases, the current pass flips the `Designator` text to `anchor: 'end'`.
 3. When a visible `VALUE` or `Comment` text already shares the same owner-side stack and `x` position, that flipped designator moves away from the already-correct stack.
-4. This is visible in cinder-sheet `R51` and also appears in existing nova-sheet cases such as `R11` and `R319`.
+4. This is visible in cinder-sheet `GLINT51` and also appears in existing nova-sheet cases such as `GLINT11` and `GLINT319`.
 
 ## Approaches Considered
 
@@ -104,8 +104,8 @@ Within the component-text anchoring pass:
 
 ## Testing Strategy
 
-- Add a control-sheet parser test that asserts `R51` and its visible `10K` both keep the original stacked `start` anchor while `R56` and its `10K` remain unchanged
-- Add a nova parser regression test that asserts one pre-existing left-side stacked case such as `R11` also keeps the original stacked `start` anchor
+- Add a control-sheet parser test that asserts `GLINT51` and its visible `10K` both keep the original stacked `start` anchor while `GLINT56` and its `10K` remain unchanged
+- Add a nova parser regression test that asserts one pre-existing left-side stacked case such as `GLINT11` also keeps the original stacked `start` anchor
 - Keep the initial coverage at parser level because the renderer already honors `text-anchor`
 - Run the focused parser tests first, then the full suite
 

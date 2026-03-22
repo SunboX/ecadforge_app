@@ -3,6 +3,8 @@ import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
 import { AppView } from './ui/AppView.mjs'
+import { PcbScene3dController } from './ui/PcbScene3dController.mjs'
+import { PcbScene3dWorkerClient } from './ui/PcbScene3dWorkerClient.mjs'
 import { I18nService } from './I18n.mjs'
 import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 
@@ -21,12 +23,24 @@ async function bootstrap() {
             : 'Drop a native SchDoc or PcbDoc file to begin.'
     })
 
-    const view = new AppView(document)
-    view.setVersion(loadedVersion)
     const parserWorkerUrl = WorkerUrlBuilder.buildParserWorkerUrl(
         import.meta.url,
         Date.now()
     )
+    const scene3dWorkerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
+        import.meta.url,
+        Date.now()
+    )
+    const view = new AppView(document, {
+        createScene3dController: (viewportNode, documentModel, options = {}) =>
+            new PcbScene3dController(viewportNode, documentModel, {
+                ...options,
+                scenePrepClient: new PcbScene3dWorkerClient(
+                    () => new Worker(scene3dWorkerUrl, { type: 'module' })
+                )
+            })
+    })
+    view.setVersion(loadedVersion)
     const controller = new AppController({
         state,
         view,
@@ -37,12 +51,14 @@ async function bootstrap() {
     await controller.init()
 
     await loadVersion(view, loadedVersion)
+    startVersionRefreshLoop(view, loadedVersion)
 }
 
 /**
  * Loads the app version and updates the header.
  * @param {import('./ui/AppView.mjs').AppView} view
  * @param {string} loadedVersion
+ * @returns {Promise<boolean>}
  */
 async function loadVersion(view, loadedVersion) {
     try {
@@ -64,14 +80,61 @@ async function loadVersion(view, loadedVersion) {
             view.setStatus('Refreshing viewer to load the latest renderer...')
 
             if (typeof window !== 'undefined') {
-                window.location.reload()
+                window.location.replace(
+                    AppRuntimeVersion.buildReloadUrl(
+                        window.location.href,
+                        serverVersion
+                    )
+                )
             }
+
+            return true
         }
     } catch (_error) {
         view.setVersion(
             AppRuntimeVersion.resolveDisplayVersion(loadedVersion, '')
         )
     }
+
+    return false
+}
+
+/**
+ * Rechecks the served version while the tab stays open so long-lived sessions
+ * cannot keep stale renderer modules after local edits or deploys.
+ * @param {import('./ui/AppView.mjs').AppView} view
+ * @param {string} loadedVersion
+ * @returns {void}
+ */
+const startVersionRefreshLoop = (view, loadedVersion) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return
+    }
+
+    let isChecking = false
+    let reloadRequested = false
+    const refreshVersion = async () => {
+        if (isChecking || reloadRequested) {
+            return
+        }
+
+        isChecking = true
+        try {
+            reloadRequested = await loadVersion(view, loadedVersion)
+        } finally {
+            isChecking = false
+        }
+    }
+
+    window.setInterval(refreshVersion, 15000)
+    window.addEventListener('focus', () => {
+        refreshVersion()
+    })
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            refreshVersion()
+        }
+    })
 }
 
 bootstrap().catch((error) => {

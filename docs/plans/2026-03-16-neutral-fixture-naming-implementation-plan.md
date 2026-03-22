@@ -45,8 +45,8 @@ git commit -m "test: rename neutral schematic fixture coverage"
 ### Task 2: Rename and sanitize the schematic fixture
 
 **Files:**
-- Create: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
-- Modify: `tests/fixtures/altium/Starfall-Cinder.SchDoc`
+- Create: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
+- Modify: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 - Delete: the prior sheet-G fixture path
 
 **Step 1: Write the failing test**
@@ -70,7 +70,7 @@ Expected: PASS with the renamed fixture.
 **Step 5: Commit**
 
 ```bash
-git add tests/fixtures/altium/Starfall-Cinder.SchDoc
+git add tests/fixtures/altium/Skylace-Cinder.SchDoc
 git commit -m "test: sanitize neutral schematic fixture data"
 ```
 

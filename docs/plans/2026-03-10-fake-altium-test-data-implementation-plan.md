@@ -52,10 +52,10 @@ git commit -m "test: repoint parser fixtures to repo-owned samples"
 
 **Files:**
 
-- Create: `tests/fixtures/altium/Starfall-Dawn.SchDoc`
-- Create: `tests/fixtures/altium/Starfall-Moon.SchDoc`
-- Create: `tests/fixtures/altium/Starfall-Nova.SchDoc`
-- Create: `tests/fixtures/altium/Starfall-Forge.PcbDoc`
+- Create: `tests/fixtures/altium/Skylace-Dawn.SchDoc`
+- Create: `tests/fixtures/altium/Skylace-Moon.SchDoc`
+- Create: `tests/fixtures/altium/Skylace-Nova.SchDoc`
+- Create: `tests/fixtures/altium/Skylace-Forge.PcbDoc`
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
