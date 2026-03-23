@@ -91,6 +91,15 @@ app.get(
 )
 
 app.use(
+    '/node_modules',
+    express.static(vendorRoot, {
+        setHeaders: (res) => {
+            res.setHeader('Cache-Control', noStoreCacheControl)
+        }
+    })
+)
+
+app.use(
     '/vendor',
     express.static(vendorRoot, {
         setHeaders: (res) => {

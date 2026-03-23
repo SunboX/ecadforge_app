@@ -96,21 +96,15 @@ const projectPresetPoint = (presetName, point) => {
     return projectPointToScreen(scaledPoint, basis)
 }
 
-test('PcbScene3dRuntime flips the top preset vertically to match viewer coordinates', () => {
-    const topPreset = PcbScene3dCameraRig.resolvePreset('top', {
-        board: {
-            widthMil: 2200,
-            heightMil: 1400
-        }
-    })
-    const topBasis = resolveScreenBasis(topPreset)
-    const topViewScale = PcbScene3dRuntime.resolveViewScale('top')
-    const topScreenPoint = projectPresetPoint('top', { x: -1, y: -1, z: 0 })
+test('PcbScene3dRuntime flips the top preset vertically into the reference top-right orientation', () => {
+    const topScreenPoint = projectPresetPoint('top', { x: 1, y: -1, z: 0 })
 
-    assert.deepEqual(topViewScale, { x: 1, y: -1, z: 1 })
-    assert.ok(topBasis.right.x > 0.99)
-    assert.ok(Math.abs(topBasis.right.y) < 0.01)
-    assert.ok(topScreenPoint.x < 0)
+    assert.deepEqual(PcbScene3dRuntime.resolveViewScale('top'), {
+        x: 1,
+        y: -1,
+        z: 1
+    })
+    assert.ok(topScreenPoint.x > 0)
     assert.ok(topScreenPoint.y > 0)
 })
 

@@ -14,13 +14,10 @@ import { PcbScene3dViaFactory } from './PcbScene3dViaFactory.mjs'
 export class PcbScene3dRuntime {
     /** @type {HTMLElement | null} */
     #viewportNode
-
     /** @type {any} */
     #sceneDescription
-
     /** @type {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void }} */
     #hooks
-
     /** @type {{ 'external-models': boolean, 'fallback-bodies': boolean, copper: boolean }} */
     #toggles
 
@@ -895,10 +892,9 @@ export class PcbScene3dRuntime {
         const versionKey = new URL(import.meta.url).searchParams.get('v') || ''
         const suffix = versionKey ? '?v=' + encodeURIComponent(versionKey) : ''
         const [THREE, { OrbitControls }] = await Promise.all([
-            import('/vendor/three/build/three.module.js' + suffix),
-            import('/vendor/three/examples/jsm/controls/OrbitControls.js' + suffix)
+            import('/node_modules/three/build/three.module.js' + suffix),
+            import('/node_modules/three/examples/jsm/controls/OrbitControls.js' + suffix)
         ])
-
         return { THREE, OrbitControls }
     }
 

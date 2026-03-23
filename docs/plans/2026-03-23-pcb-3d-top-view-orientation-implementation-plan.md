@@ -29,7 +29,7 @@ Keep the existing bottom-view regression and update the simple scale assertions 
 **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/ui/pcb-scene3d-runtime.test.mjs`
-Expected: FAIL because `resolveViewScale('top')` still returns identity.
+Expected: FAIL because `resolveViewScale('top')` still returns the wrong top-view scale.
 
 **Step 3: Write minimal implementation**
 

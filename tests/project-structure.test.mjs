@@ -215,3 +215,57 @@ test('browser parser source resolves fflate through a deployable file path', asy
         /from ['"]\.\.\/\.\.\/vendor\/fflate\/browser\.mjs['"]/
     )
 })
+
+/**
+ * Verifies the static app shell provides an import map for browser-resolved
+ * Three.js addon dependencies on FTP-hosted deployments.
+ */
+test('app shell defines a Three.js import map for static hosting', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+
+    assert.match(indexRaw, /<script\s+type="importmap">/)
+    assert.match(
+        indexRaw,
+        /"three"\s*:\s*"\/node_modules\/three\/build\/three\.module\.js"/
+    )
+    assert.match(
+        indexRaw,
+        /"three\/addons\/"\s*:\s*"\/node_modules\/three\/examples\/jsm\/"/
+    )
+})
+
+/**
+ * Verifies the browser 3D runtime uses the same raw dependency paths that the
+ * static FTP deployment publishes.
+ */
+test('3d runtime source resolves browser dependencies through deployed node_modules paths', async () => {
+    const runtimeSource = await readFile(
+        new URL('src/ui/PcbScene3dRuntime.mjs', root),
+        'utf8'
+    )
+    const externalModelsSource = await readFile(
+        new URL('src/ui/PcbScene3dExternalModels.mjs', root),
+        'utf8'
+    )
+    const stepLoaderSource = await readFile(
+        new URL('src/ui/PcbScene3dStepLoader.mjs', root),
+        'utf8'
+    )
+
+    assert.match(
+        runtimeSource,
+        /\/node_modules\/three\/build\/three\.module\.js/
+    )
+    assert.match(
+        runtimeSource,
+        /\/node_modules\/three\/examples\/jsm\/controls\/OrbitControls\.js/
+    )
+    assert.match(
+        externalModelsSource,
+        /\/node_modules\/three\/examples\/jsm\/loaders\/VRMLLoader\.js/
+    )
+    assert.match(
+        stepLoaderSource,
+        /\/node_modules\/occt-import-js\/dist\//
+    )
+})

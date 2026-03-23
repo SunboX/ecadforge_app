@@ -41,6 +41,7 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 5. `AppState` stores parse status, the recovered document models, and session companion assets
 6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
 7. The 3D runtime resolves embedded STEP payloads from the normalized PCB model first, then falls back to companion `WRL`/`STEP` assets from the active session
+8. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## Styling
 
@@ -54,3 +55,4 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly

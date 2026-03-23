@@ -176,7 +176,7 @@ export class PcbScene3dExternalModels {
         const versionKey = new URL(import.meta.url).searchParams.get('v') || ''
         const [{ VRMLLoader }] = await Promise.all([
             import(
-                '/vendor/three/examples/jsm/loaders/VRMLLoader.js' +
+                '/node_modules/three/examples/jsm/loaders/VRMLLoader.js' +
                     (versionKey ? '?v=' + encodeURIComponent(versionKey) : '')
             )
         ])
