@@ -27,13 +27,24 @@ async function collectMjsFiles(directory) {
 }
 
 /**
+ * Returns whether one source file is a vendored third-party module.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isVendoredSourceFile(filePath) {
+    return filePath.startsWith(path.join('src', 'vendor') + path.sep)
+}
+
+/**
  * Verifies all .mjs files in the given directory stay below the max line limit.
  * @param {string} directory
  * @param {string} label
  * @returns {Promise<void>}
  */
 async function assertDirectoryLineLimit(directory, label) {
-    const files = await collectMjsFiles(directory)
+    const files = (await collectMjsFiles(directory)).filter(
+        (filePath) => !isVendoredSourceFile(filePath)
+    )
     const oversized = []
 
     for (const filePath of files) {

@@ -8,7 +8,6 @@ import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
 import { PcbScene3dSelectionStyler } from './PcbScene3dSelectionStyler.mjs'
 import { PcbScene3dViaFactory } from './PcbScene3dViaFactory.mjs'
-
 /**
  * Browser-side Three.js runtime for the interactive PCB 3D viewport.
  */
@@ -51,6 +50,9 @@ export class PcbScene3dRuntime {
 
     /** @type {any} */
     #rootGroup
+
+    /** @type {any} */
+    #viewOrientationGroup
 
     /** @type {any} */
     #raycaster
@@ -114,6 +116,7 @@ export class PcbScene3dRuntime {
         this.#orbitControlsClass = null
         this.#controls = null
         this.#rootGroup = null
+        this.#viewOrientationGroup = null
         this.#raycaster = null
         this.#pointer = null
         this.#pointerDownPosition = null
@@ -140,6 +143,7 @@ export class PcbScene3dRuntime {
     /** @param {string} preset */
     setPreset(preset) {
         const normalizedPreset = this.#presetState.set(preset)
+        this.#applyViewScale(normalizedPreset)
         if (!this.#camera) {
             return
         }
@@ -193,6 +197,7 @@ export class PcbScene3dRuntime {
         this.#orbitControlsClass = null
         this.#controls = null
         this.#rootGroup = null
+        this.#viewOrientationGroup = null
         this.#raycaster = null
         this.#pointer = null
         this.#pointerDownPosition = null
@@ -285,8 +290,11 @@ export class PcbScene3dRuntime {
         const THREE = this.#three
         const board = this.#sceneDescription.board
 
+        this.#viewOrientationGroup = new THREE.Group()
+        this.#scene.add(this.#viewOrientationGroup)
         this.#rootGroup = new THREE.Group()
-        this.#scene.add(this.#rootGroup)
+        this.#viewOrientationGroup.add(this.#rootGroup)
+        this.#applyViewScale(this.#presetState.get())
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.8)
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.6)
@@ -331,6 +339,19 @@ export class PcbScene3dRuntime {
 
         const boardSpan = Math.max(board.widthMil, board.heightMil, 1)
         this.#scene.fog = new THREE.Fog(0xf4f0ea, boardSpan * 2.2, boardSpan * 7)
+    }
+
+    /**
+     * Applies the active preset's scene-scale transform.
+     * @param {string} preset
+     * @returns {void}
+     */
+    #applyViewScale(preset) {
+        if (!this.#viewOrientationGroup) {
+            return
+        }
+        const scale = PcbScene3dRuntime.resolveViewScale(preset)
+        this.#viewOrientationGroup.scale.set(scale.x, scale.y, scale.z)
     }
 
     /**
@@ -882,6 +903,18 @@ export class PcbScene3dRuntime {
     }
 
     /**
+     * Resolves the scene-scale transform for one named preset.
+     * @param {string} preset
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static resolveViewScale(preset) {
+        const normalizedPreset = String(preset || 'isometric').toLowerCase()
+        return normalizedPreset === 'top' ? { x: 1, y: -1, z: 1 }
+            : normalizedPreset === 'bottom' ? { x: -1, y: 1, z: 1 }
+            : { x: 1, y: 1, z: 1 }
+    }
+
+    /**
      * Resolves the picked selection record from raycast intersections.
      * @param {{ object?: any }[]} intersections
      * @returns {{ designator?: string, sourceType?: string } | null}
@@ -960,16 +993,5 @@ export class PcbScene3dRuntime {
         }
 
         return 0x232428
-    }
-
-    /**
-     * Clamps one numeric value.
-     * @param {number} value
-     * @param {number} min
-     * @param {number} max
-     * @returns {number}
-     */
-    static #clamp(value, min, max) {
-        return Math.min(Math.max(value, min), max)
     }
 }

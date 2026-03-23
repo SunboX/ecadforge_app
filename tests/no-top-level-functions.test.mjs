@@ -25,11 +25,22 @@ async function collectMjsFiles(directory) {
 }
 
 /**
+ * Returns whether one source file is a vendored third-party module.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function isVendoredSourceFile(filePath) {
+    return filePath.startsWith(path.join('src', 'vendor') + path.sep)
+}
+
+/**
  * Verifies source modules keep helpers inside classes instead of top-level
  * function declarations.
  */
 test('source .mjs files avoid top-level function declarations', async () => {
-    const sourceFiles = await collectMjsFiles('src')
+    const sourceFiles = (await collectMjsFiles('src')).filter(
+        (sourceFile) => !isVendoredSourceFile(sourceFile)
+    )
     const offenders = []
 
     for (const sourceFile of sourceFiles) {
