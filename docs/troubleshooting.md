@@ -15,6 +15,14 @@ PORT=3100 npm start
 - Confirm the browser supports module workers.
 - If the console reports `Failed to resolve module specifier "fflate"`, confirm `src/vendor/fflate/browser.mjs` was deployed with the frontend files.
 
+## LIVE 3D tab returns `404` for Three.js or STEP assets
+
+- Confirm the deployed page still contains the `importmap` block from `src/index.html`.
+- Confirm LIVE serves `/node_modules/three/build/three.module.js`.
+- Confirm LIVE serves `/node_modules/three/examples/jsm/controls/OrbitControls.js`.
+- Confirm LIVE serves `/node_modules/occt-import-js/dist/occt-import-js.js`.
+- Ignore `runtime.lastError` messages from browser extensions unless the failing URL belongs to this app.
+
 ## All-Inkl LIVE returns `/api/app-meta` 404
 
 - Confirm the FTP workflow has uploaded the repository `api/` directory to `/api/`.

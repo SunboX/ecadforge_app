@@ -208,6 +208,36 @@ test('server serves browser vendor modules with no-store cache headers', async (
 })
 
 /**
+ * Verifies the local server exposes raw node_modules browser dependencies so
+ * localhost matches the static FTP deployment shape.
+ */
+test('server serves browser node_modules modules with no-store cache headers', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/node_modules/three/examples/jsm/controls/OrbitControls.js'
+    )
+
+    assert.equal(response.ok, true)
+    assert.match(
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
  * Verifies the local browser server exposes the vendored browser-safe fflate
  * module used by the static-host deployment.
  */
