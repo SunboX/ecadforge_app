@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { PcbScene3dCameraRig } from '../../src/ui/PcbScene3dCameraRig.mjs'
+import { PcbScene3dRuntime } from '../../src/ui/PcbScene3dRuntime.mjs'
 
 /**
  * Resolves one preset pose into normalized screen-space basis vectors.
@@ -62,55 +63,77 @@ const projectPointToScreen = (point, basis) => ({
 })
 
 /**
- * Verifies the 3D camera rig uses a z-up basis for PCB scenes so interaction
- * controls align with the board's XY plane and Z height axis.
+ * Applies one resolved view scale to a representative board-space point.
+ * @param {{ x: number, y: number, z: number }} point
+ * @param {{ x: number, y: number, z: number }} scale
+ * @returns {{ x: number, y: number, z: number }}
  */
-test('PcbScene3dCameraRig resolves presets with a z-up camera basis', () => {
-    const preset = PcbScene3dCameraRig.resolvePreset('isometric', {
-        board: {
-            widthMil: 1000,
-            heightMil: 500
-        }
-    })
-
-    assert.deepEqual(preset.target, { x: 0, y: 0, z: 0 })
-    assert.deepEqual(preset.up, { x: 0, y: 0, z: 1 })
-    assert.equal(preset.radius, 1900)
-    assert.ok(preset.position.x > 0)
-    assert.ok(preset.position.y > 0)
-    assert.ok(preset.position.z > 0)
+const scalePoint = (point, scale) => ({
+    x: point.x * scale.x,
+    y: point.y * scale.y,
+    z: point.z * scale.z
 })
 
 /**
- * Verifies top and bottom presets are flat orthogonal portrait views along the
- * board normal with stable screen-up vectors.
+ * Projects one board-space point through the preset basis and runtime scale.
+ * @param {'top' | 'bottom' | 'isometric'} presetName
+ * @param {{ x: number, y: number, z: number }} point
+ * @returns {{ x: number, y: number }}
  */
-test('PcbScene3dCameraRig keeps top and bottom presets flat to the board', () => {
+const projectPresetPoint = (presetName, point) => {
+    const preset = PcbScene3dCameraRig.resolvePreset(presetName, {
+        board: {
+            widthMil: 2200,
+            heightMil: 1400
+        }
+    })
+    const basis = resolveScreenBasis(preset)
+    const scaledPoint = scalePoint(
+        point,
+        PcbScene3dRuntime.resolveViewScale(presetName)
+    )
+
+    return projectPointToScreen(scaledPoint, basis)
+}
+
+test('PcbScene3dRuntime flips the top preset vertically to match viewer coordinates', () => {
     const topPreset = PcbScene3dCameraRig.resolvePreset('top', {
         board: {
             widthMil: 2200,
             heightMil: 1400
         }
     })
-    const bottomPreset = PcbScene3dCameraRig.resolvePreset('bottom', {
-        board: {
-            widthMil: 2200,
-            heightMil: 1400
-        }
-    })
     const topBasis = resolveScreenBasis(topPreset)
-    const bottomBasis = resolveScreenBasis(bottomPreset)
-    assert.deepEqual(topPreset.up, { x: 0, y: 1, z: 0 })
-    assert.deepEqual(bottomPreset.up, { x: 0, y: -1, z: 0 })
-    assert.equal(topPreset.position.x, 0)
-    assert.equal(topPreset.position.y, 0)
-    assert.equal(bottomPreset.position.x, 0)
-    assert.equal(bottomPreset.position.y, 0)
-    assert.ok(topPreset.position.z > 0)
-    assert.ok(bottomPreset.position.z < 0)
+    const topViewScale = PcbScene3dRuntime.resolveViewScale('top')
+    const topScreenPoint = projectPresetPoint('top', { x: -1, y: -1, z: 0 })
+
+    assert.deepEqual(topViewScale, { x: 1, y: -1, z: 1 })
     assert.ok(topBasis.right.x > 0.99)
     assert.ok(Math.abs(topBasis.right.y) < 0.01)
-    assert.ok(bottomBasis.right.x > 0.99)
-    assert.ok(Math.abs(bottomBasis.right.y) < 0.01)
-    assert.ok(bottomBasis.up.y < -0.99)
+    assert.ok(topScreenPoint.x < 0)
+    assert.ok(topScreenPoint.y > 0)
+})
+
+test('PcbScene3dRuntime mirrors the bottom preset without rotating the board', () => {
+    const bottomScreenPoint = projectPresetPoint('bottom', {
+        x: 1,
+        y: -1,
+        z: 0
+    })
+
+    assert.deepEqual(PcbScene3dRuntime.resolveViewScale('bottom'), {
+        x: -1,
+        y: 1,
+        z: 1
+    })
+    assert.ok(bottomScreenPoint.x < 0)
+    assert.ok(bottomScreenPoint.y > 0)
+})
+
+test('PcbScene3dRuntime keeps the isometric preset unmirrored', () => {
+    assert.deepEqual(PcbScene3dRuntime.resolveViewScale('isometric'), {
+        x: 1,
+        y: 1,
+        z: 1
+    })
 })

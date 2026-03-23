@@ -13,6 +13,7 @@ PORT=3100 npm start
 - Check console for module import errors.
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
+- If the console reports `Failed to resolve module specifier "fflate"`, confirm `src/vendor/fflate/browser.mjs` was deployed with the frontend files.
 
 ## All-Inkl LIVE returns `/api/app-meta` 404
 

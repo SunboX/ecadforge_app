@@ -208,6 +208,34 @@ test('server serves browser vendor modules with no-store cache headers', async (
 })
 
 /**
+ * Verifies the local browser server exposes the vendored browser-safe fflate
+ * module used by the static-host deployment.
+ */
+test('server serves the vendored fflate browser module with no-store cache headers', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' + String(port) + '/vendor/fflate/browser.mjs'
+    )
+
+    assert.equal(response.ok, true)
+    assert.match(
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
  * Verifies Three.js addon loader modules are rewritten for direct browser use
  * instead of retaining bare package imports.
  */
@@ -280,10 +308,10 @@ test('server rewrites Three.js build module relative imports with the current ve
 })
 
 /**
- * Verifies browser-served parser modules do not retain Node-only compression
- * imports in the frontend module graph.
+ * Verifies browser-served parser modules use one deployable browser file path
+ * for compression support instead of a bare package specifier.
  */
-test('server rewrites browser parser modules away from node-only zlib imports', async (t) => {
+test('server serves browser parser modules with deployable fflate dependency paths', async (t) => {
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -305,9 +333,10 @@ test('server rewrites browser parser modules away from node-only zlib imports', 
 
     assert.equal(response.ok, true)
     assert.doesNotMatch(source, /node:zlib/)
+    assert.doesNotMatch(source, /from ['"]fflate['"]/)
     assert.match(
         source,
-        /from ['"]\/vendor\/fflate\/esm\/browser\.js(?:\?v=[^'"]+)?['"]/
+        /from ['"]\.\.\/\.\.\/vendor\/fflate\/browser\.mjs(?:\?v=[^'"]+)?['"]/
     )
 })
 

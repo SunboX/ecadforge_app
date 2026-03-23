@@ -2,39 +2,53 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Keep the `Bottom` 3D camera preset aligned with the approved underside orientation while leaving geometry placement unchanged.
+**Goal:** Make the `Bottom` 3D preset place representative underside connectors in the `top-left` screen quadrant while keeping the board portrait and leaving authored geometry placement unchanged.
 
-**Architecture:** Keep the fix isolated to the camera preset logic in `PcbScene3dCameraRig`. Add regression coverage that locks the approved bottom preset pose so later camera changes do not reintroduce the upside-down underside view.
+**Architecture:** Restore the portrait underside camera basis in `PcbScene3dCameraRig`, then add a bottom-only runtime wrapper transform in `PcbScene3dRuntime` that mirrors scene `X`. Lock both behaviors with focused tests so later changes cannot drift back to the `top-right` portrait variant or the `90` degree rotated variant.
 
-**Tech Stack:** Node.js, native `node:test`, ES modules, Three.js camera preset logic
+**Tech Stack:** Node.js, native `node:test`, ES modules, Three.js camera/runtime scene graph logic
 
 ---
 
-### Task 1: Lock the bottom-view orientation with a failing camera test
+### Task 1: Lock the correct bottom-view behavior with failing tests
 
 **Files:**
 - Modify: `tests/ui/pcb-scene3d-camera-rig.test.mjs`
+- Add: `tests/ui/pcb-scene3d-runtime.test.mjs`
 
 **Step 1: Write the failing test**
 
-Add a test helper that derives a preset's screen-right vector from `position`, `target`, and `up`. Assert that:
+Update the camera-rig test so it asserts that:
 
-- `top` produces positive board-X on screen-right
-- `bottom` also preserves positive board-X on screen-right
-- `bottom` keeps its approved negative-Y `up` vector
+- `top` still uses the normal top-view basis
+- `bottom` uses the portrait underside basis `up = { x: 0, y: -1, z: 0 }`
+
+Add a runtime test helper that combines:
+
+- the bottom camera preset basis
+- a preset-dependent runtime view scale
+- a representative underside anchor point
+
+Assert that the combined result lands in the `top-left` screen quadrant without rotating the board.
 
 **Step 2: Run test to verify it fails**
 
-Run: `npm test -- --test-name-pattern="PcbScene3dCameraRig"`
-Expected: FAIL because the current bottom preset no longer matches the approved underside orientation.
+Run: `node --test tests/ui/pcb-scene3d-camera-rig.test.mjs tests/ui/pcb-scene3d-runtime.test.mjs`
+Expected: FAIL because the current bottom preset still uses the wrong in-plane basis and the runtime mirror hook does not exist yet.
 
 **Step 3: Write minimal implementation**
 
-Update `src/ui/PcbScene3dCameraRig.mjs` so the `bottom` preset keeps the approved negative-Y `up` vector while the camera remains below the board.
+Update `src/ui/PcbScene3dCameraRig.mjs` so the `bottom` preset uses the portrait underside basis while the camera remains below the board.
+
+Update `src/ui/PcbScene3dRuntime.mjs` to:
+
+- introduce a wrapper group above the scene root
+- resolve a preset-dependent view scale
+- apply `x = -1` only for the `bottom` preset
 
 **Step 4: Run test to verify it passes**
 
-Run: `npm test -- --test-name-pattern="PcbScene3dCameraRig"`
+Run: `node --test tests/ui/pcb-scene3d-camera-rig.test.mjs tests/ui/pcb-scene3d-runtime.test.mjs`
 Expected: PASS.
 
 ### Task 2: Bump version and verify the change
@@ -49,7 +63,7 @@ Bump the patch version by one to reflect the user-visible 3D view behavior chang
 
 **Step 2: Run focused and full verification**
 
-Run: `npm test -- --test-name-pattern="PcbScene3dCameraRig|PcbScene3dController|renderScene3d"`
+Run: `node --test tests/ui/pcb-scene3d-camera-rig.test.mjs tests/ui/pcb-scene3d-runtime.test.mjs`
 Expected: PASS for the affected 3D coverage.
 
 Run: `npm test`

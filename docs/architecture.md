@@ -15,6 +15,7 @@
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js scene builder, controller, runtime, STEP importer, and model registries/loaders
 - `src/workers/altium-parser.worker.mjs`: parser offload worker
 - `src/server.mjs`: local static server and metadata endpoints
+- `src/vendor/fflate/browser.mjs`: vendored browser-safe compression dependency loaded by the PCB parser on both localhost and static FTP hosts
 - `api/app-meta.php`: PHP metadata endpoint for FTP/shared-hosting deployments
 - `api/.htaccess`: extensionless route rewrite for `/api/app-meta`
 

@@ -41,6 +41,7 @@ test('required project files exist', async () => {
         'src/main.mjs',
         'src/style.css',
         'src/server.mjs',
+        'src/vendor/fflate/browser.mjs',
         'src/core/AppState.mjs',
         'src/core/altium/AltiumParser.mjs',
         'src/core/altium/AsciiRecordParser.mjs',
@@ -196,4 +197,21 @@ test('runtime app metadata uses package.json as the only version source', async 
     assert.match(phpEndpointRaw, /package\.json/)
     assert.doesNotMatch(serverRaw, /app-version\.json/)
     assert.doesNotMatch(phpEndpointRaw, /app-version\.json/)
+})
+
+/**
+ * Verifies browser parser source does not depend on a bare package specifier
+ * that static FTP hosting cannot resolve.
+ */
+test('browser parser source resolves fflate through a deployable file path', async () => {
+    const parserSource = await readFile(
+        new URL('src/core/altium/PcbEmbeddedModelExtractor.mjs', root),
+        'utf8'
+    )
+
+    assert.doesNotMatch(parserSource, /from ['"]fflate['"]/)
+    assert.match(
+        parserSource,
+        /from ['"]\.\.\/\.\.\/vendor\/fflate\/browser\.mjs['"]/
+    )
 })

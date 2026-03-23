@@ -1,4 +1,7 @@
-import { unzlibSync } from 'fflate'
+// Static FTP hosting serves raw browser modules, so this parser import must
+// resolve through one vendored browser file instead of a bare package
+// specifier.
+import { unzlibSync } from '../../vendor/fflate/browser.mjs'
 import { PrintableTextDecoder } from './PrintableTextDecoder.mjs'
 
 /**
