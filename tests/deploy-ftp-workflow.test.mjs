@@ -48,3 +48,23 @@ test('ftp workflow deploys package.json to the live root on dependency changes',
         /name: Deploy package manifest to \.\/[\s\S]*?local-dir: \.\/\.deploy-root\/[\s\S]*?server-dir: \.\//
     )
 })
+
+/**
+ * Verifies the FTP workflow deploys the static frontend artifact produced for
+ * Apache/shared-hosting instead of raw source files that rely on the Node
+ * server's runtime rewrite hooks.
+ */
+test('ftp workflow deploys the static frontend build artifact', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+
+    assert.match(workflow, /name: Build static frontend deployment/)
+    assert.match(workflow, /run: npm run build:static/)
+    assert.match(
+        workflow,
+        /name: Deploy static frontend to \.\/[\s\S]*?local-dir: \.\/\.deploy-src\/[\s\S]*?server-dir: \.\//
+    )
+    assert.match(
+        workflow,
+        /name: Retry deploy static frontend to \.\/[\s\S]*?local-dir: \.\/\.deploy-src\/[\s\S]*?server-dir: \.\//
+    )
+})

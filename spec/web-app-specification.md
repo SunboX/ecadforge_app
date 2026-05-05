@@ -20,6 +20,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 12. Runtime language switching remains available for the shell UI.
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
+15. Shared-hosting deployment publishes an Apache-ready static frontend artifact with versioned browser module URLs and no-store cache headers.
 
 ## 3. Non-Functional Requirements
 
@@ -39,6 +40,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 5. `src/workers/altium-parser.worker.mjs`: worker parser entrypoint.
 6. `src/main.mjs`: browser entrypoint.
 7. `src/server.mjs`: local static/API server.
+8. `src/StaticDeployBuilder.mjs` and `scripts/build-static-deploy.mjs`: static FTP deployment artifact builder.
 
 ## 5. Security / Privacy
 
@@ -61,3 +63,4 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 8. The app version shown in UI matches the single-source version in `package.json`.
 9. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
 10. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads or conflicting explicit net names.
+11. The FTP workflow uploads the static build artifact rather than raw browser source.

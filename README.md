@@ -23,6 +23,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `@sunbox/altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
 - `src/ui/`: viewer shell and interaction controllers
 - `src/workers/altium-parser.worker.mjs`: off-main-thread native parsing
+- `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
 - `api/`: deployable PHP metadata endpoint for FTP/shared-hosting deployments
 - `tests/`: app state, server, interaction, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting
@@ -47,6 +48,14 @@ npm start
 Open `http://localhost:3000/` and load one or more native `.SchDoc`, `.PcbDoc`, companion `WRL`, or companion `STEP` files. The 3D view will use any STEP payloads embedded in the `.PcbDoc` itself, and you can also load matching companion model files in the same selection to improve model fidelity further.
 
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
+
+## Deploy
+
+```bash
+npm run build:static
+```
+
+The static build writes `.deploy-src/` with versioned browser module URLs and an Apache cache policy. The FTP workflow uploads that artifact to the LIVE document root.
 
 ## Test
 

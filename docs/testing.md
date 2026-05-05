@@ -18,7 +18,8 @@ npm test
 - `tests/ui/renderers.test.mjs`: ECAD Forge 3D shell renderer coverage
 - `tests/app-meta-loader.test.mjs`: browser metadata endpoint fallback behavior
 - `tests/php-app-meta-endpoint.test.mjs`: deployable PHP metadata endpoint payloads
-- `tests/deploy-ftp-workflow.test.mjs`: FTP workflow deployment coverage for `api/`
+- `tests/static-deploy-builder.test.mjs`: static Apache artifact cache-busting coverage
+- `tests/deploy-ftp-workflow.test.mjs`: FTP workflow deployment coverage for static frontend, `api/`, and metadata
 - `tests/project-structure.test.mjs`: required file presence
 - `tests/mjs-line-limit.test.mjs`: source and test file length guard
 

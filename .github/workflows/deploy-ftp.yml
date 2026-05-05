@@ -24,12 +24,23 @@ jobs:
                         - 'package-lock.json'
                       src:
                         - 'src/**'
+                        - 'scripts/**'
                       api:
                         - 'api/**'
                       docs:
                         - 'docs/**'
 
-            - name: Deploy src to ./
+            - uses: actions/setup-node@v4
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Build static frontend deployment
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              run: npm run build:static
+
+            - name: Deploy static frontend to ./
               id: deploy_src
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               continue-on-error: true
@@ -39,7 +50,7 @@ jobs:
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
-                  local-dir: ./src/
+                  local-dir: ./.deploy-src/
                   server-dir: ./
                   timeout: 60000
                   exclude: |
@@ -51,7 +62,7 @@ jobs:
                       **/*.env.*
                   state-name: .ftp-deploy-src-state.json
 
-            - name: Retry deploy src to ./
+            - name: Retry deploy static frontend to ./
               id: deploy_src_retry
               if: steps.deploy_src.outcome == 'failure'
               uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -60,7 +71,7 @@ jobs:
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
-                  local-dir: ./src/
+                  local-dir: ./.deploy-src/
                   server-dir: ./
                   timeout: 60000
                   exclude: |
@@ -219,12 +230,6 @@ jobs:
             - name: Ensure docs deploy succeeded
               if: steps.deploy_docs.outcome == 'failure' && steps.deploy_docs_retry.outcome == 'failure'
               run: exit 1
-
-            - uses: actions/setup-node@v4
-              if: steps.changes.outputs.deps == 'true'
-              with:
-                  node-version: 20
-                  cache: npm
 
             - name: Install production dependencies
               if: steps.changes.outputs.deps == 'true'

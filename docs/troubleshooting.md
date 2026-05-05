@@ -16,6 +16,13 @@ PORT=3100 npm start
 - If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate`, the deployed site serves `/node_modules/fflate/esm/browser.js`, and the local server is rewriting toolkit worker modules when testing through `npm start`.
 - If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"`, confirm `npm install` has installed the toolkit package and the deployed site serves `/node_modules/@sunbox/altium-toolkit/`. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
 
+## LIVE works locally but not after deployment
+
+- Run `npm run build:static` and verify `.deploy-src/index.html` contains `/main.mjs?v=<package version>`.
+- Confirm the FTP workflow uploaded `.deploy-src/` to the LIVE document root instead of raw `src/`.
+- Confirm LIVE serves `https://ecadforge.app/main.mjs?v=<package version>` and the response imports local modules with the same `?v=` key.
+- Check one LIVE asset response, such as `/main.mjs?v=<package version>`, for `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`. If this header is missing, verify the generated root `.htaccess` was uploaded.
+
 ## LIVE 3D tab returns `404` for Three.js or STEP assets
 
 - Confirm the deployed page still contains the `importmap` block from `src/index.html`.
