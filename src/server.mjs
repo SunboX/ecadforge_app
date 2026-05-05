@@ -9,12 +9,7 @@ const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
 const staticRoot = path.join(projectRoot, 'src')
 const vendorRoot = path.join(projectRoot, 'node_modules')
-const occtVendorRoot = path.join(
-    staticRoot,
-    'vendor',
-    'occt-import-js',
-    'dist'
-)
+const occtVendorRoot = path.join(staticRoot, 'vendor', 'occt-import-js', 'dist')
 const noStoreCacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
 
 const app = express()
@@ -117,6 +112,41 @@ app.use(
             res.setHeader('Cache-Control', noStoreCacheControl)
         }
     })
+)
+
+app.get(
+    /^\/node_modules\/@sunbox\/altium-toolkit\/.+\.mjs$/i,
+    async (req, res, next) => {
+        try {
+            const filePath = ServerRuntime.resolveStaticAssetPath(
+                vendorRoot,
+                req.path.replace(/^\/node_modules\/+/i, '/')
+            )
+
+            if (!filePath) {
+                res.status(404).send('Not Found')
+                return
+            }
+
+            const source = await readFile(filePath, 'utf8')
+            const versionKey = await ServerRuntime.resolveRequestedAssetVersion(
+                req.originalUrl,
+                projectRoot
+            )
+
+            res.type('text/javascript')
+            res.setHeader('Cache-Control', noStoreCacheControl)
+            res.send(
+                ServerAssetVersioner.rewriteJavaScriptModule(source, versionKey)
+            )
+        } catch (error) {
+            if (error && error.code === 'ENOENT') {
+                res.status(404).send('Not Found')
+                return
+            }
+            next(error)
+        }
+    }
 )
 
 app.use(
@@ -233,10 +263,7 @@ class ServerRuntime {
         )
         const resolvedPath = path.resolve(root, normalizedRequestPath)
 
-        if (
-            resolvedPath === root ||
-            resolvedPath.startsWith(root + path.sep)
-        ) {
+        if (resolvedPath === root || resolvedPath.startsWith(root + path.sep)) {
             return resolvedPath
         }
 

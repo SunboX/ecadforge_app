@@ -65,7 +65,10 @@ export class AppController {
         this.#view.bindDrop((files) => this.#handleFiles(files))
         this.#view.bindViewChange((viewName) => {
             this.#state.patch(
-                this.#buildCompatibleViewPatch(viewName, this.#state.getSnapshot())
+                this.#buildCompatibleViewPatch(
+                    viewName,
+                    this.#state.getSnapshot()
+                )
             )
         })
         if (typeof this.#view.bindDocumentSelection === 'function') {
@@ -93,6 +96,12 @@ export class AppController {
             this.#worker = this.#createWorker()
             this.#worker.addEventListener('message', (event) => {
                 this.#handleWorkerMessage(event?.data || {})
+            })
+            this.#worker.addEventListener('error', (event) => {
+                this.#handleWorkerFailure(event)
+            })
+            this.#worker.addEventListener('messageerror', (event) => {
+                this.#handleWorkerFailure(event)
             })
         }
 
@@ -173,7 +182,20 @@ export class AppController {
      */
     async #parseArrayBuffer(fileName, buffer) {
         if (this.#worker) {
-            return this.#parseArrayBufferWithWorker(fileName, buffer)
+            const workerBuffer = buffer.slice(0)
+            try {
+                return await this.#parseArrayBufferWithWorker(
+                    fileName,
+                    workerBuffer
+                )
+            } catch (error) {
+                if (AppController.#isWorkerFailure(error)) {
+                    this.#disposeWorker()
+                    return this.#parser.parseArrayBuffer(fileName, buffer)
+                }
+
+                throw error
+            }
         }
 
         return this.#parser.parseArrayBuffer(fileName, buffer)
@@ -228,6 +250,24 @@ export class AppController {
         matchedRequest.reject(
             new Error(payload.message || 'Parser worker failed.')
         )
+    }
+
+    /**
+     * Rejects pending parses when the module worker itself cannot run.
+     * @param {{ message?: string, error?: Error, preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #handleWorkerFailure(event) {
+        event?.preventDefault?.()
+        const message = String(
+            event?.message ||
+                event?.error?.message ||
+                'Parser worker failed to load.'
+        )
+        const error = new Error('Parser worker failed: ' + message)
+        error.workerFailure = true
+        this.#rejectPendingWorkerParses(error)
+        this.#disposeWorker()
     }
 
     /**
@@ -301,11 +341,29 @@ export class AppController {
      * @returns {void}
      */
     dispose() {
+        this.#rejectPendingWorkerParses(new Error('Parser worker terminated.'))
+        this.#disposeWorker()
+    }
+
+    /**
+     * Terminates the current parser worker.
+     * @returns {void}
+     */
+    #disposeWorker() {
+        this.#worker?.terminate()
+        this.#worker = null
+    }
+
+    /**
+     * Rejects every unresolved parser worker request.
+     * @param {Error} error
+     * @returns {void}
+     */
+    #rejectPendingWorkerParses(error) {
         this.#pendingWorkerParses.forEach(({ reject }) => {
-            reject(new Error('Parser worker terminated.'))
+            reject(error)
         })
         this.#pendingWorkerParses.clear()
-        this.#worker?.terminate()
     }
 
     /**
@@ -380,6 +438,16 @@ export class AppController {
             return error.message
         }
         return 'Unknown parser error.'
+    }
+
+    /**
+     * Returns true for worker transport/module failures that can safely fall
+     * back to direct parsing in the document module graph.
+     * @param {unknown} error
+     * @returns {boolean}
+     */
+    static #isWorkerFailure(error) {
+        return Boolean(error && error.workerFailure)
     }
 
     /**
@@ -504,7 +572,10 @@ export class AppController {
         )
         if (
             preferredDocument &&
-            AppController.#supportsView(preferredDocument.documentModel, viewName)
+            AppController.#supportsView(
+                preferredDocument.documentModel,
+                viewName
+            )
         ) {
             return preferredDocument.id
         }

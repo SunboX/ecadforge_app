@@ -17,10 +17,7 @@ export class ServerAssetVersioner {
         searchParams.set('v', String(versionKey || '0'))
 
         return (
-            pathName +
-            '?' +
-            searchParams.toString() +
-            (hash ? '#' + hash : '')
+            pathName + '?' + searchParams.toString() + (hash ? '#' + hash : '')
         )
     }
 
@@ -50,6 +47,78 @@ export class ServerAssetVersioner {
                             versionKey
                         ) +
                         suffix
+                ),
+            String(source || '')
+        )
+    }
+
+    /**
+     * Resolves one known bare browser dependency to its deployed asset path.
+     * @param {string} specifier
+     * @returns {string}
+     */
+    static resolveBrowserBareSpecifier(specifier) {
+        const normalizedSpecifier = String(specifier || '')
+        const dependencyMap = {
+            '@sunbox/altium-toolkit':
+                '/node_modules/@sunbox/altium-toolkit/src/index.mjs',
+            '@sunbox/altium-toolkit/parser':
+                '/node_modules/@sunbox/altium-toolkit/src/parser.mjs',
+            '@sunbox/altium-toolkit/renderers':
+                '/node_modules/@sunbox/altium-toolkit/src/renderers.mjs',
+            '@sunbox/altium-toolkit/scene3d':
+                '/node_modules/@sunbox/altium-toolkit/src/scene3d.mjs',
+            '@sunbox/altium-toolkit/workers/altium-parser.worker.mjs':
+                '/node_modules/@sunbox/altium-toolkit/src/workers/altium-parser.worker.mjs',
+            fflate: '/node_modules/fflate/esm/browser.js'
+        }
+
+        return dependencyMap[normalizedSpecifier] || ''
+    }
+
+    /**
+     * Rewrites known bare dependency specifiers for browser worker contexts
+     * that cannot rely on the page import map.
+     * @param {string} source
+     * @param {string} versionKey
+     * @returns {string}
+     */
+    static rewriteBareJavaScriptSpecifiers(source, versionKey) {
+        const specifierPattern =
+            '(@sunbox\\/altium-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|fflate)'
+        const patterns = [
+            new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
+            new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
+            new RegExp(
+                '(import\\s*\\(\\s*[\'"])' +
+                    specifierPattern +
+                    '([\'"]\\s*\\))',
+                'g'
+            )
+        ]
+
+        return patterns.reduce(
+            (rewrittenSource, pattern) =>
+                rewrittenSource.replace(
+                    pattern,
+                    (_match, prefix, specifier, suffix) => {
+                        const assetPath =
+                            ServerAssetVersioner.resolveBrowserBareSpecifier(
+                                specifier
+                            )
+                        if (!assetPath) {
+                            return _match
+                        }
+
+                        return (
+                            prefix +
+                            ServerAssetVersioner.appendVersionQuery(
+                                assetPath,
+                                versionKey
+                            ) +
+                            suffix
+                        )
+                    }
                 ),
             String(source || '')
         )
@@ -97,36 +166,9 @@ export class ServerAssetVersioner {
                 versionKey
             )
 
-        return rewrittenSource
-            .replace(
-                /(from\s+['"])fflate(['"])/g,
-                (_match, prefix, suffix) =>
-                    prefix +
-                    ServerAssetVersioner.appendVersionQuery(
-                        '/node_modules/fflate/esm/browser.js',
-                        versionKey
-                    ) +
-                    suffix
-            )
-            .replace(
-                /(import\s+['"])fflate(['"])/g,
-                (_match, prefix, suffix) =>
-                    prefix +
-                    ServerAssetVersioner.appendVersionQuery(
-                        '/node_modules/fflate/esm/browser.js',
-                        versionKey
-                    ) +
-                    suffix
-            )
-            .replace(
-                /(import\s*\(\s*['"])fflate(['"]\s*\))/g,
-                (_match, prefix, suffix) =>
-                    prefix +
-                    ServerAssetVersioner.appendVersionQuery(
-                        '/node_modules/fflate/esm/browser.js',
-                        versionKey
-                    ) +
-                    suffix
-            )
+        return ServerAssetVersioner.rewriteBareJavaScriptSpecifiers(
+            rewrittenSource,
+            versionKey
+        )
     }
 }

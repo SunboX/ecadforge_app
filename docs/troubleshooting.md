@@ -13,8 +13,8 @@ PORT=3100 npm start
 - Check console for module import errors.
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
-- If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate` and the deployed site serves `/node_modules/fflate/esm/browser.js`.
-- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"`, confirm `npm install` has installed the toolkit package and the deployed site serves `/node_modules/@sunbox/altium-toolkit/`.
+- If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate`, the deployed site serves `/node_modules/fflate/esm/browser.js`, and the local server is rewriting toolkit worker modules when testing through `npm start`.
+- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"`, confirm `npm install` has installed the toolkit package and the deployed site serves `/node_modules/@sunbox/altium-toolkit/`. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
 
 ## LIVE 3D tab returns `404` for Three.js or STEP assets
 
