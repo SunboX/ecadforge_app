@@ -238,10 +238,10 @@ test('server serves browser node_modules modules with no-store cache headers', a
 })
 
 /**
- * Verifies the local browser server exposes the vendored browser-safe fflate
- * module used by the static-host deployment.
+ * Verifies the local browser server exposes the browser-safe fflate package
+ * module used by the Altium Toolkit parser.
  */
-test('server serves the vendored fflate browser module with no-store cache headers', async (t) => {
+test('server serves the fflate browser module with no-store cache headers', async (t) => {
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -255,7 +255,9 @@ test('server serves the vendored fflate browser module with no-store cache heade
     await waitForServerListening(childProcess, port)
 
     const response = await fetch(
-        'http://127.0.0.1:' + String(port) + '/vendor/fflate/browser.mjs'
+        'http://127.0.0.1:' +
+            String(port) +
+            '/node_modules/fflate/esm/browser.js'
     )
 
     assert.equal(response.ok, true)
@@ -338,10 +340,10 @@ test('server rewrites Three.js build module relative imports with the current ve
 })
 
 /**
- * Verifies browser-served parser modules use one deployable browser file path
- * for compression support instead of a bare package specifier.
+ * Verifies browser-served Altium Toolkit parser modules are available through
+ * the local node_modules static route.
  */
-test('server serves browser parser modules with deployable fflate dependency paths', async (t) => {
+test('server serves browser Altium Toolkit parser modules', async (t) => {
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -357,16 +359,16 @@ test('server serves browser parser modules with deployable fflate dependency pat
     const response = await fetch(
         'http://127.0.0.1:' +
             String(port) +
-            '/core/altium/PcbEmbeddedModelExtractor.mjs'
+            '/node_modules/@sunbox/altium-toolkit/src/core/altium/PcbEmbeddedModelExtractor.mjs'
     )
     const source = await response.text()
 
     assert.equal(response.ok, true)
     assert.doesNotMatch(source, /node:zlib/)
-    assert.doesNotMatch(source, /from ['"]fflate['"]/)
+    assert.match(source, /from ['"]fflate['"]/)
     assert.match(
-        source,
-        /from ['"]\.\.\/\.\.\/vendor\/fflate\/browser\.mjs(?:\?v=[^'"]+)?['"]/
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
     )
 })
 
@@ -481,8 +483,6 @@ test('server serves versioned HTML and module imports', async (t) => {
     assert.equal(workerResponse.ok, true)
     assert.match(
         workerSource,
-        new RegExp(
-            '\\.\\./core/altium/AltiumParser\\.mjs\\?v=' + appMeta.version
-        )
+        /from ['"]@sunbox\/altium-toolkit\/parser['"]/
     )
 })

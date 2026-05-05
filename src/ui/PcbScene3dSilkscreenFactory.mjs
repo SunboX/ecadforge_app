@@ -1,4 +1,4 @@
-import { PcbArcUtils } from './PcbArcUtils.mjs'
+import { PcbArcUtils } from '@sunbox/altium-toolkit/renderers'
 
 /**
  * Builds documentation-layer silkscreen meshes for the 3D PCB view.

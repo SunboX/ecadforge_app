@@ -16,7 +16,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 8. The `BOM` tab renders grouped component rows from recovered metadata.
 9. The `Diagnostics` tab exposes parser recovery, connectivity, and warning messages.
 10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
-11. The test suite validates parser behavior, renderer output, and project structure.
+11. The app test suite validates app integration, interaction behavior, server behavior, and project structure; parser and deterministic renderer behavior is validated in `@sunbox/altium-toolkit`.
 12. Runtime language switching remains available for the shell UI.
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
@@ -33,8 +33,8 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 ## 4. Architecture
 
 1. `src/core/`: state and domain primitives.
-2. `src/core/altium/`: binary-to-printable recovery, targeted OLE-backed recovery where required, and normalized Altium parsing.
-3. `src/ui/`: view/render modules.
+2. `@sunbox/altium-toolkit`: binary-to-printable recovery, targeted OLE-backed recovery where required, normalized Altium parsing, deterministic schematic/PCB/BOM rendering, and non-interactive 3D scene-description building.
+3. `src/ui/`: app shell, local interaction controllers, and interactive 3D runtime modules.
 4. `src/AppController.mjs`: orchestration and action layer.
 5. `src/workers/altium-parser.worker.mjs`: worker parser entrypoint.
 6. `src/main.mjs`: browser entrypoint.

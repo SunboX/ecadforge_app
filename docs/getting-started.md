@@ -35,8 +35,6 @@ npm test
 
 ## Sample Corpus
 
-The current parser tests are validated against embedded obfuscated fake fixture
-pieces assembled in `tests/fixtures/AltiumFixtureLoader.mjs`.
-
-If those embedded shards or manual fixture fragments move, update
-`tests/fixtures/AltiumFixtureLoader.mjs`.
+Parser and deterministic renderer tests are validated in the shared
+`@sunbox/altium-toolkit` repository against embedded obfuscated fake fixture
+pieces. Update that package when parser fixture shards or expectations change.

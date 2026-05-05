@@ -13,7 +13,8 @@ PORT=3100 npm start
 - Check console for module import errors.
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
-- If the console reports `Failed to resolve module specifier "fflate"`, confirm `src/vendor/fflate/browser.mjs` was deployed with the frontend files.
+- If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate` and the deployed site serves `/node_modules/fflate/esm/browser.js`.
+- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"`, confirm `npm install` has installed the toolkit package and the deployed site serves `/node_modules/@sunbox/altium-toolkit/`.
 
 ## LIVE 3D tab returns `404` for Three.js or STEP assets
 
@@ -46,4 +47,4 @@ PORT=3100 npm start
 
 - Ensure moved files are reflected in test imports.
 - Keep line-limit and structure tests updated with intentional layout changes.
-- If parser sample tests fail, confirm the sample file paths in `tests/fixtures/AltiumFixtureLoader.mjs`.
+- If parser sample tests fail, run the test suite in the `@sunbox/altium-toolkit` repository and inspect its obfuscated fixture loader.

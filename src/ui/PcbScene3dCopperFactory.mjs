@@ -1,4 +1,4 @@
-import { PcbArcUtils } from './PcbArcUtils.mjs'
+import { PcbArcUtils } from '@sunbox/altium-toolkit/renderers'
 import { PcbScene3dPadFactory } from './PcbScene3dPadFactory.mjs'
 
 /**

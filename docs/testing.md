@@ -3,8 +3,7 @@
 ## Strategy
 
 - Unit-test normalized viewer state behavior
-- Verify native parser output against embedded obfuscated fake schematic and PCB fixture data
-- Verify pure renderers with deterministic synthetic models
+- Verify integration with the shared `@sunbox/altium-toolkit` parser and non-interactive renderer package
 - Validate required project structure and source/test file line limits
 
 ## Commands
@@ -16,8 +15,7 @@ npm test
 ## Current Coverage
 
 - `tests/app-state.test.mjs`: state defaults, patching, subscriptions
-- `tests/core/altium-parser.test.mjs`: parser entrypoint importing split suites in `tests/core/altium-parser/`
-- `tests/ui/renderers.test.mjs`: renderer entrypoint importing split suites in `tests/ui/renderers/`
+- `tests/ui/renderers.test.mjs`: ECAD Forge 3D shell renderer coverage
 - `tests/app-meta-loader.test.mjs`: browser metadata endpoint fallback behavior
 - `tests/php-app-meta-endpoint.test.mjs`: deployable PHP metadata endpoint payloads
 - `tests/deploy-ftp-workflow.test.mjs`: FTP workflow deployment coverage for `api/`
@@ -26,6 +24,6 @@ npm test
 
 ## Rules
 
-- Add/update tests for each parser behavior or renderer change
-- Keep assertions focused on normalized outputs and user-visible markup
-- When changing fixture expectations, verify them against the embedded obfuscated fixture loader instead of weakening tests blindly
+- Add/update app tests for ECAD Forge interaction, server, state, and package integration behavior
+- Add parser and deterministic renderer tests in the `@sunbox/altium-toolkit` repository
+- Keep fixture expectations in the toolkit repository and preserve the existing obfuscation rules

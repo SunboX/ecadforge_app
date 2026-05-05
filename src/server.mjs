@@ -30,6 +30,11 @@ app.get(['/', '/index.html'], async (_req, res, next) => {
 })
 
 app.get(/\.mjs$/i, async (req, res, next) => {
+    if (/^\/(?:node_modules|vendor)\//i.test(req.path)) {
+        next()
+        return
+    }
+
     try {
         const filePath = ServerRuntime.resolveStaticAssetPath(
             staticRoot,

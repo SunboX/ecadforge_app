@@ -14,16 +14,17 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
 - Worker-backed parse flow with main-thread fallback
+- Shared Altium parser and non-interactive renderer core from `@sunbox/altium-toolkit`
 - Local Express dev server in `src/server.mjs`
 - Shared-hosting PHP metadata endpoint in `api/`
 
 ## Project Structure
 
-- `src/core/altium/`: printable-record extraction and normalized Altium parsers
-- `src/ui/`: viewer shell and markup renderers
+- `@sunbox/altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
+- `src/ui/`: viewer shell and interaction controllers
 - `src/workers/altium-parser.worker.mjs`: off-main-thread native parsing
 - `api/`: deployable PHP metadata endpoint for FTP/shared-hosting deployments
-- `tests/`: parser, renderer, state, and structure tests
+- `tests/`: app state, server, interaction, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting
 - `spec/`: product scope and acceptance criteria
 
@@ -53,7 +54,7 @@ Production deployment is available at [https://ecadforge.app/](https://ecadforge
 npm test
 ```
 
-The parser tests validate against embedded obfuscated fake fixture shards assembled in `tests/fixtures/AltiumFixtureLoader.mjs`.
+Parser and deterministic renderer tests live in the shared `@sunbox/altium-toolkit` repository. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
 
 ## Formatting
 

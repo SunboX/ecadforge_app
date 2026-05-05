@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { unzipSync } from '../../src/vendor/fflate/browser.mjs'
+import { unzipSync } from 'fflate'
 import { PcbModelArchiveExporter } from '../../src/ui/PcbModelArchiveExporter.mjs'
 
 /**

@@ -103,7 +103,7 @@ export class ServerAssetVersioner {
                 (_match, prefix, suffix) =>
                     prefix +
                     ServerAssetVersioner.appendVersionQuery(
-                        '/vendor/fflate/esm/browser.js',
+                        '/node_modules/fflate/esm/browser.js',
                         versionKey
                     ) +
                     suffix
@@ -113,7 +113,7 @@ export class ServerAssetVersioner {
                 (_match, prefix, suffix) =>
                     prefix +
                     ServerAssetVersioner.appendVersionQuery(
-                        '/vendor/fflate/esm/browser.js',
+                        '/node_modules/fflate/esm/browser.js',
                         versionKey
                     ) +
                     suffix
@@ -123,7 +123,7 @@ export class ServerAssetVersioner {
                 (_match, prefix, suffix) =>
                     prefix +
                     ServerAssetVersioner.appendVersionQuery(
-                        '/vendor/fflate/esm/browser.js',
+                        '/node_modules/fflate/esm/browser.js',
                         versionKey
                     ) +
                     suffix

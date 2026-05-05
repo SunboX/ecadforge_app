@@ -288,6 +288,7 @@ html.is-schematic-panning body {
 }
 
 .viewer-empty,
+.altium-renderer-empty,
 .viewer-loading {
     min-height: 52vh;
     display: grid;
@@ -310,6 +311,7 @@ html.is-schematic-panning body {
 }
 
 .viewer-empty h3,
+.altium-renderer-empty h3,
 .viewer-loading p {
     margin: 0;
 }
