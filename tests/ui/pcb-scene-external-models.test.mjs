@@ -88,6 +88,26 @@ class FakeGroup {
     add(child) {
         this.children.push(child)
     }
+
+    /**
+     * @returns {FakeGroup}
+     */
+    clone() {
+        const clonedGroup = new FakeGroup()
+        clonedGroup.position.x = this.position.x
+        clonedGroup.position.y = this.position.y
+        clonedGroup.position.z = this.position.z
+        clonedGroup.rotation.x = this.rotation.x
+        clonedGroup.rotation.y = this.rotation.y
+        clonedGroup.rotation.z = this.rotation.z
+        clonedGroup.scale.value = this.scale.value
+        clonedGroup.userData = { ...this.userData }
+        this.children.forEach((child) => {
+            clonedGroup.add(child?.clone ? child.clone() : child)
+        })
+
+        return clonedGroup
+    }
 }
 
 /**
@@ -234,6 +254,13 @@ class FakeMesh {
     constructor(geometry, material) {
         this.geometry = geometry
         this.material = material
+    }
+
+    /**
+     * @returns {FakeMesh}
+     */
+    clone() {
+        return new FakeMesh(this.geometry, this.material)
     }
 }
 
@@ -401,4 +428,89 @@ test('PcbScene3dExternalModels keeps bottom-side dz offsets below the board face
     assert.equal(modelGroup.position.z, 12)
     assert.equal(modelGroup.rotation.x, Math.PI / 2)
     assert.equal(modelGroup.rotation.z, (270 * Math.PI) / 180)
+})
+
+/**
+ * Verifies repeated placements with the same resolved STEP identity reuse one
+ * loaded model template instead of rebuilding geometry for every instance.
+ */
+test('PcbScene3dExternalModels reuses one loaded STEP model for repeated placements', async () => {
+    const externalModelsGroup = new FakeGroup()
+    let loadCount = 0
+
+    const diagnostics = await PcbScene3dExternalModels.loadIntoScene({
+        three: {
+            Group: FakeGroup,
+            BufferGeometry: FakeBufferGeometry,
+            Float32BufferAttribute: FakeFloat32BufferAttribute,
+            MeshStandardMaterial: FakeMeshStandardMaterial,
+            Mesh: FakeMesh,
+            Color: FakeColor
+        },
+        sceneDescription: {
+            externalPlacements: [
+                {
+                    designator: 'J15',
+                    mountSide: 'top',
+                    rotationDeg: 0,
+                    positionMil: { x: 10, y: 20, z: 30 },
+                    modelTransform: {
+                        rotationDeg: { x: 0, y: 0, z: 0 },
+                        dzMil: 0
+                    },
+                    externalModel: {
+                        origin: 'embedded',
+                        name: 'jack.step',
+                        format: 'step',
+                        payloadText: 'ISO-10303-21;',
+                        sourceStream: 'Models/48'
+                    }
+                },
+                {
+                    designator: 'J16',
+                    mountSide: 'top',
+                    rotationDeg: 90,
+                    positionMil: { x: 40, y: 50, z: 30 },
+                    modelTransform: {
+                        rotationDeg: { x: 0, y: 0, z: 90 },
+                        dzMil: 0
+                    },
+                    externalModel: {
+                        origin: 'embedded',
+                        name: 'jack.step',
+                        format: 'step',
+                        payloadText: 'ISO-10303-21;',
+                        sourceStream: 'Models/48'
+                    }
+                }
+            ]
+        },
+        externalModelsGroup,
+        stepLoader: {
+            async loadModel() {
+                loadCount += 1
+
+                return {
+                    meshPayloads: [
+                        {
+                            name: 'body',
+                            color: [0.8, 0.8, 0.8],
+                            positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+                            normals: [],
+                            indices: [0, 1, 2],
+                            faceColors: []
+                        }
+                    ]
+                }
+            }
+        }
+    })
+
+    assert.deepEqual(diagnostics, [])
+    assert.equal(loadCount, 1)
+    assert.equal(externalModelsGroup.children.length, 2)
+    assert.notEqual(
+        externalModelsGroup.children[0].children[0].children[0].children[0],
+        externalModelsGroup.children[1].children[0].children[0].children[0]
+    )
 })

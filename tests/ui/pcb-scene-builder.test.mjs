@@ -594,3 +594,367 @@ test('PcbScene3dBuilder includes top and bottom silkscreen detail', () => {
         { x1: 15, y1: 350, x2: 75, y2: 350, width: 6, layerId: 34 }
     ])
 })
+
+test('PcbScene3dBuilder keeps authored screw shafts while correcting tip-facing heads', () => {
+    const scene = PcbScene3dBuilder.build({
+        fileName: 'demo.PcbDoc',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 1000,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 1000 },
+                    { type: 'line', x1: 1000, y1: 1000, x2: 0, y2: 1000 },
+                    { type: 'line', x1: 0, y1: 1000, x2: 0, y2: 0 }
+                ]
+            },
+            primitiveLayers: [{ layerId: 33, name: 'Top Overlay' }],
+            pads: [],
+            tracks: [
+                { x1: 100, y1: 180, x2: 180, y2: 180, width: 8, layerId: 33 },
+                { x1: 100, y1: 220, x2: 180, y2: 220, width: 8, layerId: 33 },
+                { x1: 100, y1: 180, x2: 100, y2: 220, width: 8, layerId: 33 },
+                { x1: 110, y1: 182, x2: 120, y2: 218, width: 8, layerId: 33 },
+                { x1: 130, y1: 182, x2: 140, y2: 218, width: 8, layerId: 33 },
+                { x1: 150, y1: 182, x2: 160, y2: 218, width: 8, layerId: 33 },
+                { x1: 180, y1: 200, x2: 220, y2: 175, width: 8, layerId: 33 },
+                { x1: 180, y1: 200, x2: 220, y2: 225, width: 8, layerId: 33 },
+                { x1: 100, y1: 380, x2: 180, y2: 380, width: 8, layerId: 33 },
+                { x1: 100, y1: 420, x2: 180, y2: 420, width: 8, layerId: 33 },
+                { x1: 180, y1: 380, x2: 180, y2: 420, width: 8, layerId: 33 },
+                { x1: 120, y1: 382, x2: 130, y2: 418, width: 8, layerId: 33 },
+                { x1: 140, y1: 382, x2: 150, y2: 418, width: 8, layerId: 33 },
+                { x1: 160, y1: 382, x2: 170, y2: 418, width: 8, layerId: 33 },
+                { x1: 60, y1: 375, x2: 100, y2: 400, width: 8, layerId: 33 },
+                { x1: 60, y1: 425, x2: 100, y2: 400, width: 8, layerId: 33 }
+            ],
+            arcs: [
+                {
+                    x: 180,
+                    y: 200,
+                    radius: 28,
+                    startAngle: 90,
+                    endAngle: 270,
+                    width: 8,
+                    layerId: 33
+                },
+                {
+                    x: 40,
+                    y: 200,
+                    radius: 30,
+                    startAngle: 0,
+                    endAngle: 0,
+                    width: 8,
+                    layerId: 33
+                },
+                {
+                    x: 100,
+                    y: 400,
+                    radius: 28,
+                    startAngle: 270,
+                    endAngle: 90,
+                    width: 8,
+                    layerId: 33
+                },
+                {
+                    x: 260,
+                    y: 400,
+                    radius: 30,
+                    startAngle: 0,
+                    endAngle: 0,
+                    width: 8,
+                    layerId: 33
+                }
+            ],
+            fills: [],
+            vias: [],
+            polygons: [],
+            components: []
+        }
+    })
+
+    assert.deepEqual(scene.detail.silkscreen.top.tracks, [
+        { x1: 100, y1: 180, x2: 180, y2: 180, width: 8, layerId: 33 },
+        { x1: 100, y1: 220, x2: 180, y2: 220, width: 8, layerId: 33 },
+        { x1: 100, y1: 180, x2: 100, y2: 220, width: 8, layerId: 33 },
+        { x1: 110, y1: 182, x2: 120, y2: 218, width: 8, layerId: 33 },
+        { x1: 130, y1: 182, x2: 140, y2: 218, width: 8, layerId: 33 },
+        { x1: 150, y1: 182, x2: 160, y2: 218, width: 8, layerId: 33 },
+        { x1: 180, y1: 200, x2: 220, y2: 175, width: 8, layerId: 33 },
+        { x1: 180, y1: 200, x2: 220, y2: 225, width: 8, layerId: 33 },
+        { x1: 100, y1: 380, x2: 180, y2: 380, width: 8, layerId: 33 },
+        { x1: 100, y1: 420, x2: 180, y2: 420, width: 8, layerId: 33 },
+        { x1: 180, y1: 380, x2: 180, y2: 420, width: 8, layerId: 33 },
+        { x1: 120, y1: 382, x2: 130, y2: 418, width: 8, layerId: 33 },
+        { x1: 140, y1: 382, x2: 150, y2: 418, width: 8, layerId: 33 },
+        { x1: 160, y1: 382, x2: 170, y2: 418, width: 8, layerId: 33 },
+        { x1: 60, y1: 375, x2: 100, y2: 400, width: 8, layerId: 33 },
+        { x1: 60, y1: 425, x2: 100, y2: 400, width: 8, layerId: 33 }
+    ])
+    assert.deepEqual(scene.detail.silkscreen.top.arcs, [
+        {
+            x: 180,
+            y: 200,
+            radius: 28,
+            startAngle: 90,
+            endAngle: -90,
+            width: 8,
+            layerId: 33
+        },
+        {
+            x: 40,
+            y: 200,
+            radius: 30,
+            startAngle: 0,
+            endAngle: 0,
+            width: 8,
+            layerId: 33
+        },
+        {
+            x: 100,
+            y: 400,
+            radius: 28,
+            startAngle: 270,
+            endAngle: 90,
+            width: 8,
+            layerId: 33
+        },
+        {
+            x: 260,
+            y: 400,
+            radius: 30,
+            startAngle: 0,
+            endAngle: 0,
+            width: 8,
+            layerId: 33
+        }
+    ])
+})
+
+test('PcbScene3dBuilder flips corner-adjacent right-pointing screw heads tip-facing', () => {
+    const scene = PcbScene3dBuilder.build({
+        fileName: 'demo.PcbDoc',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 1000,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 1000 },
+                    { type: 'line', x1: 1000, y1: 1000, x2: 0, y2: 1000 },
+                    { type: 'line', x1: 0, y1: 1000, x2: 0, y2: 0 }
+                ]
+            },
+            primitiveLayers: [{ layerId: 33, name: 'Top Overlay' }],
+            pads: [],
+            tracks: [
+                { x1: 100, y1: 900, x2: 180, y2: 900, width: 8, layerId: 33 },
+                { x1: 100, y1: 940, x2: 180, y2: 940, width: 8, layerId: 33 },
+                { x1: 100, y1: 900, x2: 100, y2: 940, width: 8, layerId: 33 },
+                { x1: 110, y1: 902, x2: 120, y2: 938, width: 8, layerId: 33 },
+                { x1: 130, y1: 902, x2: 140, y2: 938, width: 8, layerId: 33 },
+                { x1: 150, y1: 902, x2: 160, y2: 938, width: 8, layerId: 33 },
+                { x1: 180, y1: 920, x2: 220, y2: 895, width: 8, layerId: 33 },
+                { x1: 180, y1: 920, x2: 220, y2: 945, width: 8, layerId: 33 }
+            ],
+            arcs: [
+                {
+                    x: 180,
+                    y: 920,
+                    radius: 28,
+                    startAngle: 90,
+                    endAngle: 270,
+                    width: 8,
+                    layerId: 33
+                }
+            ],
+            fills: [],
+            vias: [],
+            polygons: [],
+            components: []
+        }
+    })
+
+    assert.deepEqual(scene.detail.silkscreen.top.tracks, [
+        { x1: 100, y1: 900, x2: 180, y2: 900, width: 8, layerId: 33 },
+        { x1: 100, y1: 940, x2: 180, y2: 940, width: 8, layerId: 33 },
+        { x1: 100, y1: 900, x2: 100, y2: 940, width: 8, layerId: 33 },
+        { x1: 110, y1: 902, x2: 120, y2: 938, width: 8, layerId: 33 },
+        { x1: 130, y1: 902, x2: 140, y2: 938, width: 8, layerId: 33 },
+        { x1: 150, y1: 902, x2: 160, y2: 938, width: 8, layerId: 33 },
+        { x1: 180, y1: 920, x2: 220, y2: 895, width: 8, layerId: 33 },
+        { x1: 180, y1: 920, x2: 220, y2: 945, width: 8, layerId: 33 }
+    ])
+    assert.deepEqual(scene.detail.silkscreen.top.arcs, [
+        {
+            x: 180,
+            y: 920,
+            radius: 28,
+            startAngle: 90,
+            endAngle: -90,
+            width: 8,
+            layerId: 33
+        }
+    ])
+})
+
+test('PcbScene3dBuilder keeps downward-pointing screw heads tip-facing without rotating the shaft', () => {
+    const scene = PcbScene3dBuilder.build({
+        fileName: 'demo.PcbDoc',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            primitiveLayers: [{ layerId: 34, name: 'Bottom Overlay' }],
+            pads: [],
+            tracks: [
+                { x1: 780, y1: 100, x2: 820, y2: 100, width: 8, layerId: 34 },
+                { x1: 780, y1: 120, x2: 820, y2: 120, width: 8, layerId: 34 },
+                { x1: 780, y1: 100, x2: 780, y2: 120, width: 8, layerId: 34 },
+                { x1: 782, y1: 90, x2: 818, y2: 80, width: 8, layerId: 34 },
+                { x1: 782, y1: 110, x2: 818, y2: 100, width: 8, layerId: 34 },
+                { x1: 782, y1: 130, x2: 818, y2: 120, width: 8, layerId: 34 },
+                { x1: 800, y1: 120, x2: 775, y2: 160, width: 8, layerId: 34 },
+                { x1: 800, y1: 120, x2: 825, y2: 160, width: 8, layerId: 34 }
+            ],
+            arcs: [
+                {
+                    x: 800,
+                    y: 120,
+                    radius: 28,
+                    startAngle: 180,
+                    endAngle: 0,
+                    width: 8,
+                    layerId: 34
+                },
+                {
+                    x: 720,
+                    y: 120,
+                    radius: 30,
+                    startAngle: 0,
+                    endAngle: 0,
+                    width: 8,
+                    layerId: 34
+                }
+            ],
+            fills: [],
+            vias: [],
+            polygons: [],
+            components: []
+        }
+    })
+
+    assert.deepEqual(scene.detail.silkscreen.bottom.tracks, [
+        { x1: 780, y1: 100, x2: 820, y2: 100, width: 8, layerId: 34 },
+        { x1: 780, y1: 120, x2: 820, y2: 120, width: 8, layerId: 34 },
+        { x1: 780, y1: 100, x2: 780, y2: 120, width: 8, layerId: 34 },
+        { x1: 782, y1: 90, x2: 818, y2: 80, width: 8, layerId: 34 },
+        { x1: 782, y1: 110, x2: 818, y2: 100, width: 8, layerId: 34 },
+        { x1: 782, y1: 130, x2: 818, y2: 120, width: 8, layerId: 34 },
+        { x1: 800, y1: 120, x2: 775, y2: 160, width: 8, layerId: 34 },
+        { x1: 800, y1: 120, x2: 825, y2: 160, width: 8, layerId: 34 }
+    ])
+    assert.deepEqual(scene.detail.silkscreen.bottom.arcs, [
+        {
+            x: 800,
+            y: 120,
+            radius: 28,
+            startAngle: 180,
+            endAngle: 0,
+            width: 8,
+            layerId: 34
+        },
+        {
+            x: 720,
+            y: 120,
+            radius: 30,
+            startAngle: 0,
+            endAngle: 0,
+            width: 8,
+            layerId: 34
+        }
+    ])
+})
+
+test('PcbScene3dBuilder flips right-pointing screw heads onto the tip-facing half', () => {
+    const scene = PcbScene3dBuilder.build({
+        fileName: 'demo.PcbDoc',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            primitiveLayers: [{ layerId: 33, name: 'Top Overlay' }],
+            pads: [],
+            tracks: [
+                { x1: 100, y1: 180, x2: 180, y2: 180, width: 8, layerId: 33 },
+                { x1: 100, y1: 220, x2: 180, y2: 220, width: 8, layerId: 33 },
+                { x1: 180, y1: 180, x2: 180, y2: 220, width: 8, layerId: 33 },
+                { x1: 120, y1: 182, x2: 130, y2: 218, width: 8, layerId: 33 },
+                { x1: 140, y1: 182, x2: 150, y2: 218, width: 8, layerId: 33 },
+                { x1: 160, y1: 182, x2: 170, y2: 218, width: 8, layerId: 33 },
+                { x1: 180, y1: 200, x2: 220, y2: 175, width: 8, layerId: 33 },
+                { x1: 180, y1: 200, x2: 220, y2: 225, width: 8, layerId: 33 }
+            ],
+            arcs: [
+                {
+                    x: 180,
+                    y: 200,
+                    radius: 28,
+                    startAngle: 90,
+                    endAngle: 270,
+                    width: 8,
+                    layerId: 33
+                }
+            ],
+            fills: [],
+            vias: [],
+            polygons: [],
+            components: []
+        }
+    })
+
+    assert.deepEqual(scene.detail.silkscreen.top.tracks, [
+        { x1: 100, y1: 180, x2: 180, y2: 180, width: 8, layerId: 33 },
+        { x1: 100, y1: 220, x2: 180, y2: 220, width: 8, layerId: 33 },
+        { x1: 180, y1: 180, x2: 180, y2: 220, width: 8, layerId: 33 },
+        { x1: 120, y1: 182, x2: 130, y2: 218, width: 8, layerId: 33 },
+        { x1: 140, y1: 182, x2: 150, y2: 218, width: 8, layerId: 33 },
+        { x1: 160, y1: 182, x2: 170, y2: 218, width: 8, layerId: 33 },
+        { x1: 180, y1: 200, x2: 220, y2: 175, width: 8, layerId: 33 },
+        { x1: 180, y1: 200, x2: 220, y2: 225, width: 8, layerId: 33 }
+    ])
+    assert.deepEqual(scene.detail.silkscreen.top.arcs, [
+        {
+            x: 180,
+            y: 200,
+            radius: 28,
+            startAngle: 90,
+            endAngle: -90,
+            width: 8,
+            layerId: 33
+        }
+    ])
+})

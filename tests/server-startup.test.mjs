@@ -387,6 +387,19 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
 
     await waitForServerListening(childProcess, port)
 
+    const expectedJsSource = await readFile(
+        new URL(
+            '../src/vendor/occt-import-js/dist/occt-import-js.js',
+            import.meta.url
+        ),
+        'utf8'
+    )
+    const expectedWasmSource = await readFile(
+        new URL(
+            '../src/vendor/occt-import-js/dist/occt-import-js.wasm',
+            import.meta.url
+        )
+    )
     const jsResponse = await fetch(
         'http://127.0.0.1:' +
             String(port) +
@@ -400,6 +413,11 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
 
     assert.equal(jsResponse.ok, true)
     assert.equal(wasmResponse.ok, true)
+    assert.equal(await jsResponse.text(), expectedJsSource)
+    assert.deepEqual(
+        Buffer.from(await wasmResponse.arrayBuffer()),
+        expectedWasmSource
+    )
     assert.match(
         String(jsResponse.headers.get('cache-control') || ''),
         /no-store/i

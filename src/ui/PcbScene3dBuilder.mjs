@@ -1,3 +1,4 @@
+import { PcbEdgeFacingGlyphNormalizer } from './PcbEdgeFacingGlyphNormalizer.mjs'
 import { PcbFootprintPrimitiveSelector } from './PcbFootprintPrimitiveSelector.mjs'
 import { PcbScene3dPackages } from './PcbScene3dPackages.mjs'
 
@@ -78,19 +79,25 @@ export class PcbScene3dBuilder {
                 vias: Array.isArray(pcb.vias) ? pcb.vias : [],
                 polygons: Array.isArray(pcb.polygons) ? pcb.polygons : [],
                 silkscreen: {
-                    top: PcbFootprintPrimitiveSelector.select(
-                        primitiveLayers,
-                        fills,
-                        tracks,
-                        arcs,
-                        'top'
+                    top: PcbEdgeFacingGlyphNormalizer.normalize(
+                        PcbFootprintPrimitiveSelector.select(
+                            primitiveLayers,
+                            fills,
+                            tracks,
+                            arcs,
+                            'top'
+                        ),
+                        boardOutline
                     ),
-                    bottom: PcbFootprintPrimitiveSelector.select(
-                        primitiveLayers,
-                        fills,
-                        tracks,
-                        arcs,
-                        'bottom'
+                    bottom: PcbEdgeFacingGlyphNormalizer.normalize(
+                        PcbFootprintPrimitiveSelector.select(
+                            primitiveLayers,
+                            fills,
+                            tracks,
+                            arcs,
+                            'bottom'
+                        ),
+                        boardOutline
                     )
                 }
             }

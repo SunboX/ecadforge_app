@@ -9,6 +9,12 @@ const __dirname = path.dirname(__filename)
 const projectRoot = path.join(__dirname, '..')
 const staticRoot = path.join(projectRoot, 'src')
 const vendorRoot = path.join(projectRoot, 'node_modules')
+const occtVendorRoot = path.join(
+    staticRoot,
+    'vendor',
+    'occt-import-js',
+    'dist'
+)
 const noStoreCacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
 
 const app = express()
@@ -88,6 +94,24 @@ app.get(
             next(error)
         }
     }
+)
+
+app.use(
+    '/vendor/occt-import-js/dist',
+    express.static(occtVendorRoot, {
+        setHeaders: (res) => {
+            res.setHeader('Cache-Control', noStoreCacheControl)
+        }
+    })
+)
+
+app.use(
+    '/node_modules/occt-import-js/dist',
+    express.static(occtVendorRoot, {
+        setHeaders: (res) => {
+            res.setHeader('Cache-Control', noStoreCacheControl)
+        }
+    })
 )
 
 app.use(
