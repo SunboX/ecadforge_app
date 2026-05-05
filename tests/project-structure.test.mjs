@@ -26,7 +26,17 @@ test('required project files exist', async () => {
     const required = [
         'README.md',
         'AGENTS.md',
+        'COMMERCIAL-LICENSE.md',
+        'CONTRIBUTING.md',
         'package.json',
+        'LICENSE',
+        'LICENSES/AGPL-3.0-or-later.txt',
+        'LICENSES/CC-BY-SA-4.0.txt',
+        'LICENSES/LGPL-2.1-or-later.txt',
+        'LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt',
+        'NOTICE',
+        'NOTICE.md',
+        '.reuse/dep5',
         'spec/web-app-specification.md',
         'docs/getting-started.md',
         'docs/architecture.md',
@@ -79,6 +89,33 @@ test('package scripts include start and test', async () => {
 
     assert.equal(typeof pkg.scripts?.start, 'string')
     assert.equal(typeof pkg.scripts?.test, 'string')
+})
+
+/**
+ * Verifies the repository licensing metadata follows the public AGPL and
+ * commercial-license notice model.
+ */
+test('project licensing metadata uses AGPL dual licensing', async () => {
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const readmeRaw = await readFile(new URL('README.md', root), 'utf8')
+    const licenseRaw = await readFile(new URL('LICENSE', root), 'utf8')
+    const commercialRaw = await readFile(
+        new URL('COMMERCIAL-LICENSE.md', root),
+        'utf8'
+    )
+    const noticeRaw = await readFile(new URL('NOTICE.md', root), 'utf8')
+    const dep5Raw = await readFile(new URL('.reuse/dep5', root), 'utf8')
+    const pkg = JSON.parse(packageRaw)
+
+    assert.equal(pkg.license, 'AGPL-3.0-or-later')
+    assert.match(readmeRaw, /AGPL-3\.0-or-later/)
+    assert.match(readmeRaw, /Commercial\/proprietary license/)
+    assert.match(licenseRaw, /LICENSES\/AGPL-3\.0-or-later\.txt/)
+    assert.match(commercialRaw, /not itself a commercial license grant/)
+    assert.match(noticeRaw, /Original project by André Fiedler \/ SunboX/)
+    assert.match(dep5Raw, /License: AGPL-3\.0-or-later/)
+    assert.match(dep5Raw, /License: CC-BY-SA-4\.0/)
+    assert.match(dep5Raw, /License: LicenseRef-PolyForm-Noncommercial-1\.0\.0/)
 })
 
 /**
@@ -214,17 +251,17 @@ test('browser parser and render core resolve through Altium Toolkit', async () =
         new URL('src/workers/altium-parser.worker.mjs', root),
         'utf8'
     )
-    const viewSource = await readFile(new URL('src/ui/AppView.mjs', root), 'utf8')
+    const viewSource = await readFile(
+        new URL('src/ui/AppView.mjs', root),
+        'utf8'
+    )
 
     assert.match(
         controllerSource,
         /from ['"]@sunbox\/altium-toolkit\/parser['"]/
     )
     assert.match(workerSource, /from ['"]@sunbox\/altium-toolkit\/parser['"]/)
-    assert.match(
-        viewSource,
-        /from ['"]@sunbox\/altium-toolkit\/renderers['"]/
-    )
+    assert.match(viewSource, /from ['"]@sunbox\/altium-toolkit\/renderers['"]/)
 })
 
 /**
@@ -296,5 +333,8 @@ test('3d runtime source resolves browser dependencies through deployed asset pat
         /\/node_modules\/three\/examples\/jsm\/loaders\/VRMLLoader\.js/
     )
     assert.match(stepLoaderSource, /\/vendor\/occt-import-js\/dist\//)
-    assert.doesNotMatch(stepLoaderSource, /\/node_modules\/occt-import-js\/dist\//)
+    assert.doesNotMatch(
+        stepLoaderSource,
+        /\/node_modules\/occt-import-js\/dist\//
+    )
 })
