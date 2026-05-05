@@ -6,7 +6,9 @@ import { createServer } from 'node:net'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-const serverEntryPath = fileURLToPath(new URL('../src/server.mjs', import.meta.url))
+const serverEntryPath = fileURLToPath(
+    new URL('../src/server.mjs', import.meta.url)
+)
 
 /**
  * Allocates an available TCP port for the spawned server process.
@@ -82,7 +84,9 @@ async function waitForServerListening(childProcess, port) {
         }
 
         const handleExit = (code, signal) => {
-            const output = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n')
+            const output = [stderr.trim(), stdout.trim()]
+                .filter(Boolean)
+                .join('\n')
             const details = output ? '\n' + output : ''
             settle(() => {
                 reject(
@@ -99,7 +103,9 @@ async function waitForServerListening(childProcess, port) {
         }
 
         const timeoutId = setTimeout(() => {
-            const output = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n')
+            const output = [stderr.trim(), stdout.trim()]
+                .filter(Boolean)
+                .join('\n')
             const details = output ? '\n' + output : ''
             settle(() => {
                 reject(
@@ -197,7 +203,9 @@ test('server serves browser vendor modules with no-store cache headers', async (
     await waitForServerListening(childProcess, port)
 
     const response = await fetch(
-        'http://127.0.0.1:' + String(port) + '/vendor/three/build/three.module.js'
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/three/build/three.module.js'
     )
 
     assert.equal(response.ok, true)
@@ -334,16 +342,16 @@ test('server rewrites Three.js build module relative imports with the current ve
     assert.match(
         source,
         new RegExp(
-            "from ['\"]\\./three\\.core\\.js\\?v=" + pkg.version + "['\"]"
+            'from [\'"]\\./three\\.core\\.js\\?v=' + pkg.version + '[\'"]'
         )
     )
 })
 
 /**
- * Verifies browser-served Altium Toolkit parser modules are available through
- * the local node_modules static route.
+ * Verifies browser-served Altium Toolkit parser modules are rewritten so
+ * worker module graphs do not depend on the page import map.
  */
-test('server serves browser Altium Toolkit parser modules', async (t) => {
+test('server rewrites browser Altium Toolkit parser module bare imports', async (t) => {
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -365,7 +373,11 @@ test('server serves browser Altium Toolkit parser modules', async (t) => {
 
     assert.equal(response.ok, true)
     assert.doesNotMatch(source, /node:zlib/)
-    assert.match(source, /from ['"]fflate['"]/)
+    assert.doesNotMatch(source, /from ['"]fflate['"]/)
+    assert.match(
+        source,
+        /from ['"]\/node_modules\/fflate\/esm\/browser\.js(?:\?v=[^'"]+)?['"]/
+    )
     assert.match(
         String(response.headers.get('cache-control') || ''),
         /no-store/i
@@ -464,6 +476,10 @@ test('server serves versioned HTML and module imports', async (t) => {
         baseUrl + '/workers/altium-parser.worker.mjs' + versionSuffix
     )
     const workerSource = await workerResponse.text()
+    const sceneWorkerResponse = await fetch(
+        baseUrl + '/workers/pcb-scene3d.worker.mjs' + versionSuffix
+    )
+    const sceneWorkerSource = await sceneWorkerResponse.text()
 
     assert.equal(appMeta.version, pkg.version)
     assert.equal(indexResponse.ok, true)
@@ -481,8 +497,22 @@ test('server serves versioned HTML and module imports', async (t) => {
     )
 
     assert.equal(workerResponse.ok, true)
-    assert.match(
+    assert.doesNotMatch(
         workerSource,
         /from ['"]@sunbox\/altium-toolkit\/parser['"]/
+    )
+    assert.match(
+        workerSource,
+        /from ['"]\/node_modules\/@sunbox\/altium-toolkit\/src\/parser\.mjs\?v=/
+    )
+
+    assert.equal(sceneWorkerResponse.ok, true)
+    assert.doesNotMatch(
+        sceneWorkerSource,
+        /from ['"]@sunbox\/altium-toolkit\/scene3d['"]/
+    )
+    assert.match(
+        sceneWorkerSource,
+        /from ['"]\/node_modules\/@sunbox\/altium-toolkit\/src\/scene3d\.mjs\?v=/
     )
 })

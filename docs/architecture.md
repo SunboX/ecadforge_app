@@ -53,4 +53,4 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
-- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.

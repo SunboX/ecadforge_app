@@ -127,6 +127,93 @@ class FakeView {
 }
 
 /**
+ * Minimal parser worker double for controller tests.
+ */
+class FakeWorker {
+    /** @type {Map<string, Set<(event: any) => void>>} */
+    #listeners
+
+    /** @type {any[]} */
+    messages
+
+    /** @type {boolean} */
+    terminated
+
+    constructor() {
+        this.#listeners = new Map()
+        this.messages = []
+        this.terminated = false
+    }
+
+    /**
+     * Registers one worker event listener.
+     * @param {string} type
+     * @param {(event: any) => void} listener
+     * @returns {void}
+     */
+    addEventListener(type, listener) {
+        if (!this.#listeners.has(type)) {
+            this.#listeners.set(type, new Set())
+        }
+        this.#listeners.get(type)?.add(listener)
+    }
+
+    /**
+     * Records one worker request.
+     * @param {any} payload
+     * @param {Transferable[]} [transferList]
+     * @returns {void}
+     */
+    postMessage(payload, transferList = []) {
+        const clonedPayload = transferList.length
+            ? structuredClone(payload, { transfer: transferList })
+            : payload
+        this.messages.push(clonedPayload)
+    }
+
+    /**
+     * Emits a worker message response.
+     * @param {any} data
+     * @returns {void}
+     */
+    emitMessage(data) {
+        this.#emit('message', { data })
+    }
+
+    /**
+     * Emits a worker transport failure.
+     * @param {string} message
+     * @returns {void}
+     */
+    emitError(message) {
+        this.#emit('error', {
+            message,
+            preventDefault() {}
+        })
+    }
+
+    /**
+     * Marks the worker as terminated.
+     * @returns {void}
+     */
+    terminate() {
+        this.terminated = true
+    }
+
+    /**
+     * Emits one event to registered listeners.
+     * @param {string} type
+     * @param {any} event
+     * @returns {void}
+     */
+    #emit(type, event) {
+        ;[...(this.#listeners.get(type) || [])].forEach((listener) =>
+            listener(event)
+        )
+    }
+}
+
+/**
  * Minimal file fake for controller parsing tests.
  */
 class FakeFile {
@@ -189,6 +276,21 @@ class FakeParser {
         }
 
         return result
+    }
+}
+
+/**
+ * Parser double that asserts the fallback buffer was not detached.
+ */
+class BufferCheckingParser extends FakeParser {
+    /**
+     * @param {string} fileName
+     * @param {ArrayBuffer} buffer
+     * @returns {object}
+     */
+    parseArrayBuffer(fileName, buffer) {
+        assert.equal(buffer.byteLength, 8)
+        return super.parseArrayBuffer(fileName, buffer)
     }
 }
 
@@ -289,6 +391,44 @@ test('AppController appends multiple parsed documents and switches active select
 
     assert.equal(snapshot.activeDocumentId, firstDocumentId)
     assert.equal(snapshot.activeFileName, 'alpha.SchDoc')
+})
+
+/**
+ * Verifies parser worker module failures fall back to direct parser execution
+ * instead of leaving the UI in an unresolved loading state.
+ */
+test('AppController falls back to direct parsing when the parser worker fails to load', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const worker = new FakeWorker()
+    const parser = new BufferCheckingParser({
+        'fallback.PcbDoc': createPcbDocument('fallback.PcbDoc')
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        workerFactory: () => worker
+    })
+
+    await controller.init()
+    const choosePromise = view.chooseFiles([new FakeFile('fallback.PcbDoc')])
+
+    await Promise.resolve()
+    assert.equal(state.getSnapshot().parseStatus, 'loading')
+    assert.equal(worker.messages.length, 1)
+
+    worker.emitError(
+        'Failed to resolve module specifier "@sunbox/altium-toolkit/parser"'
+    )
+    await choosePromise
+
+    const snapshot = state.getSnapshot()
+
+    assert.equal(worker.terminated, true)
+    assert.equal(snapshot.parseStatus, 'ready')
+    assert.equal(snapshot.activeFileName, 'fallback.PcbDoc')
+    assert.equal(snapshot.documents.length, 1)
 })
 
 /**
