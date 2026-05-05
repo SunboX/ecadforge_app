@@ -23,15 +23,22 @@ export class PcbScene3dExternalModels {
         const diagnostics = []
         const ownsStepLoader = !options?.stepLoader
         const stepLoader = options?.stepLoader || new PcbScene3dStepLoader()
+        const cachedModelGroups = new Map()
+        let processedPlacements = 0
 
         try {
             for (const placement of placements) {
+                if (options?.isDisposed?.()) {
+                    break
+                }
+
                 try {
                     const loadedGroup =
                         await PcbScene3dExternalModels.#loadPlacementGroup(
                             options.three,
                             placement,
-                            stepLoader
+                            stepLoader,
+                            cachedModelGroups
                         )
                     if (!loadedGroup || options?.isDisposed?.()) {
                         continue
@@ -39,6 +46,10 @@ export class PcbScene3dExternalModels {
 
                     externalModelsGroup.add(loadedGroup)
                     options?.onPlacementGroup?.(placement, loadedGroup)
+                    processedPlacements += 1
+                    if (processedPlacements % 12 === 0) {
+                        await PcbScene3dExternalModels.#yieldToMainThread()
+                    }
                 } catch (error) {
                     diagnostics.push(
                         'Could not load external model for ' +
@@ -118,31 +129,101 @@ export class PcbScene3dExternalModels {
      * @param {any} THREE
      * @param {{ mountSide?: string, rotationDeg?: number, positionMil?: { x?: number, y?: number, z?: number }, modelTransform?: { rotationDeg?: { x?: number, y?: number, z?: number }, dzMil?: number }, externalModel?: any }} placement
      * @param {PcbScene3dStepLoader} stepLoader
+     * @param {Map<string, any>} cachedModelGroups
      * @returns {Promise<any>}
      */
-    static async #loadPlacementGroup(THREE, placement, stepLoader) {
+    static async #loadPlacementGroup(
+        THREE,
+        placement,
+        stepLoader,
+        cachedModelGroups
+    ) {
         const model = placement?.externalModel
         if (!model) {
             throw new Error('Placement has no resolved model.')
         }
 
-        let modelGroup
+        const templateGroup =
+            await PcbScene3dExternalModels.#loadCachedModelGroup(
+                THREE,
+                model,
+                stepLoader,
+                cachedModelGroups
+            )
+
+        return PcbScene3dExternalModels.#buildPlacementWrapper(
+            THREE,
+            placement,
+            PcbScene3dExternalModels.#cloneModelGroup(templateGroup)
+        )
+    }
+
+    /**
+     * Loads or reuses one model template group for repeated placements that
+     * resolve to the same source identity.
+     * @param {any} THREE
+     * @param {any} model
+     * @param {PcbScene3dStepLoader} stepLoader
+     * @param {Map<string, any>} cachedModelGroups
+     * @returns {Promise<any>}
+     */
+    static async #loadCachedModelGroup(
+        THREE,
+        model,
+        stepLoader,
+        cachedModelGroups
+    ) {
+        const identity =
+            PcbScene3dExternalModels.#resolveModelIdentity(model)
+        if (cachedModelGroups.has(identity)) {
+            return cachedModelGroups.get(identity)
+        }
+
+        const modelGroup = await PcbScene3dExternalModels.#loadModelGroup(
+            THREE,
+            model,
+            stepLoader
+        )
+        cachedModelGroups.set(identity, modelGroup)
+
+        return modelGroup
+    }
+
+    /**
+     * Loads one raw model group without placement-specific mount transforms.
+     * @param {any} THREE
+     * @param {any} model
+     * @param {PcbScene3dStepLoader} stepLoader
+     * @returns {Promise<any>}
+     */
+    static async #loadModelGroup(THREE, model, stepLoader) {
         if (model.format === 'wrl') {
             if (!model.file) {
                 throw new Error('Resolved WRL model file is unavailable.')
             }
 
-            modelGroup = await PcbScene3dExternalModels.#loadVrmlModel(model.file)
-        } else if (model.format === 'step') {
-            modelGroup = await PcbScene3dExternalModels.#loadStepModel(
+            return PcbScene3dExternalModels.#loadVrmlModel(model.file)
+        }
+
+        if (model.format === 'step') {
+            return PcbScene3dExternalModels.#loadStepModel(
                 THREE,
                 model,
                 stepLoader
             )
-        } else {
-            throw new Error('Unsupported external model format.')
         }
 
+        throw new Error('Unsupported external model format.')
+    }
+
+    /**
+     * Wraps one loaded model group in its placement-specific mount rig.
+     * @param {any} THREE
+     * @param {{ mountSide?: string, modelTransform?: { rotationDeg?: { x?: number, y?: number, z?: number }, dzMil?: number }, designator?: string }} placement
+     * @param {any} modelGroup
+     * @returns {any}
+     */
+    static #buildPlacementWrapper(THREE, placement, modelGroup) {
         const mountRig = PcbScene3dMountRig.create(THREE, placement)
         const wrapperGroup = mountRig.rootGroup
         wrapperGroup.userData.scene3dSelection = {
@@ -165,6 +246,62 @@ export class PcbScene3dExternalModels {
         mountRig.faceGroup.add(modelGroup)
 
         return wrapperGroup
+    }
+
+    /**
+     * Clones one cached model template so per-placement transforms do not
+     * mutate the shared base geometry.
+     * @param {any} modelGroup
+     * @returns {any}
+     */
+    static #cloneModelGroup(modelGroup) {
+        if (typeof modelGroup?.clone === 'function') {
+            return modelGroup.clone(true)
+        }
+
+        return modelGroup
+    }
+
+    /**
+     * Resolves one stable cache key for repeated placements of the same model.
+     * @param {{ origin?: string, sourceStream?: string, relativePath?: string, name?: string, checksum?: number | null, format?: string }} model
+     * @returns {string}
+     */
+    static #resolveModelIdentity(model) {
+        if (String(model?.origin || '') === 'embedded') {
+            return [
+                'embedded',
+                String(model?.sourceStream || ''),
+                String(model?.name || ''),
+                String(model?.checksum || ''),
+                String(model?.format || '')
+            ].join('::')
+        }
+
+        return [
+            'session',
+            String(model?.relativePath || ''),
+            String(model?.name || ''),
+            String(model?.format || '')
+        ].join('::')
+    }
+
+    /**
+     * Yields control back to the browser during long model-placement runs so
+     * large boards do not monopolize the main thread.
+     * @returns {Promise<void>}
+     */
+    static async #yieldToMainThread() {
+        if (typeof requestAnimationFrame === 'function') {
+            await new Promise((resolve) => {
+                requestAnimationFrame(() => resolve())
+            })
+            return
+        }
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0)
+        })
     }
 
     /**

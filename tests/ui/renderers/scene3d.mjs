@@ -23,8 +23,14 @@ test('renderScene3d emits viewport and control chrome for the 3D scene', () => {
     assert.match(markup, /Top/)
     assert.match(markup, /Bottom/)
     assert.match(markup, /Isometric/)
+    assert.match(markup, /Download Models ZIP/)
+    assert.match(markup, /data-scene-3d-export="models-zip"/)
     assert.doesNotMatch(markup, /Reset/)
     assert.match(markup, /External models/)
+    assert.match(
+        markup,
+        /<input type="checkbox" data-scene-3d-toggle="fallback-bodies" \/>Fallback bodies/
+    )
     assert.match(markup, /scene-3d__selection/)
     assert.match(markup, /Click a component to inspect it\./)
     assert.match(markup, /scene-3d__diagnostics/)
@@ -34,7 +40,10 @@ test('renderScene3d emits viewport and control chrome for the 3D scene', () => {
  * Verifies the viewer stylesheet includes the interactive 3D scene shell.
  */
 test('scene3d stylesheet defines viewport, controls, and canvas layout', async () => {
-    const cssPath = new URL('../../../src/styles/20-viewer.css', import.meta.url)
+    const cssPath = new URL(
+        '../../../src/styles/20-viewer.css',
+        import.meta.url
+    )
     const css = await readFile(cssPath, 'utf8')
 
     assert.match(css, /\.scene-3d__toolbar\s*\{/)
@@ -44,7 +53,10 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
     )
     assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*align-items:\s*start;/)
     assert.match(css, /\.scene-3d__viewport\s*\{/)
-    assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*aspect-ratio:\s*4\s*\/\s*3;/)
+    assert.match(
+        css,
+        /\.scene-3d__viewport\s*\{[\s\S]*aspect-ratio:\s*4\s*\/\s*3;/
+    )
     assert.match(css, /\.scene-3d__controls\s*\{/)
     assert.match(css, /\.scene-3d__selection\s*\{/)
     assert.match(css, /\.scene-3d__diagnostics\s*\{/)

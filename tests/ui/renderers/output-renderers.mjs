@@ -811,12 +811,22 @@ test('pcb viewer stylesheet defines PCB theme variables', async () => {
     const cssPath = new URL('../../../src/styles/20-viewer.css', import.meta.url)
     const css = await readFile(cssPath, 'utf8')
     const pcbSvgBlock = css.match(/\.pcb-svg\s*\{[^}]*\}/)?.[0]
+    const pcbPreviewBlock = css.match(/\.document-preview__svg--pcb\s*\{[^}]*\}/)?.[0]
     const boardOutlineBlock = css.match(/\.board-outline\s*\{[^}]*\}/)?.[0]
 
     assert.ok(pcbSvgBlock)
+    assert.ok(pcbPreviewBlock)
     assert.ok(boardOutlineBlock)
     assert.match(pcbSvgBlock, /--pcb-board-fill:/)
     assert.match(pcbSvgBlock, /--pcb-copper-fill:/)
+    assert.match(
+        pcbSvgBlock,
+        /--pcb-footprint-track-color:\s*rgba\(237,\s*172,\s*36,\s*1\.0\);/
+    )
+    assert.match(
+        pcbPreviewBlock,
+        /--pcb-footprint-track-color:\s*rgba\(237,\s*172,\s*36,\s*1\.0\);/
+    )
     assert.match(boardOutlineBlock, /fill:\s*var\(--pcb-board-fill\);/)
     assert.match(boardOutlineBlock, /stroke:\s*var\(--pcb-board-stroke\);/)
 })

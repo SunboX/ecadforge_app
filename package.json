@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.3.47",
+    "version": "1.3.62",
     "description": "Browser-based viewer for native Altium schematic and PCB files",
     "private": true,
     "license": "PolyForm-Noncommercial-1.0.0",

@@ -1,4 +1,5 @@
 import { PcbScene3dBuilder } from './PcbScene3dBuilder.mjs'
+import { PcbModelArchiveExporter } from './PcbModelArchiveExporter.mjs'
 import { PcbScene3dModelRegistry } from './PcbScene3dModelRegistry.mjs'
 import { PcbScene3dRuntime } from './PcbScene3dRuntime.mjs'
 
@@ -30,8 +31,17 @@ export class PcbScene3dController {
     /** @type {{ setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void } | null} */
     #runtime
 
+    /** @type {any | null} */
+    #sceneDescription
+
     /** @type {{ prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null} */
     #scenePrepClient
+
+    /** @type {(options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>} */
+    #exportArchive
+
+    /** @type {(archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void} */
+    #downloadArchive
 
     /** @type {(visible: boolean) => void} */
     #setLoadingVisible
@@ -42,7 +52,7 @@ export class PcbScene3dController {
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} documentModel
-     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, setLoadingVisible?: (visible: boolean) => void }} [options]
+     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void }} [options]
      */
     constructor(viewportNode, documentModel, options = {}) {
         this.#viewportNode = viewportNode
@@ -60,6 +70,18 @@ export class PcbScene3dController {
         )
         this.#listeners = []
         this.#scenePrepClient = options.scenePrepClient || null
+        this.#sceneDescription = null
+        this.#exportArchive =
+            options.exportArchive ||
+            ((exportOptions) =>
+                PcbModelArchiveExporter.buildArchive(exportOptions))
+        this.#downloadArchive =
+            options.downloadArchive ||
+            ((archiveName, archiveBytes) =>
+                PcbScene3dController.#triggerArchiveDownload(
+                    archiveName,
+                    archiveBytes
+                ))
         this.#setLoadingVisible =
             options.setLoadingVisible || (() => {})
         this.#isDisposed = false
@@ -69,6 +91,7 @@ export class PcbScene3dController {
         this.#bindPresets()
         this.#setActivePresetButton('isometric')
         this.#bindToggles()
+        this.#bindExportAction()
         this.#setSelection(null)
         this.#setLoadingVisible(true)
         if (this.#scenePrepClient?.prepareScene) {
@@ -101,11 +124,19 @@ export class PcbScene3dController {
         this.#scenePrepClient = null
         this.#runtime?.dispose?.()
         this.#runtime = null
+        this.#sceneDescription = null
         this.#viewportNode = null
         this.#documentModel = null
         this.#rootNode = null
         this.#diagnosticsNode = null
         this.#selectionNode = null
+        this.#exportArchive = async () => ({
+            archiveName: '',
+            archiveBytes: new Uint8Array(),
+            exportedEntries: [],
+            skippedEntries: []
+        })
+        this.#downloadArchive = async () => {}
         this.#selectionIndex = new Map()
     }
 
@@ -221,6 +252,7 @@ export class PcbScene3dController {
      * @returns {void}
      */
     #mountScene(sceneDescription, options) {
+        this.#sceneDescription = sceneDescription
         this.#selectionIndex =
             PcbScene3dController.#buildSelectionIndex(sceneDescription)
         const createRuntime =
@@ -314,6 +346,108 @@ export class PcbScene3dController {
                 listener
             })
         })
+    }
+
+    /**
+     * Binds the model archive export action.
+     * @returns {void}
+     */
+    #bindExportAction() {
+        const exportButton = this.#rootNode?.querySelector(
+            '[data-scene-3d-export="models-zip"]'
+        )
+        if (!exportButton) {
+            return
+        }
+
+        const listener = async () => {
+            await this.#handleExportAction()
+        }
+
+        exportButton.addEventListener?.('click', listener)
+        this.#listeners.push({
+            node: exportButton,
+            type: 'click',
+            listener
+        })
+    }
+
+    /**
+     * Exports the currently resolved 3D model set as one ZIP archive.
+     * @returns {Promise<void>}
+     */
+    async #handleExportAction() {
+        if (!this.#sceneDescription) {
+            this.#setDiagnostics(['3D scene is still preparing.'])
+            return
+        }
+
+        try {
+            const archiveResult = await this.#exportArchive({
+                archiveBaseName:
+                    PcbScene3dController.#resolveArchiveBaseName(
+                        this.#documentModel
+                    ),
+                sceneDescription: this.#sceneDescription
+            })
+
+            if (this.#isDisposed) {
+                return
+            }
+
+            const exportedCount = Array.isArray(archiveResult?.exportedEntries)
+                ? archiveResult.exportedEntries.length
+                : 0
+            const skippedCount = Array.isArray(archiveResult?.skippedEntries)
+                ? archiveResult.skippedEntries.length
+                : 0
+
+            if (!exportedCount) {
+                this.#setDiagnostics([
+                    'No STEP or WRL models were resolved for export.'
+                ])
+                return
+            }
+
+            await this.#downloadArchive(
+                String(archiveResult?.archiveName || ''),
+                archiveResult?.archiveBytes instanceof Uint8Array
+                    ? archiveResult.archiveBytes
+                    : new Uint8Array()
+            )
+
+            if (this.#isDisposed) {
+                return
+            }
+
+            const noun = exportedCount === 1 ? 'model file' : 'model files'
+            const skippedSummary =
+                skippedCount > 0
+                    ? ' Skipped ' +
+                      skippedCount +
+                      ' unresolved ' +
+                      (skippedCount === 1 ? 'entry.' : 'entries.')
+                    : ''
+            this.#setDiagnostics([
+                'Downloaded ' +
+                    exportedCount +
+                    ' ' +
+                    noun +
+                    ' to ' +
+                    String(archiveResult.archiveName || 'model archive') +
+                    '.' +
+                    skippedSummary
+            ])
+        } catch (error) {
+            if (this.#isDisposed) {
+                return
+            }
+
+            this.#setDiagnostics([
+                'Model ZIP export failed: ' +
+                    String(error?.message || error || 'Unknown error.')
+            ])
+        }
     }
 
     /**
@@ -564,5 +698,61 @@ export class PcbScene3dController {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;')
+    }
+
+    /**
+     * Resolves one archive base name from the mounted document metadata.
+     * @param {{ summary?: { title?: string }, fileName?: string } | null} documentModel
+     * @returns {string}
+     */
+    static #resolveArchiveBaseName(documentModel) {
+        const summaryTitle = String(documentModel?.summary?.title || '').trim()
+        if (summaryTitle) {
+            return summaryTitle
+        }
+
+        const fileName = String(documentModel?.fileName || '').trim()
+        if (fileName) {
+            return fileName.replace(/\.[^.]+$/, '')
+        }
+
+        return 'pcb-models'
+    }
+
+    /**
+     * Triggers one browser download for the generated archive.
+     * @param {string} archiveName
+     * @param {Uint8Array} archiveBytes
+     * @returns {Promise<void>}
+     */
+    static async #triggerArchiveDownload(archiveName, archiveBytes) {
+        if (
+            !archiveName ||
+            !(archiveBytes instanceof Uint8Array) ||
+            !archiveBytes.length ||
+            !globalThis?.document ||
+            !globalThis?.URL
+        ) {
+            return
+        }
+
+        const anchor = globalThis.document.createElement?.('a')
+        if (!anchor) {
+            return
+        }
+
+        const objectUrl = globalThis.URL.createObjectURL(
+            new Blob([archiveBytes], {
+                type: 'application/zip'
+            })
+        )
+
+        try {
+            anchor.href = objectUrl
+            anchor.download = archiveName
+            anchor.click?.()
+        } finally {
+            globalThis.URL.revokeObjectURL?.(objectUrl)
+        }
     }
 }

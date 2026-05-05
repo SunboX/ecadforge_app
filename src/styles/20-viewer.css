@@ -395,7 +395,7 @@ html.is-schematic-panning body {
     --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
     --pcb-via-hole-fill: #0f746c;
     --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
-    --pcb-footprint-track-color: rgba(237, 214, 62, 0.9);
+    --pcb-footprint-track-color: rgba(237, 172, 36, 1.0);
     --pcb-component-top-fill: rgba(244, 219, 198, 0.92);
     --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
     --pcb-component-stroke: rgba(110, 64, 38, 0.28);
@@ -417,7 +417,7 @@ html.is-schematic-panning body {
     --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
     --pcb-via-hole-fill: #0f746c;
     --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
-    --pcb-footprint-track-color: rgba(237, 214, 62, 0.9);
+    --pcb-footprint-track-color: rgba(237, 172, 36, 1.0);
     --pcb-component-top-fill: rgba(244, 219, 198, 0.92);
     --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
     --pcb-component-stroke: rgba(110, 64, 38, 0.28);

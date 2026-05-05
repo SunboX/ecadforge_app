@@ -575,7 +575,7 @@ export class PcbScene3dStepLoader {
         const versionKey = new URL(import.meta.url).searchParams.get('v') || ''
         const suffix = versionKey ? '?v=' + encodeURIComponent(versionKey) : ''
         return (
-            '/node_modules/occt-import-js/dist/' +
+            '/vendor/occt-import-js/dist/' +
             String(fileName || '') +
             suffix
         )

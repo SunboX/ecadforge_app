@@ -1,4 +1,5 @@
 import { PcbArcUtils } from './PcbArcUtils.mjs'
+import { PcbEdgeFacingGlyphNormalizer } from './PcbEdgeFacingGlyphNormalizer.mjs'
 import { PcbFootprintPrimitiveSelector } from './PcbFootprintPrimitiveSelector.mjs'
 import { SchematicSvgUtils } from './SchematicSvgUtils.mjs'
 /**
@@ -32,12 +33,15 @@ export class PcbSvgRenderer {
             tracks,
             arcs
         )
-        const footprintPrimitives = PcbFootprintPrimitiveSelector.select(
-            pcb.primitiveLayers || [],
-            fills,
-            tracks,
-            arcs,
-            'top'
+        const footprintPrimitives = PcbEdgeFacingGlyphNormalizer.normalize(
+            PcbFootprintPrimitiveSelector.select(
+                pcb.primitiveLayers || [],
+                fills,
+                tracks,
+                arcs,
+                'top'
+            ),
+            outline
         )
         const path = PcbSvgRenderer.#buildBoardPath(outline.segments)
         const clipPathId = 'pcb-board-clip'

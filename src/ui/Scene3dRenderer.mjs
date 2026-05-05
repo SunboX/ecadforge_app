@@ -28,6 +28,7 @@ export class Scene3dRenderer {
             '<button class="scene-3d__preset" type="button" data-scene-3d-preset="top">Top</button>' +
             '<button class="scene-3d__preset" type="button" data-scene-3d-preset="bottom">Bottom</button>' +
             '<button class="scene-3d__preset" type="button" data-scene-3d-preset="isometric">Isometric</button>' +
+            '<button class="scene-3d__preset scene-3d__action" type="button" data-scene-3d-export="models-zip">Download Models ZIP</button>' +
             '</div>' +
             '<div class="scene-3d__stage">' +
             '<div class="scene-3d__viewport" aria-label="Interactive 3D PCB view">' +
@@ -37,7 +38,7 @@ export class Scene3dRenderer {
             '</div>' +
             '<aside class="scene-3d__controls" aria-label="3D detail toggles">' +
             '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="external-models" />External models</label>' +
-            '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="fallback-bodies" />Fallback bodies</label>' +
+            '<label class="scene-3d__toggle"><input type="checkbox" data-scene-3d-toggle="fallback-bodies" />Fallback bodies</label>' +
             '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="copper" />Copper detail</label>' +
             '<section class="scene-3d__selection" aria-live="polite"><h4 class="scene-3d__selection-title">Component inspector</h4><p class="scene-3d__selection-empty">Click a component to inspect it.</p></section>' +
             '</aside>' +

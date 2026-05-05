@@ -132,6 +132,29 @@ class FakeButton extends FakeEventTarget {
 }
 
 /**
+ * Minimal archive export button.
+ */
+class FakeExportButton extends FakeEventTarget {
+    /** @type {Map<string, string>} */
+    #attributes
+
+    constructor() {
+        super()
+        this.#attributes = new Map([
+            ['data-scene-3d-export', 'models-zip']
+        ])
+    }
+
+    /**
+     * @param {string} name
+     * @returns {string | null}
+     */
+    getAttribute(name) {
+        return this.#attributes.get(name) || null
+    }
+}
+
+/**
  * Minimal scene toggle input.
  */
 class FakeToggle extends FakeEventTarget {
@@ -218,6 +241,9 @@ class FakeSceneRootNode {
     /** @type {FakeButton[]} */
     #buttons
 
+    /** @type {FakeExportButton} */
+    #exportButton
+
     /** @type {FakeToggle[]} */
     #toggles
 
@@ -233,6 +259,7 @@ class FakeSceneRootNode {
             new FakeButton('bottom'),
             new FakeButton('isometric')
         ]
+        this.#exportButton = new FakeExportButton()
         this.#toggles = [
             new FakeToggle('external-models', true)
         ]
@@ -269,6 +296,10 @@ class FakeSceneRootNode {
             return this.#selectionNode
         }
 
+        if (selector === '[data-scene-3d-export="models-zip"]') {
+            return this.#exportButton
+        }
+
         return null
     }
 
@@ -277,6 +308,13 @@ class FakeSceneRootNode {
      */
     getButtons() {
         return this.#buttons
+    }
+
+    /**
+     * @returns {FakeExportButton}
+     */
+    getExportButton() {
+        return this.#exportButton
     }
 
     /**
@@ -595,6 +633,160 @@ test('PcbScene3dController waits for prep and runtime readiness before hiding lo
     await Promise.resolve()
 
     assert.deepEqual(loadingStates, [true, false])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies the controller routes the export button through the archive
+ * exporter and triggers a download only when models are available.
+ */
+test('PcbScene3dController exports a ZIP from the resolved scene models', async () => {
+    const rootNode = new FakeSceneRootNode()
+    const viewportNode = new FakeViewportNode(rootNode)
+    const exportCalls = []
+    const downloadCalls = []
+    const sceneDescription = {
+        board: {},
+        components: [
+            {
+                designator: 'P1',
+                pattern: 'CONN-HEADER',
+                externalModel: {
+                    origin: 'session',
+                    name: 'connector.wrl',
+                    relativePath: 'models/connector.wrl',
+                    format: 'wrl'
+                }
+            }
+        ],
+        externalPlacements: [
+            {
+                designator: 'J16',
+                externalModel: {
+                    origin: 'embedded',
+                    name: 'ck_636_6p.stp',
+                    format: 'step',
+                    payloadText: 'ISO-10303-21;',
+                    sourceStream: 'Models/1'
+                }
+            }
+        ],
+        detail: {}
+    }
+
+    const controller = new PcbScene3dController(
+        viewportNode,
+        {
+            fileName: 'demo-board.PcbDoc',
+            summary: {
+                title: 'Demo Board'
+            },
+            pcb: {
+                boardOutline: {},
+                components: [
+                    {
+                        designator: 'J16',
+                        pattern: 'CK-6.35-636-6P'
+                    },
+                    {
+                        designator: 'P1',
+                        pattern: 'CONN-HEADER'
+                    }
+                ]
+            }
+        },
+        {
+            buildScene: () => sceneDescription,
+            createRuntime: () => ({
+                dispose() {}
+            }),
+            exportArchive: async (options) => {
+                exportCalls.push(options)
+                return {
+                    archiveName: 'Demo-Board-models.zip',
+                    archiveBytes: new Uint8Array([1, 2, 3]),
+                    exportedEntries: [
+                        { archivePath: 'CK-6.35-636-6P.step' },
+                        { archivePath: 'CONN-HEADER.wrl' }
+                    ],
+                    skippedEntries: []
+                }
+            },
+            downloadArchive: (archiveName, archiveBytes) => {
+                downloadCalls.push([archiveName, [...archiveBytes]])
+            }
+        }
+    )
+
+    rootNode.getExportButton().dispatch('click')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    assert.equal(exportCalls.length, 1)
+    assert.equal(exportCalls[0].archiveBaseName, 'Demo Board')
+    assert.equal(exportCalls[0].sceneDescription, sceneDescription)
+    assert.deepEqual(downloadCalls, [['Demo-Board-models.zip', [1, 2, 3]]])
+    assert.match(
+        rootNode.getDiagnosticsNode().textContent,
+        /Downloaded 2 model files/
+    )
+
+    controller.dispose()
+})
+
+/**
+ * Verifies the controller reports the empty export case without attempting a
+ * download.
+ */
+test('PcbScene3dController reports when no models are available for ZIP export', async () => {
+    const rootNode = new FakeSceneRootNode()
+    const viewportNode = new FakeViewportNode(rootNode)
+    let downloadCount = 0
+
+    const controller = new PcbScene3dController(
+        viewportNode,
+        {
+            fileName: 'empty-board.PcbDoc',
+            summary: {
+                title: 'Empty Board'
+            },
+            pcb: {
+                boardOutline: {},
+                components: []
+            }
+        },
+        {
+            buildScene: () => ({
+                board: {},
+                components: [],
+                externalPlacements: [],
+                detail: {}
+            }),
+            createRuntime: () => ({
+                dispose() {}
+            }),
+            exportArchive: async () => ({
+                archiveName: 'Empty-Board-models.zip',
+                archiveBytes: new Uint8Array(),
+                exportedEntries: [],
+                skippedEntries: []
+            }),
+            downloadArchive: () => {
+                downloadCount += 1
+            }
+        }
+    )
+
+    rootNode.getExportButton().dispatch('click')
+    await Promise.resolve()
+    await Promise.resolve()
+
+    assert.equal(downloadCount, 0)
+    assert.match(
+        rootNode.getDiagnosticsNode().textContent,
+        /No STEP or WRL models were resolved for export\./
+    )
 
     controller.dispose()
 })

@@ -42,6 +42,11 @@ test('required project files exist', async () => {
         'src/style.css',
         'src/server.mjs',
         'src/vendor/fflate/browser.mjs',
+        'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
+        'src/vendor/occt-import-js/dist/license.occt.txt',
+        'src/vendor/occt-import-js/dist/occt-import-js-worker.js',
+        'src/vendor/occt-import-js/dist/occt-import-js.js',
+        'src/vendor/occt-import-js/dist/occt-import-js.wasm',
         'src/core/AppState.mjs',
         'src/core/altium/AltiumParser.mjs',
         'src/core/altium/AsciiRecordParser.mjs',
@@ -235,10 +240,10 @@ test('app shell defines a Three.js import map for static hosting', async () => {
 })
 
 /**
- * Verifies the browser 3D runtime uses the same raw dependency paths that the
- * static FTP deployment publishes.
+ * Verifies the browser 3D runtime uses the same deployed dependency paths that
+ * the static app and local server publish.
  */
-test('3d runtime source resolves browser dependencies through deployed node_modules paths', async () => {
+test('3d runtime source resolves browser dependencies through deployed asset paths', async () => {
     const runtimeSource = await readFile(
         new URL('src/ui/PcbScene3dRuntime.mjs', root),
         'utf8'
@@ -264,8 +269,6 @@ test('3d runtime source resolves browser dependencies through deployed node_modu
         externalModelsSource,
         /\/node_modules\/three\/examples\/jsm\/loaders\/VRMLLoader\.js/
     )
-    assert.match(
-        stepLoaderSource,
-        /\/node_modules\/occt-import-js\/dist\//
-    )
+    assert.match(stepLoaderSource, /\/vendor\/occt-import-js\/dist\//)
+    assert.doesNotMatch(stepLoaderSource, /\/node_modules\/occt-import-js\/dist\//)
 })

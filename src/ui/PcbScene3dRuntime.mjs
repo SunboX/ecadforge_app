@@ -16,14 +16,12 @@ export class PcbScene3dRuntime {
     #viewportNode
     /** @type {any} */
     #sceneDescription
-    /** @type {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void }} */
+    /** @type {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }> }} */
     #hooks
     /** @type {{ 'external-models': boolean, 'fallback-bodies': boolean, copper: boolean }} */
     #toggles
-
     /** @type {Map<string, any>} */
     #groups
-
     /** @type {Array<{ node: EventTarget, type: string, listener: (event: any) => void }>} */
     #listeners
 
@@ -77,7 +75,6 @@ export class PcbScene3dRuntime {
 
     /** @type {PcbScene3dPresetState} */
     #presetState
-
     /** @type {boolean} */
     #isDisposed
 
@@ -93,7 +90,7 @@ export class PcbScene3dRuntime {
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} sceneDescription
-     * @param {{ setDiagnostics?: (messages: string[]) => void }} [hooks]
+     * @param {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }> }} [hooks]
      */
     constructor(viewportNode, sceneDescription, hooks = {}) {
         this.#viewportNode = viewportNode
@@ -101,7 +98,7 @@ export class PcbScene3dRuntime {
         this.#hooks = hooks
         this.#toggles = {
             'external-models': true,
-            'fallback-bodies': true,
+            'fallback-bodies': false,
             copper: true
         }
         this.#groups = new Map()
@@ -167,7 +164,7 @@ export class PcbScene3dRuntime {
 
     /**
      * Resolves when the runtime has completed its initial async
-     * initialization and the first interactive frame is visible.
+     * initialization and deferred scene settlement.
      * @returns {Promise<void>}
      */
     whenReady() {
@@ -222,7 +219,8 @@ export class PcbScene3dRuntime {
 
         try {
             const { THREE, OrbitControls } =
-                await PcbScene3dRuntime.#loadThreeRuntimeModules()
+                (await this.#hooks.loadRuntimeModules?.()) ||
+                (await PcbScene3dRuntime.#loadThreeRuntimeModules())
             this.#three = THREE
             this.#orbitControlsClass = OrbitControls
             if (this.#isDisposed || !this.#viewportNode) {
@@ -235,8 +233,8 @@ export class PcbScene3dRuntime {
             this.#bindSelectionInteraction()
             this.#applyToggleVisibility()
             this.#render()
+            await this.#loadDeferredDetail()
             this.#settleReady()
-            void this.#loadDeferredDetail()
         } catch (error) {
             this.#hooks.setDiagnostics?.([
                 '3D preview could not start: ' +
@@ -259,9 +257,7 @@ export class PcbScene3dRuntime {
             alpha: true,
             powerPreference: 'high-performance'
         })
-        this.#renderer.setPixelRatio(
-            Math.min(window.devicePixelRatio || 1, 2)
-        )
+        this.#renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
         this.#renderer.setSize(size.width, size.height, false)
         this.#renderer.domElement.className = 'scene-3d__canvas'
         this.#renderer.domElement.style.width = '100%'
@@ -295,9 +291,7 @@ export class PcbScene3dRuntime {
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.8)
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.6)
-        keyLight.position
-            .set(0.8, 0.7, 1.3)
-            .multiplyScalar(this.#initialRadius)
+        keyLight.position.set(0.8, 0.7, 1.3).multiplyScalar(this.#initialRadius)
         const fillLight = new THREE.DirectionalLight(0xe8f3ff, 0.9)
         fillLight.position
             .set(-0.9, -0.4, 0.8)
@@ -335,7 +329,11 @@ export class PcbScene3dRuntime {
         this.#rootGroup.add(externalModelsGroup)
 
         const boardSpan = Math.max(board.widthMil, board.heightMil, 1)
-        this.#scene.fog = new THREE.Fog(0xf4f0ea, boardSpan * 2.2, boardSpan * 7)
+        this.#scene.fog = new THREE.Fog(
+            0xf4f0ea,
+            boardSpan * 2.2,
+            boardSpan * 7
+        )
     }
 
     /**
@@ -353,7 +351,7 @@ export class PcbScene3dRuntime {
 
     /**
      * Loads silkscreen, copper, and external model detail after the initial
-     * frame has been rendered so the tab becomes interactive sooner.
+     * shell render and keeps readiness pending until settlement completes.
      * @returns {Promise<void>}
      */
     async #loadDeferredDetail() {
@@ -395,6 +393,7 @@ export class PcbScene3dRuntime {
                 'Deferred 3D detail could not finish loading: ' +
                     String(error?.message || error || 'Unknown error.')
             ])
+            this.#render()
         }
     }
 
@@ -831,8 +830,10 @@ export class PcbScene3dRuntime {
         const top = Number(rect?.top || 0)
 
         this.#pointer.x = ((Number(event?.clientX || 0) - left) / width) * 2 - 1
-        this.#pointer.y =
-            -(((Number(event?.clientY || 0) - top) / height) * 2 - 1)
+        this.#pointer.y = -(
+            ((Number(event?.clientY || 0) - top) / height) * 2 -
+            1
+        )
         this.#raycaster.setFromCamera(this.#pointer, this.#camera)
 
         const selectableRoots = [
@@ -893,7 +894,10 @@ export class PcbScene3dRuntime {
         const suffix = versionKey ? '?v=' + encodeURIComponent(versionKey) : ''
         const [THREE, { OrbitControls }] = await Promise.all([
             import('/node_modules/three/build/three.module.js' + suffix),
-            import('/node_modules/three/examples/jsm/controls/OrbitControls.js' + suffix)
+            import(
+                '/node_modules/three/examples/jsm/controls/OrbitControls.js' +
+                    suffix
+            )
         ])
         return { THREE, OrbitControls }
     }
@@ -905,9 +909,11 @@ export class PcbScene3dRuntime {
      */
     static resolveViewScale(preset) {
         const normalizedPreset = String(preset || 'isometric').toLowerCase()
-        return normalizedPreset === 'top' ? { x: 1, y: -1, z: 1 }
-            : normalizedPreset === 'bottom' ? { x: -1, y: 1, z: 1 }
-            : { x: 1, y: 1, z: 1 }
+        return normalizedPreset === 'top'
+            ? { x: 1, y: -1, z: 1 }
+            : normalizedPreset === 'bottom'
+              ? { x: -1, y: 1, z: 1 }
+              : { x: 1, y: 1, z: 1 }
     }
 
     /**
@@ -917,10 +923,9 @@ export class PcbScene3dRuntime {
      */
     static #resolveSelectionFromIntersections(intersections) {
         for (const intersection of intersections) {
-            const selection =
-                PcbScene3dRuntime.#resolveSelectionFromObject(
-                    intersection?.object
-                )
+            const selection = PcbScene3dRuntime.#resolveSelectionFromObject(
+                intersection?.object
+            )
             if (selection) {
                 return selection
             }
