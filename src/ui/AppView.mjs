@@ -1,8 +1,10 @@
-import { BomTableRenderer } from './BomTableRenderer.mjs'
-import { PcbSvgRenderer } from './PcbSvgRenderer.mjs'
+import {
+    BomTableRenderer,
+    PcbSvgRenderer,
+    SchematicSvgRenderer
+} from '@sunbox/altium-toolkit/renderers'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
-import { SchematicSvgRenderer } from './SchematicSvgRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 
 /**

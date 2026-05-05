@@ -1,4 +1,4 @@
-import { AltiumParser } from '../core/altium/AltiumParser.mjs'
+import { AltiumParser } from '@sunbox/altium-toolkit/parser'
 
 self.addEventListener('message', (event) => {
     const payload = event?.data || {}

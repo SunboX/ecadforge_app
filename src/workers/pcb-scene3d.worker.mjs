@@ -1,4 +1,4 @@
-import { PcbScene3dScenePreparator } from '../ui/PcbScene3dScenePreparator.mjs'
+import { PcbScene3dScenePreparator } from '@sunbox/altium-toolkit/scene3d'
 
 /**
  * Dedicated worker entrypoint for 3D scene preprocessing.

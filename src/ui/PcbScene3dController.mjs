@@ -1,6 +1,8 @@
-import { PcbScene3dBuilder } from './PcbScene3dBuilder.mjs'
+import {
+    PcbScene3dBuilder,
+    PcbScene3dModelRegistry
+} from '@sunbox/altium-toolkit/scene3d'
 import { PcbModelArchiveExporter } from './PcbModelArchiveExporter.mjs'
-import { PcbScene3dModelRegistry } from './PcbScene3dModelRegistry.mjs'
 import { PcbScene3dRuntime } from './PcbScene3dRuntime.mjs'
 
 /**

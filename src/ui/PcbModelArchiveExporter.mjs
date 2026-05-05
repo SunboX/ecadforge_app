@@ -1,4 +1,4 @@
-import { zipSync } from '../vendor/fflate/browser.mjs'
+import { zipSync } from 'fflate'
 
 /**
  * Builds browser-downloadable ZIP archives from resolved PCB component model

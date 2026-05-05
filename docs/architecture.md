@@ -6,16 +6,14 @@
 - `src/main.mjs`: bootstrap and dependency wiring
 - `src/AppController.mjs`: file intake, worker coordination, state transitions
 - `src/core/AppState.mjs`: normalized view state container
-- `src/core/altium/PrintableTextDecoder.mjs`: printable-run extraction from binary native files
-- `src/core/altium/AsciiRecordParser.mjs`: pipe-delimited native record parsing
-- `src/core/altium/AltiumParser.mjs`: normalized schematic and PCB model builder
-- `src/core/altium/Schematic*Parser.mjs`: schematic record-family normalizers for symbols, connectivity markers, images, and nets
+- `@sunbox/altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
+- `@sunbox/altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
+- `@sunbox/altium-toolkit/scene3d`: non-interactive PCB 3D scene-description builders and model registry logic
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
-- `src/ui/*Renderer.mjs`: pure markup renderers for schematic, PCB, BOM, and the 3D scene shell
-- `src/ui/PcbScene3d*.mjs`: interactive Three.js scene builder, controller, runtime, STEP importer, and model registries/loaders
+- `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
+- `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
 - `src/workers/altium-parser.worker.mjs`: parser offload worker
 - `src/server.mjs`: local static server and metadata endpoints
-- `src/vendor/fflate/browser.mjs`: vendored browser-safe compression dependency loaded by the PCB parser on both localhost and static FTP hosts
 - `api/app-meta.php`: PHP metadata endpoint for FTP/shared-hosting deployments
 - `api/.htaccess`: extensionless route rewrite for `/api/app-meta`
 
@@ -36,11 +34,11 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 
 1. User selects or drops one or more `.SchDoc`, `.PcbDoc`, or companion model files
 2. `AppController` stores any companion 3D assets in session state and posts native design files to the parser worker
-3. `altium-parser.worker.mjs` runs `parseAltiumArrayBuffer`
+3. `altium-parser.worker.mjs` runs `AltiumParser.parseArrayBuffer()` from `@sunbox/altium-toolkit`
 4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
 5. `AppState` stores parse status, the recovered document models, and session companion assets
 6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
-7. The 3D runtime resolves embedded STEP payloads from the normalized PCB model first, then falls back to companion `WRL`/`STEP` assets from the active session
+7. The app uses `@sunbox/altium-toolkit/scene3d` to build non-interactive scene-description data, then the local 3D runtime resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session
 8. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## Styling

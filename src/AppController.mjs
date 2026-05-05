@@ -1,4 +1,4 @@
-import { AltiumParser } from './core/altium/AltiumParser.mjs'
+import { AltiumParser } from '@sunbox/altium-toolkit/parser'
 
 /**
  * Coordinates file intake, parsing, state, and rendering.

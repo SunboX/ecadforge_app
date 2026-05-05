@@ -41,34 +41,18 @@ test('required project files exist', async () => {
         'src/main.mjs',
         'src/style.css',
         'src/server.mjs',
-        'src/vendor/fflate/browser.mjs',
         'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
         'src/vendor/occt-import-js/dist/license.occt.txt',
         'src/vendor/occt-import-js/dist/occt-import-js-worker.js',
         'src/vendor/occt-import-js/dist/occt-import-js.js',
         'src/vendor/occt-import-js/dist/occt-import-js.wasm',
         'src/core/AppState.mjs',
-        'src/core/altium/AltiumParser.mjs',
-        'src/core/altium/AsciiRecordParser.mjs',
-        'src/core/altium/PrintableTextDecoder.mjs',
         'src/ui/AppView.mjs',
-        'src/ui/SchematicSvgRenderer.mjs',
-        'src/ui/PcbSvgRenderer.mjs',
-        'src/ui/BomTableRenderer.mjs',
         'src/ui/Scene3dRenderer.mjs',
+        'src/ui/SchematicViewportController.mjs',
         'tests/app-state.test.mjs',
-        'tests/core/altium-parser.test.mjs',
-        'tests/core/altium-parser/schematic-basics.mjs',
-        'tests/core/altium-parser/schematic-symbols.mjs',
-        'tests/core/altium-parser/schematic-layout.mjs',
-        'tests/core/altium-parser/schematic-regressions.mjs',
-        'tests/core/altium-parser/forge-relic.mjs',
-        'tests/fixtures/AltiumFixtureLoader.mjs',
         'tests/ui/renderers.test.mjs',
-        'tests/ui/renderers/schematic-core.mjs',
-        'tests/ui/renderers/schematic-ports.mjs',
-        'tests/ui/renderers/starlit-relics.mjs',
-        'tests/ui/renderers/output-renderers.mjs',
+        'tests/ui/renderers/scene3d.mjs',
         'tests/project-structure.test.mjs',
         'tests/mjs-line-limit.test.mjs',
         'src/I18n.mjs',
@@ -95,6 +79,20 @@ test('package scripts include start and test', async () => {
 
     assert.equal(typeof pkg.scripts?.start, 'string')
     assert.equal(typeof pkg.scripts?.test, 'string')
+})
+
+/**
+ * Verifies the reusable Altium parser and non-interactive render core is an
+ * external package dependency instead of app-local source.
+ */
+test('package depends on Altium Toolkit', async () => {
+    const raw = await readFile(new URL('package.json', root), 'utf8')
+    const pkg = JSON.parse(raw)
+
+    assert.equal(
+        pkg.dependencies?.['@sunbox/altium-toolkit'],
+        'git+ssh://git@github.com/SunboX/altium-toolkit.git'
+    )
 })
 
 /**
@@ -205,30 +203,58 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies browser parser source does not depend on a bare package specifier
- * that static FTP hosting cannot resolve.
+ * Verifies browser parser and renderer imports come from Altium Toolkit.
  */
-test('browser parser source resolves fflate through a deployable file path', async () => {
-    const parserSource = await readFile(
-        new URL('src/core/altium/PcbEmbeddedModelExtractor.mjs', root),
+test('browser parser and render core resolve through Altium Toolkit', async () => {
+    const controllerSource = await readFile(
+        new URL('src/AppController.mjs', root),
         'utf8'
     )
+    const workerSource = await readFile(
+        new URL('src/workers/altium-parser.worker.mjs', root),
+        'utf8'
+    )
+    const viewSource = await readFile(new URL('src/ui/AppView.mjs', root), 'utf8')
 
-    assert.doesNotMatch(parserSource, /from ['"]fflate['"]/)
     assert.match(
-        parserSource,
-        /from ['"]\.\.\/\.\.\/vendor\/fflate\/browser\.mjs['"]/
+        controllerSource,
+        /from ['"]@sunbox\/altium-toolkit\/parser['"]/
+    )
+    assert.match(workerSource, /from ['"]@sunbox\/altium-toolkit\/parser['"]/)
+    assert.match(
+        viewSource,
+        /from ['"]@sunbox\/altium-toolkit\/renderers['"]/
     )
 })
 
 /**
  * Verifies the static app shell provides an import map for browser-resolved
- * Three.js addon dependencies on FTP-hosted deployments.
+ * toolkit, compression, and Three.js dependencies on FTP-hosted deployments.
  */
 test('app shell defines a Three.js import map for static hosting', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
 
     assert.match(indexRaw, /<script\s+type="importmap">/)
+    assert.match(
+        indexRaw,
+        /"@sunbox\/altium-toolkit"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/index\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/altium-toolkit\/parser"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/parser\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/altium-toolkit\/renderers"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/renderers\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/altium-toolkit\/scene3d"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/scene3d\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"fflate"\s*:\s*"\/node_modules\/fflate\/esm\/browser\.js"/
+    )
     assert.match(
         indexRaw,
         /"three"\s*:\s*"\/node_modules\/three\/build\/three\.module\.js"/
