@@ -1,7 +1,5 @@
 # PCB 3D Rendering Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Replace the placeholder 3D summary tab with a real interactive Three.js PCB scene that works from a lone `.PcbDoc` and can overlay companion `WRL` or `STEP` models when those files are loaded into the session.
 
 **Architecture:** Keep parsing and view routing in the existing app flow, but replace the presentational `Scene3dRenderer` with a real panel shell and add an imperative `PcbScene3dController` plus a scene-description pipeline. Companion assets are indexed from the session file set, resolved generically, and attached as optional component models on top of the procedural board scene.

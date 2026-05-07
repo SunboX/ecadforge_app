@@ -1,7 +1,5 @@
 # control-sheet Callout Sizing Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Shrink the control-sheet standalone dashed callout so it matches the reference layout and no longer extends below the intended resistor cluster.
 
 **Architecture:** Keep the existing standalone callout normalizer, but tighten its content-bounds heuristic. The fix should stop counting owner/value text below the original dashed frame and slightly reduce the bottom padding so the generated frame hugs the intended cluster without special-casing control-sheet.

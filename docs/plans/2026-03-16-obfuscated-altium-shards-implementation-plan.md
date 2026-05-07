@@ -1,7 +1,5 @@
 # Obfuscated Altium Shards Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Replace checked-in native Altium fixture files with embedded obfuscated record shards while preserving parser and renderer regression coverage.
 
 **Architecture:** The test loader will decode obfuscated printable-record shards and assemble minimal fake `.SchDoc` and `.PcbDoc` buffers in memory. Parser and renderer tests will be tightened to exact behaviors that those reduced fixtures exercise, and the native fixture directory will be removed.

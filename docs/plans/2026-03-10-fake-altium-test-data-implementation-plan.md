@@ -1,7 +1,5 @@
 # Fake Altium Test Data Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove every retired vendor-specific reference from the repo and move parser-backed tests onto repo-local fake Altium fixtures.
 
 **Architecture:** Keep the existing parser and renderer regression coverage, but replace the external Downloads-based corpus with sanitized fixture files stored under `tests/fixtures/altium/`. Centralize fixture loading in one test helper so file names and paths only need to change in one place, then scrub docs and plan history to remove all remaining retired vendor-specific references.

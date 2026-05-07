@@ -1,7 +1,5 @@
 # Schematic Polygon Fills Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Preserve solid record-7 schematic polygons and render them with their source `AreaColor` so filled symbol bodies appear in the schematic viewer.
 
 **Architecture:** Add a normalized `schematic.polygons` collection alongside the existing polygon-derived outline lines. Parse record-7 polygons into structured polygon primitives in the primitive parser, render them in a dedicated SVG group before linework, and use fill color resolution that maps known source colors to theme tokens while preserving unknown source hex fills.

@@ -1,7 +1,5 @@
 # Schematic Theme Colors Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Convert schematic SVG color output to CSS variables so themes can override both built-in fallback colors and explicit imported Altium colors.
 
 **Architecture:** Keep raw parser colors unchanged, add a shared renderer-side schematic color resolver, and have every schematic renderer emit semantic `var(--schematic-...)` values. Define the default palette in the schematic stylesheet so future themes can override one variable set instead of patching renderer code.

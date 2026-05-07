@@ -1,7 +1,5 @@
 # PCB 3D Component Inspector Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add click selection to the 3D PCB viewer and render a component inspector in the existing right-side panel under the toggle controls.
 
 **Architecture:** Keep picking in the Three.js runtime, keep panel rendering in the 3D controller, and use the existing scene description as the source of truth for component and explicit external-placement metadata. Tag pickable meshes with lightweight metadata and propagate selection changes through a controller callback into a reserved inspector node in the scene shell.

@@ -1,7 +1,5 @@
 # FTP Deployment Workflow Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add a GitHub Actions FTP deployment workflow for this repository that matches the existing `labelprinter_app` deployment pattern.
 
 **Architecture:** Create one `main` branch workflow that detects dependency, source, and docs changes, then deploys only the affected directories to the expected FTP destinations. Keep the app version metadata in sync by incrementing both package manifests.

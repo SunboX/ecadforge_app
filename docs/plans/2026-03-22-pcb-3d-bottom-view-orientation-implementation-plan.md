@@ -1,7 +1,5 @@
 # PCB 3D Bottom View Orientation Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make the `Bottom` 3D preset place representative underside connectors in the `top-left` screen quadrant while keeping the board portrait and leaving authored geometry placement unchanged.
 
 **Architecture:** Restore the portrait underside camera basis in `PcbScene3dCameraRig`, then add a bottom-only runtime wrapper transform in `PcbScene3dRuntime` that mirrors scene `X`. Lock both behaviors with focused tests so later changes cannot drift back to the `top-right` portrait variant or the `90` degree rotated variant.

@@ -1,7 +1,5 @@
 # Schematic Arc Rendering Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add first-class schematic arc support so Altium record-`12` primitives render as proper SVG arcs and restore missing inductor bodies.
 
 **Architecture:** Extend the normalized schematic model with an `arcs` collection, parse record-`12` primitives through the same owner/display-mode filtering used for other symbol geometry, and render them as SVG path arcs with proper coordinate projection. Cover both normalization and rendering with focused regressions before updating the app version and running the full suite.

@@ -1,7 +1,5 @@
 # Schematic Contrast Palette Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Retune the schematic theme so it regains strong semantic contrast while staying aligned with the app and PCB palette family.
 
 **Architecture:** Keep the schematic token model unchanged and express the fix entirely through a higher-contrast token set in the viewer stylesheet. Lock the revised palette in a stylesheet regression first, then update the `.schematic-svg` custom properties and bump the app version.

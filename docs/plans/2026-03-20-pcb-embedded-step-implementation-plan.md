@@ -1,7 +1,5 @@
 # PCB Embedded STEP Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Extract embedded STEP payloads from OLE-backed `.PcbDoc` files and render them in the existing 3D viewer so a lone PCB document can show authored component models without companion files.
 
 **Architecture:** Extend the worker-side OLE PCB parse flow to normalize embedded model payloads and body placement metadata, then resolve those embedded models through the existing 3D model pipeline. Add a browser-side STEP tessellation path with lazy-loaded wasm and cache parsed meshes by embedded model identity so repeated packages reuse geometry.

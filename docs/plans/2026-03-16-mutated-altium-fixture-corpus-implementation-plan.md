@@ -1,7 +1,5 @@
 # Mutated Altium Fixture Corpus Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Replace the native Altium fixture corpus with materially different fake content while preserving current parser and renderer regression coverage as closely as possible.
 
 **Architecture:** Keep the current five-file corpus and mutate the native payloads in place. Preserve parser-relevant record classes and geometry patterns, but rewrite visible labels and metadata broadly enough that the fixtures no longer read like the current samples. Coordinate the test assertions with the new fake vocabulary and any resulting exact coordinate changes.

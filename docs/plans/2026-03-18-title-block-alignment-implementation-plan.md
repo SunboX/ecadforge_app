@@ -1,7 +1,5 @@
 # Title Block Alignment Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Correct the synthesized A3 title-block layout so footer text sits inside the same cells as the reference rendering.
 
 **Architecture:** Keep the parser output unchanged and make the footer renderer honor an Altium-style A3 chrome layout when standard footer hints are present. Continue using the recovered footer-hint coordinates for the value fields while relocating the synthesized labels and grid lines to the matching cells.

@@ -1,7 +1,5 @@
 # Owner-Side Component Text Anchoring Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make left-side stacked designators keep the same visible owner-side stack as their existing value/comment text instead of shifting the whole stack left.
 
 **Architecture:** Keep the fix in the existing schematic text post-processor. Preserve the current designator-only anchor pass, but add one exemption so a left-side designator keeps its original `start` anchor when a visible same-owner `VALUE` or `Comment` already shares the same `x` position inside the owner span.

@@ -1,7 +1,5 @@
 # Schematic Pan And Zoom Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add cursor-centered mouse-wheel zoom and primary-button drag panning to the schematic SVG without changing the existing schematic renderer output.
 
 **Architecture:** Introduce a small stateful UI controller that owns SVG `viewBox` math and DOM event binding. Keep `SchematicSvgRenderer` as a pure markup generator, then have `AppView` attach and dispose the controller whenever the schematic tab is rendered so interaction state resets naturally with each fresh SVG.

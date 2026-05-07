@@ -1,7 +1,5 @@
 # Neutral Fixture Naming Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove the retired sheet-G identifier from the repo by renaming the fake schematic fixture, updating tests and docs, and codifying that parser behavior must remain universal rather than schematic-specific.
 
 **Architecture:** Keep the current parser and renderer normalization rules structural. Replace the old fixture name and loader API with neutral fake naming, preserve the existing regression assertions, and add contributor guidance in `AGENTS.md` so future fixes stay generic.

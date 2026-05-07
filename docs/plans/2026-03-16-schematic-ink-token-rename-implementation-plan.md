@@ -1,7 +1,5 @@
 # Schematic Ink Token Rename Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Rename the two blue schematic theme tokens to purpose-based ink names without changing rendered colors.
 
 **Architecture:** Keep the existing raw color mapping values and renderer behavior intact while replacing only the semantic CSS variable identifiers. Update one focused renderer test first to drive the rename, then apply the token rename consistently across stylesheet defaults, the schematic color resolver, renderer fallbacks, and assertion strings.

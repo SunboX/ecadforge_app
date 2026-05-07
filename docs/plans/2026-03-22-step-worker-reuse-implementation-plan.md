@@ -1,7 +1,5 @@
 # STEP Worker Reuse Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Reuse one STEP importer worker per loader instance so 3D preprocessing avoids repeated OCCT worker startup overhead while keeping behavior unchanged.
 
 **Architecture:** Keep `PcbScene3dStepLoader`'s public `loadModel()` contract intact, but replace the per-request worker lifecycle with a loader-owned persistent worker plus request sequencing. Add explicit disposal so long-lived workers are reclaimed when the owning controller or scene-prep runtime is torn down. Cover the change with focused `node:test` regressions for worker reuse and cleanup.

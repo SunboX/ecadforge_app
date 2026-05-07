@@ -1,7 +1,5 @@
 # Multi-File Viewer Sidebar Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Let the browser viewer keep multiple parsed documents open at once and show a conditional left preview rail that switches the main viewer to the clicked file while preserving one global top-tab selection.
 
 **Architecture:** Expand `AppState` into a session-level document store with one global `activeView` and one selected `activeDocumentId`. Update `AppController` to append successful parses instead of replacing the session, then update `AppView` and stylesheet/layout code to render a file-only preview rail that disappears when just one document is loaded.

@@ -1,7 +1,5 @@
 # Schematic Parser Parity Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Extend schematic parsing with sheet symbols, sheet entries, explicit junctions, bus entries, embedded images, and a normalized net model while also adding project-owned parser specifications for future features.
 
 **Architecture:** Keep the current record-driven parser pipeline, add focused schematic sub-parsers for the new record families, build connectivity from normalized geometry and explicit connection records, and update the SVG renderer only after the parser surface is covered by failing tests. Reuse the existing OLE infrastructure for embedded schematic images and keep all new behavior additive so current fixture coverage remains stable.

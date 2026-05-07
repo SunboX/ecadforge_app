@@ -1,7 +1,5 @@
 # Package Version Metadata Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove `api/app-version.json` and make both runtime metadata endpoints return the app version directly from `package.json`.
 
 **Architecture:** Keep the existing `/api/app-meta` and `/api/app-meta.php` routes and response payload unchanged, but simplify both backend readers to parse only the repository root `package.json`. Remove the duplicated JSON metadata file, update structure checks, and document the new LIVE deployment expectation.

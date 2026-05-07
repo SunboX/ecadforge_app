@@ -1,7 +1,5 @@
 # PCB Model ZIP Export Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add a `Download Models ZIP` action to the PCB `3D` view that exports one ZIP containing embedded STEP payloads and companion `STEP` or `WRL` assets, named by footprint pattern and deduplicated across repeated component instances.
 
 **Architecture:** Reuse the existing PCB 3D resolution flow so exportable models come from the same `PcbScene3dBuilder` and `PcbScene3dModelRegistry` logic that powers the 3D scene. Keep ZIP assembly in a focused browser utility, keep toolbar wiring in the 3D controller, and keep renderer changes limited to the shell markup and styling hooks.

@@ -1,7 +1,5 @@
 # Rounded Schematic Strokes Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add rounded stroke caps to schematic symbol and wire primitives without changing page chrome or boxed shapes.
 
 **Architecture:** Keep the existing primitive emitters intact and opt into rounded caps at the SVG group level for open electrical primitives. Use one focused renderer test to lock the scope, then patch the relevant group wrappers and bump the app version.

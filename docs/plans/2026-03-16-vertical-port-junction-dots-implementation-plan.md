@@ -1,7 +1,5 @@
 # Vertical Port Junction Dots Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Render connection dots where vertical style-4 off-sheet ports attach to wire tees, including the neutral `GLYPH_0` case.
 
 **Architecture:** Keep junction-dot ownership in the shared junction renderer. Extend the junction pass so port connection points can contribute branch directions at the same candidate point as ordinary wires, but limit the new behavior to explicit vertical `up`/`down` ports to avoid changing horizontal port behavior without evidence.

@@ -1,7 +1,5 @@
 # PCB Stream-Aware Decoding Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Recover richer PCB primitives from compound-document `.PcbDoc` files by parsing OLE streams before printable-record extraction, then render the recovered geometry with PCB CSS theme variables.
 
 **Architecture:** Add a small in-repo OLE reader, introduce a stream-aware PCB record extractor that preserves stream provenance, and extend the normalized PCB model with real primitive families before upgrading the PCB SVG renderer. Keep the existing whole-file printable scan as a fallback so current fixture coverage remains stable while the PCB path gets deeper fidelity.

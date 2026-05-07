@@ -1,7 +1,5 @@
 # Explicit Pin-Label Number Clearance Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Preserve the original gap between synthetic left/right pin numbers and explicit owner pin-name labels after mirrored owner-label placement corrections.
 
 **Architecture:** Keep the fix inside `SchematicSvgRenderer`. Build one owner/pin-keyed horizontal offset map from explicit owner label placement, use it for both text rendering and left/right pin-number clearance, and leave top/bottom number placement unchanged.

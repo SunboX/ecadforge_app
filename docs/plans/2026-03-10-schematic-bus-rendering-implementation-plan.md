@@ -1,7 +1,5 @@
 # Schematic Bus Rendering Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Restore schematic bus trunks by parsing Altium record-`26` primitives and rendering them as thicker blue routes.
 
 **Architecture:** Extend normalized schematic line segments with an `isBus` flag for record-`26` sources, then let the existing SVG line renderer style those segments differently. Keep synthesized junction logic limited to non-bus lines so the change does not introduce false dots.

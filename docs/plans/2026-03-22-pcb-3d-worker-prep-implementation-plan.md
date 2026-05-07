@@ -1,7 +1,5 @@
 # PCB 3D Worker Prep Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Move PCB 3D preprocessing into its own worker and keep a loading spinner visible until the 3D scene is fully rendered with all components settled.
 
 **Architecture:** Add a dedicated browser worker for 3D scene preparation, make the 3D controller job-based and async, and keep the runtime responsible for only browser-only rendering work. The controller will expose a strict readiness contract so the overlay stays visible until model loading, fallback settlement, and a final render pass all complete.

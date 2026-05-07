@@ -1,7 +1,5 @@
 # Sheet Zone Separators Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add separator strokes between synthesized sheet row and column zone markers on all four sheet edges.
 
 **Architecture:** Keep the parser contract unchanged and extend the existing synthesized sheet chrome path. The renderer will emit gutter-only separator lines at internal `xZones` and `yZones` boundaries, and the viewer stylesheet will apply the existing sheet-frame stroke token to those new lines.

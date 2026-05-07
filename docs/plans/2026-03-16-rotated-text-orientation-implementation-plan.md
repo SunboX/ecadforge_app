@@ -1,7 +1,5 @@
 # Rotated Text Orientation Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Preserve Altium rotated-text orientation metadata and render opposite source orientations with the correct opposite SVG text flow.
 
 **Architecture:** Keep the parser’s existing text normalization flow, but add one explicit source-orientation field to normalized schematic text records. Update the schematic SVG renderer to derive signed rotated-text transforms from that field so `Orientation=1` and `Orientation=3` no longer collapse into the same output.

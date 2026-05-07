@@ -1,7 +1,5 @@
 # Schematic Zoom Sensitivity Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make schematic wheel zoom slower per tick while keeping cursor-centered anchoring and drag panning unchanged.
 
 **Architecture:** Reuse the existing `SchematicViewportController` and tune only its fixed wheel sensitivity constant. Lock the new behavior with focused controller and `AppView` tests so the change stays isolated to wheel zoom and does not alter the rest of the interaction lifecycle.

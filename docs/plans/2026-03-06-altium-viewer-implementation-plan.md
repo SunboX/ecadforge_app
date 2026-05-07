@@ -1,7 +1,5 @@
 # ECAD Forge Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Build a browser-based Altium viewer that opens standalone native `.SchDoc` and `.PcbDoc` files client-side, decodes them in pure JavaScript, and renders initial schematic, PCB, 3D, BOM, and diagnostics views.
 
 **Architecture:** Generate the standard web app scaffold first, then add a layered decode pipeline: browser file intake, OLE container parsing, format-specific Altium decoding, a normalized intermediate model, and separate renderers/UI panels driven only by normalized state. Prioritize a resilient parser and visible diagnostics so partial decode results remain useful while record coverage grows.

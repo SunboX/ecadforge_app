@@ -1,7 +1,5 @@
 # Multipart Pin Numbering Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove overlapping pin numbers from control-sheet multipart resistor networks and make visible multipart designators render as `GLINT92A/B/C/D` while keeping the connector as `PORT4`.
 
 **Architecture:** Keep the fix inside schematic normalization. Extend multipart owner matching so left-anchored passive owners resolve to their active `OwnerPartId`, then tighten multipart designator decoration so suffixes only appear when multiple active owners share the same base designator text.

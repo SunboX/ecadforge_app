@@ -1,7 +1,5 @@
 # Schematic Pin Label Alignment Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Restore correct Altium-style pin number and internal label placement for `WYRN6`, `WYRN29`, and `WYRN31` in `Skylace-Moon.SchDoc`.
 
 **Architecture:** Fix the root cause in the normalized pin parser so the affected five-pin gate symbols preserve `name-and-number` labeling, then update the schematic SVG renderer to place horizontal pin numbers outside the symbol body and pin names inside the body. Verify the behavior against the real source file and keep the change limited to parser label-mode selection and SVG pin text placement.

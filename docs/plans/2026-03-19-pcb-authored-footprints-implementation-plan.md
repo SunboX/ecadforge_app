@@ -1,7 +1,5 @@
 # PCB Authored Footprints Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Replace synthetic PCB component body rectangles with authored footprint geometry from `.PcbDoc` content whenever that geometry is available.
 
 **Architecture:** Extend PCB normalization to expose legacy primitive-layer names used by binary primitives, then update the SVG renderer to draw all pads plus selected top-side authored outline layers. Keep the existing synthetic body only as a fallback when no authored geometry exists near a component.

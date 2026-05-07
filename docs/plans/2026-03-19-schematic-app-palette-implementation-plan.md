@@ -1,7 +1,5 @@
 # Schematic App Palette Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Re-theme the schematic view so it uses the same app and PCB palette family while preserving the current semantic color buckets.
 
 **Architecture:** Keep the schematic resolver and SVG renderers unchanged because they already emit semantic CSS variables. Lock the intended palette in a focused stylesheet regression, then update the `.schematic-svg` custom properties to app-aligned teal, copper, sand, and neutral values, and finally bump the app version.

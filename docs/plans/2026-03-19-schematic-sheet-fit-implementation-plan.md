@@ -1,7 +1,5 @@
 # Schematic Sheet Fit Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make normalized schematic content render closer to the Altium reference by restoring normalized promoted-sheet scale and anchoring against the dominant drawing box while keeping the sheet chrome fixed.
 
 **Architecture:** Keep the renderer's existing content-only transform pipeline and change only the normalized-sheet fit math inside `SchematicContentLayout`. Detect large rendered rectangles/regions as dominant drawing boxes, use their top edge to bias the normalized vertical anchor, restore the normalized page scale limit, and verify that sparse custom-sheet behavior stays unchanged.

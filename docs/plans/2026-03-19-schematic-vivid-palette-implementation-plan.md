@@ -1,7 +1,5 @@
 # Schematic Vivid Palette Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Retune the schematic theme so the dominant baseline linework becomes noticeably more vivid without sacrificing text readability or semantic separation.
 
 **Architecture:** Keep the existing schematic token model and resolver unchanged. Express the change entirely through more saturated cyan-teal baseline values in the viewer stylesheet, lock those values in a focused regression test first, and then bump the app version.

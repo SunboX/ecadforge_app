@@ -1,7 +1,5 @@
 # Schematic Multipart Rendering Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Restore correct multipart schematic rendering for `Skylace-Nova.SchDoc` by selecting the active part geometry, parsing missing outline polylines, and verifying the recovered page size and SVG output.
 
 **Architecture:** Extend schematic normalization to understand active multipart component parts from the component records, then feed only the selected part primitives into the existing line, pin, text, and layout pipelines. Keep the change centered in the parser so the SVG renderer benefits from corrected normalized data rather than sheet-specific heuristics.

@@ -1,7 +1,5 @@
 # Schematic Content Scaling Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Scale schematic primitives into the normalized page frame while keeping border chrome and footer layout fixed.
 
 **Architecture:** Compute one uniform SVG transform from the original inner-frame size to the normalized inner-frame size. Apply it to one wrapper group around drawable schematic content only, leaving page chrome outside that group.

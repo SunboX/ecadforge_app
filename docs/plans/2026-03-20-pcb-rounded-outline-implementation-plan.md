@@ -1,7 +1,5 @@
 # PCB Rounded Outline Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Preserve smooth authored rounded PCB corners when the source board-route contour already contains direct arc geometry.
 
 **Architecture:** Keep `PcbOutlineRecovery` as the single decision point for board outline selection, but short-circuit its board-route silhouette pass for simple closed arc-based contours. Lock that behavior with a focused recovery regression test, then patch the recovery guard, run focused tests, bump the app version, and finish with the full suite.

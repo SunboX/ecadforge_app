@@ -1,7 +1,5 @@
 # PCB 3D Lazy First Paint Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make the 3D tab paint an interactive board shell immediately while loading copper and external STEP detail in the background.
 
 **Architecture:** Remove STEP mesh preloading from the initial scene-prep worker path, then split `PcbScene3dRuntime` into a first-frame phase and deferred detail stages. Keep the final rendered scene behavior-identical once background detail has finished loading.

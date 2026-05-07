@@ -1,7 +1,5 @@
 # 3D Reset Button Removal Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove the redundant visible `Reset` button from the 3D toolbar while keeping the existing internal `reset` preset alias behavior intact.
 
 **Architecture:** Limit the UI change to the renderer and UI-facing tests so the 3D toolbar no longer exposes `Reset`. Preserve controller and camera compatibility for the `reset` preset name so any internal or legacy calls still resolve to the current isometric reset behavior.

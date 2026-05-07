@@ -1,7 +1,5 @@
 # PCB 3D Top View Orientation Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Make the `Top` 3D preset match the viewer orientation without regressing the approved `Bottom` preset.
 
 **Architecture:** Keep camera poses unchanged and fix orientation in `PcbScene3dRuntime` via preset-dependent scene scales. `Top` gets a vertical mirror, `Bottom` keeps its horizontal mirror, and `Isometric` stays identity.

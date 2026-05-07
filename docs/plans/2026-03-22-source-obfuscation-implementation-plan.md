@@ -1,7 +1,5 @@
 # Source Obfuscation Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Remove remaining source-derived labels from docs and the repo-owned test fixture layer while keeping generic technical test vocabulary intact.
 
 **Architecture:** Keep the change centered on `tests/fixtures/AltiumFixtureLoader.mjs`, which already owns obfuscation for imported samples. Update parser and renderer tests to assert the new fantasy labels, then clean up historical docs that still reference old source names or file names.
