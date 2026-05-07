@@ -473,7 +473,7 @@ test('server serves versioned HTML and module imports', async (t) => {
     const mainResponse = await fetch(baseUrl + '/main.mjs' + versionSuffix)
     const mainSource = await mainResponse.text()
     const workerResponse = await fetch(
-        baseUrl + '/workers/altium-parser.worker.mjs' + versionSuffix
+        baseUrl + '/workers/ecad-parser.worker.mjs' + versionSuffix
     )
     const workerSource = await workerResponse.text()
     const sceneWorkerResponse = await fetch(
@@ -499,11 +499,11 @@ test('server serves versioned HTML and module imports', async (t) => {
     assert.equal(workerResponse.ok, true)
     assert.doesNotMatch(
         workerSource,
-        /from ['"]@sunbox\/altium-toolkit\/parser['"]/
+        /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
     assert.match(
         workerSource,
-        /from ['"]\/node_modules\/@sunbox\/altium-toolkit\/src\/parser\.mjs\?v=/
+        /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs\?v=/
     )
 
     assert.equal(sceneWorkerResponse.ok, true)
@@ -513,6 +513,6 @@ test('server serves versioned HTML and module imports', async (t) => {
     )
     assert.match(
         sceneWorkerSource,
-        /from ['"]\/node_modules\/@sunbox\/altium-toolkit\/src\/scene3d\.mjs\?v=/
+        /from ['"]\.\.\/core\/ecad\/EcadScene3dService\.mjs\?v=/
     )
 })

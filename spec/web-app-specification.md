@@ -2,12 +2,12 @@
 
 ## 1. Goal
 
-Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files with client-side parsing, normalized document models, and browser views for schematic, PCB, interactive 3D, BOM, and diagnostics.
+Build a browser-based viewer for native Altium and KiCad schematics, PCB files, and KiCad projects with client-side parsing, normalized document models, and browser views for schematic, PCB, interactive 3D, BOM, and diagnostics.
 
 ## 2. Functional Requirements
 
 1. The app starts via `npm start` and serves the browser app locally.
-2. The app accepts standalone native `.SchDoc` and `.PcbDoc` files, companion `.PrjPcb`/`WRL`/`STEP` assets, and project-folder selections through drag-and-drop or file selection.
+2. The app accepts standalone native `.SchDoc` and `.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, companion `.PrjPcb`/`WRL`/`STEP` assets, and project-folder selections through drag-and-drop or file selection.
 3. Parsing runs client-side in browser JavaScript with worker offload and main-thread fallback.
 4. The app normalizes recovered native data into a shared viewer model.
 5. The `Schematic` tab renders recovered schematic geometry, hierarchy markers, embedded-image placements, and text.
@@ -16,7 +16,7 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 8. The `BOM` tab renders grouped component rows from recovered metadata.
 9. The `Diagnostics` tab exposes parser recovery, connectivity, and warning messages.
 10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
-11. The app test suite validates app integration, interaction behavior, server behavior, and project structure; parser and deterministic renderer behavior is validated in `@sunbox/altium-toolkit`.
+11. The app test suite validates app integration, interaction behavior, server behavior, and project structure; parser and deterministic renderer behavior is validated in `@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit`.
 12. Runtime language switching remains available for the shell UI.
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
@@ -35,12 +35,13 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 
 1. `src/core/`: state and domain primitives.
 2. `@sunbox/altium-toolkit`: binary-to-printable recovery, targeted OLE-backed recovery where required, normalized Altium parsing, deterministic schematic/PCB/BOM rendering, and non-interactive 3D scene-description building.
-3. `src/ui/`: app shell, local interaction controllers, and interactive 3D runtime modules.
-4. `src/AppController.mjs`: orchestration and action layer.
-5. `src/workers/altium-parser.worker.mjs`: worker parser entrypoint.
-6. `src/main.mjs`: browser entrypoint.
-7. `src/server.mjs`: local static/API server.
-8. `src/StaticDeployBuilder.mjs` and `scripts/build-static-deploy.mjs`: static FTP deployment artifact builder.
+3. `@sunbox/kicad-toolkit`: KiCad 9 S-expression parsing, project loading, normalized KiCad schematic/PCB/BOM rendering, and data-only 3D scene-description building.
+4. `src/ui/`: app shell, local interaction controllers, and interactive 3D runtime modules.
+5. `src/AppController.mjs`: orchestration and action layer.
+6. `src/workers/ecad-parser.worker.mjs`: worker parser entrypoint.
+7. `src/main.mjs`: browser entrypoint.
+8. `src/server.mjs`: local static/API server.
+9. `src/StaticDeployBuilder.mjs` and `scripts/build-static-deploy.mjs`: static FTP deployment artifact builder.
 
 ## 5. Security / Privacy
 
@@ -57,10 +58,11 @@ Build a browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc
 2. `npm test` passes.
 3. The UI can load a native `.SchDoc` and show a populated schematic view.
 4. The UI can load a native `.PcbDoc` and show a populated PCB view.
-5. The `BOM`, `3D`, and `Diagnostics` tabs render from the normalized model without crashing.
-6. The `3D` tab remains usable from a lone `.PcbDoc`, renders embedded STEP payloads when the board file contains them, and upgrades to companion `WRL`/`STEP` models when the user also loads matching files in the same session.
-7. Docs and spec files are present and linked from `README.md`.
-8. The app version shown in UI matches the single-source version in `package.json`.
-9. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
-10. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads or conflicting explicit net names.
-11. The FTP workflow uploads the static build artifact rather than raw browser source.
+5. The UI can load standalone KiCad schematic/PCB files or a KiCad project folder/ZIP and show schematic, PCB, BOM, and diagnostics views from the normalized documents.
+6. The `BOM`, `3D`, and `Diagnostics` tabs render from the normalized model without crashing.
+7. The `3D` tab remains usable from a lone `.PcbDoc`, renders embedded STEP payloads when the board file contains them, and upgrades to companion `WRL`/`STEP` models when the user also loads matching files in the same session.
+8. Docs and spec files are present and linked from `README.md`.
+9. The app version shown in UI matches the single-source version in `package.json`.
+10. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
+11. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads, missing KiCad sheet files, or conflicting explicit net names.
+12. The FTP workflow uploads the static build artifact rather than raw browser source.

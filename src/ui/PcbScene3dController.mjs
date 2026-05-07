@@ -1,7 +1,4 @@
-import {
-    PcbScene3dBuilder,
-    PcbScene3dModelRegistry
-} from '@sunbox/altium-toolkit/scene3d'
+import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
 import { PcbModelArchiveExporter } from './PcbModelArchiveExporter.mjs'
 import { PcbScene3dRuntime } from './PcbScene3dRuntime.mjs'
 
@@ -54,7 +51,7 @@ export class PcbScene3dController {
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} documentModel
-     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void }} [options]
+     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void }} [options]
      */
     constructor(viewportNode, documentModel, options = {}) {
         this.#viewportNode = viewportNode
@@ -84,8 +81,7 @@ export class PcbScene3dController {
                     archiveName,
                     archiveBytes
                 ))
-        this.#setLoadingVisible =
-            options.setLoadingVisible || (() => {})
+        this.#setLoadingVisible = options.setLoadingVisible || (() => {})
         this.#isDisposed = false
         this.#runtime = null
         this.#selectionIndex = new Map()
@@ -145,7 +141,7 @@ export class PcbScene3dController {
     /**
      * Builds the scene description, mounts the runtime, and settles loading
      * only after the runtime is fully ready.
-     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
+     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
      * @returns {Promise<void>}
      */
     async #initializeScene(options) {
@@ -179,13 +175,12 @@ export class PcbScene3dController {
     /**
      * Initializes the local fallback scene path synchronously so the existing
      * non-worker controller behavior remains unchanged.
-     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
+     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
      * @returns {void}
      */
     #initializeSceneSync(options) {
         try {
-            const sceneDescription =
-                this.#prepareSceneDescriptionSync(options)
+            const sceneDescription = this.#prepareSceneDescriptionSync(options)
             this.#mountScene(sceneDescription, options)
             Promise.resolve(this.#runtime?.whenReady?.()).finally(() => {
                 if (this.#isDisposed) {
@@ -206,7 +201,7 @@ export class PcbScene3dController {
     /**
      * Prepares the scene description either through the dedicated worker
      * client or the local fallback path.
-     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any }} options
+     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any }} options
      * @returns {Promise<any>}
      */
     async #prepareSceneDescription(options) {
@@ -227,20 +222,18 @@ export class PcbScene3dController {
 
     /**
      * Prepares the local fallback scene description synchronously.
-     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: PcbScene3dModelRegistry }) => any }} options
+     * @param {{ sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any }} options
      * @returns {any}
      */
     #prepareSceneDescriptionSync(options) {
-        const modelRegistry = PcbScene3dModelRegistry.create(
-            options.sessionAssets || [],
-            Array.isArray(this.#documentModel?.pcb?.embeddedModels)
-                ? this.#documentModel.pcb.embeddedModels
-                : []
+        const modelRegistry = EcadScene3dService.createModelRegistry(
+            this.#documentModel,
+            options.sessionAssets || []
         )
         const buildScene =
             options.buildScene ||
             ((nextDocumentModel, buildOptions) =>
-                PcbScene3dBuilder.build(nextDocumentModel, buildOptions))
+                EcadScene3dService.build(nextDocumentModel, buildOptions))
 
         return buildScene(this.#documentModel, {
             modelRegistry
@@ -303,7 +296,9 @@ export class PcbScene3dController {
      * @returns {void}
      */
     #setActivePresetButton(activePreset) {
-        const normalizedPreset = String(activePreset || '').trim().toLowerCase()
+        const normalizedPreset = String(activePreset || '')
+            .trim()
+            .toLowerCase()
         const buttons =
             this.#rootNode?.querySelectorAll('[data-scene-3d-preset]') || []
 
@@ -386,10 +381,9 @@ export class PcbScene3dController {
 
         try {
             const archiveResult = await this.#exportArchive({
-                archiveBaseName:
-                    PcbScene3dController.#resolveArchiveBaseName(
-                        this.#documentModel
-                    ),
+                archiveBaseName: PcbScene3dController.#resolveArchiveBaseName(
+                    this.#documentModel
+                ),
                 sceneDescription: this.#sceneDescription
             })
 
@@ -622,12 +616,15 @@ export class PcbScene3dController {
 
             index.set(designator, {
                 component,
-                externalPlacement: index.get(designator)?.externalPlacement || null
+                externalPlacement:
+                    index.get(designator)?.externalPlacement || null
             })
         })
 
         externalPlacements.forEach((externalPlacement) => {
-            const designator = String(externalPlacement?.designator || '').trim()
+            const designator = String(
+                externalPlacement?.designator || ''
+            ).trim()
             if (!designator) {
                 return
             }

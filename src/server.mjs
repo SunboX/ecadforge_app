@@ -115,7 +115,7 @@ app.use(
 )
 
 app.get(
-    /^\/node_modules\/@sunbox\/altium-toolkit\/.+\.mjs$/i,
+    /^\/node_modules\/@sunbox\/(?:altium-toolkit|kicad-toolkit)\/.+\.mjs$/i,
     async (req, res, next) => {
         try {
             const filePath = ServerRuntime.resolveStaticAssetPath(

@@ -295,6 +295,34 @@ class BufferCheckingParser extends FakeParser {
 }
 
 /**
+ * Parser double that returns a full project result for batched entries.
+ */
+class BatchParser {
+    /** @type {object} */
+    #result
+
+    /** @type {string[]} */
+    seenNames
+
+    /**
+     * @param {object} result Batch result.
+     */
+    constructor(result) {
+        this.#result = result
+        this.seenNames = []
+    }
+
+    /**
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @returns {object}
+     */
+    parseEntries(entries) {
+        this.seenNames = entries.map((entry) => entry.name)
+        return this.#result
+    }
+}
+
+/**
  * Builds a normalized schematic document model stub.
  * @param {string} fileName
  * @returns {object}
@@ -394,6 +422,50 @@ test('AppController appends multiple parsed documents and switches active select
 })
 
 /**
+ * Verifies project-style parser results can append several KiCad documents
+ * from one selected batch and keep archive assets available for 3D lookup.
+ */
+test('AppController accepts KiCad project batches with multiple returned documents', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const schematicDocument = createSchematicDocument('project.kicad_sch')
+    const pcbDocument = createPcbDocument('project.kicad_pcb')
+    const parser = new BatchParser({
+        documents: [schematicDocument, pcbDocument],
+        assets: [
+            {
+                name: 'part.step',
+                relativePath: 'models/part.step',
+                bytes: new Uint8Array([1, 2, 3])
+            }
+        ]
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser
+    })
+
+    await controller.init()
+    await view.chooseFiles([
+        new FakeFile('project.kicad_pro'),
+        new FakeFile('project.kicad_sch'),
+        new FakeFile('project.kicad_pcb')
+    ])
+
+    const snapshot = state.getSnapshot()
+
+    assert.deepEqual(parser.seenNames, [
+        'project.kicad_pro',
+        'project.kicad_sch',
+        'project.kicad_pcb'
+    ])
+    assert.equal(snapshot.documents.length, 2)
+    assert.equal(snapshot.activeFileName, 'project.kicad_pcb')
+    assert.equal(snapshot.sessionAssets[0].relativePath, 'models/part.step')
+})
+
+/**
  * Verifies parser worker module failures fall back to direct parser execution
  * instead of leaving the UI in an unresolved loading state.
  */
@@ -414,7 +486,7 @@ test('AppController falls back to direct parsing when the parser worker fails to
     await controller.init()
     const choosePromise = view.chooseFiles([new FakeFile('fallback.PcbDoc')])
 
-    await Promise.resolve()
+    await new Promise((resolve) => setTimeout(resolve, 0))
     assert.equal(state.getSnapshot().parseStatus, 'loading')
     assert.equal(worker.messages.length, 1)
 
@@ -428,6 +500,45 @@ test('AppController falls back to direct parsing when the parser worker fails to
     assert.equal(worker.terminated, true)
     assert.equal(snapshot.parseStatus, 'ready')
     assert.equal(snapshot.activeFileName, 'fallback.PcbDoc')
+    assert.equal(snapshot.documents.length, 1)
+})
+
+/**
+ * Verifies oversized worker response failures fall back to direct parsing with
+ * the original source buffer still available.
+ */
+test('AppController falls back to direct parsing when worker response cloning overflows', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const worker = new FakeWorker()
+    const parser = new BufferCheckingParser({
+        'large-board.PcbDoc': createPcbDocument('large-board.PcbDoc')
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        workerFactory: () => worker
+    })
+
+    await controller.init()
+    const choosePromise = view.chooseFiles([new FakeFile('large-board.PcbDoc')])
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    assert.equal(worker.messages.length, 1)
+
+    worker.emitMessage({
+        type: 'parser:error',
+        requestId: worker.messages[0].requestId,
+        message: 'Maximum call stack size exceeded'
+    })
+    await choosePromise
+
+    const snapshot = state.getSnapshot()
+
+    assert.equal(worker.terminated, true)
+    assert.equal(snapshot.parseStatus, 'ready')
+    assert.equal(snapshot.activeFileName, 'large-board.PcbDoc')
     assert.equal(snapshot.documents.length, 1)
 })
 
@@ -489,7 +600,7 @@ test('AppController rejects invalid files without clearing the open session', as
     assert.equal(snapshot.activeFileName, 'board.PcbDoc')
     assert.equal(
         snapshot.statusMessage,
-        'Please choose a .SchDoc, .PcbDoc, .PrjPcb, .WRL, or .STEP file.'
+        'Please choose an Altium .SchDoc/.PcbDoc or KiCad .kicad_pro/.kicad_sch/.kicad_pcb/.zip project file.'
     )
 })
 

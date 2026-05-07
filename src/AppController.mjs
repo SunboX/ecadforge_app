@@ -1,4 +1,5 @@
-import { AltiumParser } from '@sunbox/altium-toolkit/parser'
+import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadParserService } from './core/ecad/EcadParserService.mjs'
 
 /**
  * Coordinates file intake, parsing, state, and rendering.
@@ -16,7 +17,7 @@ export class AppController {
     /** @type {(() => Worker) | null} */
     #createWorker
 
-    /** @type {{ parseArrayBuffer: (fileName: string, buffer: ArrayBuffer) => object }} */
+    /** @type {{ parseArrayBuffer?: (fileName: string, buffer: ArrayBuffer) => object, parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object }} */
     #parser
 
     /** @type {Worker | null} */
@@ -37,7 +38,7 @@ export class AppController {
      * view: import('./ui/AppView.mjs').AppView,
      * i18n?: { getLocale: () => string, setLocale: (locale: string) => void, translate: (key: string) => string, applyToDom: (node: Document) => void } | null,
      * workerFactory?: (() => Worker) | null,
-     * parser?: { parseArrayBuffer: (fileName: string, buffer: ArrayBuffer) => object }
+     * parser?: { parseArrayBuffer?: (fileName: string, buffer: ArrayBuffer) => object, parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object }
      * }} dependencies
      */
     constructor(dependencies) {
@@ -45,7 +46,7 @@ export class AppController {
         this.#view = dependencies.view
         this.#i18n = dependencies.i18n || null
         this.#createWorker = dependencies.workerFactory || null
-        this.#parser = dependencies.parser || AltiumParser
+        this.#parser = dependencies.parser || EcadParserService
         this.#worker = null
         this.#documentSequence = 1
         this.#workerRequestSequence = 1
@@ -121,10 +122,10 @@ export class AppController {
         const sessionWasEmpty = !snapshot.documents.length
         let shouldAdoptPreferredView = sessionWasEmpty
         const nativeFiles = selectedFiles.filter((file) =>
-            AppController.#isSupportedFile(file?.name)
+            EcadFormatRegistry.isNativeDocument(file?.name)
         )
         const companionFiles = selectedFiles.filter((file) =>
-            AppController.#isSupportedCompanionFile(file?.name)
+            EcadFormatRegistry.isCompanionAsset(file?.name)
         )
 
         if (companionFiles.length) {
@@ -156,59 +157,87 @@ export class AppController {
             statusMessage: this.#translate('status.loading')
         })
 
-        for (const file of nativeFiles) {
-            try {
-                const buffer = await file.arrayBuffer()
-                const documentModel = await this.#parseArrayBuffer(
-                    file.name,
-                    buffer
-                )
+        try {
+            const entries = await Promise.all(
+                nativeFiles.map((file) => AppController.#buildParserEntry(file))
+            )
+            const parseResult = await this.#parseEntries(entries)
+            const parsedAssets = parseResult.assets.map((asset) =>
+                AppController.#buildParsedAsset(asset)
+            )
 
-                this.#handleParsedDocument(documentModel, {
-                    adoptPreferredView: shouldAdoptPreferredView
-                })
-                shouldAdoptPreferredView = sessionWasEmpty
-            } catch (error) {
-                this.#handleParseError(AppController.#getErrorMessage(error))
+            if (parsedAssets.length) {
+                this.#state.setValue(
+                    'sessionAssets',
+                    AppController.#mergeSessionAssets(
+                        this.#state.getSnapshot().sessionAssets,
+                        parsedAssets
+                    )
+                )
             }
+
+            this.#handleParsedDocuments(parseResult.documents, {
+                adoptPreferredView: shouldAdoptPreferredView
+            })
+            shouldAdoptPreferredView = sessionWasEmpty
+        } catch (error) {
+            this.#handleParseError(AppController.#getErrorMessage(error))
         }
     }
 
     /**
-     * Parses one native document either directly or through the parser worker.
-     * @param {string} fileName
-     * @param {ArrayBuffer} buffer
-     * @returns {Promise<object>}
+     * Parses one selected source batch either directly or through the parser
+     * worker.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @returns {Promise<{ documents: object[], assets: object[], diagnostics: object[], project: object | null }>}
      */
-    async #parseArrayBuffer(fileName, buffer) {
+    async #parseEntries(entries) {
         if (this.#worker) {
-            const workerBuffer = buffer.slice(0)
+            const workerEntries = entries.map((entry) => ({
+                name: entry.name,
+                buffer: entry.buffer.slice(0)
+            }))
             try {
-                return await this.#parseArrayBufferWithWorker(
-                    fileName,
-                    workerBuffer
-                )
+                return await this.#parseEntriesWithWorker(workerEntries)
             } catch (error) {
                 if (AppController.#isWorkerFailure(error)) {
                     this.#disposeWorker()
-                    return this.#parser.parseArrayBuffer(fileName, buffer)
+                    return this.#parseEntriesDirect(entries)
                 }
 
                 throw error
             }
         }
 
-        return this.#parser.parseArrayBuffer(fileName, buffer)
+        return this.#parseEntriesDirect(entries)
     }
 
     /**
-     * Dispatches one parse request through the worker and resolves the
-     * matching response by request id.
-     * @param {string} fileName
-     * @param {ArrayBuffer} buffer
-     * @returns {Promise<object>}
+     * Parses one selected source batch without a worker.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @returns {Promise<{ documents: object[], assets: object[], diagnostics: object[], project: object | null }>}
      */
-    #parseArrayBufferWithWorker(fileName, buffer) {
+    async #parseEntriesDirect(entries) {
+        if (typeof this.#parser.parseEntries === 'function') {
+            return AppController.#normalizeParseResult(
+                await this.#parser.parseEntries(entries)
+            )
+        }
+
+        return AppController.#normalizeParseResult({
+            documents: entries.map((entry) =>
+                this.#parser.parseArrayBuffer(entry.name, entry.buffer)
+            )
+        })
+    }
+
+    /**
+     * Dispatches one parse request batch through the worker and resolves the
+     * matching response by request id.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @returns {Promise<{ documents: object[], assets: object[], diagnostics: object[], project: object | null }>}
+     */
+    #parseEntriesWithWorker(entries) {
         return new Promise((resolve, reject) => {
             if (!this.#worker) {
                 reject(new Error('Parser worker is unavailable.'))
@@ -219,19 +248,18 @@ export class AppController {
             this.#pendingWorkerParses.set(requestId, { resolve, reject })
             this.#worker.postMessage(
                 {
-                    type: 'parse:file',
+                    type: 'parse:entries',
                     requestId,
-                    fileName,
-                    buffer
+                    entries
                 },
-                [buffer]
+                entries.map((entry) => entry.buffer)
             )
         })
     }
 
     /**
      * Routes one worker payload to the matching pending parse request.
-     * @param {{ type?: string, requestId?: string, documentModel?: object, message?: string }} payload
+     * @param {{ type?: string, requestId?: string, documentModel?: object, documents?: object[], assets?: object[], diagnostics?: object[], project?: object, message?: string }} payload
      * @returns {void}
      */
     #handleWorkerMessage(payload) {
@@ -243,13 +271,15 @@ export class AppController {
         }
 
         if (payload.type === 'parser:success') {
-            matchedRequest.resolve(payload.documentModel || {})
+            matchedRequest.resolve(AppController.#normalizeParseResult(payload))
             return
         }
 
-        matchedRequest.reject(
-            new Error(payload.message || 'Parser worker failed.')
-        )
+        const error = new Error(payload.message || 'Parser worker failed.')
+        if (AppController.#isRecoverableWorkerResponseError(error)) {
+            error.workerFailure = true
+        }
+        matchedRequest.reject(error)
     }
 
     /**
@@ -271,31 +301,35 @@ export class AppController {
     }
 
     /**
-     * Applies a parsed document to state.
-     * @param {object} documentModel
+     * Applies parsed documents to state.
+     * @param {object[]} documentModels Parsed documents.
      * @param {{ adoptPreferredView?: boolean }} [options]
      */
-    #handleParsedDocument(documentModel, options = {}) {
+    #handleParsedDocuments(documentModels, options = {}) {
+        const parsedDocuments = (documentModels || []).filter(Boolean)
+        if (!parsedDocuments.length) {
+            throw new Error('Parser did not return any documents.')
+        }
+
         const snapshot = this.#state.getSnapshot()
+        const preferredDocument = parsedDocuments.at(-1)
         const preferredView =
-            documentModel.kind === 'schematic' ? 'schematic' : 'pcb'
-        const documentId = this.#buildDocumentId()
+            preferredDocument.kind === 'schematic' ? 'schematic' : 'pcb'
+        const appendedDocuments = parsedDocuments.map((documentModel) => ({
+            id: this.#buildDocumentId(),
+            documentModel
+        }))
         const nextActiveView = options.adoptPreferredView
             ? preferredView
             : snapshot.activeView
-        const nextDocuments = [
-            ...snapshot.documents,
-            {
-                id: documentId,
-                documentModel
-            }
-        ]
+        const nextDocuments = [...snapshot.documents, ...appendedDocuments]
+        const preferredDocumentId = appendedDocuments.at(-1)?.id || ''
         const patch = {
             documents: nextDocuments,
             activeDocumentId: AppController.#resolveCompatibleDocumentId(
                 nextDocuments,
                 nextActiveView,
-                documentId
+                preferredDocumentId
             ),
             parseStatus: 'ready',
             statusMessage: this.#translate('status.loaded')
@@ -416,11 +450,11 @@ export class AppController {
     static #fallbackMessage(key) {
         const fallbackMap = {
             'status.ready':
-                'Drop a native SchDoc, PcbDoc, or companion model file to begin.',
-            'status.loading': 'Parsing native Altium file in the browser...',
+                'Drop native Altium or KiCad files, project folders, ZIPs, or companion model files to begin.',
+            'status.loading': 'Parsing native ECAD files in the browser...',
             'status.loaded': 'File parsed successfully.',
             'status.invalidFile':
-                'Please choose a .SchDoc, .PcbDoc, .PrjPcb, .WRL, or .STEP file.',
+                'Please choose an Altium .SchDoc/.PcbDoc or KiCad .kicad_pro/.kicad_sch/.kicad_pcb/.zip project file.',
             'status.assetsAdded':
                 'Companion 3D assets added to the current session.',
             'status.localeChanged': 'Language updated.'
@@ -451,22 +485,13 @@ export class AppController {
     }
 
     /**
-     * Returns true when the file name points to a supported native document.
-     * @param {string} fileName
+     * Returns true when a parser worker error likely came from transferring a
+     * large parsed model back to the main thread, not from native parsing.
+     * @param {Error} error
      * @returns {boolean}
      */
-    static #isSupportedFile(fileName) {
-        return /\.(schdoc|pcbdoc)$/i.test(String(fileName || ''))
-    }
-
-    /**
-     * Returns true when the file name points to a supported 3D companion
-     * asset or project file.
-     * @param {string} fileName
-     * @returns {boolean}
-     */
-    static #isSupportedCompanionFile(fileName) {
-        return /\.(wrl|vrml|step|stp|prjpcb)$/i.test(String(fileName || ''))
+    static #isRecoverableWorkerResponseError(error) {
+        return /maximum call stack size exceeded/i.test(error.message)
     }
 
     /**
@@ -483,26 +508,29 @@ export class AppController {
             name: fileName,
             relativePath,
             file,
-            format: AppController.#resolveCompanionFormat(fileName)
+            format: EcadFormatRegistry.resolveCompanionFormat(fileName)
         }
     }
 
     /**
-     * Resolves the normalized companion format label.
-     * @param {string} fileName
-     * @returns {string}
+     * Normalizes one parser asset record for session state.
+     * @param {{ name?: string, bytes?: Uint8Array, relativePath?: string, format?: string }} asset Parser asset.
+     * @returns {{ name: string, relativePath: string, file: any, format: string }}
      */
-    static #resolveCompanionFormat(fileName) {
-        const normalized = String(fileName || '').toLowerCase()
-        if (normalized.endsWith('.wrl') || normalized.endsWith('.vrml')) {
-            return 'wrl'
-        }
+    static #buildParsedAsset(asset) {
+        const relativePath = String(asset?.relativePath || asset?.name || '')
+        const name = String(asset?.name || relativePath.split('/').pop() || '')
+        const bytes = asset?.bytes || new Uint8Array()
+        const format =
+            String(asset?.format || '') ||
+            EcadFormatRegistry.resolveCompanionFormat(name)
 
-        if (normalized.endsWith('.step') || normalized.endsWith('.stp')) {
-            return 'step'
+        return {
+            name,
+            relativePath,
+            file: typeof Blob === 'function' ? new Blob([bytes]) : bytes,
+            format
         }
-
-        return 'project'
     }
 
     /**
@@ -519,6 +547,46 @@ export class AppController {
         })
 
         return [...mergedAssets.values()]
+    }
+
+    /**
+     * Builds one parser entry from a browser File.
+     * @param {{ name?: string, webkitRelativePath?: string, arrayBuffer: () => Promise<ArrayBuffer> }} file Source file.
+     * @returns {Promise<{ name: string, buffer: ArrayBuffer }>}
+     */
+    static async #buildParserEntry(file) {
+        const fileName = String(file?.name || '')
+        const relativePath =
+            String(file?.webkitRelativePath || fileName) || fileName
+
+        return {
+            name: relativePath,
+            buffer: await file.arrayBuffer()
+        }
+    }
+
+    /**
+     * Normalizes parser return shapes from direct and worker code paths.
+     * @param {object} result Parser result.
+     * @returns {{ documents: object[], assets: object[], diagnostics: object[], project: object | null }}
+     */
+    static #normalizeParseResult(result) {
+        const documents = Array.isArray(result?.documents)
+            ? result.documents
+            : result?.documentModel
+              ? [result.documentModel]
+              : result?.kind || result?.pcb || result?.schematic
+                ? [result]
+                : []
+
+        return {
+            documents,
+            assets: Array.isArray(result?.assets) ? result.assets : [],
+            diagnostics: Array.isArray(result?.diagnostics)
+                ? result.diagnostics
+                : [],
+            project: result?.project || null
+        }
     }
 
     /**

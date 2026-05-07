@@ -70,6 +70,16 @@ export class ServerAssetVersioner {
                 '/node_modules/@sunbox/altium-toolkit/src/scene3d.mjs',
             '@sunbox/altium-toolkit/workers/altium-parser.worker.mjs':
                 '/node_modules/@sunbox/altium-toolkit/src/workers/altium-parser.worker.mjs',
+            '@sunbox/kicad-toolkit':
+                '/node_modules/@sunbox/kicad-toolkit/src/index.mjs',
+            '@sunbox/kicad-toolkit/parser':
+                '/node_modules/@sunbox/kicad-toolkit/src/parser.mjs',
+            '@sunbox/kicad-toolkit/renderers':
+                '/node_modules/@sunbox/kicad-toolkit/src/renderers.mjs',
+            '@sunbox/kicad-toolkit/scene3d':
+                '/node_modules/@sunbox/kicad-toolkit/src/scene3d.mjs',
+            '@sunbox/kicad-toolkit/workers/kicad-parser.worker.mjs':
+                '/node_modules/@sunbox/kicad-toolkit/src/workers/kicad-parser.worker.mjs',
             fflate: '/node_modules/fflate/esm/browser.js'
         }
 
@@ -85,7 +95,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '(@sunbox\\/altium-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|fflate)'
+            '(@sunbox\\/(?:altium-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?)|fflate)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

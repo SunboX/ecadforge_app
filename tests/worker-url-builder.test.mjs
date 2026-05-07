@@ -14,7 +14,7 @@ test('buildParserWorkerUrl appends a cache-busting key', () => {
 
     assert.equal(
         workerUrl.href,
-        'http://localhost:3000/workers/altium-parser.worker.mjs?v=12345'
+        'http://localhost:3000/workers/ecad-parser.worker.mjs?v=12345'
     )
 })
 

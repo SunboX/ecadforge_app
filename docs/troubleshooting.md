@@ -14,7 +14,7 @@ PORT=3100 npm start
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
 - If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate`, the deployed site serves `/node_modules/fflate/esm/browser.js`, and the local server is rewriting toolkit worker modules when testing through `npm start`.
-- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"`, confirm `npm install` has installed the toolkit package and the deployed site serves `/node_modules/@sunbox/altium-toolkit/`. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
+- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"` or `@sunbox/kicad-toolkit`, confirm `npm install` has installed both toolkit packages and the deployed site serves their `/node_modules/@sunbox/.../` trees. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
 
 ## LIVE works locally but not after deployment
 
@@ -41,12 +41,12 @@ PORT=3100 npm start
 ## Native file shows little or no geometry
 
 - Open the `Diagnostics` tab and inspect recovered record counts.
-- Some Altium constructs are still parsed through printable-record recovery only.
+- Some Altium constructs are still parsed through printable-record recovery only, and unsupported advanced KiCad S-expression items are emitted as diagnostics where possible.
 - Start by checking whether the file still yields component placements, layer stack data, or text records.
 
 ## Drag-and-drop does nothing
 
-- Confirm the file extension is `.SchDoc` or `.PcbDoc`.
+- Confirm the file extension is `.SchDoc`, `.PcbDoc`, `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, or `.zip`.
 - Try the explicit file picker in the header.
 - Check the browser console for worker or module-loading errors.
 
@@ -54,4 +54,4 @@ PORT=3100 npm start
 
 - Ensure moved files are reflected in test imports.
 - Keep line-limit and structure tests updated with intentional layout changes.
-- If parser sample tests fail, run the test suite in the `@sunbox/altium-toolkit` repository and inspect its obfuscated fixture loader.
+- If parser sample tests fail, run the test suite in the relevant `@sunbox/altium-toolkit` or `@sunbox/kicad-toolkit` repository and inspect its repo-owned fake fixture coverage.

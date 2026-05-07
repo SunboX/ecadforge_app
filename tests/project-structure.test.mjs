@@ -68,7 +68,11 @@ test('required project files exist', async () => {
         'src/I18n.mjs',
         'src/i18n/en.json',
         'src/i18n/de.json',
-        'src/workers/altium-parser.worker.mjs'
+        'src/core/ecad/EcadFormatRegistry.mjs',
+        'src/core/ecad/EcadParserService.mjs',
+        'src/core/ecad/EcadRendererService.mjs',
+        'src/core/ecad/EcadScene3dService.mjs',
+        'src/workers/ecad-parser.worker.mjs'
     ]
 
     for (const relativePath of required) {
@@ -119,16 +123,20 @@ test('project licensing metadata uses AGPL dual licensing', async () => {
 })
 
 /**
- * Verifies the reusable Altium parser and non-interactive render core is an
- * external package dependency instead of app-local source.
+ * Verifies the reusable Altium and KiCad parsers and non-interactive render
+ * cores resolve from published npm package releases.
  */
-test('package depends on Altium Toolkit', async () => {
+test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
     assert.equal(
         pkg.dependencies?.['@sunbox/altium-toolkit'],
-        'git+ssh://git@github.com/SunboX/altium-toolkit.git'
+        '^0.1.15'
+    )
+    assert.equal(
+        pkg.dependencies?.['@sunbox/kicad-toolkit'],
+        '^0.2.13'
     )
 })
 
@@ -189,10 +197,9 @@ test('app shell includes localized footer metadata and footer-only version UI', 
 })
 
 /**
- * Verifies the app shell exposes only the multi-file picker and does not ship
- * a dedicated project-folder picker button.
+ * Verifies the app shell exposes both multi-file and project-folder intake.
  */
-test('app shell uses one multi-file picker instead of a folder picker button', async () => {
+test('app shell exposes multi-file and project-folder intake', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
     const englishRaw = await readFile(new URL('src/i18n/en.json', root), 'utf8')
     const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
@@ -203,17 +210,17 @@ test('app shell uses one multi-file picker instead of a folder picker button', a
     assert.match(indexRaw, /id="fileInput"/)
     assert.match(indexRaw, /type="file"/)
     assert.match(indexRaw, /multiple/)
-    assert.doesNotMatch(indexRaw, /id="folderInput"/)
-    assert.doesNotMatch(indexRaw, /webkitdirectory/)
-    assert.equal(englishMessages['app.dropHint'], 'Drag PCB files here')
-    assert.equal(germanMessages['app.dropHint'], 'PCB-Dateien hier ablegen')
+    assert.match(indexRaw, /id="folderInput"/)
+    assert.match(indexRaw, /webkitdirectory/)
+    assert.equal(englishMessages['app.dropHint'], 'Drag ECAD files here')
+    assert.equal(germanMessages['app.dropHint'], 'ECAD-Dateien hier ablegen')
     assert.equal(
         englishMessages['status.ready'],
-        'Drop a native SchDoc, PcbDoc, or companion model file to begin.'
+        'Drop native Altium or KiCad files, project folders, ZIPs, or companion model files to begin.'
     )
     assert.equal(
         germanMessages['status.ready'],
-        'Native SchDoc-, PcbDoc- oder Begleitmodell-Datei ablegen, um zu starten.'
+        'Native Altium- oder KiCad-Dateien, Projektordner, ZIPs oder Begleitmodelle ablegen, um zu starten.'
     )
 })
 
@@ -240,28 +247,33 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies browser parser and renderer imports come from Altium Toolkit.
+ * Verifies browser parser and renderer imports route through the app ECAD
+ * facade and owned toolkit packages.
  */
-test('browser parser and render core resolve through Altium Toolkit', async () => {
+test('browser parser and render core resolve through ECAD facade', async () => {
     const controllerSource = await readFile(
         new URL('src/AppController.mjs', root),
         'utf8'
     )
     const workerSource = await readFile(
-        new URL('src/workers/altium-parser.worker.mjs', root),
+        new URL('src/workers/ecad-parser.worker.mjs', root),
         'utf8'
     )
     const viewSource = await readFile(
-        new URL('src/ui/AppView.mjs', root),
+        new URL('src/core/ecad/EcadRendererService.mjs', root),
         'utf8'
     )
 
     assert.match(
         controllerSource,
-        /from ['"]@sunbox\/altium-toolkit\/parser['"]/
+        /from ['"]\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
-    assert.match(workerSource, /from ['"]@sunbox\/altium-toolkit\/parser['"]/)
+    assert.match(
+        workerSource,
+        /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
+    )
     assert.match(viewSource, /from ['"]@sunbox\/altium-toolkit\/renderers['"]/)
+    assert.match(viewSource, /from ['"]@sunbox\/kicad-toolkit\/renderers['"]/)
 })
 
 /**
@@ -287,6 +299,22 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"@sunbox\/altium-toolkit\/scene3d"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/scene3d\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/kicad-toolkit"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/index\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/kicad-toolkit\/parser"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/parser\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/kicad-toolkit\/renderers"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/renderers\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"@sunbox\/kicad-toolkit\/scene3d"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/scene3d\.mjs"/
     )
     assert.match(
         indexRaw,

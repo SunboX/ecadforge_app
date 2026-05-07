@@ -68,7 +68,7 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     )
     const mainSource = await readFile(path.join(outputRoot, 'main.mjs'), 'utf8')
     const parserWorkerSource = await readFile(
-        path.join(outputRoot, 'workers', 'altium-parser.worker.mjs'),
+        path.join(outputRoot, 'workers', 'ecad-parser.worker.mjs'),
         'utf8'
     )
     const htaccessSource = await readFile(
@@ -84,13 +84,12 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     )
     assert.doesNotMatch(
         parserWorkerSource,
-        /from ['"]@sunbox\/altium-toolkit\/parser['"]/
+        /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
     assert.match(
         parserWorkerSource,
         new RegExp(
-            '/node_modules/@sunbox/altium-toolkit/src/parser\\.mjs\\?v=' +
-                pkg.version
+            '\\.\\./core/ecad/EcadParserService\\.mjs\\?v=' + pkg.version
         )
     )
     assert.match(htaccessSource, /Cache-Control/)

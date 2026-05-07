@@ -1,8 +1,4 @@
-import {
-    BomTableRenderer,
-    PcbSvgRenderer,
-    SchematicSvgRenderer
-} from '@sunbox/altium-toolkit/renderers'
+import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
@@ -16,6 +12,9 @@ export class AppView {
 
     /** @type {HTMLInputElement | null} */
     #fileInput
+
+    /** @type {HTMLInputElement | null} */
+    #folderInput
 
     /** @type {HTMLElement | null} */
     #dropZone
@@ -66,6 +65,7 @@ export class AppView {
     constructor(documentRef, options = {}) {
         this.#document = documentRef
         this.#fileInput = this.#document.querySelector('#fileInput')
+        this.#folderInput = this.#document.querySelector('#folderInput')
         this.#dropZone = this.#document.querySelector('#dropZone')
         this.#statusNode = this.#document.querySelector('#statusMessage')
         this.#versionNode = this.#document.querySelector('#appVersion')
@@ -81,8 +81,7 @@ export class AppView {
         this.#diagnosticsCountNode =
             this.#document.querySelector('#diagnosticsCount')
         this.#svgViewportController = null
-        this.#scene3dController =
-            null
+        this.#scene3dController = null
         this.#createScene3dController =
             options.createScene3dController ||
             ((viewportNode, documentModel, sceneOptions = {}) =>
@@ -147,6 +146,11 @@ export class AppView {
             callback([...this.#fileInput.files])
             this.#fileInput.value = ''
         })
+        this.#folderInput?.addEventListener('change', () => {
+            if (!this.#folderInput?.files?.length) return
+            callback([...this.#folderInput.files])
+            this.#folderInput.value = ''
+        })
     }
 
     /**
@@ -209,10 +213,7 @@ export class AppView {
                     ? target.closest('[data-document-id]')
                     : null
 
-            if (
-                !button ||
-                typeof button.getAttribute !== 'function'
-            ) {
+            if (!button || typeof button.getAttribute !== 'function') {
                 return
             }
 
@@ -269,8 +270,8 @@ export class AppView {
 
         if (!documentModel) {
             this.#summaryNode.innerHTML =
-                '<article class="summary-card"><span class="summary-card__label">Status</span><strong>Awaiting native file</strong></article>' +
-                '<article class="summary-card"><span class="summary-card__label">Formats</span><strong>SchDoc, PcbDoc</strong></article>' +
+                '<article class="summary-card"><span class="summary-card__label">Status</span><strong>Awaiting native ECAD files</strong></article>' +
+                '<article class="summary-card"><span class="summary-card__label">Formats</span><strong>Altium, KiCad</strong></article>' +
                 '<article class="summary-card"><span class="summary-card__label">Parser</span><strong>Client-side JS</strong></article>' +
                 '<article class="summary-card"><span class="summary-card__label">Views</span><strong>5 tabs ready</strong></article>'
             return
@@ -348,18 +349,18 @@ export class AppView {
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
             this.#contentNode.innerHTML =
-                '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>Parsing native Altium records in the browser...</p></section>'
+                '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>Parsing native ECAD records in the browser...</p></section>'
             return
         }
 
         if (!snapshot.documentModel) {
             this.#contentNode.innerHTML =
-                '<section class="viewer-empty"><h3>Drop a native file</h3><p>Open standalone <code>.SchDoc</code> and <code>.PcbDoc</code> documents directly in the browser. The parser recovers schematic graphics, PCB outline and placements, grouped BOM rows, and parser diagnostics.</p></section>'
+                '<section class="viewer-empty"><h3>Drop a native file</h3><p>Open Altium <code>.SchDoc</code>/<code>.PcbDoc</code> documents or KiCad <code>.kicad_pro</code>, <code>.kicad_sch</code>, <code>.kicad_pcb</code>, and ZIP project archives directly in the browser.</p></section>'
             return
         }
 
         if (snapshot.activeView === 'schematic') {
-            this.#contentNode.innerHTML = SchematicSvgRenderer.render(
+            this.#contentNode.innerHTML = EcadRendererService.renderSchematic(
                 snapshot.documentModel
             )
             this.#attachSvgViewportController('.schematic-svg')
@@ -367,7 +368,7 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'pcb') {
-            this.#contentNode.innerHTML = PcbSvgRenderer.render(
+            this.#contentNode.innerHTML = EcadRendererService.renderPcb(
                 snapshot.documentModel
             )
             this.#attachSvgViewportController('.pcb-svg')
@@ -386,8 +387,8 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'bom') {
-            this.#contentNode.innerHTML = BomTableRenderer.render(
-                snapshot.documentModel.bom || []
+            this.#contentNode.innerHTML = EcadRendererService.renderBom(
+                snapshot.documentModel
             )
             return
         }
@@ -623,7 +624,9 @@ export class AppView {
             '</span>' +
             '<span class="document-rail__name">' +
             AppView.#escapeHtml(
-                documentModel?.fileName || documentModel?.summary?.title || 'Document'
+                documentModel?.fileName ||
+                    documentModel?.summary?.title ||
+                    'Document'
             ) +
             '</span>' +
             '</button>'
@@ -640,7 +643,7 @@ export class AppView {
     static #renderDocumentPreview(documentId, documentModel, activeView) {
         if (activeView === 'schematic') {
             return AppView.#extractPreviewSvgMarkup(
-                SchematicSvgRenderer.render(documentModel),
+                EcadRendererService.renderSchematic(documentModel),
                 'schematic-svg',
                 'document-preview__svg document-preview__svg--schematic',
                 documentId
@@ -649,7 +652,7 @@ export class AppView {
 
         if (activeView === 'pcb') {
             return AppView.#extractPreviewSvgMarkup(
-                PcbSvgRenderer.render(documentModel),
+                EcadRendererService.renderPcb(documentModel),
                 'pcb-svg',
                 'document-preview__svg document-preview__svg--pcb',
                 documentId

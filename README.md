@@ -1,28 +1,30 @@
 # ECAD Forge
 
-Browser-based viewer for standalone native Altium `.SchDoc` and `.PcbDoc` files.
+Browser-based viewer for native Altium and KiCad schematics, PCB files, and KiCad projects.
 
-Open schematics, inspect PCB layouts, and explore interactive 3D boards directly in your browser. The 3D tab works from a lone `.PcbDoc`, including embedded STEP payloads stored inside the board file, and can also resolve companion `WRL` and `STEP` models when you load additional matching files.
+Open schematics, inspect PCB layouts, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files and KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, and ZIP projects are now supported and parsed locally.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
 ## Features
 
-- Client-side parsing for native Altium files with no server-side preprocessing
+- Client-side parsing for native Altium and KiCad files with no server-side preprocessing
 - Schematic SVG view derived from recovered record geometry and text
 - PCB SVG view with recovered board outline, layer stack, and component placements
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
 - Worker-backed parse flow with main-thread fallback
-- Shared Altium parser and non-interactive renderer core from `@sunbox/altium-toolkit`
+- Shared parser and non-interactive renderer cores from `@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
 - Shared-hosting PHP metadata endpoint in `api/`
 
 ## Project Structure
 
 - `@sunbox/altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
+- `@sunbox/kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
 - `src/ui/`: viewer shell and interaction controllers
-- `src/workers/altium-parser.worker.mjs`: off-main-thread native parsing
+- `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
+- `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
 - `api/`: deployable PHP metadata endpoint for FTP/shared-hosting deployments
 - `tests/`: app state, server, interaction, and structure tests
@@ -45,7 +47,7 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000/` and load one or more native `.SchDoc`, `.PcbDoc`, companion `WRL`, or companion `STEP` files. The 3D view will use any STEP payloads embedded in the `.PcbDoc` itself, and you can also load matching companion model files in the same selection to improve model fidelity further.
+Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, companion `WRL`, or companion `STEP` files. KiCad projects can also be selected as folders from the header.
 
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
 
@@ -63,7 +65,7 @@ The static build writes `.deploy-src/` with versioned browser module URLs and an
 npm test
 ```
 
-Parser and deterministic renderer tests live in the shared `@sunbox/altium-toolkit` repository. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
+Parser and deterministic renderer tests live in the shared `@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
 
 ## Formatting
 

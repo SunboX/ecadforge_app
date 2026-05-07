@@ -3,7 +3,7 @@
 ## Local-First Defaults
 
 - Static app and metadata endpoints run locally
-- Native Altium files are parsed in the browser and are not uploaded anywhere by this app
+- Native Altium and KiCad files are parsed in the browser and are not uploaded anywhere by this app
 - Keep sensitive configuration in `.env` and out of Git
 
 ## Input Handling

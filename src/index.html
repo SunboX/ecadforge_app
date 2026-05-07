@@ -3,6 +3,10 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="ECAD Forge supports native Altium and KiCad schematic, PCB, 3D, BOM, and diagnostics views directly in the browser."
+        />
         <title>ECAD Forge</title>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script type="importmap">
@@ -12,6 +16,10 @@
                     "@sunbox/altium-toolkit/parser": "/node_modules/@sunbox/altium-toolkit/src/parser.mjs",
                     "@sunbox/altium-toolkit/renderers": "/node_modules/@sunbox/altium-toolkit/src/renderers.mjs",
                     "@sunbox/altium-toolkit/scene3d": "/node_modules/@sunbox/altium-toolkit/src/scene3d.mjs",
+                    "@sunbox/kicad-toolkit": "/node_modules/@sunbox/kicad-toolkit/src/index.mjs",
+                    "@sunbox/kicad-toolkit/parser": "/node_modules/@sunbox/kicad-toolkit/src/parser.mjs",
+                    "@sunbox/kicad-toolkit/renderers": "/node_modules/@sunbox/kicad-toolkit/src/renderers.mjs",
+                    "@sunbox/kicad-toolkit/scene3d": "/node_modules/@sunbox/kicad-toolkit/src/scene3d.mjs",
                     "fflate": "/node_modules/fflate/esm/browser.js",
                     "three": "/node_modules/three/build/three.module.js",
                     "three/addons/": "/node_modules/three/examples/jsm/"
@@ -29,8 +37,8 @@
                     </p>
                     <h1 data-i18n="app.title">ECAD Forge</h1>
                     <p class="subtitle" data-i18n="app.subtitle">
-                        Client-side schematic, PCB, 3D and BOM views for
-                        standalone native Altium documents.
+                        Client-side schematic, PCB, 3D and BOM views for native
+                        Altium documents and KiCad files or projects.
                     </p>
                 </div>
                 <div class="toolbar">
@@ -42,7 +50,20 @@
                         class="sr-only"
                         type="file"
                         multiple
-                        accept=".SchDoc,.PcbDoc,.PrjPcb,.wrl,.vrml,.step,.stp"
+                        accept=".SchDoc,.PcbDoc,.PrjPcb,.kicad_pro,.kicad_sch,.kicad_pcb,.zip,.wrl,.vrml,.step,.stp"
+                    />
+                    <label
+                        class="file-pill file-pill--secondary"
+                        for="folderInput"
+                    >
+                        <span data-i18n="app.openFolder">Open folder</span>
+                    </label>
+                    <input
+                        id="folderInput"
+                        class="sr-only"
+                        type="file"
+                        multiple
+                        webkitdirectory
                     />
                     <label class="inline-field" for="localeSelect">
                         <span data-i18n="app.language">Language</span>
@@ -61,21 +82,24 @@
             <section class="panel hero-grid">
                 <div id="dropZone" class="dropzone">
                     <p class="dropzone__eyebrow" data-i18n="app.dropHint">
-                        Drag PCB files here
+                        Drag ECAD files here
                     </p>
                     <h2 data-i18n="app.dropTitle">
-                        Parse native Altium files entirely in the browser
+                        Parse native Altium and KiCad files entirely in the
+                        browser
                     </h2>
                     <p class="dropzone__copy" data-i18n="app.dropCopy">
-                        The parser extracts printable native records from
-                        standalone documents, normalizes them, and feeds
-                        schematic, PCB, BOM, diagnostics, and interactive 3D
-                        views while attempting to resolve companion WRL and STEP
-                        models from the current session.
+                        The parser extracts printable native records from Altium
+                        documents and KiCad files or projects, normalizes them,
+                        and feeds schematic, PCB, BOM, diagnostics, and
+                        interactive 3D views while attempting to resolve
+                        companion WRL and STEP models from the current session.
                     </p>
                     <div class="dropzone__chips">
                         <span>SchDoc</span>
                         <span>PcbDoc</span>
+                        <span>KiCad 9</span>
+                        <span>Project ZIP</span>
                         <span>Worker offload</span>
                         <span>Normalized model</span>
                     </div>
@@ -84,7 +108,8 @@
                         id="statusMessage"
                         data-i18n="status.ready"
                     >
-                        Drop a native SchDoc, PcbDoc, or companion model file to begin.
+                        Drop native Altium or KiCad files, project folders,
+                        ZIPs, or companion model files to begin.
                     </p>
                 </div>
                 <div class="meta-column">
@@ -165,7 +190,11 @@
                     aria-label="Open documents"
                     hidden
                 ></aside>
-                <div id="viewContent" class="viewer-main" aria-live="polite"></div>
+                <div
+                    id="viewContent"
+                    class="viewer-main"
+                    aria-live="polite"
+                ></div>
             </section>
 
             <footer class="page-footer">

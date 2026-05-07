@@ -6,13 +6,17 @@
 - `src/main.mjs`: bootstrap and dependency wiring
 - `src/AppController.mjs`: file intake, worker coordination, state transitions
 - `src/core/AppState.mjs`: normalized view state container
+- `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
 - `@sunbox/altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
 - `@sunbox/altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
 - `@sunbox/altium-toolkit/scene3d`: non-interactive PCB 3D scene-description builders and model registry logic
+- `@sunbox/kicad-toolkit/parser`: KiCad 9 schematic/PCB/project loading and normalized model parsing
+- `@sunbox/kicad-toolkit/renderers`: deterministic KiCad schematic SVG, PCB SVG, and BOM HTML renderers
+- `@sunbox/kicad-toolkit/scene3d`: data-only KiCad PCB 3D scene-description builders and model registry logic
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
-- `src/workers/altium-parser.worker.mjs`: parser offload worker
+- `src/workers/ecad-parser.worker.mjs`: parser offload worker
 - `src/server.mjs`: local static server and metadata endpoints
 - `src/StaticDeployBuilder.mjs`: Apache/shared-hosting artifact builder that rewrites static assets before FTP upload
 - `scripts/build-static-deploy.mjs`: CLI wrapper that writes `.deploy-src/`
@@ -23,24 +27,24 @@
 
 The current parser is intentionally pragmatic:
 
-1. Load a native file as raw bytes in the browser
-2. Extract long printable runs from the binary document
-3. Parse pipe-delimited Altium-style key/value records from those runs
-4. Normalize the recovered data into one shared viewer model
-5. Build additive schematic hierarchy, embedded-image, and connectivity metadata where supported
+1. Load native Altium files, KiCad files, or KiCad project bundles in the browser
+2. Extract long printable runs from Altium binary documents or read KiCad project entries
+3. Parse pipe-delimited Altium-style key/value records from those runs or KiCad 9 S-expressions from project entries
+4. Normalize the recovered data into one shared viewer model with `sourceFormat` as an additive discriminator
+5. Build additive schematic hierarchy, embedded-image, BOM, and connectivity metadata where supported
 6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model
 
 This is still not full binary reconstruction. It is a browser-first recovery strategy that mixes printable record parsing with targeted OLE stream access where the format clearly requires it, such as embedded schematic images, embedded PCB STEP payloads, and richer PCB stream recovery.
 
 ## Data Flow
 
-1. User selects or drops one or more `.SchDoc`, `.PcbDoc`, or companion model files
+1. User selects or drops Altium files, KiCad files, a KiCad project folder/ZIP, or companion model files
 2. `AppController` stores any companion 3D assets in session state and posts native design files to the parser worker
-3. `altium-parser.worker.mjs` runs `AltiumParser.parseArrayBuffer()` from `@sunbox/altium-toolkit`
+3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium or KiCad toolkit
 4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
 5. `AppState` stores parse status, the recovered document models, and session companion assets
 6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
-7. The app uses `@sunbox/altium-toolkit/scene3d` to build non-interactive scene-description data, then the local 3D runtime resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session
+7. The app uses `EcadScene3dService` to choose Altium or KiCad scene-description builders, then the local 3D runtime resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session
 8. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## Styling
@@ -55,7 +59,7 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
-- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium and KiCad Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
 
 ## Static Deployment
 

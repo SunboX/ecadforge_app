@@ -62,3 +62,29 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
     assert.match(css, /\.scene-3d__diagnostics\s*\{/)
     assert.match(css, /\.scene-3d__canvas\s*\{/)
 })
+
+/**
+ * Verifies newly recovered PCB copper regions inherit the light app palette
+ * instead of falling back to black SVG path fills.
+ */
+test('viewer stylesheet colors PCB copper regions', async () => {
+    const cssPath = new URL(
+        '../../../src/styles/20-viewer.css',
+        import.meta.url
+    )
+    const css = await readFile(cssPath, 'utf8')
+
+    assert.match(
+        css,
+        /\.pcb-copper--surface\s+\.pcb-region\s*\{[\s\S]*fill:\s*var\(--pcb-surface-fill\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-copper--subsurface\s+\.pcb-region\s*\{[\s\S]*fill:\s*var\(--pcb-subsurface-fill\);/
+    )
+    assert.match(css, /--pcb-surface-copper-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.08\);/)
+    assert.match(css, /--pcb-surface-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.09\);/)
+    assert.match(css, /--pcb-subsurface-fill:\s*rgba\(114,\s*84,\s*62,\s*0\.045\);/)
+    assert.match(css, /--pcb-copper-solid-fill:\s*rgba\(196,\s*118,\s*70,\s*0\.54\);/)
+    assert.match(css, /--pcb-component-top-fill:\s*rgba\(203,\s*139,\s*96,\s*0\.68\);/)
+})

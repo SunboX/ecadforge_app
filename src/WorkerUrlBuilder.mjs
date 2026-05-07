@@ -10,7 +10,7 @@ export class WorkerUrlBuilder {
      */
     static buildParserWorkerUrl(entryModuleUrl, cacheKey) {
         const workerUrl = new URL(
-            './workers/altium-parser.worker.mjs',
+            './workers/ecad-parser.worker.mjs',
             entryModuleUrl
         )
 

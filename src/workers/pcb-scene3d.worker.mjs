@@ -1,4 +1,4 @@
-import { PcbScene3dScenePreparator } from '@sunbox/altium-toolkit/scene3d'
+import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
 
 /**
  * Dedicated worker entrypoint for 3D scene preprocessing.
@@ -18,13 +18,12 @@ class PcbScene3dWorkerRuntime {
         const requestId = String(payload?.requestId || '')
 
         try {
-            const sceneDescription =
-                await PcbScene3dScenePreparator.prepare(
-                    payload?.documentModel || {},
-                    {
-                        sessionAssets: payload?.sessionAssets || []
-                    }
-                )
+            const sceneDescription = await EcadScene3dService.prepare(
+                payload?.documentModel || {},
+                {
+                    sessionAssets: payload?.sessionAssets || []
+                }
+            )
 
             globalThis.postMessage({
                 type: 'scene3d:success',
