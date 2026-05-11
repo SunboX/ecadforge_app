@@ -19,6 +19,17 @@ npm start
 
 Open [http://localhost:3000/](http://localhost:3000/).
 
+## Analytics
+
+- The app loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js`.
+- The public site key is `ecadforge_app`.
+- Register each deployed browser origin in the Analytics `analytics_sites` table or dashboard before expecting events. The production row should use the deployed app origin and public key `ecadforge_app`.
+
+```sql
+INSERT INTO analytics_sites (name, allowed_origin, public_key, active, created_at)
+VALUES ('ECAD Forge', 'https://your-ecad-forge-origin.example', 'ecadforge_app', 1, UTC_TIMESTAMP());
+```
+
 ## Test
 
 ```bash
