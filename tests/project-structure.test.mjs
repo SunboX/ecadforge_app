@@ -178,6 +178,7 @@ test('app shell includes localized footer metadata and footer-only version UI', 
     assert.match(indexRaw, /data-i18n="footer\.responsible"/)
     assert.match(indexRaw, /data-i18n="footer\.contact"/)
     assert.match(indexRaw, /data-i18n="footer\.version"/)
+    assert.match(indexRaw, /data-i18n="footer\.slogan"/)
     assert.match(indexRaw, /id="appVersion"/)
     assert.doesNotMatch(indexRaw, /class="version-pill"/)
     assert.equal(englishMessages['footer.title'], 'Imprint')
@@ -194,6 +195,11 @@ test('app shell includes localized footer metadata and footer-only version UI', 
     assert.equal(germanMessages['footer.contact'], 'Kontakt')
     assert.equal(englishMessages['footer.version'], 'Version')
     assert.equal(germanMessages['footer.version'], 'Version')
+    assert.equal(
+        englishMessages['footer.slogan'],
+        'Build and hostet in Germany'
+    )
+    assert.equal(germanMessages['footer.slogan'], 'Build and hostet in Germany')
 })
 
 /**

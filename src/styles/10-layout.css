@@ -107,6 +107,15 @@ h1 {
     letter-spacing: 0.01em;
 }
 
+.footer-slogan {
+    margin: -0.15rem 0 0.85rem;
+    color: var(--brand-strong);
+    font-size: 0.96rem;
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: center;
+}
+
 .footer-grid {
     display: grid;
     grid-template-columns: auto auto auto 1fr;
