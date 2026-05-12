@@ -2,12 +2,12 @@ import {
     BomTableRenderer as AltiumBomTableRenderer,
     PcbSvgRenderer as AltiumPcbSvgRenderer,
     SchematicSvgRenderer as AltiumSchematicSvgRenderer
-} from '@sunbox/altium-toolkit/renderers'
+} from 'altium-toolkit/renderers'
 import {
     BomTableRenderer as KicadBomTableRenderer,
     PcbSvgRenderer as KicadPcbSvgRenderer,
     SchematicSvgRenderer as KicadSchematicSvgRenderer
-} from '@sunbox/kicad-toolkit/renderers'
+} from 'kicad-toolkit/renderers'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**

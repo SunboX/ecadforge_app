@@ -14,14 +14,14 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
 - Worker-backed parse flow with main-thread fallback
-- Shared parser and non-interactive renderer cores from `@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit`
+- Shared parser and non-interactive renderer cores from `altium-toolkit` and `kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
 - Shared-hosting PHP metadata endpoint in `api/`
 
 ## Project Structure
 
-- `@sunbox/altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
-- `@sunbox/kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
+- `altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
+- `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
@@ -65,7 +65,7 @@ The static build writes `.deploy-src/` with versioned browser module URLs and an
 npm test
 ```
 
-Parser and deterministic renderer tests live in the shared `@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
+Parser and deterministic renderer tests live in the shared `altium-toolkit` and `kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
 
 ## Formatting
 

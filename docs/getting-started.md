@@ -58,6 +58,6 @@ npm test
 ## Sample Corpus
 
 Parser and deterministic renderer tests are validated in the shared
-`@sunbox/altium-toolkit` and `@sunbox/kicad-toolkit` repositories against
+`altium-toolkit` and `kicad-toolkit` repositories against
 repo-owned fake fixture pieces. Update those packages when parser fixture
 shards or expectations change.

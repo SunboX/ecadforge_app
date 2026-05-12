@@ -14,4 +14,4 @@
 - i18n translation and locale-application tests
 
 Parser, fixture, and deterministic schematic/PCB/BOM renderer tests live in the
-shared `@sunbox/altium-toolkit` repository.
+shared `altium-toolkit` repository.

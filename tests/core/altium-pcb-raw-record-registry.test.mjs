@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbRawRecordRegistry } from '../../node_modules/@sunbox/altium-toolkit/src/core/altium/PcbRawRecordRegistry.mjs'
+import { PcbRawRecordRegistry } from '../../node_modules/altium-toolkit/src/core/altium/PcbRawRecordRegistry.mjs'
 
 /**
  * Builds a little-endian record-count header.

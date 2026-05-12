@@ -7,12 +7,12 @@
 - `src/AppController.mjs`: file intake, worker coordination, state transitions
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
-- `@sunbox/altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
-- `@sunbox/altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
-- `@sunbox/altium-toolkit/scene3d`: non-interactive PCB 3D scene-description builders and model registry logic
-- `@sunbox/kicad-toolkit/parser`: KiCad 9 schematic/PCB/project loading and normalized model parsing
-- `@sunbox/kicad-toolkit/renderers`: deterministic KiCad schematic SVG, PCB SVG, and BOM HTML renderers
-- `@sunbox/kicad-toolkit/scene3d`: data-only KiCad PCB 3D scene-description builders and model registry logic
+- `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
+- `altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
+- `altium-toolkit/scene3d`: non-interactive PCB 3D scene-description builders and model registry logic
+- `kicad-toolkit/parser`: KiCad 9 schematic/PCB/project loading and normalized model parsing
+- `kicad-toolkit/renderers`: deterministic KiCad schematic SVG, PCB SVG, and BOM HTML renderers
+- `kicad-toolkit/scene3d`: data-only KiCad PCB 3D scene-description builders and model registry logic
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers

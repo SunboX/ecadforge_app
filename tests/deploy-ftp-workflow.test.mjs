@@ -68,3 +68,22 @@ test('ftp workflow deploys the static frontend build artifact', async () => {
         /name: Retry deploy static frontend to \.\/[\s\S]*?local-dir: \.\/\.deploy-src\/[\s\S]*?server-dir: \.\//
     )
 })
+
+/**
+ * Verifies production dependency installs can use the committed lockfile in
+ * the FTP deployment workflow.
+ */
+test('package lock root dependencies match package manifest', async () => {
+    const packageRaw = await readFile(
+        new URL('../package.json', import.meta.url),
+        'utf8'
+    )
+    const lockRaw = await readFile(
+        new URL('../package-lock.json', import.meta.url),
+        'utf8'
+    )
+    const pkg = JSON.parse(packageRaw)
+    const lock = JSON.parse(lockRaw)
+
+    assert.deepEqual(lock.packages?.['']?.dependencies, pkg.dependencies)
+})

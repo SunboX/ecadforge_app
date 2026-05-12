@@ -491,7 +491,7 @@ test('AppController falls back to direct parsing when the parser worker fails to
     assert.equal(worker.messages.length, 1)
 
     worker.emitError(
-        'Failed to resolve module specifier "@sunbox/altium-toolkit/parser"'
+        'Failed to resolve module specifier "altium-toolkit/parser"'
     )
     await choosePromise
 

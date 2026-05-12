@@ -367,7 +367,7 @@ test('server rewrites browser Altium Toolkit parser module bare imports', async 
     const response = await fetch(
         'http://127.0.0.1:' +
             String(port) +
-            '/node_modules/@sunbox/altium-toolkit/src/core/altium/PcbEmbeddedModelExtractor.mjs'
+            '/node_modules/altium-toolkit/src/core/altium/PcbEmbeddedModelExtractor.mjs'
     )
     const source = await response.text()
 
@@ -509,7 +509,7 @@ test('server serves versioned HTML and module imports', async (t) => {
     assert.equal(sceneWorkerResponse.ok, true)
     assert.doesNotMatch(
         sceneWorkerSource,
-        /from ['"]@sunbox\/altium-toolkit\/scene3d['"]/
+        /from ['"]altium-toolkit\/scene3d['"]/
     )
     assert.match(
         sceneWorkerSource,

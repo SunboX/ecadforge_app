@@ -1,5 +1,5 @@
-import { AltiumParser } from '@sunbox/altium-toolkit/parser'
-import { KicadParser, KicadProjectLoader } from '@sunbox/kicad-toolkit/parser'
+import { AltiumParser } from 'altium-toolkit/parser'
+import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**

@@ -14,7 +14,7 @@ PORT=3100 npm start
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
 - If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate`, the deployed site serves `/node_modules/fflate/esm/browser.js`, and the local server is rewriting toolkit worker modules when testing through `npm start`.
-- If the console reports `Failed to resolve module specifier "@sunbox/altium-toolkit"` or `@sunbox/kicad-toolkit`, confirm `npm install` has installed both toolkit packages and the deployed site serves their `/node_modules/@sunbox/.../` trees. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
+- If the console reports `Failed to resolve module specifier "altium-toolkit"` or `kicad-toolkit`, confirm `npm install` has installed both toolkit packages and the deployed site serves their `/node_modules/altium-toolkit/` and `/node_modules/kicad-toolkit/` trees. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
 
 ## LIVE works locally but not after deployment
 
@@ -54,4 +54,4 @@ PORT=3100 npm start
 
 - Ensure moved files are reflected in test imports.
 - Keep line-limit and structure tests updated with intentional layout changes.
-- If parser sample tests fail, run the test suite in the relevant `@sunbox/altium-toolkit` or `@sunbox/kicad-toolkit` repository and inspect its repo-owned fake fixture coverage.
+- If parser sample tests fail, run the test suite in the relevant `altium-toolkit` or `kicad-toolkit` repository and inspect its repo-owned fake fixture coverage.

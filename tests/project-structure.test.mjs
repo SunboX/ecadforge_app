@@ -319,8 +319,8 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         workerSource,
         /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
-    assert.match(viewSource, /from ['"]@sunbox\/altium-toolkit\/renderers['"]/)
-    assert.match(viewSource, /from ['"]@sunbox\/kicad-toolkit\/renderers['"]/)
+    assert.match(viewSource, /from ['"]altium-toolkit\/renderers['"]/)
+    assert.match(viewSource, /from ['"]kicad-toolkit\/renderers['"]/)
 })
 
 /**
@@ -333,35 +333,35 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(indexRaw, /<script\s+type="importmap">/)
     assert.match(
         indexRaw,
-        /"@sunbox\/altium-toolkit"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/index\.mjs"/
+        /"altium-toolkit"\s*:\s*"\/node_modules\/altium-toolkit\/src\/index\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/altium-toolkit\/parser"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/parser\.mjs"/
+        /"altium-toolkit\/parser"\s*:\s*"\/node_modules\/altium-toolkit\/src\/parser\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/altium-toolkit\/renderers"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/renderers\.mjs"/
+        /"altium-toolkit\/renderers"\s*:\s*"\/node_modules\/altium-toolkit\/src\/renderers\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/altium-toolkit\/scene3d"\s*:\s*"\/node_modules\/@sunbox\/altium-toolkit\/src\/scene3d\.mjs"/
+        /"altium-toolkit\/scene3d"\s*:\s*"\/node_modules\/altium-toolkit\/src\/scene3d\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/kicad-toolkit"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/index\.mjs"/
+        /"kicad-toolkit"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/index\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/kicad-toolkit\/parser"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/parser\.mjs"/
+        /"kicad-toolkit\/parser"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/parser\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/kicad-toolkit\/renderers"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/renderers\.mjs"/
+        /"kicad-toolkit\/renderers"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/renderers\.mjs"/
     )
     assert.match(
         indexRaw,
-        /"@sunbox\/kicad-toolkit\/scene3d"\s*:\s*"\/node_modules\/@sunbox\/kicad-toolkit\/src\/scene3d\.mjs"/
+        /"kicad-toolkit\/scene3d"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/scene3d\.mjs"/
     )
     assert.match(
         indexRaw,

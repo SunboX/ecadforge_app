@@ -647,6 +647,10 @@ class AltiumToolkitPatcher {
      * @returns {Promise<void>}
      */
     static async run() {
+        if (await AltiumToolkitPatcher.#usesUpstreamPatchedToolkits()) {
+            return
+        }
+
         await AltiumToolkitPatcher.#applyPatch({
             sourcePath: AltiumToolkitPatcher.#resolveRawRecordSourcePath(),
             original: AltiumToolkitPatcher.#rawRecordOriginal,
@@ -804,7 +808,7 @@ class AltiumToolkitPatcher {
         )
         if (!original) {
             throw new Error(
-                'Unable to patch @sunbox/altium-toolkit: expected ' +
+                'Unable to patch altium-toolkit: expected ' +
                     patch.label +
                     ' block was not found.'
             )
@@ -813,6 +817,88 @@ class AltiumToolkitPatcher {
         await writeFile(
             patch.sourcePath,
             source.replace(original, patch.patched)
+        )
+    }
+
+    /**
+     * Returns true when installed toolkit releases already include these fixes.
+     * @returns {Promise<boolean>}
+     */
+    static async #usesUpstreamPatchedToolkits() {
+        const [altiumVersion, kicadVersion] = await Promise.all([
+            AltiumToolkitPatcher.#readPackageVersion('altium-toolkit'),
+            AltiumToolkitPatcher.#readPackageVersion('kicad-toolkit')
+        ])
+
+        return (
+            AltiumToolkitPatcher.#isAtLeastVersion(altiumVersion, '0.1.17') &&
+            AltiumToolkitPatcher.#isAtLeastVersion(kicadVersion, '0.2.15')
+        )
+    }
+
+    /**
+     * Reads the installed npm package version.
+     * @param {string} packageName
+     * @returns {Promise<string>}
+     */
+    static async #readPackageVersion(packageName) {
+        const packageJson = JSON.parse(
+            await readFile(
+                AltiumToolkitPatcher.#resolvePackageManifestPath(packageName),
+                'utf8'
+            )
+        )
+
+        return String(packageJson.version || '')
+    }
+
+    /**
+     * Compares semantic version strings by major, minor, and patch numbers.
+     * @param {string} version
+     * @param {string} minimum
+     * @returns {boolean}
+     */
+    static #isAtLeastVersion(version, minimum) {
+        const currentParts = AltiumToolkitPatcher.#versionParts(version)
+        const minimumParts = AltiumToolkitPatcher.#versionParts(minimum)
+
+        for (let index = 0; index < minimumParts.length; index += 1) {
+            if (currentParts[index] > minimumParts[index]) {
+                return true
+            }
+            if (currentParts[index] < minimumParts[index]) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    /**
+     * Extracts major, minor, and patch numbers from one version string.
+     * @param {string} version
+     * @returns {number[]}
+     */
+    static #versionParts(version) {
+        return String(version)
+            .split(/[.-]/u)
+            .slice(0, 3)
+            .map((part) => Number(part) || 0)
+    }
+
+    /**
+     * Resolves an installed toolkit package manifest path.
+     * @param {string} packageName
+     * @returns {string}
+     */
+    static #resolvePackageManifestPath(packageName) {
+        const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
+        return path.resolve(
+            scriptDirectory,
+            '..',
+            'node_modules',
+            packageName,
+            'package.json'
         )
     }
 
@@ -826,7 +912,6 @@ class AltiumToolkitPatcher {
             scriptDirectory,
             '..',
             'node_modules',
-            '@sunbox',
             'altium-toolkit',
             'src',
             'core',
@@ -845,7 +930,6 @@ class AltiumToolkitPatcher {
             scriptDirectory,
             '..',
             'node_modules',
-            '@sunbox',
             'altium-toolkit',
             'src',
             'ui',
@@ -863,7 +947,6 @@ class AltiumToolkitPatcher {
             scriptDirectory,
             '..',
             'node_modules',
-            '@sunbox',
             'kicad-toolkit',
             'src',
             'ui',
@@ -881,7 +964,6 @@ class AltiumToolkitPatcher {
             scriptDirectory,
             '..',
             'node_modules',
-            '@sunbox',
             'kicad-toolkit',
             'src',
             'core',
@@ -900,7 +982,6 @@ class AltiumToolkitPatcher {
             scriptDirectory,
             '..',
             'node_modules',
-            '@sunbox',
             'kicad-toolkit',
             'src',
             'core',

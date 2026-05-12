@@ -3,7 +3,7 @@
 ## Purpose
 
 This document defines the normalized schematic model emitted by `AltiumParser`
-from `@sunbox/altium-toolkit` for `.SchDoc` files.
+from `altium-toolkit` for `.SchDoc` files.
 
 The model is intentionally viewer-oriented, but it now preserves more authored structure so future features can build on it without reopening parser fundamentals.
 

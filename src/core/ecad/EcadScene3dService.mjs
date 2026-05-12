@@ -2,12 +2,12 @@ import {
     PcbScene3dBuilder as AltiumScene3dBuilder,
     PcbScene3dModelRegistry as AltiumScene3dModelRegistry,
     PcbScene3dScenePreparator as AltiumScene3dScenePreparator
-} from '@sunbox/altium-toolkit/scene3d'
+} from 'altium-toolkit/scene3d'
 import {
     PcbScene3dBuilder as KicadScene3dBuilder,
     PcbScene3dModelRegistry as KicadScene3dModelRegistry,
     PcbScene3dScenePreparator as KicadScene3dScenePreparator
-} from '@sunbox/kicad-toolkit/scene3d'
+} from 'kicad-toolkit/scene3d'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
