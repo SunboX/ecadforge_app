@@ -141,27 +141,33 @@ html.is-schematic-panning body {
 }
 
 .viewer-stage {
-    min-height: 68vh;
+    height: 100vh;
+    min-height: 100vh;
     overflow: hidden;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
 }
 
 .viewer-stage.is-multi-document {
     grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
     gap: 1rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .viewer-main {
+    height: 100%;
+    min-height: 0;
     min-width: 0;
+    overflow: auto;
 }
 
 .document-rail {
     display: grid;
     gap: 0.85rem;
     align-content: start;
-    max-height: 68vh;
+    max-height: 100%;
+    min-height: 0;
     overflow: auto;
     padding: 0.35rem;
     border-radius: 24px;
@@ -291,7 +297,7 @@ html.is-schematic-panning body {
 .viewer-empty,
 .altium-renderer-empty,
 .viewer-loading {
-    min-height: 52vh;
+    min-height: 100%;
     display: grid;
     place-items: center;
     text-align: center;
@@ -341,7 +347,10 @@ html.is-schematic-panning body {
 
 .svg-panel {
     display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 1rem;
+    height: 100%;
+    min-height: 0;
 }
 
 .svg-panel__header {
@@ -366,7 +375,8 @@ html.is-schematic-panning body {
 
 :is(.pcb-svg, .schematic-svg) {
     width: 100%;
-    min-height: 60vh;
+    height: 100%;
+    min-height: 0;
     border-radius: 22px;
     background: var(--canvas);
     border: 1px solid rgba(95, 112, 124, 0.12);
@@ -1040,7 +1050,7 @@ html.is-schematic-panning body {
     }
 
     .viewer-stage {
-        min-height: auto;
+        min-height: 100vh;
     }
 
     .schematic-svg,
