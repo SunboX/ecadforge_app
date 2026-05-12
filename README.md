@@ -16,7 +16,6 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Worker-backed parse flow with main-thread fallback
 - Shared parser and non-interactive renderer cores from `altium-toolkit` and `kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
-- Shared-hosting PHP metadata endpoint in `api/`
 
 ## Project Structure
 
@@ -26,7 +25,6 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
-- `api/`: deployable PHP metadata endpoint for FTP/shared-hosting deployments
 - `tests/`: app state, server, interaction, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting
 - `spec/`: product scope and acceptance criteria
