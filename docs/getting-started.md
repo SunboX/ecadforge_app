@@ -19,6 +19,17 @@ npm start
 
 Open [http://localhost:3000/](http://localhost:3000/).
 
+## Search Indexing
+
+The production origin is [https://ecadforge.app/](https://ecadforge.app/).
+The app publishes a canonical URL in the HTML shell, allows crawling through
+`/robots.txt`, and exposes `/sitemap.xml` for the app shell and public view
+URLs.
+
+Search Console setup is manual: verify `ecadforge.app`, submit
+`https://ecadforge.app/sitemap.xml`, inspect the main URLs, and request
+indexing after deployment.
+
 ## Analytics
 
 - The app loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js`.

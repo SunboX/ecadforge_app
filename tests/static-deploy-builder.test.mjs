@@ -94,4 +94,8 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     )
     assert.match(htaccessSource, /Cache-Control/)
     assert.match(htaccessSource, /no-store/)
+    assert.match(htaccessSource, /RewriteEngine On/)
+    assert.match(htaccessSource, /RewriteRule \^ index\.html \[L\]/)
+    assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-f/)
+    assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-d/)
 })

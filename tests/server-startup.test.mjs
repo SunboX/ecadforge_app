@@ -516,3 +516,52 @@ test('server serves versioned HTML and module imports', async (t) => {
         /from ['"]\.\.\/core\/ecad\/EcadScene3dService\.mjs\?v=/
     )
 })
+
+/**
+ * Verifies public pages and crawler assets are reachable without auth and do
+ * not expose accidental noindex directives.
+ */
+test('server exposes public indexable app URLs and crawl assets', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const baseUrl = 'http://127.0.0.1:' + String(port)
+    const publicPaths = [
+        '/',
+        '/index.html',
+        '/schematic',
+        '/pcb',
+        '/3d',
+        '/bom',
+        '/diagnostics',
+        '/robots.txt',
+        '/sitemap.xml'
+    ]
+
+    for (const publicPath of publicPaths) {
+        const response = await fetch(baseUrl + publicPath)
+        assert.equal(response.status, 200, publicPath + ' should return 200')
+    }
+
+    const indexResponse = await fetch(baseUrl + '/schematic')
+    const indexHtml = await indexResponse.text()
+    const robotsResponse = await fetch(baseUrl + '/robots.txt')
+    const robotsText = await robotsResponse.text()
+    const sitemapResponse = await fetch(baseUrl + '/sitemap.xml')
+    const sitemapText = await sitemapResponse.text()
+
+    assert.doesNotMatch(indexHtml, /noindex/i)
+    assert.match(indexHtml, /rel="canonical"/)
+    assert.doesNotMatch(robotsText, /^Disallow:\s*\/$/m)
+    assert.match(robotsText, /^Allow: \/$/m)
+    assert.match(sitemapText, /https:\/\/ecadforge\.app\//)
+})

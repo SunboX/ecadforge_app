@@ -7,7 +7,9 @@
             name="description"
             content="ECAD Forge supports native Altium and KiCad schematic, PCB, 3D, BOM, and diagnostics views directly in the browser."
         />
+        <meta name="robots" content="index,follow" />
         <title>ECAD Forge</title>
+        <link rel="canonical" href="https://ecadforge.app/" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script type="importmap">
             {
@@ -141,46 +143,46 @@
             </section>
 
             <nav class="panel view-tabs" id="viewTabs" aria-label="Viewer tabs">
-                <button
+                <a
                     class="view-tab"
-                    type="button"
+                    href="/schematic"
                     data-view="schematic"
                     aria-selected="true"
                 >
                     Schematic
-                </button>
-                <button
+                </a>
+                <a
                     class="view-tab"
-                    type="button"
+                    href="/pcb"
                     data-view="pcb"
                     aria-selected="false"
                 >
                     PCB
-                </button>
-                <button
+                </a>
+                <a
                     class="view-tab"
-                    type="button"
+                    href="/3d"
                     data-view="3d"
                     aria-selected="false"
                 >
                     3D
-                </button>
-                <button
+                </a>
+                <a
                     class="view-tab"
-                    type="button"
+                    href="/bom"
                     data-view="bom"
                     aria-selected="false"
                 >
                     BOM
-                </button>
-                <button
+                </a>
+                <a
                     class="view-tab"
-                    type="button"
+                    href="/diagnostics"
                     data-view="diagnostics"
                     aria-selected="false"
                 >
                     Diagnostics
-                </button>
+                </a>
             </nav>
 
             <section class="panel viewer-stage" id="viewerStage">

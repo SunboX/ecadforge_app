@@ -195,6 +195,7 @@ export class AppView {
             if (!(target instanceof HTMLElement)) return
             const button = target.closest('[data-view]')
             if (!(button instanceof HTMLElement)) return
+            event.preventDefault()
             callback(button.dataset.view || 'schematic')
         })
     }

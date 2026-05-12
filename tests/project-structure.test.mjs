@@ -49,6 +49,8 @@ test('required project files exist', async () => {
         'src/favicon.svg',
         'src/index.html',
         'src/main.mjs',
+        'src/robots.txt',
+        'src/sitemap.xml',
         'src/style.css',
         'src/server.mjs',
         'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
@@ -130,14 +132,8 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(
-        pkg.dependencies?.['@sunbox/altium-toolkit'],
-        '^0.1.15'
-    )
-    assert.equal(
-        pkg.dependencies?.['@sunbox/kicad-toolkit'],
-        '^0.2.13'
-    )
+    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.15')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.13')
 })
 
 /**
@@ -159,6 +155,51 @@ test('app identity metadata uses the ECAD Forge name', async () => {
     assert.match(indexRaw, /<link[^>]+rel="icon"[^>]+href="\/favicon\.svg"/)
     assert.equal(englishMessages['app.title'], 'ECAD Forge')
     assert.equal(germanMessages['app.title'], 'ECAD Forge')
+})
+
+/**
+ * Verifies public crawler metadata exists without accidentally opting the
+ * production app out of indexing.
+ */
+test('app shell exposes indexable search metadata', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const robotsRaw = await readFile(new URL('src/robots.txt', root), 'utf8')
+    const sitemapRaw = await readFile(new URL('src/sitemap.xml', root), 'utf8')
+
+    assert.match(indexRaw, /<title>ECAD Forge<\/title>/)
+    assert.match(indexRaw, /<meta\s+name="description"/)
+    assert.match(indexRaw, /<meta\s+name="robots"\s+content="index,follow"/)
+    assert.match(
+        indexRaw,
+        /<link\s+rel="canonical"\s+href="https:\/\/ecadforge\.app\/"/
+    )
+    assert.doesNotMatch(indexRaw, /noindex/i)
+
+    assert.match(robotsRaw, /^User-agent: \*/m)
+    assert.match(robotsRaw, /^Allow: \/$/m)
+    assert.match(
+        robotsRaw,
+        /^Sitemap: https:\/\/ecadforge\.app\/sitemap\.xml$/m
+    )
+    assert.doesNotMatch(robotsRaw, /^Disallow:\s*\/$/m)
+
+    assert.match(sitemapRaw, /<loc>https:\/\/ecadforge\.app\/<\/loc>/)
+})
+
+/**
+ * Verifies public view navigation uses crawlable internal links in addition
+ * to JavaScript handling.
+ */
+test('app shell uses normal internal links for important views', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const expectedRoutes = ['/schematic', '/pcb', '/3d', '/bom', '/diagnostics']
+
+    for (const route of expectedRoutes) {
+        assert.match(
+            indexRaw,
+            new RegExp('<a[^>]+href="' + route.replace('/', '\\/') + '"')
+        )
+    }
 })
 
 /**

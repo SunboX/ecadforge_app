@@ -59,8 +59,10 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
+- `GET /robots.txt`: crawler policy that allows public app crawling and points to the production sitemap
+- `GET /sitemap.xml`: production sitemap for the app shell and crawlable view URLs
 - `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium and KiCad Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
 
 ## Static Deployment
 
-The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, `package.json` to `/`, and production `node_modules/` to `/node_modules/` when dependency metadata changes.
+The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` also rewrites extensionless app routes such as `/pcb` and `/diagnostics` to `index.html` so crawlable view links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, `package.json` to `/`, and production `node_modules/` to `/node_modules/` when dependency metadata changes.

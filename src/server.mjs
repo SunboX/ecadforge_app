@@ -187,7 +187,7 @@ app.get(['/api/app-meta', '/api/app-meta.php'], async (_req, res) => {
 })
 
 app.use((req, res) => {
-    const hasFileExtension = /.[a-z0-9]+$/i.test(req.path)
+    const hasFileExtension = /\.[a-z0-9]+$/i.test(req.path)
     if (hasFileExtension) {
         res.status(404).send('Not Found')
         return
