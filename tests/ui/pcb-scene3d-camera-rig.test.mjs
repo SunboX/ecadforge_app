@@ -24,9 +24,7 @@ const resolveScreenBasis = (preset) => {
         y:
             normalizedForward.z * preset.up.x -
             normalizedForward.x * preset.up.z,
-        z:
-            normalizedForward.x * preset.up.y -
-            normalizedForward.y * preset.up.x
+        z: normalizedForward.x * preset.up.y - normalizedForward.y * preset.up.x
     }
     const rightLength = Math.hypot(right.x, right.y, right.z) || 1
 
@@ -55,10 +53,7 @@ const projectPointToScreen = (point, basis) => ({
         point.x * basis.right.x +
         point.y * basis.right.y +
         point.z * basis.right.z,
-    y:
-        point.x * basis.up.x +
-        point.y * basis.up.y +
-        point.z * basis.up.z
+    y: point.x * basis.up.x + point.y * basis.up.y + point.z * basis.up.z
 })
 
 /**
@@ -77,7 +72,7 @@ test('PcbScene3dCameraRig resolves presets with a z-up camera basis', () => {
     assert.deepEqual(preset.up, { x: 0, y: 0, z: 1 })
     assert.equal(preset.radius, 1900)
     assert.ok(preset.position.x > 0)
-    assert.ok(preset.position.y > 0)
+    assert.ok(preset.position.y < 0)
     assert.ok(preset.position.z > 0)
 })
 

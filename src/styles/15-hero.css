@@ -257,7 +257,7 @@
     text-align: center;
 }
 
-.hero-proof__views li:first-child {
+.hero-proof__views li[data-view-chip='pcb'] {
     color: var(--brand-strong);
     border-color: rgba(184, 90, 37, 0.22);
     background: rgba(255, 248, 241, 0.84);

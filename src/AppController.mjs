@@ -2,6 +2,8 @@ import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
+import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
+import { GitHubShareUrlWriter } from './GitHubShareUrlWriter.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
 /**
@@ -10,16 +12,12 @@ import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 export class AppController {
     /** @type {import('./core/AppState.mjs').AppState} */
     #state
-
     /** @type {import('./ui/AppView.mjs').AppView} */
     #view
-
     /** @type {{ getLocale: () => string, setLocale: (locale: string) => void, translate: (key: string) => string, applyToDom: (node: Document) => void } | null} */
     #i18n
-
     /** @type {(() => Worker) | null} */
     #createWorker
-
     /** @type {{ parseArrayBuffer?: (fileName: string, buffer: ArrayBuffer) => object, parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object }} */
     #parser
 
@@ -296,9 +294,11 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadGitHubUrl(url) {
-        await this.#loadGitHubSource(async () => {
-            return this.#githubSourceLoader.loadUrl(url)
-        })
+        await this.#loadGitHubSource(async () =>
+            Object.assign(await this.#githubSourceLoader.loadUrl(url), {
+                shareUrl: url
+            })
+        )
     }
 
     /**
@@ -308,14 +308,13 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadGitHubPath(githubPath, ref) {
-        await this.#loadGitHubSource(async () => {
-            if (typeof this.#githubSourceLoader.loadGitHubPath === 'function') {
-                return this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
-            }
-
-            const loader = new GitHubSourceLoader({ fetcher: this.#fetcher })
-            return loader.loadGitHubPath(githubPath, ref)
-        })
+        await this.#loadGitHubSource(() =>
+            typeof this.#githubSourceLoader.loadGitHubPath === 'function'
+                ? this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
+                : new GitHubSourceLoader({
+                      fetcher: this.#fetcher
+                  }).loadGitHubPath(githubPath, ref)
+        )
     }
 
     /**
@@ -330,12 +329,13 @@ export class AppController {
         this.#state.patch({
             parseStatus: 'loading',
             statusMessage:
-                'Loading the GitHub file. Parsing still happens locally in your browser...'
+                'Loading the GitHub source. Parsing still happens locally in your browser...'
         })
 
         try {
             const source = await loadSource()
             const parseResult = await this.#parseEntries(source.entries || [])
+            GitHubSourceModelLinker.apply(parseResult, source)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
                 statusMessage:
@@ -348,6 +348,7 @@ export class AppController {
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
             this.#setPcbStylerLink(String(source.boardUrl || ''), 'github')
+            GitHubShareUrlWriter.update(String(source.shareUrl || ''))
         } catch (error) {
             this.#handleParseError(AppController.#getErrorMessage(error))
             this.#analytics.track('github_url_loaded_error', {

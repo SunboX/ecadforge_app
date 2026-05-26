@@ -142,6 +142,47 @@ function createFakeThree() {
         }
     }
 
+    class FakeShape {
+        constructor() {
+            this.commands = []
+        }
+
+        /**
+         * @param {number} x
+         * @param {number} y
+         * @returns {void}
+         */
+        moveTo(x, y) {
+            this.commands.push({ type: 'moveTo', x, y })
+        }
+
+        /**
+         * @param {number} x
+         * @param {number} y
+         * @returns {void}
+         */
+        lineTo(x, y) {
+            this.commands.push({ type: 'lineTo', x, y })
+        }
+
+        /**
+         * @returns {void}
+         */
+        closePath() {
+            this.commands.push({ type: 'closePath' })
+        }
+    }
+
+    class FakeShapeGeometry {
+        /**
+         * @param {FakeShape} shape
+         */
+        constructor(shape) {
+            this.type = 'ShapeGeometry'
+            this.shape = shape
+        }
+    }
+
     return {
         Group: FakeGroup,
         Mesh: FakeMesh,
@@ -152,6 +193,8 @@ function createFakeThree() {
         MeshBasicMaterial: FakeMeshBasicMaterial,
         MeshStandardMaterial: FakeMeshStandardMaterial,
         BoxGeometry: FakeBoxGeometry,
+        Shape: FakeShape,
+        ShapeGeometry: FakeShapeGeometry,
         DoubleSide: 'DoubleSide'
     }
 }
@@ -295,4 +338,41 @@ test('PcbScene3dSilkscreenFactory renders start-equals-end arcs as full circles'
     assert.ok(bounds.maxY - bounds.minY > 45)
     assert.equal(bounds.minZ, 12)
     assert.equal(bounds.maxZ, 12)
+})
+
+test('PcbScene3dSilkscreenFactory preserves polygon fill outlines', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [
+                    {
+                        points: [
+                            { x: 10, y: 20 },
+                            { x: 50, y: 20 },
+                            { x: 30, y: 70 }
+                        ]
+                    }
+                ],
+                tracks: [],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const fillMesh = group.children[0].children[0]
+
+    assert.equal(fillMesh.geometry.type, 'ShapeGeometry')
+    assert.deepEqual(fillMesh.geometry.shape.commands, [
+        { type: 'moveTo', x: 5, y: 10 },
+        { type: 'lineTo', x: 45, y: 10 },
+        { type: 'lineTo', x: 25, y: 60 },
+        { type: 'closePath' }
+    ])
+    assert.equal(fillMesh.position.z, 18)
 })

@@ -1,6 +1,7 @@
 import { PcbArcUtils } from 'altium-toolkit/renderers'
 import { PcbScene3dDrillPathFactory } from './PcbScene3dDrillPathFactory.mjs'
 import { PcbScene3dPadFactory } from './PcbScene3dPadFactory.mjs'
+import { PcbScene3dCopperTextFactory } from './PcbScene3dCopperTextFactory.mjs'
 
 /**
  * Builds copper-detail meshes for the interactive 3D PCB scene.
@@ -16,7 +17,7 @@ export class PcbScene3dCopperFactory {
     /**
      * Builds the combined top and bottom copper group.
      * @param {any} THREE
-     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[] }} detail
+     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[], copperTexts?: any[] }} detail
      * @param {number} topZ
      * @param {number} bottomZ
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
@@ -31,12 +32,10 @@ export class PcbScene3dCopperFactory {
                     detail?.tracks,
                     'top'
                 ),
-                arcs: PcbScene3dCopperFactory.#filterArcs(
-                    detail?.arcs,
-                    'top'
-                ),
+                arcs: PcbScene3dCopperFactory.#filterArcs(detail?.arcs, 'top'),
                 pads: detail?.pads || [],
-                vias: detail?.vias || []
+                vias: detail?.vias || [],
+                copperTexts: detail?.copperTexts || []
             },
             Math.abs(Number(topZ || 0)),
             normalizeBoardPoint,
@@ -54,7 +53,8 @@ export class PcbScene3dCopperFactory {
                     'bottom'
                 ),
                 pads: detail?.pads || [],
-                vias: detail?.vias || []
+                vias: detail?.vias || [],
+                copperTexts: detail?.copperTexts || []
             },
             Math.abs(Number(bottomZ || 0)),
             normalizeBoardPoint,
@@ -74,7 +74,7 @@ export class PcbScene3dCopperFactory {
     /**
      * Builds one side-specific copper group.
      * @param {any} THREE
-     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[] }} detail
+     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[], copperTexts?: any[] }} detail
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
@@ -113,6 +113,16 @@ export class PcbScene3dCopperFactory {
             normalizeBoardPoint,
             mirrorY
         )
+        const textGroup = PcbScene3dCopperTextFactory.buildGroup(
+            THREE,
+            detail?.copperTexts || [],
+            z + 0.25,
+            normalizeBoardPoint,
+            {
+                side: mirrorY ? 'bottom' : 'top',
+                mirrorY
+            }
+        )
 
         if (trackMesh) {
             group.add(trackMesh)
@@ -125,6 +135,9 @@ export class PcbScene3dCopperFactory {
         }
         if (drillMaskGroup.children.length) {
             group.add(drillMaskGroup)
+        }
+        if (textGroup.children.length) {
+            group.add(textGroup)
         }
         if (mirrorY && group.children.length) {
             group.rotation.x = Math.PI
@@ -417,9 +430,7 @@ export class PcbScene3dCopperFactory {
                 positions,
                 {
                     x: center.x + Math.cos(startAngleRad) * radius,
-                    y:
-                        center.y +
-                        Math.sin(startAngleRad) * radius * yDirection
+                    y: center.y + Math.sin(startAngleRad) * radius * yDirection
                 },
                 strokeWidth / 2,
                 z
@@ -427,7 +438,9 @@ export class PcbScene3dCopperFactory {
             PcbScene3dCopperFactory.#appendDiscTriangles(
                 positions,
                 {
-                    x: center.x + Math.cos(startAngleRad + deltaAngleRad) * radius,
+                    x:
+                        center.x +
+                        Math.cos(startAngleRad + deltaAngleRad) * radius,
                     y:
                         center.y +
                         Math.sin(startAngleRad + deltaAngleRad) *
@@ -450,13 +463,21 @@ export class PcbScene3dCopperFactory {
      * @param {boolean} mirrorY
      * @returns {any}
      */
-    static #buildDrillMaskGroup(THREE, detail, z, normalizeBoardPoint, mirrorY) {
+    static #buildDrillMaskGroup(
+        THREE,
+        detail,
+        z,
+        normalizeBoardPoint,
+        mirrorY
+    ) {
         const group = new THREE.Group()
         const material = PcbScene3dCopperFactory.#buildDrillMaskMaterial(THREE)
         const seen = new Set()
         group.name = 'copper-drill-masks'
 
-        for (const drillSpec of PcbScene3dCopperFactory.#resolveDrillSpecs(detail)) {
+        for (const drillSpec of PcbScene3dCopperFactory.#resolveDrillSpecs(
+            detail
+        )) {
             const point = PcbScene3dCopperFactory.#normalizePoint(
                 normalizeBoardPoint,
                 drillSpec.x,
@@ -517,7 +538,9 @@ export class PcbScene3dCopperFactory {
      */
     static #resolveDrillSpecs(detail) {
         return [
-            ...PcbScene3dCopperFactory.#resolveViaDrillSpecs(detail?.vias || []),
+            ...PcbScene3dCopperFactory.#resolveViaDrillSpecs(
+                detail?.vias || []
+            ),
             ...PcbScene3dCopperFactory.#resolvePadDrillSpecs(detail?.pads || [])
         ]
     }

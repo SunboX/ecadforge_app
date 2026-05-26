@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { I18nService } from '../src/I18n.mjs'
+
+const root = new URL('../', import.meta.url)
 
 /**
  * Minimal fake node for i18n DOM application tests.
@@ -107,4 +110,29 @@ test('I18nService applies translated text and attributes to the DOM', () => {
         'GitHub-Repository'
     )
     assert.equal(documentRef.getAttributeNode().getAttribute('title'), 'GitHub')
+})
+
+/**
+ * Verifies visible German app copy uses native umlauts instead of ASCII
+ * transliterations.
+ */
+test('German locale uses native umlauts in visible app copy', async () => {
+    const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
+    const germanMessages = JSON.parse(germanRaw)
+
+    assert.equal(
+        germanMessages['app.subtitle'],
+        'Privater ECAD-Viewer für Altium & KiCad.'
+    )
+    assert.equal(germanMessages['app.open'], 'Lokale Dateien öffnen')
+    assert.equal(germanMessages['app.openFolder'], 'Ordner öffnen')
+    assert.equal(
+        germanMessages['app.dropCopy'],
+        'Schaltpläne, PCB-Layouts, 3D-Boards, BOMs und Diagnosen direkt im Browser ansehen. Kein Upload, kein Account, keine serverseitige Vorverarbeitung.'
+    )
+    assert.match(germanMessages['status.loaded'], /für PCB/)
+    assert.match(germanMessages['status.invalidFile'], /unterstützt/)
+    assert.match(germanMessages['status.invalidFile'], /ausgewählte/)
+    assert.match(germanMessages['status.invalidFile'], /öffne/)
+    assert.match(germanMessages['status.assetsAdded'], /hinzugefügt/)
 })

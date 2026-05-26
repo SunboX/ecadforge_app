@@ -80,12 +80,142 @@ test('GitHubSourceLoader fetches KiCad project siblings with the same stem', asy
     assert.equal(result.boardUrl, baseUrl + '.kicad_pcb')
 })
 
+test('GitHubSourceLoader discovers a KiCad project from GitHub tree folders', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/board'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'board.kicad_pro',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pro'
+            },
+            {
+                name: 'board.kicad_sch',
+                type: 'file',
+                download_url: baseUrl + '.kicad_sch'
+            },
+            {
+                name: 'board.kicad_pcb',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pcb'
+            }
+        ]),
+        [baseUrl + '.kicad_pro']: '{}',
+        [baseUrl + '.kicad_sch']: '(kicad_sch)',
+        [baseUrl + '.kicad_pcb']: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://github.com/acme/demo/tree/main/hardware/project'
+    )
+
+    assert.deepEqual(urls, [
+        apiUrl,
+        baseUrl + '.kicad_pro',
+        baseUrl + '.kicad_sch',
+        baseUrl + '.kicad_pcb'
+    ])
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.kicad_pro', 'board.kicad_sch', 'board.kicad_pcb']
+    )
+    assert.equal(result.rawUrl, baseUrl + '.kicad_pro')
+    assert.equal(result.boardUrl, baseUrl + '.kicad_pcb')
+})
+
+test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/board'
+    const modelUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/parts/body.step'
+    const boardSource = `
+        (kicad_pcb
+            (footprint "Fixture:Body"
+                (property "Reference" "U1")
+                (property "Value" "Body")
+                (at 1 2 90)
+                (layer "F.Cu")
+                (model "\${KIPRJMOD}/parts/body.step"
+                    (offset (xyz 0 0 1.5))
+                    (scale (xyz 1 1 1))
+                    (rotate (xyz 0 0 90))
+                )
+            )
+        )
+    `
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'board.kicad_pro',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pro'
+            },
+            {
+                name: 'board.kicad_sch',
+                type: 'file',
+                download_url: baseUrl + '.kicad_sch'
+            },
+            {
+                name: 'board.kicad_pcb',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pcb'
+            }
+        ]),
+        [baseUrl + '.kicad_pro']: '{}',
+        [baseUrl + '.kicad_sch']: '(kicad_sch)',
+        [baseUrl + '.kicad_pcb']: boardSource,
+        [modelUrl]: 'ISO-10303-21;'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://github.com/acme/demo/tree/main/hardware/project'
+    )
+
+    assert.ok(urls.includes(modelUrl))
+    assert.deepEqual(
+        result.assets.map((asset) => ({
+            name: asset.name,
+            relativePath: asset.relativePath,
+            format: asset.format
+        })),
+        [
+            {
+                name: 'body.step',
+                relativePath: 'parts/body.step',
+                format: 'step'
+            }
+        ]
+    )
+    assert.deepEqual(result.modelReferences, [
+        {
+            designator: 'U1',
+            modelName: 'body.step',
+            modelPath: '\${KIPRJMOD}/parts/body.step',
+            relativePath: 'parts/body.step',
+            modelTransform: {
+                rotationDeg: { x: 0, y: 0, z: 90 },
+                dzMil: 59.05511811023622
+            }
+        }
+    ])
+})
+
 test('GitHubSourceLoader rejects unsupported source files before fetching', async () => {
     const { fetcher, urls } = createFetchDouble({})
     const loader = new GitHubSourceLoader({ fetcher })
 
     await assert.rejects(
-        () => loader.loadUrl('https://raw.githubusercontent.com/a/b/main/readme.md'),
+        () =>
+            loader.loadUrl(
+                'https://raw.githubusercontent.com/a/b/main/readme.md'
+            ),
         /not supported/
     )
     assert.deepEqual(urls, [])

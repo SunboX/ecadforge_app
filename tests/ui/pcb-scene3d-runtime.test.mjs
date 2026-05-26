@@ -704,6 +704,16 @@ test('PcbScene3dRuntime keeps the isometric preset unmirrored', () => {
     })
 })
 
+test('PcbScene3dRuntime shows front-right KiCad anchors on the right in isometric view', () => {
+    const screenPoint = projectPresetPoint('isometric', {
+        x: 845,
+        y: -278,
+        z: 0
+    })
+
+    assert.ok(screenPoint.x > 0)
+})
+
 test('PcbScene3dRuntime keeps fallback bodies hidden by default and waits for deferred settlement before reporting ready', async () => {
     const originalWindow = globalThis.window
     const originalDocument = globalThis.document

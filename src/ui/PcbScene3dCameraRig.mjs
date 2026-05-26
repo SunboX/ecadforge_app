@@ -57,7 +57,7 @@ export class PcbScene3dCameraRig {
             }
         }
 
-        let theta = Math.PI / 4
+        let theta = -Math.PI / 4
         let phi = Math.PI / 3.3
 
         return {
@@ -89,13 +89,14 @@ export class PcbScene3dCameraRig {
             normalizedPreset,
             sceneDescription,
             {
-                radius:
-                    resetsView ?
-                        PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
-                    : PcbScene3dCameraRig.#resolveCurrentRadius(camera, controls),
-                target:
-                    resetsView ?
-                        { x: 0, y: 0, z: 0 }
+                radius: resetsView
+                    ? PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
+                    : PcbScene3dCameraRig.#resolveCurrentRadius(
+                          camera,
+                          controls
+                      ),
+                target: resetsView
+                    ? { x: 0, y: 0, z: 0 }
                     : PcbScene3dCameraRig.#resolveCurrentTarget(controls)
             }
         )

@@ -126,10 +126,7 @@ export class PcbScene3dSilkscreenFactory {
             )
         }
 
-        return PcbScene3dSilkscreenFactory.#buildStrokeMesh(
-            THREE,
-            positions
-        )
+        return PcbScene3dSilkscreenFactory.#buildStrokeMesh(THREE, positions)
     }
 
     /**
@@ -160,16 +157,13 @@ export class PcbScene3dSilkscreenFactory {
             )
         }
 
-        return PcbScene3dSilkscreenFactory.#buildStrokeMesh(
-            THREE,
-            positions
-        )
+        return PcbScene3dSilkscreenFactory.#buildStrokeMesh(THREE, positions)
     }
 
     /**
      * Builds thin fill meshes for silkscreen solids.
      * @param {any} THREE
-     * @param {{ x1: number, y1: number, x2: number, y2: number }[]} fills
+     * @param {{ x1?: number, y1?: number, x2?: number, y2?: number, points?: { x: number, y: number }[] }[]} fills
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
@@ -179,23 +173,121 @@ export class PcbScene3dSilkscreenFactory {
         const material = PcbScene3dSilkscreenFactory.#buildMaterial(THREE)
 
         return fills.map((fill) => {
-            const center = PcbScene3dSilkscreenFactory.#normalizePoint(
+            const points = PcbScene3dSilkscreenFactory.#normalizeFillPoints(
+                fill,
                 normalizeBoardPoint,
-                (Number(fill.x1 || 0) + Number(fill.x2 || 0)) / 2,
-                (Number(fill.y1 || 0) + Number(fill.y2 || 0)) / 2,
                 mirrorY
             )
-            const mesh = new THREE.Mesh(
-                new THREE.BoxGeometry(
-                    Math.max(Math.abs(Number(fill.x2 || 0) - Number(fill.x1 || 0)), 1),
-                    Math.max(Math.abs(Number(fill.y2 || 0) - Number(fill.y1 || 0)), 1),
-                    PcbScene3dSilkscreenFactory.#FILL_THICKNESS_MIL
-                ),
+
+            if (points.length >= 3 && THREE.Shape && THREE.ShapeGeometry) {
+                return PcbScene3dSilkscreenFactory.#buildShapeFillMesh(
+                    THREE,
+                    points,
+                    z,
+                    material
+                )
+            }
+
+            return PcbScene3dSilkscreenFactory.#buildBoxFillMesh(
+                THREE,
+                fill,
+                z,
+                normalizeBoardPoint,
+                mirrorY,
                 material
             )
-            mesh.position.set(center.x, center.y, z)
-            return mesh
         })
+    }
+
+    /**
+     * Builds one polygon fill mesh from authored silkscreen points.
+     * @param {any} THREE
+     * @param {{ x: number, y: number }[]} points Normalized polygon points.
+     * @param {number} z
+     * @param {any} material
+     * @returns {any}
+     */
+    static #buildShapeFillMesh(THREE, points, z, material) {
+        const shape = new THREE.Shape()
+        shape.moveTo(points[0].x, points[0].y)
+
+        for (const point of points.slice(1)) {
+            shape.lineTo(point.x, point.y)
+        }
+
+        shape.closePath()
+
+        const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
+        mesh.position.set(0, 0, z)
+        return mesh
+    }
+
+    /**
+     * Builds one rectangular fallback fill mesh.
+     * @param {any} THREE
+     * @param {{ x1?: number, y1?: number, x2?: number, y2?: number }} fill
+     * @param {number} z
+     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @param {boolean} mirrorY
+     * @param {any} material
+     * @returns {any}
+     */
+    static #buildBoxFillMesh(
+        THREE,
+        fill,
+        z,
+        normalizeBoardPoint,
+        mirrorY,
+        material
+    ) {
+        const center = PcbScene3dSilkscreenFactory.#normalizePoint(
+            normalizeBoardPoint,
+            (Number(fill.x1 || 0) + Number(fill.x2 || 0)) / 2,
+            (Number(fill.y1 || 0) + Number(fill.y2 || 0)) / 2,
+            mirrorY
+        )
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(
+                Math.max(
+                    Math.abs(Number(fill.x2 || 0) - Number(fill.x1 || 0)),
+                    1
+                ),
+                Math.max(
+                    Math.abs(Number(fill.y2 || 0) - Number(fill.y1 || 0)),
+                    1
+                ),
+                PcbScene3dSilkscreenFactory.#FILL_THICKNESS_MIL
+            ),
+            material
+        )
+        mesh.position.set(center.x, center.y, z)
+        return mesh
+    }
+
+    /**
+     * Normalizes authored polygon fill points.
+     * @param {{ points?: { x: number, y: number }[] }} fill
+     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @param {boolean} mirrorY
+     * @returns {{ x: number, y: number }[]}
+     */
+    static #normalizeFillPoints(fill, normalizeBoardPoint, mirrorY) {
+        if (!Array.isArray(fill?.points)) {
+            return []
+        }
+
+        return fill.points
+            .map((point) =>
+                PcbScene3dSilkscreenFactory.#normalizePoint(
+                    normalizeBoardPoint,
+                    Number(point?.x || 0),
+                    Number(point?.y || 0),
+                    mirrorY
+                )
+            )
+            .filter(
+                (point) => Number.isFinite(point.x) && Number.isFinite(point.y)
+            )
     }
 
     /**
@@ -312,7 +404,7 @@ export class PcbScene3dSilkscreenFactory {
         const segments = Math.max(
             isFullCircle ? 20 : 8,
             Math.ceil((Math.abs(deltaAngleRad) / Math.PI) * 18)
-            )
+        )
         const yDirection = mirrorY ? -1 : 1
 
         for (let index = 0; index < segments; index += 1) {

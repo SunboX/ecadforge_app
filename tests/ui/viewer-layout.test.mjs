@@ -61,6 +61,14 @@ test('sample CTA styles use explicit Altium and KiCad color classes', async () =
         layoutCss,
         /\.file-pill--kicad\s*\{[\s\S]*background:\s*linear-gradient\(180deg,\s*#10998f,\s*#08736c\);/
     )
+    assert.match(
+        layoutCss,
+        /\.file-pill--altium \.icon,\s*\.file-pill--kicad \.icon\s*\{[\s\S]*width:\s*1\.25rem;[\s\S]*height:\s*1\.25rem;[\s\S]*color:\s*#fff;/
+    )
+    assert.match(
+        layoutCss,
+        /\.file-pill \.icon path,[\s\S]*\.file-pill \.icon rect,[\s\S]*\.file-pill \.icon circle,/
+    )
     assert.doesNotMatch(heroCss, /\.hero-actions \.file-pill:first-child/)
     assert.doesNotMatch(heroCss, /\.hero-actions \.file-pill:nth-child/)
     assert.doesNotMatch(

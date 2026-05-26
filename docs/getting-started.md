@@ -52,7 +52,7 @@ npm test
 ## First Workflow
 
 1. Open the app in the browser.
-2. Open a bundled sample from `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, or `/?demo=altium`; paste a supported GitHub raw/blob URL; or drop a standalone native Altium `.SchDoc`/`.PcbDoc` file, a KiCad `.kicad_pro` project with its `.kicad_sch`/`.kicad_pcb` files, a standalone KiCad schematic or PCB file, or a KiCad project ZIP into the upload zone. KiCad project folders can also be opened from the header.
+2. Open a bundled sample from `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, or `/?demo=altium`; paste a supported GitHub raw/blob file URL or GitHub tree folder URL; or drop a standalone native Altium `.SchDoc`/`.PcbDoc` file, a KiCad `.kicad_pro` project with its `.kicad_sch`/`.kicad_pcb` files, a standalone KiCad schematic or PCB file, or a KiCad project ZIP into the upload zone. KiCad project folders can also be opened from the header, and GitHub project folders can include project-local KiCad `STEP`/`WRL` models for the `3D` view.
 3. Wait for the worker-backed parser to finish.
 4. Switch between `Schematic`, `PCB`, `3D`, `BOM`, and `Diagnostics`.
 5. Use `Diagnostics` to inspect parser recovery details when a document is only partially understood.

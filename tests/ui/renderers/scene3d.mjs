@@ -70,12 +70,17 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
         css,
         /\.scene-3d__preset(?:\.is-active|\[aria-pressed='true'\])[\s\S]*\{/
     )
-    assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*align-items:\s*start;/)
-    assert.match(css, /\.scene-3d__viewport\s*\{/)
+    assert.match(css, /\.scene-3d\s*\{[\s\S]*height:\s*100%;/)
     assert.match(
         css,
-        /\.scene-3d__viewport\s*\{[\s\S]*aspect-ratio:\s*4\s*\/\s*3;/
+        /\.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(320px, 1fr\) auto auto;/
     )
+    assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*height:\s*100%;/)
+    assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*min-height:\s*0;/)
+    assert.match(css, /\.scene-3d__viewport\s*\{/)
+    assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*height:\s*100%;/)
+    assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*min-height:\s*0;/)
+    assert.doesNotMatch(css, /aspect-ratio:\s*4\s*\/\s*3;/)
     assert.match(css, /\.scene-3d__controls\s*\{/)
     assert.match(css, /\.scene-3d__selection\s*\{/)
     assert.match(css, /\.scene-3d__diagnostics\s*\{/)
@@ -101,11 +106,47 @@ test('viewer stylesheet colors PCB copper regions', async () => {
         css,
         /\.pcb-copper--subsurface\s+\.pcb-region\s*\{[\s\S]*fill:\s*var\(--pcb-subsurface-fill\);/
     )
-    assert.match(css, /--pcb-surface-copper-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.08\);/)
-    assert.match(css, /--pcb-surface-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.09\);/)
-    assert.match(css, /--pcb-subsurface-fill:\s*rgba\(114,\s*84,\s*62,\s*0\.045\);/)
-    assert.match(css, /--pcb-copper-solid-fill:\s*rgba\(196,\s*118,\s*70,\s*0\.54\);/)
-    assert.match(css, /--pcb-component-top-fill:\s*rgba\(203,\s*139,\s*96,\s*0\.68\);/)
+    assert.match(
+        css,
+        /--pcb-surface-copper-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.08\);/
+    )
+    assert.match(
+        css,
+        /--pcb-surface-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.09\);/
+    )
+    assert.match(
+        css,
+        /--pcb-subsurface-fill:\s*rgba\(114,\s*84,\s*62,\s*0\.045\);/
+    )
+    assert.match(
+        css,
+        /--pcb-copper-solid-fill:\s*rgba\(196,\s*118,\s*70,\s*0\.54\);/
+    )
+    assert.match(
+        css,
+        /--pcb-component-top-fill:\s*rgba\(203,\s*139,\s*96,\s*0\.68\);/
+    )
+})
+
+/**
+ * Verifies Altium top-overlay silkscreen paths and labels use the viewer's
+ * yellow footprint color instead of default SVG black fills.
+ */
+test('viewer stylesheet colors Altium PCB silkscreen regions and text', async () => {
+    const cssPath = new URL(
+        '../../../src/styles/20-viewer.css',
+        import.meta.url
+    )
+    const css = await readFile(cssPath, 'utf8')
+
+    assert.match(
+        css,
+        /\.pcb-footprint-region\s*\{[\s\S]*fill:\s*var\(--pcb-footprint-track-color\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-text\s*\{[\s\S]*fill:\s*var\(--pcb-footprint-track-color\);/
+    )
 })
 
 /**

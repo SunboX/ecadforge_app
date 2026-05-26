@@ -796,13 +796,16 @@ test('AppController loads a bundled demo startup source through the parser', asy
 
     const snapshot = state.getSnapshot()
 
-    assert.deepEqual(parser.seenNames, [
-        'NODEMCU_ESP12.SchDoc',
-        'NODEMCU_ESP12.PcbDoc',
-        'RP2040_minimal.kicad_pro',
-        'RP2040_minimal.kicad_sch',
-        'RP2040_minimal.kicad_pcb'
-    ].slice(2))
+    assert.deepEqual(
+        parser.seenNames,
+        [
+            'NODEMCU_ESP12.SchDoc',
+            'NODEMCU_ESP12.PcbDoc',
+            'RP2040_minimal.kicad_pro',
+            'RP2040_minimal.kicad_sch',
+            'RP2040_minimal.kicad_pcb'
+        ].slice(2)
+    )
     assert.equal(snapshot.documents.length, 2)
     assert.equal(snapshot.parseStatus, 'ready')
     assert.match(snapshot.statusMessage, /sample project is parsed locally/i)
@@ -911,4 +914,85 @@ test('AppController loads GitHub startup sources through the parser', async () =
         sourceType: 'github',
         formatFamily: 'kicad'
     })
+})
+
+/**
+ * Verifies GitHub-sourced companion model assets and model references are
+ * retained for the 3D scene resolver.
+ */
+test('AppController stores GitHub companion model assets and references', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const analytics = new RecordingAnalytics()
+    const boardDocument = createPcbDocument('board.kicad_pcb')
+    boardDocument.sourceFormat = 'kicad'
+    boardDocument.pcb.components = [
+        {
+            designator: 'U1',
+            pattern: 'Fixture:Body'
+        }
+    ]
+    const parser = new BatchParser({
+        documents: [boardDocument],
+        assets: []
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        analytics,
+        githubSourceLoader: {
+            async loadUrl(_url) {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'kicad',
+                    boardUrl:
+                        'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
+                    entries: [
+                        {
+                            name: 'board.kicad_pcb',
+                            buffer: new ArrayBuffer(8)
+                        }
+                    ],
+                    assets: [
+                        {
+                            name: 'body.step',
+                            relativePath: 'parts/body.step',
+                            bytes: new Uint8Array([1, 2, 3]),
+                            format: 'step'
+                        }
+                    ],
+                    modelReferences: [
+                        {
+                            designator: 'U1',
+                            modelName: 'body.step',
+                            modelPath: '${KIPRJMOD}/parts/body.step',
+                            relativePath: 'parts/body.step',
+                            modelTransform: {
+                                rotationDeg: { x: 0, y: 0, z: 90 },
+                                dzMil: 12
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/a/b/blob/main/board.kicad_pcb'
+        }
+    })
+
+    await controller.init()
+
+    const snapshot = state.getSnapshot()
+    const component = snapshot.documentModel.pcb.components[0]
+
+    assert.equal(snapshot.sessionAssets.length, 1)
+    assert.equal(snapshot.sessionAssets[0].name, 'body.step')
+    assert.equal(snapshot.sessionAssets[0].relativePath, 'parts/body.step')
+    assert.equal(snapshot.sessionAssets[0].format, 'step')
+    assert.equal(component.modelName, 'body.step')
+    assert.equal(component.modelPath, '${KIPRJMOD}/parts/body.step')
+    assert.equal(component.modelTransform.rotationDeg.z, 90)
 })

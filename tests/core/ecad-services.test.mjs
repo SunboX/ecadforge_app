@@ -71,6 +71,160 @@ test('EcadParserService dispatches mixed Altium and KiCad batches', async () => 
 })
 
 /**
+ * Verifies native-style uppercase Altium schematic fields remain readable
+ * through the app's installed parser integration.
+ */
+test('EcadParserService parses uppercase Altium schematic fields', () => {
+    const source = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|CUSTOMX=200|CUSTOMY=120|VISIBLEGRIDSIZE=10|SNAPGRIDSIZE=5' +
+            '|BORDERON=F|TITLEBLOCKON=F|CUSTOMMARGINWIDTH=10|CUSTOMXZONES=6|CUSTOMYZONES=4' +
+            '|FONTIDCOUNT=1|SIZE1=10|FONTNAME1=Times New Roman|BOLD1=F|ROTATION1=0' +
+            '|RECORD=13|LOCATION.X=20|LOCATION.Y=40|CORNER.X=90|CORNER.Y=40' +
+            '|LINEWIDTH=1|COLOR=128|INDEXINSHEET=1' +
+            '|RECORD=2|OWNERINDEX=700|OWNERPARTID=1|PINCONGLOMERATE=58|PINLENGTH=20' +
+            '|LOCATION.X=120|LOCATION.Y=60|NAME=RUNE_A|DESIGNATOR=1' +
+            '|RECORD=41|LOCATION.X=140|LOCATION.Y=70|COLOR=8388608|FONTID=1' +
+            '|TEXT=GLYPH_A|NAME=Designator|OWNERINDEX=700'
+    )
+    const documentModel = EcadParserService.parseArrayBuffer(
+        'uppercase-fields.SchDoc',
+        source.buffer
+    )
+
+    assert.equal(documentModel.schematic.sheet.width, 200)
+    assert.equal(documentModel.schematic.lines.length, 1)
+    assert.equal(documentModel.schematic.pins.length, 1)
+    assert.equal(documentModel.schematic.texts.length, 1)
+})
+
+/**
+ * Verifies the app integration preserves marker-prefix Altium fields, visible
+ * metadata placeholders, and extended schematic line styles.
+ */
+test('EcadParserService renders prefixed Altium schematic records without internal parameters', () => {
+    const source = new TextEncoder().encode(
+        [
+            '|HEADER=Schematic Document',
+            '|FONTNAME1=Times New Roman|SIZE1=10|BORDERON=T|CUSTOMX=300' +
+                '|RECORD=31|CUSTOMY=180|VISIBLEGRIDSIZE=10|SNAPGRIDSIZE=5' +
+                '|CUSTOMMARGINWIDTH=10|CUSTOMXZONES=6|CUSTOMYZONES=4|FONTIDCOUNT=1',
+            '|X4=20|Y4=30|X1=20|Y1=80' +
+                '|RECORD=7|LOCATIONCOUNT=4|X2=80|Y2=80|X3=80|Y3=30' +
+                '|COLOR=128|AREACOLOR=16776960|ISSOLID=T|LINEWIDTH=1',
+            '|RECORD=41|NAME=Title|TEXT=RUNE BOARD|ISHIDDEN=T',
+            '|RECORD=4|LOCATION.X=20|LOCATION.Y=150|COLOR=8388608|FONTID=1|TEXT==Title',
+            '|RECORD=41|LOCATION.X=40|LOCATION.Y=120|NAME=PinUniqueId|TEXT=HIDDEN_PIN_KEY|FONTID=1',
+            '|RECORD=41|LOCATION.X=40|LOCATION.Y=110|NAME=Vendor|TEXT=HIDDEN_VENDOR|FONTID=1',
+            '|RECORD=41|LOCATION.X=40|LOCATION.Y=100|NAME=IC|TEXT=HIDDEN_DEVICE|FONTID=1',
+            '|RECORD=41|LOCATION.X=40|LOCATION.Y=90|NAME=DifferentialPair|TEXT=True|FONTID=1',
+            '|RECORD=41|LOCATION.X=80|LOCATION.Y=70|NAME=Comment|TEXT=VISIBLE_VALUE|FONTID=1',
+            '|RECORD=6|LOCATIONCOUNT=2|X1=20|Y1=150|X2=240|Y2=150' +
+                '|COLOR=8323857|LINEWIDTH=2|LINESTYLEEXT=3|INDEXINSHEET=2'
+        ].join('\u0000')
+    )
+    const documentModel = EcadParserService.parseArrayBuffer(
+        'prefixed-records.SchDoc',
+        source.buffer
+    )
+    const visibleTexts = documentModel.schematic.texts.map((text) => text.text)
+    const markup = EcadRendererService.renderSchematic(documentModel)
+
+    assert.equal(documentModel.schematic.sheet.width, 300)
+    assert.equal(documentModel.schematic.sheet.borderOn, true)
+    assert.deepEqual(documentModel.schematic.polygons[0].points, [
+        { x: 20, y: 80 },
+        { x: 80, y: 80 },
+        { x: 80, y: 30 },
+        { x: 20, y: 30 }
+    ])
+    assert.equal(visibleTexts.includes('RUNE BOARD'), true)
+    assert.equal(visibleTexts.includes('VISIBLE_VALUE'), true)
+    assert.equal(visibleTexts.includes('HIDDEN_PIN_KEY'), false)
+    assert.equal(visibleTexts.includes('HIDDEN_VENDOR'), false)
+    assert.equal(visibleTexts.includes('HIDDEN_DEVICE'), false)
+    assert.equal(visibleTexts.includes('True'), false)
+    assert.equal(
+        documentModel.schematic.lines.some((line) => line.lineStyle === 3),
+        true
+    )
+    assert.match(markup, /stroke-dasharray="16 10 3 10" stroke-linecap="round"/)
+})
+
+/**
+ * Verifies the app's installed Altium renderer scales sparse custom sheets
+ * even when parsed component placeholders are not rendered.
+ */
+test('EcadRendererService scales sparse Altium custom sheets with hidden placeholders', () => {
+    const markup = EcadRendererService.renderSchematic({
+        summary: { title: 'Hidden placeholder fit' },
+        schematic: {
+            sheet: {
+                width: 1500,
+                height: 950,
+                sourceWidth: 1500,
+                sourceHeight: 950,
+                marginWidth: 20,
+                borderOn: true,
+                titleBlockOn: false,
+                xZones: 4,
+                yZones: 4,
+                fonts: {
+                    1: {
+                        size: 10,
+                        family: 'Times New Roman',
+                        bold: false
+                    },
+                    6: {
+                        size: 36,
+                        family: 'Times New Roman',
+                        bold: false
+                    }
+                }
+            },
+            lines: [
+                {
+                    x1: 740,
+                    y1: 730,
+                    x2: 1120,
+                    y2: 730,
+                    color: '#000080',
+                    width: 2
+                },
+                {
+                    x1: 30,
+                    y1: 30,
+                    x2: 1120,
+                    y2: 30,
+                    color: '#000080',
+                    width: 2
+                }
+            ],
+            texts: [
+                {
+                    x: 50,
+                    y: 690,
+                    text: 'EMBER NODE',
+                    color: '#000080',
+                    fontSize: 36,
+                    fontFamily: 'Times New Roman',
+                    fontWeight: 400
+                }
+            ],
+            components: [{ x: 0, y: 580, designator: 'U?' }],
+            pins: [],
+            ports: [],
+            crosses: []
+        }
+    })
+
+    assert.match(
+        markup,
+        /<g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(20 930\) scale\(1\.27\) translate\(-20 -930\)">/
+    )
+})
+
+/**
  * Verifies renderer and scene facades branch on sourceFormat.
  */
 test('ECAD renderer and 3D services accept KiCad document models', () => {
@@ -102,6 +256,161 @@ test('ECAD renderer and 3D services accept KiCad document models', () => {
     assert.match(kicadPcbMarkup, /pcb-svg--kicad/)
     assert.equal(scene.sourceFormat, 'kicad')
     assert.equal(scene.board.widthMil, 100)
+})
+
+/**
+ * Verifies KiCad silkscreen drawings from the parser root are exposed to the
+ * app's interactive 3D silkscreen layer.
+ */
+test('ECAD 3D service exposes KiCad silkscreen detail', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'silk-board.kicad_pcb',
+        pcb: {
+            boardOutline: { widthMil: 1000, heightMil: 500, segments: [] },
+            components: [],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'Silk Board',
+                bounds: { minX: 0, minY: 0, width: 25.4, height: 12.7 },
+                outlines: [],
+                pads: [],
+                drawings: [
+                    {
+                        type: 'line',
+                        layer: 'F.SilkS',
+                        side: 'front',
+                        strokeWidth: 0.2,
+                        start: { x: 1, y: 2 },
+                        end: { x: 4, y: 2 }
+                    },
+                    {
+                        type: 'polygon',
+                        layer: 'B.SilkS',
+                        side: 'back',
+                        fill: true,
+                        points: [
+                            { x: 5, y: 5 },
+                            { x: 6, y: 5 },
+                            { x: 6, y: 7 },
+                            { x: 5, y: 7 }
+                        ]
+                    },
+                    {
+                        type: 'zone',
+                        layer: 'F.Cu',
+                        side: 'front',
+                        fill: true,
+                        points: [
+                            { x: 0, y: 0 },
+                            { x: 20, y: 0 },
+                            { x: 20, y: 10 },
+                            { x: 0, y: 10 }
+                        ]
+                    }
+                ],
+                texts: []
+            }
+        },
+        bom: []
+    }
+
+    const scene = EcadScene3dService.build(kicadPcbDocument)
+
+    assert.deepEqual(scene.detail.silkscreen.top.tracks, [
+        {
+            x1: 39.37007874015748,
+            y1: 78.74015748031496,
+            x2: 157.48031496062993,
+            y2: 78.74015748031496,
+            width: 7.874015748031496
+        }
+    ])
+    assert.deepEqual(scene.detail.silkscreen.top.fills, [])
+    assert.deepEqual(scene.detail.silkscreen.bottom.fills, [
+        {
+            points: [
+                { x: 196.8503937007874, y: 196.8503937007874 },
+                { x: 236.2204724409449, y: 196.8503937007874 },
+                { x: 236.2204724409449, y: 275.5905511811024 },
+                { x: 196.8503937007874, y: 275.5905511811024 }
+            ]
+        }
+    ])
+})
+
+/**
+ * Verifies KiCad copper-layer text remains available to the 3D copper detail
+ * renderer instead of being dropped with non-copper annotations.
+ */
+test('ECAD 3D service exposes KiCad copper text detail', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'copper-text-board.kicad_pcb',
+        pcb: {
+            boardOutline: { widthMil: 1000, heightMil: 500, segments: [] },
+            components: [],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'Copper Text Board',
+                bounds: { minX: 0, minY: 0, width: 25.4, height: 12.7 },
+                outlines: [],
+                pads: [],
+                drawings: [],
+                texts: [
+                    {
+                        value: 'COPPER',
+                        x: 2,
+                        y: 3,
+                        rotation: 15,
+                        layer: 'F.Cu',
+                        side: 'front',
+                        hAlign: 'left',
+                        vAlign: 'bottom',
+                        sizeX: 0.5,
+                        sizeY: 0.6,
+                        thickness: 0.12,
+                        visible: true
+                    },
+                    {
+                        value: 'MASK',
+                        x: 2,
+                        y: 3,
+                        layer: 'F.Mask',
+                        side: 'front',
+                        visible: true
+                    }
+                ]
+            }
+        },
+        bom: []
+    }
+
+    const scene = EcadScene3dService.build(kicadPcbDocument)
+
+    assert.deepEqual(scene.detail.copperTexts, [
+        {
+            x: 78.74015748031496,
+            y: 118.11023622047244,
+            value: 'COPPER',
+            layer: 'F.Cu',
+            side: 'front',
+            layerId: 1,
+            rotation: 15,
+            mirrored: false,
+            hAlign: 'left',
+            vAlign: 'bottom',
+            sizeX: 19.68503937007874,
+            sizeY: 23.62204724409449,
+            thickness: 4.724409448818898
+        }
+    ])
 })
 
 /**

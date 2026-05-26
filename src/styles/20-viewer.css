@@ -286,7 +286,11 @@ body.is-viewer-mode .viewer-stage {
     padding: 0.7rem;
     border-radius: 16px;
     background:
-        linear-gradient(180deg, rgba(243, 240, 234, 0.98), rgba(230, 226, 218, 0.98)),
+        linear-gradient(
+            180deg,
+            rgba(243, 240, 234, 0.98),
+            rgba(230, 226, 218, 0.98)
+        ),
         radial-gradient(
             circle at top left,
             rgba(255, 255, 255, 0.92),
@@ -309,7 +313,11 @@ body.is-viewer-mode .viewer-stage {
     min-height: 0;
     border-radius: 12px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(247, 244, 238, 0.92)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.7),
+            rgba(247, 244, 238, 0.92)
+        ),
         repeating-linear-gradient(
             90deg,
             rgba(184, 90, 37, 0.03) 0 1px,
@@ -465,7 +473,7 @@ body.is-viewer-mode .viewer-stage {
     --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
     --pcb-via-hole-fill: #0f746c;
     --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
-    --pcb-footprint-track-color: rgba(237, 172, 36, 1.0);
+    --pcb-footprint-track-color: rgba(237, 172, 36, 1);
     --pcb-component-top-fill: rgba(203, 139, 96, 0.68);
     --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
     --pcb-component-stroke: rgba(110, 64, 38, 0.28);
@@ -487,7 +495,7 @@ body.is-viewer-mode .viewer-stage {
     --pcb-via-ring-fill: rgba(232, 236, 233, 0.92);
     --pcb-via-hole-fill: #0f746c;
     --pcb-footprint-fill: rgba(247, 230, 117, 0.14);
-    --pcb-footprint-track-color: rgba(237, 172, 36, 1.0);
+    --pcb-footprint-track-color: rgba(237, 172, 36, 1);
     --pcb-component-top-fill: rgba(203, 139, 96, 0.68);
     --pcb-component-bottom-fill: rgba(15, 116, 108, 0.84);
     --pcb-component-stroke: rgba(110, 64, 38, 0.28);
@@ -733,6 +741,10 @@ body.is-viewer-mode .viewer-stage {
     fill: var(--pcb-footprint-fill);
 }
 
+.pcb-footprint-region {
+    fill: var(--pcb-footprint-track-color);
+}
+
 .pcb-footprint-track {
     fill: none;
     stroke: var(--pcb-footprint-track-color);
@@ -755,6 +767,12 @@ body.is-viewer-mode .viewer-stage {
 
 .pcb-component--bottom .pcb-component__body {
     fill: var(--pcb-component-bottom-fill);
+}
+
+.pcb-text {
+    fill: var(--pcb-footprint-track-color);
+    font-weight: 700;
+    pointer-events: none;
 }
 
 .pcb-component text {

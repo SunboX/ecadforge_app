@@ -30,6 +30,27 @@ function resolveBounds(positions) {
     return bounds
 }
 
+/**
+ * Finds a nested Three object by name.
+ * @param {any} object Root object.
+ * @param {string} name Object name.
+ * @returns {any | null}
+ */
+function findObjectByName(object, name) {
+    if (object?.name === name) {
+        return object
+    }
+
+    for (const child of object?.children || []) {
+        const match = findObjectByName(child, name)
+        if (match) {
+            return match
+        }
+    }
+
+    return null
+}
+
 test('PcbScene3dCopperFactory separates top and bottom copper detail', () => {
     const group = PcbScene3dCopperFactory.buildGroup(
         THREE,
@@ -125,9 +146,7 @@ test('PcbScene3dCopperFactory rounds track endpoints like KiCad copper', () => {
     const group = PcbScene3dCopperFactory.buildGroup(
         THREE,
         {
-            tracks: [
-                { x1: 0, y1: 0, x2: 100, y2: 0, width: 20, layerId: 1 }
-            ],
+            tracks: [{ x1: 0, y1: 0, x2: 100, y2: 0, width: 20, layerId: 1 }],
             arcs: [],
             pads: [],
             vias: []
@@ -150,9 +169,7 @@ test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => 
     const group = PcbScene3dCopperFactory.buildGroup(
         THREE,
         {
-            tracks: [
-                { x1: 0, y1: 0, x2: 100, y2: 0, width: 12, layerId: 1 }
-            ],
+            tracks: [{ x1: 0, y1: 0, x2: 100, y2: 0, width: 12, layerId: 1 }],
             arcs: [],
             pads: [
                 {
@@ -181,4 +198,43 @@ test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => 
 
     assert.equal(maskGroup.children.length, 2)
     assert.ok(maskPositions.every((z) => z > 5))
+})
+
+test('PcbScene3dCopperFactory renders KiCad front copper text as stroke copper', () => {
+    const group = PcbScene3dCopperFactory.buildGroup(
+        THREE,
+        {
+            tracks: [],
+            arcs: [],
+            pads: [],
+            vias: [],
+            copperTexts: [
+                {
+                    x: 100,
+                    y: 120,
+                    value: 'OK',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    sizeX: 30,
+                    sizeY: 30,
+                    thickness: 6,
+                    hAlign: 'left',
+                    vAlign: 'bottom',
+                    rotation: 0
+                }
+            ]
+        },
+        7,
+        -7,
+        (x, y) => ({ x: x - 50, y: y - 60 })
+    )
+    const textMesh = findObjectByName(group, 'copper-text')
+
+    assert.ok(textMesh)
+    const bounds = resolveBounds(textMesh.geometry.attributes.position.array)
+
+    assert.ok(bounds.minX >= 45)
+    assert.ok(bounds.maxX > bounds.minX)
+    assert.ok(bounds.minY < 60)
+    assert.ok(bounds.maxZ > 6.99)
 })

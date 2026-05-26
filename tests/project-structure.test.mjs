@@ -325,6 +325,10 @@ test('app shell implements the marketing landingpage design shell', async () => 
         new URL('src/ui/ViewerEmptyStateRenderer.mjs', root),
         'utf8'
     )
+    const heroStyleRaw = await readFile(
+        new URL('src/styles/15-hero.css', root),
+        'utf8'
+    )
     const heroRaw = indexRaw.slice(
         indexRaw.indexOf('<div class="hero-actions"'),
         indexRaw.indexOf('<form')
@@ -348,17 +352,44 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /class="chip-icon chip-icon--cloud"/)
     assert.match(indexRaw, /data-view-chip="schematic"/)
     assert.match(indexRaw, /data-view-chip="diagnostics"/)
+    assert.match(
+        heroStyleRaw,
+        /\.hero-proof__views li\[data-view-chip='pcb'\]/
+    )
+    assert.doesNotMatch(heroStyleRaw, /\.hero-proof__views li:first-child/)
     assert.match(indexRaw, /class="github-open__input-wrap"/)
     assert.match(indexRaw, /class="meta-card__icon"/)
     assert.match(indexRaw, /class="[^"]*footer-inline[^"]*"/)
     assert.doesNotMatch(indexRaw, /<div class="footer-card">/)
     assert.match(heroRaw, /class="file-pill file-pill--kicad"/)
     assert.match(heroRaw, /class="file-pill file-pill--altium"/)
-    assert.ok(heroRaw.indexOf('Try KiCad sample') < heroRaw.indexOf('Try Altium sample'))
-    assert.ok(heroRaw.indexOf('Try Altium sample') < heroRaw.indexOf('Open local files'))
+    assert.match(
+        heroRaw,
+        /class="icon icon--sample-kicad"[\s\S]+Try KiCad sample/
+    )
+    assert.match(
+        heroRaw,
+        /class="icon icon--sample-altium"[\s\S]+Try Altium sample/
+    )
+    assert.ok(
+        heroRaw.indexOf('Try KiCad sample') <
+            heroRaw.indexOf('Try Altium sample')
+    )
+    assert.ok(
+        heroRaw.indexOf('Try Altium sample') <
+            heroRaw.indexOf('Open local files')
+    )
     assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(\)/)
     assert.match(emptyStateRaw, /file-pill file-pill--kicad[\s\S]+Try KiCad sample/)
     assert.match(emptyStateRaw, /file-pill file-pill--altium[\s\S]+Try Altium sample/)
+    assert.match(
+        emptyStateRaw,
+        /class="icon icon--sample-kicad"[\s\S]+Try KiCad sample/
+    )
+    assert.match(
+        emptyStateRaw,
+        /class="icon icon--sample-altium"[\s\S]+Try Altium sample/
+    )
 })
 
 /**

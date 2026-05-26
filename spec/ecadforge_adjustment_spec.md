@@ -109,7 +109,7 @@ Optional später:
 - Demo-Buttons müssen auf der Startseite sichtbar sein.
 - Demo-Ladevorgang soll sich wie echtes Öffnen eines Projekts anfühlen.
 - Nach dem Öffnen sollte eine kurze Tour oder ein Hinweis erscheinen:
-  > This sample project is parsed locally in your browser. Try switching between schematic, PCB, 3D, BOM and diagnostics.
+    > This sample project is parsed locally in your browser. Try switching between schematic, PCB, 3D, BOM and diagnostics.
 - Nutzer sollen Demo-Projekte wieder verlassen und eigene Dateien öffnen können.
 - Demo-Projekte sollten auch über direkte URLs erreichbar sein.
 
@@ -168,7 +168,9 @@ https://ecadforge.app/?github=owner/repo/path/to/project.kicad_pro
 ### Anforderungen
 
 - Unterstützung für `raw.githubusercontent.com`-URLs.
-- Optional Unterstützung für normale GitHub-URLs, die intern in Raw-URLs umgewandelt werden.
+- Unterstützung für normale GitHub-Blob-URLs, die intern in Raw-URLs umgewandelt werden.
+- Unterstützung für GitHub-Tree-Ordner-URLs, wenn der Ordner genau ein bevorzugtes unterstütztes ECAD-Projekt enthält.
+- GitHub-Tree-Ordner-URLs laden projektlokale KiCad-`STEP`/`WRL`-Modelle mit, wenn Footprints diese über `${KIPRJMOD}` referenzieren.
 - Fehleranzeige bei nicht unterstützten Dateien.
 - Klare CORS-/Fetch-Fehlerbehandlung.
 - Keine dauerhafte Speicherung fremder Dateien.
@@ -177,6 +179,7 @@ https://ecadforge.app/?github=owner/repo/path/to/project.kicad_pro
 ### Akzeptanzkriterien
 
 - Ein Nutzer kann eine unterstützte GitHub-Raw-Datei per URL öffnen.
+- Eine KiCad-GitHub-Projektmappe kann lokale 3D-Modelle und Silkscreen-Details in der `3D`-Ansicht zeigen.
 - Der Link ist teilbar und reproduzierbar.
 - Fehlerfälle werden verständlich angezeigt.
 - Lokale Verarbeitung bleibt klar kommuniziert.
@@ -318,10 +321,19 @@ Open Altium and KiCad designs locally in your browser. View schematics, PCB layo
 ### OpenGraph
 
 ```html
-<meta property="og:title" content="ECAD Forge – Altium & KiCad Viewer in Your Browser">
-<meta property="og:description" content="View native Altium and KiCad designs locally in your browser — no upload, no account, no installation.">
-<meta property="og:image" content="https://ecadforge.app/og/ecadforge-viewer.png">
-<meta property="og:type" content="website">
+<meta
+    property="og:title"
+    content="ECAD Forge – Altium & KiCad Viewer in Your Browser"
+/>
+<meta
+    property="og:description"
+    content="View native Altium and KiCad designs locally in your browser — no upload, no account, no installation."
+/>
+<meta
+    property="og:image"
+    content="https://ecadforge.app/og/ecadforge-viewer.png"
+/>
+<meta property="og:type" content="website" />
 ```
 
 ### Strukturierte Daten
@@ -332,18 +344,18 @@ Beispiel:
 
 ```json
 {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "ECAD Forge",
-  "applicationCategory": "DesignApplication",
-  "operatingSystem": "Any",
-  "description": "Open Altium and KiCad designs locally in your browser. View schematics, PCB layouts, 3D boards, BOMs and diagnostics without uploading your files.",
-  "url": "https://ecadforge.app/",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "EUR"
-  }
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "ECAD Forge",
+    "applicationCategory": "DesignApplication",
+    "operatingSystem": "Any",
+    "description": "Open Altium and KiCad designs locally in your browser. View schematics, PCB layouts, 3D boards, BOMs and diagnostics without uploading your files.",
+    "url": "https://ecadforge.app/",
+    "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+    }
 }
 ```
 

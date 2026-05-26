@@ -1,6 +1,9 @@
 .scene-3d {
     display: grid;
+    grid-template-rows: auto auto minmax(320px, 1fr) auto auto;
     gap: 1.2rem;
+    height: 100%;
+    min-height: 0;
 }
 
 .scene-3d__toolbar {
@@ -39,6 +42,8 @@
 
 .scene-3d__stage {
     position: relative;
+    height: 100%;
+    min-height: 0;
     border-radius: 28px;
     overflow: hidden;
     background:
@@ -50,14 +55,13 @@
         linear-gradient(180deg, #fff7f1 0%, #edf5f1 100%);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 220px;
-    align-items: start;
 }
 
 .scene-3d__viewport {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 3;
-    align-self: start;
+    height: 100%;
+    min-height: 0;
     background:
         radial-gradient(
             circle at top,
@@ -116,6 +120,8 @@
     display: grid;
     gap: 0.75rem;
     align-content: start;
+    max-height: 100%;
+    overflow: auto;
     padding: 1rem;
     background: rgba(255, 255, 255, 0.76);
     border-left: 1px solid rgba(95, 112, 124, 0.12);
@@ -225,6 +231,7 @@
 
     .scene-3d__stage {
         grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
     }
 
     .scene-3d__controls {
