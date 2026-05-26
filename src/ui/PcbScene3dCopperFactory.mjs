@@ -1,4 +1,5 @@
 import { PcbArcUtils } from 'altium-toolkit/renderers'
+import { PcbScene3dDrillPathFactory } from './PcbScene3dDrillPathFactory.mjs'
 import { PcbScene3dPadFactory } from './PcbScene3dPadFactory.mjs'
 
 /**
@@ -8,11 +9,14 @@ export class PcbScene3dCopperFactory {
     static #TOP_COPPER_LAYER_ID = 1
     static #BOTTOM_COPPER_LAYER_ID = 32
     static #FULL_CIRCLE_EPSILON = 0.001
+    static #ROUND_CAP_SEGMENTS = 16
+    static #DRILL_MASK_Z_OFFSET = 0.35
+    static #PAD_HOLE_SHAPE_SLOT = 2
 
     /**
      * Builds the combined top and bottom copper group.
      * @param {any} THREE
-     * @param {{ tracks?: any[], arcs?: any[], pads?: any[] }} detail
+     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[] }} detail
      * @param {number} topZ
      * @param {number} bottomZ
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
@@ -31,7 +35,8 @@ export class PcbScene3dCopperFactory {
                     detail?.arcs,
                     'top'
                 ),
-                pads: detail?.pads || []
+                pads: detail?.pads || [],
+                vias: detail?.vias || []
             },
             Math.abs(Number(topZ || 0)),
             normalizeBoardPoint,
@@ -48,7 +53,8 @@ export class PcbScene3dCopperFactory {
                     detail?.arcs,
                     'bottom'
                 ),
-                pads: detail?.pads || []
+                pads: detail?.pads || [],
+                vias: detail?.vias || []
             },
             Math.abs(Number(bottomZ || 0)),
             normalizeBoardPoint,
@@ -68,7 +74,7 @@ export class PcbScene3dCopperFactory {
     /**
      * Builds one side-specific copper group.
      * @param {any} THREE
-     * @param {{ tracks?: any[], arcs?: any[], pads?: any[] }} detail
+     * @param {{ tracks?: any[], arcs?: any[], pads?: any[], vias?: any[] }} detail
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
@@ -100,6 +106,13 @@ export class PcbScene3dCopperFactory {
                 mirrorY
             }
         )
+        const drillMaskGroup = PcbScene3dCopperFactory.#buildDrillMaskGroup(
+            THREE,
+            detail,
+            z + PcbScene3dCopperFactory.#DRILL_MASK_Z_OFFSET,
+            normalizeBoardPoint,
+            mirrorY
+        )
 
         if (trackMesh) {
             group.add(trackMesh)
@@ -109,6 +122,9 @@ export class PcbScene3dCopperFactory {
         }
         if (padGroup.children.length) {
             group.add(padGroup)
+        }
+        if (drillMaskGroup.children.length) {
+            group.add(drillMaskGroup)
         }
         if (mirrorY && group.children.length) {
             group.rotation.x = Math.PI
@@ -285,12 +301,10 @@ export class PcbScene3dCopperFactory {
             const minY = start.y - halfWidth
             const maxY = start.y + halfWidth
 
-            PcbScene3dCopperFactory.#appendQuadTriangles(
+            PcbScene3dCopperFactory.#appendDiscTriangles(
                 positions,
-                { x: minX, y: minY },
-                { x: maxX, y: minY },
-                { x: maxX, y: maxY },
-                { x: minX, y: maxY },
+                { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+                halfWidth,
                 z
             )
             return
@@ -305,6 +319,18 @@ export class PcbScene3dCopperFactory {
             { x: end.x + normalX, y: end.y + normalY },
             { x: end.x - normalX, y: end.y - normalY },
             { x: start.x - normalX, y: start.y - normalY },
+            z
+        )
+        PcbScene3dCopperFactory.#appendDiscTriangles(
+            positions,
+            start,
+            halfWidth,
+            z
+        )
+        PcbScene3dCopperFactory.#appendDiscTriangles(
+            positions,
+            end,
+            halfWidth,
             z
         )
     }
@@ -385,6 +411,189 @@ export class PcbScene3dCopperFactory {
                 z
             )
         }
+
+        if (!isFullCircle) {
+            PcbScene3dCopperFactory.#appendDiscTriangles(
+                positions,
+                {
+                    x: center.x + Math.cos(startAngleRad) * radius,
+                    y:
+                        center.y +
+                        Math.sin(startAngleRad) * radius * yDirection
+                },
+                strokeWidth / 2,
+                z
+            )
+            PcbScene3dCopperFactory.#appendDiscTriangles(
+                positions,
+                {
+                    x: center.x + Math.cos(startAngleRad + deltaAngleRad) * radius,
+                    y:
+                        center.y +
+                        Math.sin(startAngleRad + deltaAngleRad) *
+                            radius *
+                            yDirection
+                },
+                strokeWidth / 2,
+                z
+            )
+        }
+    }
+
+    /**
+     * Builds flat drill masks that hide copper surfaces inside drilled
+     * openings.
+     * @param {any} THREE
+     * @param {{ pads?: any[], vias?: any[] }} detail
+     * @param {number} z
+     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @param {boolean} mirrorY
+     * @returns {any}
+     */
+    static #buildDrillMaskGroup(THREE, detail, z, normalizeBoardPoint, mirrorY) {
+        const group = new THREE.Group()
+        const material = PcbScene3dCopperFactory.#buildDrillMaskMaterial(THREE)
+        const seen = new Set()
+        group.name = 'copper-drill-masks'
+
+        for (const drillSpec of PcbScene3dCopperFactory.#resolveDrillSpecs(detail)) {
+            const point = PcbScene3dCopperFactory.#normalizePoint(
+                normalizeBoardPoint,
+                drillSpec.x,
+                drillSpec.y,
+                mirrorY
+            )
+            const normalizedSpec = {
+                ...drillSpec,
+                x: point.x,
+                y: point.y,
+                rotationDeg: mirrorY
+                    ? -Number(drillSpec.rotationDeg || 0)
+                    : Number(drillSpec.rotationDeg || 0)
+            }
+            const key = PcbScene3dCopperFactory.#drillMaskKey(normalizedSpec)
+            if (seen.has(key)) {
+                continue
+            }
+
+            const path = PcbScene3dDrillPathFactory.buildDrillPath(
+                THREE,
+                normalizedSpec
+            )
+            if (!path) {
+                continue
+            }
+
+            const shape = new THREE.Shape(path.getPoints(32))
+            const geometry = new THREE.ShapeGeometry(shape, 24)
+            geometry.translate?.(0, 0, z)
+            group.add(new THREE.Mesh(geometry, material))
+            seen.add(key)
+        }
+
+        return group
+    }
+
+    /**
+     * Builds the material used to visually keep drilled copper openings clear.
+     * @param {any} THREE
+     * @returns {any}
+     */
+    static #buildDrillMaskMaterial(THREE) {
+        return new THREE.MeshBasicMaterial({
+            color: 0xf8f5ef,
+            side: THREE.DoubleSide,
+            depthWrite: true,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+            polygonOffsetUnits: -2
+        })
+    }
+
+    /**
+     * Resolves board-space drill masks from pad and via detail.
+     * @param {{ pads?: any[], vias?: any[] }} detail
+     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
+     */
+    static #resolveDrillSpecs(detail) {
+        return [
+            ...PcbScene3dCopperFactory.#resolveViaDrillSpecs(detail?.vias || []),
+            ...PcbScene3dCopperFactory.#resolvePadDrillSpecs(detail?.pads || [])
+        ]
+    }
+
+    /**
+     * Resolves via drill masks from normalized via detail.
+     * @param {any[]} vias
+     * @returns {{ x: number, y: number, diameter: number, slotLength: null, rotationDeg: 0 }[]}
+     */
+    static #resolveViaDrillSpecs(vias) {
+        return (vias || [])
+            .map((via) => {
+                const diameter = Number(via?.holeDiameter || 0)
+                if (diameter <= 0) {
+                    return null
+                }
+
+                return {
+                    x: Number(via?.x || 0),
+                    y: Number(via?.y || 0),
+                    diameter,
+                    slotLength: null,
+                    rotationDeg: 0
+                }
+            })
+            .filter(Boolean)
+    }
+
+    /**
+     * Resolves pad drill masks from normalized pad detail.
+     * @param {any[]} pads
+     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
+     */
+    static #resolvePadDrillSpecs(pads) {
+        return (pads || [])
+            .map((pad) => {
+                const diameter = Number(pad?.holeDiameter || 0)
+                if (diameter <= 0) {
+                    return null
+                }
+
+                const slotLength =
+                    Number(pad?.holeShape) ===
+                        PcbScene3dCopperFactory.#PAD_HOLE_SHAPE_SLOT &&
+                    Number(pad?.holeSlotLength || 0) > diameter
+                        ? Number(pad?.holeSlotLength || 0)
+                        : null
+
+                return {
+                    x: Number(pad?.x || 0),
+                    y: Number(pad?.y || 0),
+                    diameter,
+                    slotLength,
+                    rotationDeg:
+                        slotLength === null
+                            ? 0
+                            : Number(pad?.rotation || 0) +
+                              Number(pad?.holeRotation || 0)
+                }
+            })
+            .filter(Boolean)
+    }
+
+    /**
+     * Builds a stable key for one normalized drill mask.
+     * @param {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }} drillSpec
+     * @returns {string}
+     */
+    static #drillMaskKey(drillSpec) {
+        return [
+            Number(drillSpec.x || 0).toFixed(4),
+            Number(drillSpec.y || 0).toFixed(4),
+            Number(drillSpec.diameter || 0).toFixed(4),
+            Number(drillSpec.slotLength || 0).toFixed(4),
+            Number(drillSpec.rotationDeg || 0).toFixed(4)
+        ].join(':')
     }
 
     /**
@@ -400,6 +609,48 @@ export class PcbScene3dCopperFactory {
     static #appendQuadTriangles(positions, a, b, c, d, z) {
         PcbScene3dCopperFactory.#appendTriangle(positions, a, b, c, z)
         PcbScene3dCopperFactory.#appendTriangle(positions, a, c, d, z)
+    }
+
+    /**
+     * Appends one filled circle fan.
+     * @param {number[]} positions
+     * @param {{ x: number, y: number }} center
+     * @param {number} radius
+     * @param {number} z
+     * @returns {void}
+     */
+    static #appendDiscTriangles(positions, center, radius, z) {
+        const safeRadius = Math.max(Number(radius || 0), 0)
+        if (safeRadius <= 0) {
+            return
+        }
+
+        for (
+            let index = 0;
+            index < PcbScene3dCopperFactory.#ROUND_CAP_SEGMENTS;
+            index += 1
+        ) {
+            const startAngle =
+                (Math.PI * 2 * index) /
+                PcbScene3dCopperFactory.#ROUND_CAP_SEGMENTS
+            const endAngle =
+                (Math.PI * 2 * (index + 1)) /
+                PcbScene3dCopperFactory.#ROUND_CAP_SEGMENTS
+
+            PcbScene3dCopperFactory.#appendTriangle(
+                positions,
+                center,
+                {
+                    x: center.x + Math.cos(startAngle) * safeRadius,
+                    y: center.y + Math.sin(startAngle) * safeRadius
+                },
+                {
+                    x: center.x + Math.cos(endAngle) * safeRadius,
+                    y: center.y + Math.sin(endAngle) * safeRadius
+                },
+                z
+            )
+        }
     }
 
     /**

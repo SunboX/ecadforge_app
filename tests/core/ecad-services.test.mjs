@@ -103,3 +103,64 @@ test('ECAD renderer and 3D services accept KiCad document models', () => {
     assert.equal(scene.sourceFormat, 'kicad')
     assert.equal(scene.board.widthMil, 100)
 })
+
+/**
+ * Verifies the app renders KiCad PCB files with the KiCad-style full layer
+ * context instead of a single active copper side.
+ */
+test('ECAD renderer includes subdued opposite-side copper for KiCad PCB views', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'two-layer-fake.kicad_pcb',
+        pcb: {
+            boardOutline: { widthMil: 400, heightMil: 400, segments: [] },
+            components: [],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'Two Layer Fake',
+                bounds: {
+                    minX: 0,
+                    minY: 0,
+                    maxX: 10,
+                    maxY: 10,
+                    width: 10,
+                    height: 10
+                },
+                outlines: [],
+                pads: [],
+                drawings: [
+                    {
+                        type: 'segment',
+                        layer: 'F.Cu',
+                        material: 'copper',
+                        side: 'front',
+                        start: { x: 1, y: 2 },
+                        end: { x: 4, y: 2 },
+                        strokeWidth: 0.8
+                    },
+                    {
+                        type: 'segment',
+                        layer: 'B.Cu',
+                        material: 'copper',
+                        side: 'back',
+                        start: { x: 1, y: 4 },
+                        end: { x: 4, y: 4 },
+                        strokeWidth: 0.4
+                    }
+                ],
+                texts: []
+            }
+        },
+        bom: []
+    }
+    const markup = EcadRendererService.renderPcb(kicadPcbDocument)
+
+    assert.match(markup, /pcb-svg--kicad/)
+    assert.match(markup, /data-layer="F\.Cu"/)
+    assert.match(markup, /data-layer="B\.Cu"/)
+    assert.match(markup, /class="pcb-segment"[^>]+stroke-width="0\.8"/)
+    assert.doesNotMatch(markup, /class="pcb-segment"[^>]+vector-effect/)
+})

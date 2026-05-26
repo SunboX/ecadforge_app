@@ -99,6 +99,7 @@
     grid-area: github;
     display: grid;
     gap: 0.42rem;
+    margin-top: clamp(1.25rem, 1.7vw, 1.75rem);
     max-width: 49rem;
 }
 

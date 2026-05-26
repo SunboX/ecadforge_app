@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { access, readFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import test from 'node:test'
@@ -16,6 +17,18 @@ async function exists(relativePath) {
         return true
     } catch {
         return false
+    }
+}
+
+/**
+ * Reads the image dimensions from a PNG buffer.
+ * @param {Buffer} buffer
+ * @returns {{ width: number, height: number }}
+ */
+function readPngDimensions(buffer) {
+    return {
+        width: buffer.readUInt32BE(16),
+        height: buffer.readUInt32BE(20)
     }
 }
 
@@ -346,6 +359,26 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(\)/)
     assert.match(emptyStateRaw, /file-pill file-pill--kicad[\s\S]+Try KiCad sample/)
     assert.match(emptyStateRaw, /file-pill file-pill--altium[\s\S]+Try Altium sample/)
+})
+
+/**
+ * Verifies the static product preview is a fresh renderer capture at the
+ * dimensions expected by the landing-page frame.
+ */
+test('marketing product preview uses the refreshed PCB render asset', async () => {
+    const preview = await readFile(
+        new URL('src/og/ecadforge-product-preview.png', root)
+    )
+    const stalePreKiCadViewDigest =
+        '1e4f58b2a6974a0dc0d9c70202eec86b2a828d629162ad562bb5914db09f7380'
+    const digest = createHash('sha256').update(preview).digest('hex')
+
+    assert.equal(preview.subarray(1, 4).toString('ascii'), 'PNG')
+    assert.deepEqual(readPngDimensions(preview), {
+        width: 760,
+        height: 430
+    })
+    assert.notEqual(digest, stalePreKiCadViewDigest)
 })
 
 /**

@@ -1,5 +1,5 @@
 .app-shell {
-    width: min(1480px, 100% - 3rem);
+    width: min(2200px, 100% - clamp(1rem, 2vw, 3rem));
     margin: 0.55rem auto 1rem;
     display: grid;
     gap: 0.62rem;

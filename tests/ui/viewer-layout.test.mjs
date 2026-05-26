@@ -27,9 +27,21 @@ async function readStylesheet(fileName) {
  */
 test('viewer stylesheet sizes the main viewer stage as a bounded work surface', async () => {
     const css = await readViewerStylesheet()
+    const layoutCss = await readStylesheet('10-layout.css')
 
-    assert.match(css, /\.viewer-stage\s*\{[\s\S]*height:\s*clamp\(205px, 23vh, 270px\);/)
-    assert.match(css, /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*min-height:\s*520px;/)
+    assert.match(
+        layoutCss,
+        /\.app-shell\s*\{[\s\S]*width:\s*min\(2200px, 100% - clamp\(1rem, 2vw, 3rem\)\);/
+    )
+    assert.match(
+        css,
+        /\.viewer-stage\s*\{[\s\S]*height:\s*clamp\(260px, 32vh, 420px\);/
+    )
+    assert.match(
+        css,
+        /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*height:\s*min\(82vh, 1080px\);/
+    )
+    assert.match(css, /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*min-height:\s*680px;/)
     assert.match(css, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
 })
 
@@ -54,6 +66,19 @@ test('sample CTA styles use explicit Altium and KiCad color classes', async () =
     assert.doesNotMatch(
         viewerCss,
         /\.viewer-empty__actions \.file-pill:first-child/
+    )
+})
+
+/**
+ * Verifies the GitHub URL intake starts below the sample CTAs with enough
+ * breathing room for the landing-page action cluster.
+ */
+test('landing hero separates GitHub URL intake from sample CTAs', async () => {
+    const heroCss = await readStylesheet('15-hero.css')
+
+    assert.match(
+        heroCss,
+        /\.github-open\s*\{[\s\S]*margin-top:\s*clamp\(1\.25rem,\s*1\.7vw,\s*1\.75rem\);/
     )
 })
 

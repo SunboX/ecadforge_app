@@ -101,15 +101,15 @@ test('PcbScene3dCopperFactory separates top and bottom copper detail', () => {
 
     assert.equal(topGroup.rotation.x, 0)
     assert.equal(bottomGroup.rotation.x, Math.PI)
-    assert.equal(topTrackBounds.minX, -40)
-    assert.equal(topTrackBounds.maxX, 20)
+    assert.equal(topTrackBounds.minX, -44)
+    assert.equal(topTrackBounds.maxX, 24)
     assert.equal(topTrackBounds.minY, -59)
     assert.equal(topTrackBounds.maxY, -51)
     assert.ok(Math.abs(topTrackBounds.minZ - 32.1) < 0.001)
     assert.ok(Math.abs(topTrackBounds.maxZ - 32.1) < 0.001)
     assert.ok(bottomTrackBounds.maxX - bottomTrackBounds.minX > 20)
     assert.ok(bottomTrackBounds.maxY - bottomTrackBounds.minY > 30)
-    assert.ok(bottomTrackBounds.maxY < -143)
+    assert.ok(bottomTrackBounds.maxY <= -142)
     assert.ok(bottomArcBounds.minZ > 32.09)
     assert.equal(topPadRoot.position.x, 50)
     assert.equal(topPadRoot.position.y, 45)
@@ -119,4 +119,66 @@ test('PcbScene3dCopperFactory separates top and bottom copper detail', () => {
     assert.equal(bottomPadRoot.children[0].position.z, 32.1)
     assert.equal(topPadRoot.rotation.z, Math.PI / 2)
     assert.equal(bottomPadRoot.rotation.z, Math.PI / 2)
+})
+
+test('PcbScene3dCopperFactory rounds track endpoints like KiCad copper', () => {
+    const group = PcbScene3dCopperFactory.buildGroup(
+        THREE,
+        {
+            tracks: [
+                { x1: 0, y1: 0, x2: 100, y2: 0, width: 20, layerId: 1 }
+            ],
+            arcs: [],
+            pads: [],
+            vias: []
+        },
+        5,
+        -5,
+        (x, y) => ({ x, y })
+    )
+
+    const trackMesh = group.children[0].children[0]
+    const bounds = resolveBounds(trackMesh.geometry.attributes.position.array)
+
+    assert.ok(bounds.minX <= -9.99)
+    assert.ok(bounds.maxX >= 109.99)
+    assert.equal(bounds.minY, -10)
+    assert.equal(bounds.maxY, 10)
+})
+
+test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => {
+    const group = PcbScene3dCopperFactory.buildGroup(
+        THREE,
+        {
+            tracks: [
+                { x1: 0, y1: 0, x2: 100, y2: 0, width: 12, layerId: 1 }
+            ],
+            arcs: [],
+            pads: [
+                {
+                    x: 100,
+                    y: 0,
+                    holeDiameter: 20,
+                    holeShape: null,
+                    holeSlotLength: null,
+                    rotation: 0
+                }
+            ],
+            vias: [{ x: 50, y: 0, diameter: 30, holeDiameter: 16 }]
+        },
+        5,
+        -5,
+        (x, y) => ({ x, y })
+    )
+
+    const topGroup = group.children[0]
+    const maskGroup = topGroup.children.find(
+        (child) => child.name === 'copper-drill-masks'
+    )
+    const maskPositions = maskGroup.children
+        .flatMap((mesh) => Array.from(mesh.geometry.attributes.position.array))
+        .filter((_, index) => index % 3 === 2)
+
+    assert.equal(maskGroup.children.length, 2)
+    assert.ok(maskPositions.every((z) => z > 5))
 })

@@ -207,6 +207,199 @@ test('KiCad schematic renderer draws circular pin endpoint markers', () => {
 })
 
 /**
+ * Verifies KiCad hidden properties and hidden library pins stay out of the
+ * app-visible schematic SVG.
+ */
+test('KiCad schematic renderer omits hidden properties and hidden pins', () => {
+    const document = KicadParser.parseArrayBuffer(
+        'fake-hidden-fields.kicad_sch',
+        new TextEncoder().encode(`(kicad_sch
+            (version 20250114)
+            (paper "A4")
+            (lib_symbols
+                (symbol "Fake:Hidden_Pin_Device"
+                    (pin passive line (at 0 0 90) (length 2.54) hide
+                        (name "~" (effects (font (size 1.27 1.27))))
+                        (number "1" (effects (font (size 1.27 1.27))))
+                    )
+                )
+            )
+            (symbol "Fake:Hidden_Pin_Device"
+                (at 20 20 0)
+                (property "Reference" "U1" (at 20 16 0)
+                    (effects (font (size 1.27 1.27)))
+                )
+                (property "Value" "Fake Device" (at 20 18 0)
+                    (effects (font (size 1.27 1.27)))
+                )
+                (property "Footprint" "HiddenFootprint" (at 20 22 0) hide
+                    (effects (font (size 1.27 1.27)))
+                )
+                (property "Datasheet" "HiddenDatasheet" (at 20 24 0)
+                    (effects (font (size 1.27 1.27)) hide)
+                )
+                (uuid "fake-hidden-fields")
+            )
+        )`)
+    )
+    const markup = EcadRendererService.renderSchematic(document)
+
+    assert.equal(document.schematic.pins[0].visible, false)
+    assert.doesNotMatch(markup, /HiddenFootprint/)
+    assert.doesNotMatch(markup, /HiddenDatasheet/)
+    assert.doesNotMatch(markup, /class="schematic-pin-line"/)
+    assert.doesNotMatch(
+        markup,
+        /class="schematic-pin-number"[^>]*aria-label="1"/
+    )
+})
+
+/**
+ * Verifies the app renderer includes KiCad sheet grid dots and non-text
+ * schematic primitives instead of dropping them from the SVG.
+ */
+test('KiCad schematic renderer draws grid and graphic primitives', () => {
+    const markup = EcadRendererService.renderSchematic({
+        sourceFormat: 'kicad',
+        kind: 'schematic',
+        fileName: 'fake-graphics.kicad_sch',
+        summary: { title: 'Fake graphics' },
+        schematic: {
+            sheet: {
+                width: 40,
+                height: 28,
+                visibleGrid: 2.54,
+                borderOn: false,
+                titleBlockOn: false
+            },
+            lines: [],
+            components: [],
+            rectangles: [],
+            pins: [],
+            texts: [],
+            polygons: [
+                {
+                    points: [
+                        { x: 5, y: 5 },
+                        { x: 12, y: 5 },
+                        { x: 12, y: 10 }
+                    ],
+                    lineWidth: 0.15
+                }
+            ],
+            ellipses: [{ x: 18, y: 8, radiusX: 3, radiusY: 1.5 }],
+            arcs: [
+                {
+                    start: { x: 22, y: 6 },
+                    mid: { x: 25, y: 4 },
+                    end: { x: 28, y: 6 },
+                    lineWidth: 0.15
+                }
+            ],
+            beziers: [
+                {
+                    points: [
+                        { x: 8, y: 18 },
+                        { x: 10, y: 14 },
+                        { x: 14, y: 22 },
+                        { x: 16, y: 18 }
+                    ],
+                    lineWidth: 0.15
+                }
+            ]
+        },
+        bom: []
+    })
+
+    assert.match(markup, /class="schematic-grid"/)
+    assert.match(markup, /class="schematic-polygon"/)
+    assert.match(markup, /class="schematic-ellipse"/)
+    assert.match(markup, /class="schematic-arc"/)
+    assert.match(markup, /class="schematic-bezier"/)
+    assert.match(markup, /rx="0"/)
+})
+
+/**
+ * Verifies KiCad A3 sheets use the same drawing-sheet zone count as KiCad's
+ * native default worksheet.
+ */
+test('KiCad schematic parser uses KiCad default A3 drawing-sheet zones', () => {
+    const document = KicadParser.parseArrayBuffer(
+        'fake-a3-sheet.kicad_sch',
+        new TextEncoder().encode(`(kicad_sch
+            (version 20250114)
+            (paper "A3")
+            (title_block
+                (title "Fake A3 Design")
+                (date "2026-05-26")
+                (rev "A")
+                (company "Fake Company")
+            )
+        )`)
+    )
+
+    assert.equal(document.schematic.sheet.xZones, 8)
+    assert.equal(document.schematic.sheet.yZones, 6)
+    assert.equal(document.schematic.sheet.marginWidth, 10)
+})
+
+/**
+ * Verifies the sheet title block uses KiCad worksheet proportions and stroke
+ * text rather than the compact browser-font placeholder table.
+ */
+test('KiCad schematic renderer draws the title block like KiCad worksheet chrome', () => {
+    const markup = EcadRendererService.renderSchematic({
+        sourceFormat: 'kicad',
+        kind: 'schematic',
+        fileName: 'fake-a3-title.kicad_sch',
+        summary: { title: 'Fake A3 Design' },
+        schematic: {
+            sheet: {
+                width: 420,
+                height: 297,
+                visibleGrid: 2.54,
+                marginWidth: 10,
+                xZones: 8,
+                yZones: 6,
+                paperSize: 'A3',
+                borderOn: true,
+                titleBlockOn: true,
+                titleBlock: {
+                    title: 'Fake A3 Design',
+                    revision: 'A',
+                    documentNumber: 'Fake Company',
+                    sheetNumber: '1',
+                    sheetTotal: '1',
+                    date: '2026-05-26',
+                    drawnBy: 'Fake User'
+                }
+            },
+            lines: [],
+            components: [],
+            rectangles: [],
+            pins: [],
+            texts: []
+        },
+        bom: []
+    })
+    const zoneLabels = markup.match(/class="sheet-zone-label"/g) || []
+
+    assert.match(
+        markup,
+        /<rect x="3000" y="2530" width="1080" height="320"\/>/
+    )
+    assert.equal(zoneLabels.length, 28)
+    assert.doesNotMatch(markup, /<text class="sheet-title-label"/)
+    assert.doesNotMatch(markup, /<text class="sheet-zone-label"/)
+    assert.match(markup, /class="sheet-title-label"[^>]*aria-label="Sheet: \//)
+    assert.match(
+        markup,
+        /class="sheet-title-value sheet-title-value--title"[^>]*aria-label="Title: Fake A3 Design"/
+    )
+    assert.match(markup, /class="schematic-text-stroke"/)
+})
+
+/**
  * Verifies parsed KiCad text keeps independent horizontal and vertical font
  * sizes for stroke-font alignment.
  */

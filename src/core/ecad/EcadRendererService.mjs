@@ -66,9 +66,8 @@ export class EcadRendererService {
      * @returns {string}
      */
     static #renderKicadPcb(documentModel) {
-        return KicadPcbSvgRenderer.render(documentModel).replace(
-            'class="pcb-svg"',
-            'class="pcb-svg pcb-svg--kicad"'
-        )
+        return KicadPcbSvgRenderer.render(documentModel, {
+            includeOppositeCopper: true
+        }).replace('class="pcb-svg"', 'class="pcb-svg pcb-svg--kicad"')
     }
 }
