@@ -19,6 +19,9 @@ export class SchematicViewportController {
     /** @type {{ startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number } } | null} */
     #dragState
 
+    /** @type {{ mode: 'pan', startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number } } | { mode: 'pinch', startDistance: number, anchorPoint: { x: number, y: number }, originViewBox: { x: number, y: number, width: number, height: number } } | null} */
+    #touchState
+
     /** @type {(event: any) => void} */
     #boundWheel
 
@@ -31,6 +34,15 @@ export class SchematicViewportController {
     /** @type {(event: any) => void} */
     #boundMouseUp
 
+    /** @type {(event: any) => void} */
+    #boundTouchStart
+
+    /** @type {(event: any) => void} */
+    #boundTouchMove
+
+    /** @type {(event: any) => void} */
+    #boundTouchEnd
+
     /**
      * @param {{ getAttribute: (name: string) => string | null, setAttribute: (name: string, value: string) => void, getBoundingClientRect: () => { left: number, top: number, width: number, height: number }, addEventListener: (type: string, listener: (event: any) => void, options?: any) => void, removeEventListener: (type: string, listener: (event: any) => void, options?: any) => void, classList?: { add: (...tokens: string[]) => void, remove: (...tokens: string[]) => void }, ownerDocument?: { addEventListener: (type: string, listener: (event: any) => void) => void, removeEventListener: (type: string, listener: (event: any) => void) => void, documentElement?: { classList?: { add: (...tokens: string[]) => void, remove: (...tokens: string[]) => void } } } }} svgElement
      */
@@ -39,10 +51,14 @@ export class SchematicViewportController {
         this.#defaultViewBox = this.#readViewBox()
         this.#viewBox = { ...this.#defaultViewBox }
         this.#dragState = null
+        this.#touchState = null
         this.#boundWheel = (event) => this.#handleWheel(event)
         this.#boundMouseDown = (event) => this.#handleMouseDown(event)
         this.#boundMouseMove = (event) => this.#handleMouseMove(event)
         this.#boundMouseUp = (event) => this.#handleMouseUp(event)
+        this.#boundTouchStart = (event) => this.#handleTouchStart(event)
+        this.#boundTouchMove = (event) => this.#handleTouchMove(event)
+        this.#boundTouchEnd = (event) => this.#handleTouchEnd(event)
         this.#bindEvents()
         this.#applyViewBox()
     }
@@ -54,6 +70,7 @@ export class SchematicViewportController {
     dispose() {
         this.#unbindEvents()
         this.#stopDragging()
+        this.#stopTouchGesture()
     }
 
     /**
@@ -61,9 +78,22 @@ export class SchematicViewportController {
      * @returns {void}
      */
     #bindEvents() {
-        this.#svg.addEventListener('wheel', this.#boundWheel, { passive: false })
+        this.#svg.addEventListener('wheel', this.#boundWheel, {
+            passive: false
+        })
         this.#svg.addEventListener('mousedown', this.#boundMouseDown)
-        this.#getOwnerDocument().addEventListener('mousemove', this.#boundMouseMove)
+        this.#svg.addEventListener('touchstart', this.#boundTouchStart, {
+            passive: false
+        })
+        this.#svg.addEventListener('touchmove', this.#boundTouchMove, {
+            passive: false
+        })
+        this.#svg.addEventListener('touchend', this.#boundTouchEnd)
+        this.#svg.addEventListener('touchcancel', this.#boundTouchEnd)
+        this.#getOwnerDocument().addEventListener(
+            'mousemove',
+            this.#boundMouseMove
+        )
         this.#getOwnerDocument().addEventListener('mouseup', this.#boundMouseUp)
     }
 
@@ -76,11 +106,22 @@ export class SchematicViewportController {
             passive: false
         })
         this.#svg.removeEventListener('mousedown', this.#boundMouseDown)
+        this.#svg.removeEventListener('touchstart', this.#boundTouchStart, {
+            passive: false
+        })
+        this.#svg.removeEventListener('touchmove', this.#boundTouchMove, {
+            passive: false
+        })
+        this.#svg.removeEventListener('touchend', this.#boundTouchEnd)
+        this.#svg.removeEventListener('touchcancel', this.#boundTouchEnd)
         this.#getOwnerDocument().removeEventListener(
             'mousemove',
             this.#boundMouseMove
         )
-        this.#getOwnerDocument().removeEventListener('mouseup', this.#boundMouseUp)
+        this.#getOwnerDocument().removeEventListener(
+            'mouseup',
+            this.#boundMouseUp
+        )
     }
 
     /**
@@ -103,17 +144,14 @@ export class SchematicViewportController {
         const zoomFactor = deltaY < 0 ? ZOOM_IN_FACTOR : ZOOM_OUT_FACTOR
         const nextWidth = this.#clampWidth(this.#viewBox.width * zoomFactor)
         const nextHeight = this.#clampHeight(this.#viewBox.height * zoomFactor)
-        const relativeX = (anchorPoint.x - this.#viewBox.x) / this.#viewBox.width
-        const relativeY = (anchorPoint.y - this.#viewBox.y) / this.#viewBox.height
 
-        this.#viewBox = {
-            x: anchorPoint.x - relativeX * nextWidth,
-            y: anchorPoint.y - relativeY * nextHeight,
-            width: nextWidth,
-            height: nextHeight
-        }
-
-        this.#applyViewBox()
+        this.#applyZoomAtClientPoint(
+            anchorPoint,
+            Number(event?.clientX || 0),
+            Number(event?.clientY || 0),
+            nextWidth,
+            nextHeight
+        )
     }
 
     /**
@@ -182,11 +220,209 @@ export class SchematicViewportController {
     }
 
     /**
+     * Starts a touch pan or pinch gesture from the active contact set.
+     * @param {{ touches?: ArrayLike<{ clientX?: number, clientY?: number }>, preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #handleTouchStart(event) {
+        const touches = SchematicViewportController.#getTouchPoints(event)
+        if (touches.length >= 2) {
+            this.#startTouchPinch(touches, event)
+            return
+        }
+
+        if (touches.length === 1) {
+            this.#startTouchPan(touches[0], event)
+        }
+    }
+
+    /**
+     * Applies a touch pan or pinch move to the current viewBox.
+     * @param {{ touches?: ArrayLike<{ clientX?: number, clientY?: number }>, preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #handleTouchMove(event) {
+        const touches = SchematicViewportController.#getTouchPoints(event)
+        if (!this.#touchState || touches.length === 0) return
+
+        if (touches.length >= 2 && this.#touchState.mode !== 'pinch') {
+            this.#startTouchPinch(touches, event)
+            return
+        }
+
+        if (this.#touchState.mode === 'pinch') {
+            this.#moveTouchPinch(touches, event)
+            return
+        }
+
+        this.#moveTouchPan(touches[0], event)
+    }
+
+    /**
+     * Keeps or clears touch state when mobile contacts change.
+     * @param {{ touches?: ArrayLike<{ clientX?: number, clientY?: number }>, preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #handleTouchEnd(event) {
+        const touches = SchematicViewportController.#getTouchPoints(event)
+        if (touches.length >= 2) {
+            this.#startTouchPinch(touches, event)
+            return
+        }
+
+        if (touches.length === 1) {
+            this.#startTouchPan(touches[0], event)
+            return
+        }
+
+        this.#stopTouchGesture()
+    }
+
+    /**
+     * Starts a one-finger touch pan from the current viewport.
+     * @param {{ clientX: number, clientY: number }} touch
+     * @param {{ preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #startTouchPan(touch, event) {
+        event?.preventDefault?.()
+        this.#lockDocumentScroll()
+        this.#touchState = {
+            mode: 'pan',
+            startClientX: touch.clientX,
+            startClientY: touch.clientY,
+            originViewBox: { ...this.#viewBox }
+        }
+        this.#svg.classList?.add('is-panning')
+    }
+
+    /**
+     * Starts a two-finger pinch zoom from the current viewport.
+     * @param {{ clientX: number, clientY: number }[]} touches
+     * @param {{ preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #startTouchPinch(touches, event) {
+        const [firstTouch, secondTouch] = touches
+        const startDistance = SchematicViewportController.#getTouchDistance(
+            firstTouch,
+            secondTouch
+        )
+        if (startDistance <= 0) return
+
+        const midpoint = SchematicViewportController.#getTouchMidpoint(
+            firstTouch,
+            secondTouch
+        )
+        const anchorPoint = this.#projectClientPointToDocument(
+            midpoint.clientX,
+            midpoint.clientY
+        )
+        if (!anchorPoint) return
+
+        event?.preventDefault?.()
+        this.#lockDocumentScroll()
+        this.#touchState = {
+            mode: 'pinch',
+            startDistance,
+            anchorPoint,
+            originViewBox: { ...this.#viewBox }
+        }
+        this.#svg.classList?.add('is-panning')
+    }
+
+    /**
+     * Applies a one-finger touch pan move.
+     * @param {{ clientX: number, clientY: number }} touch
+     * @param {{ preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #moveTouchPan(touch, event) {
+        if (!this.#touchState || this.#touchState.mode !== 'pan') return
+
+        const rect = this.#svg.getBoundingClientRect()
+        if (rect.width <= 0 || rect.height <= 0) return
+
+        event?.preventDefault?.()
+
+        const deltaX =
+            ((touch.clientX - this.#touchState.startClientX) / rect.width) *
+            this.#touchState.originViewBox.width
+        const deltaY =
+            ((touch.clientY - this.#touchState.startClientY) / rect.height) *
+            this.#touchState.originViewBox.height
+
+        this.#viewBox = {
+            x: this.#touchState.originViewBox.x - deltaX,
+            y: this.#touchState.originViewBox.y - deltaY,
+            width: this.#touchState.originViewBox.width,
+            height: this.#touchState.originViewBox.height
+        }
+
+        this.#applyViewBox()
+    }
+
+    /**
+     * Applies a two-finger pinch zoom move.
+     * @param {{ clientX: number, clientY: number }[]} touches
+     * @param {{ preventDefault?: () => void }} event
+     * @returns {void}
+     */
+    #moveTouchPinch(touches, event) {
+        if (
+            !this.#touchState ||
+            this.#touchState.mode !== 'pinch' ||
+            touches.length < 2
+        ) {
+            return
+        }
+
+        const [firstTouch, secondTouch] = touches
+        const distance = SchematicViewportController.#getTouchDistance(
+            firstTouch,
+            secondTouch
+        )
+        if (distance <= 0) return
+
+        event?.preventDefault?.()
+
+        const scaleRatio = distance / this.#touchState.startDistance
+        const nextWidth = this.#clampWidth(
+            this.#touchState.originViewBox.width / scaleRatio
+        )
+        const nextHeight = this.#clampHeight(
+            this.#touchState.originViewBox.height / scaleRatio
+        )
+        const midpoint = SchematicViewportController.#getTouchMidpoint(
+            firstTouch,
+            secondTouch
+        )
+
+        this.#applyZoomAtClientPoint(
+            this.#touchState.anchorPoint,
+            midpoint.clientX,
+            midpoint.clientY,
+            nextWidth,
+            nextHeight
+        )
+    }
+
+    /**
      * Clears drag state and cursor class.
      * @returns {void}
      */
     #stopDragging() {
         this.#dragState = null
+        this.#svg.classList?.remove('is-panning')
+        this.#unlockDocumentScroll()
+    }
+
+    /**
+     * Clears touch gesture state and releases the document scroll lock.
+     * @returns {void}
+     */
+    #stopTouchGesture() {
+        this.#touchState = null
         this.#svg.classList?.remove('is-panning')
         this.#unlockDocumentScroll()
     }
@@ -261,6 +497,39 @@ export class SchematicViewportController {
     }
 
     /**
+     * Applies a zoom size while pinning one document point under a client
+     * coordinate.
+     * @param {{ x: number, y: number }} anchorPoint
+     * @param {number} clientX
+     * @param {number} clientY
+     * @param {number} nextWidth
+     * @param {number} nextHeight
+     * @returns {void}
+     */
+    #applyZoomAtClientPoint(
+        anchorPoint,
+        clientX,
+        clientY,
+        nextWidth,
+        nextHeight
+    ) {
+        const rect = this.#svg.getBoundingClientRect()
+        if (rect.width <= 0 || rect.height <= 0) return
+
+        const relativeX = (clientX - rect.left) / rect.width
+        const relativeY = (clientY - rect.top) / rect.height
+
+        this.#viewBox = {
+            x: anchorPoint.x - relativeX * nextWidth,
+            y: anchorPoint.y - relativeY * nextHeight,
+            width: nextWidth,
+            height: nextHeight
+        }
+
+        this.#applyViewBox()
+    }
+
+    /**
      * Clamps a candidate width against the default camera limits.
      * @param {number} width
      * @returns {number}
@@ -305,5 +574,43 @@ export class SchematicViewportController {
      */
     static #formatNumber(value) {
         return String(Number(value.toFixed(4)))
+    }
+
+    /**
+     * Copies active event touches into plain client-coordinate records.
+     * @param {{ touches?: ArrayLike<{ clientX?: number, clientY?: number }> }} event
+     * @returns {{ clientX: number, clientY: number }[]}
+     */
+    static #getTouchPoints(event) {
+        return Array.from(event?.touches || []).map((touch) => ({
+            clientX: Number(touch?.clientX || 0),
+            clientY: Number(touch?.clientY || 0)
+        }))
+    }
+
+    /**
+     * Measures the distance between two touch points.
+     * @param {{ clientX: number, clientY: number }} firstTouch
+     * @param {{ clientX: number, clientY: number }} secondTouch
+     * @returns {number}
+     */
+    static #getTouchDistance(firstTouch, secondTouch) {
+        return Math.hypot(
+            secondTouch.clientX - firstTouch.clientX,
+            secondTouch.clientY - firstTouch.clientY
+        )
+    }
+
+    /**
+     * Finds the client-space midpoint between two touch points.
+     * @param {{ clientX: number, clientY: number }} firstTouch
+     * @param {{ clientX: number, clientY: number }} secondTouch
+     * @returns {{ clientX: number, clientY: number }}
+     */
+    static #getTouchMidpoint(firstTouch, secondTouch) {
+        return {
+            clientX: (firstTouch.clientX + secondTouch.clientX) / 2,
+            clientY: (firstTouch.clientY + secondTouch.clientY) / 2
+        }
     }
 }

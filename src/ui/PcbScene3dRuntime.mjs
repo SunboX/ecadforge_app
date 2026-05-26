@@ -3,6 +3,7 @@ import { PcbScene3dCameraRig } from './PcbScene3dCameraRig.mjs'
 import { PcbScene3dCopperFactory } from './PcbScene3dCopperFactory.mjs'
 import { PcbScene3dExternalModels } from './PcbScene3dExternalModels.mjs'
 import { PcbScene3dFallbackVisibility } from './PcbScene3dFallbackVisibility.mjs'
+import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
@@ -129,7 +130,7 @@ export class PcbScene3dRuntime {
         })
 
         this.#hooks.setDiagnostics?.([
-            'Drag to orbit, right-drag to pan, and use the wheel to zoom.'
+            PcbScene3dInteractionHints.resolveDefaultMessage()
         ])
         this.#initialize()
     }
@@ -622,13 +623,7 @@ export class PcbScene3dRuntime {
         this.#controls.minDistance = 140
         this.#controls.maxDistance = this.#initialRadius * 8
         this.#controls.target.set(0, 0, 0)
-        if (THREE?.MOUSE) {
-            this.#controls.mouseButtons = {
-                LEFT: THREE.MOUSE.ROTATE,
-                MIDDLE: THREE.MOUSE.DOLLY,
-                RIGHT: THREE.MOUSE.PAN
-            }
-        }
+        PcbScene3dInteractionHints.configureControls(this.#controls, THREE)
 
         PcbScene3dCameraRig.applyPreset(
             this.#camera,

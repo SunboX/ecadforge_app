@@ -1,5 +1,6 @@
 import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
 import { PcbModelArchiveExporter } from './PcbModelArchiveExporter.mjs'
+import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dRuntime } from './PcbScene3dRuntime.mjs'
 
 /**
@@ -459,7 +460,7 @@ export class PcbScene3dController {
         const list = Array.isArray(messages) ? messages.filter(Boolean) : []
         this.#diagnosticsNode.textContent = list.length
             ? list.join(' ')
-            : 'Drag to orbit, right-drag to pan, and use the wheel to zoom.'
+            : PcbScene3dInteractionHints.resolveDefaultMessage()
     }
 
     /**

@@ -239,49 +239,110 @@ test('SchematicViewportController pans while the primary mouse button is held', 
 })
 
 /**
+ * Verifies one-finger touch dragging pans the viewport on mobile screens.
+ */
+test('SchematicViewportController pans with one-finger touch dragging', () => {
+    const ownerDocument = new FakeDocument()
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 },
+        ownerDocument
+    })
+    const controller = new SchematicViewportController(svg)
+
+    svg.dispatch('touchstart', {
+        touches: [{ clientX: 200, clientY: 100 }],
+        preventDefault() {}
+    })
+
+    svg.dispatch('touchmove', {
+        touches: [{ clientX: 240, clientY: 120 }],
+        preventDefault() {}
+    })
+
+    assert.equal(svg.getAttribute('viewBox'), '-20 -10 200 100')
+
+    svg.dispatch('touchend', { touches: [] })
+
+    controller.dispose()
+})
+
+/**
+ * Verifies two-finger pinching zooms around the gesture midpoint.
+ */
+test('SchematicViewportController zooms with two-finger pinch gestures', () => {
+    const ownerDocument = new FakeDocument()
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 },
+        ownerDocument
+    })
+    const controller = new SchematicViewportController(svg)
+
+    svg.dispatch('touchstart', {
+        touches: [
+            { clientX: 150, clientY: 100 },
+            { clientX: 250, clientY: 100 }
+        ],
+        preventDefault() {}
+    })
+
+    svg.dispatch('touchmove', {
+        touches: [
+            { clientX: 100, clientY: 100 },
+            { clientX: 300, clientY: 100 }
+        ],
+        preventDefault() {}
+    })
+
+    assert.equal(svg.getAttribute('viewBox'), '50 25 100 50')
+
+    svg.dispatch('touchend', { touches: [] })
+
+    controller.dispose()
+})
+
+/**
  * Verifies active panning toggles a document-level scroll lock hook so the
  * page cannot scroll at the same time.
  */
-test(
-    'SchematicViewportController locks document scrolling while dragging',
-    () => {
-        const ownerDocument = new FakeDocument()
-        ownerDocument.documentElement = {
-            classList: new FakeClassList()
-        }
-        const svg = new FakeSvgElement({
-            viewBox: '0 0 200 100',
-            rect: { left: 0, top: 0, width: 400, height: 200 },
-            ownerDocument
-        })
-        const controller = new SchematicViewportController(svg)
-
-        svg.dispatch('mousedown', {
-            button: 0,
-            clientX: 200,
-            clientY: 100,
-            preventDefault() {}
-        })
-
-        assert.equal(
-            ownerDocument.documentElement.classList.contains(
-                'is-schematic-panning'
-            ),
-            true
-        )
-
-        ownerDocument.dispatch('mouseup', { button: 0 })
-
-        assert.equal(
-            ownerDocument.documentElement.classList.contains(
-                'is-schematic-panning'
-            ),
-            false
-        )
-
-        controller.dispose()
+test('SchematicViewportController locks document scrolling while dragging', () => {
+    const ownerDocument = new FakeDocument()
+    ownerDocument.documentElement = {
+        classList: new FakeClassList()
     }
-)
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 },
+        ownerDocument
+    })
+    const controller = new SchematicViewportController(svg)
+
+    svg.dispatch('mousedown', {
+        button: 0,
+        clientX: 200,
+        clientY: 100,
+        preventDefault() {}
+    })
+
+    assert.equal(
+        ownerDocument.documentElement.classList.contains(
+            'is-schematic-panning'
+        ),
+        true
+    )
+
+    ownerDocument.dispatch('mouseup', { button: 0 })
+
+    assert.equal(
+        ownerDocument.documentElement.classList.contains(
+            'is-schematic-panning'
+        ),
+        false
+    )
+
+    controller.dispose()
+})
 
 /**
  * Verifies cleanup removes all bound listeners.
@@ -299,6 +360,10 @@ test('SchematicViewportController removes bound listeners on dispose', () => {
 
     assert.equal(svg.getListenerCount('wheel'), 0)
     assert.equal(svg.getListenerCount('mousedown'), 0)
+    assert.equal(svg.getListenerCount('touchstart'), 0)
+    assert.equal(svg.getListenerCount('touchmove'), 0)
+    assert.equal(svg.getListenerCount('touchend'), 0)
+    assert.equal(svg.getListenerCount('touchcancel'), 0)
     assert.equal(ownerDocument.getListenerCount('mousemove'), 0)
     assert.equal(ownerDocument.getListenerCount('mouseup'), 0)
 })

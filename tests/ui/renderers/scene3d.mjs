@@ -38,6 +38,7 @@ test('renderScene3d emits viewport and control chrome for the 3D scene', () => {
     assert.match(markup, /scene-3d__viewport/)
     assert.match(markup, /data-scene-3d-viewport/)
     assert.match(markup, /data-scene-3d-loading/)
+    assert.match(markup, /scene-3d__loading-content/)
     assert.match(markup, /Preparing 3D scene/)
     assert.match(markup, /Top/)
     assert.match(markup, /Bottom/)
@@ -71,20 +72,60 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
         /\.scene-3d__preset(?:\.is-active|\[aria-pressed='true'\])[\s\S]*\{/
     )
     assert.match(css, /\.scene-3d\s*\{[\s\S]*height:\s*100%;/)
+    assert.match(css, /\.scene-3d\s*\{[\s\S]*min-width:\s*0;/)
+    assert.match(css, /\.scene-3d\s*\{[\s\S]*width:\s*100%;/)
+    assert.match(css, /\.scene-3d\s*\{[\s\S]*max-width:\s*100%;/)
     assert.match(
         css,
         /\.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(320px, 1fr\) auto auto;/
     )
     assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*height:\s*100%;/)
     assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*min-height:\s*0;/)
+    assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*min-width:\s*0;/)
+    assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*max-width:\s*100%;/)
     assert.match(css, /\.scene-3d__viewport\s*\{/)
     assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*height:\s*100%;/)
     assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*min-height:\s*0;/)
+    assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*min-width:\s*0;/)
+    assert.match(css, /\.scene-3d__viewport\s*\{[\s\S]*max-width:\s*100%;/)
     assert.doesNotMatch(css, /aspect-ratio:\s*4\s*\/\s*3;/)
     assert.match(css, /\.scene-3d__controls\s*\{/)
     assert.match(css, /\.scene-3d__selection\s*\{/)
     assert.match(css, /\.scene-3d__diagnostics\s*\{/)
     assert.match(css, /\.scene-3d__canvas\s*\{/)
+    assert.match(css, /\.scene-3d__loading\s*\{[\s\S]*display:\s*flex;/)
+    assert.match(
+        css,
+        /\.scene-3d__loading\s*\{[\s\S]*align-items:\s*center;/
+    )
+    assert.match(
+        css,
+        /\.scene-3d__loading\s*\{[\s\S]*justify-content:\s*center;/
+    )
+    assert.match(
+        css,
+        /\.scene-3d__loading-content\s*\{[\s\S]*justify-items:\s*center;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d__stage\s*\{[\s\S]*display:\s*block;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d__viewport\s*\{[\s\S]*height:\s*clamp\(360px,\s*58vh,\s*560px\);/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d__controls\s*\{[\s\S]*max-height:\s*none;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d \.svg-panel__header p\s*\{[\s\S]*flex:\s*1 1 100%;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d__action\s*\{[\s\S]*flex-basis:\s*100%;/
+    )
 })
 
 /**

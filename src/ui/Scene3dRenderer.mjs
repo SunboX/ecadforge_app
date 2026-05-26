@@ -34,7 +34,7 @@ export class Scene3dRenderer {
             '<div class="scene-3d__viewport" aria-label="Interactive 3D PCB view">' +
             '<div class="scene-3d__canvas-mount" data-scene-3d-viewport></div>' +
             '<div class="scene-3d__loading" data-scene-3d-loading aria-live="polite">' +
-            '<div class="viewer-loading__pulse"></div><p>Preparing 3D scene...</p></div>' +
+            '<div class="scene-3d__loading-content"><div class="viewer-loading__pulse"></div><p>Preparing 3D scene...</p></div></div>' +
             '</div>' +
             '<aside class="scene-3d__controls" aria-label="3D detail toggles">' +
             '<label class="scene-3d__toggle"><input type="checkbox" checked data-scene-3d-toggle="external-models" />External models</label>' +

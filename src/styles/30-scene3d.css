@@ -2,7 +2,10 @@
     display: grid;
     grid-template-rows: auto auto minmax(320px, 1fr) auto auto;
     gap: 1.2rem;
+    width: 100%;
+    max-width: 100%;
     height: 100%;
+    min-width: 0;
     min-height: 0;
 }
 
@@ -43,6 +46,8 @@
 .scene-3d__stage {
     position: relative;
     height: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 0;
     border-radius: 28px;
     overflow: hidden;
@@ -60,7 +65,9 @@
 .scene-3d__viewport {
     position: relative;
     width: 100%;
+    max-width: 100%;
     height: 100%;
+    min-width: 0;
     min-height: 0;
     background:
         radial-gradient(
@@ -79,9 +86,9 @@
 .scene-3d__loading {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
-    gap: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     padding: 1.5rem;
     color: var(--muted);
@@ -94,6 +101,13 @@
         );
     backdrop-filter: blur(8px);
     z-index: 1;
+}
+
+.scene-3d__loading-content {
+    display: grid;
+    justify-items: center;
+    gap: 0.9rem;
+    max-width: min(100%, 20rem);
 }
 
 .scene-3d__loading[hidden] {
@@ -225,17 +239,39 @@
 }
 
 @media (max-width: 760px) {
+    .scene-3d .svg-panel__header {
+        align-items: flex-start;
+    }
+
+    .scene-3d .svg-panel__header p {
+        flex: 1 1 100%;
+        line-height: 1.35;
+        white-space: normal;
+    }
+
+    .scene-3d__action {
+        flex-basis: 100%;
+    }
+
     .scene-3d__stats {
         grid-template-columns: 1fr;
     }
 
     .scene-3d__stage {
+        display: block;
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 1fr) auto;
+        overflow: visible;
+    }
+
+    .scene-3d__viewport {
+        height: clamp(360px, 58vh, 560px);
+        min-height: 360px;
     }
 
     .scene-3d__controls {
         border-left: 0;
         border-top: 1px solid rgba(95, 112, 124, 0.12);
+        max-height: none;
+        overflow: visible;
     }
 }
