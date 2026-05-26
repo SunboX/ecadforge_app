@@ -1,3 +1,7 @@
 @import './styles/00-core.css';
 @import './styles/10-layout.css';
+@import './styles/15-hero.css';
 @import './styles/20-viewer.css';
+@import './styles/22-viewer-empty.css';
+@import './styles/25-kicad-pcb.css';
+@import './styles/30-scene3d.css';

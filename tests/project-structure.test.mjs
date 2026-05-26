@@ -150,7 +150,10 @@ test('app identity metadata uses the ECAD Forge name', async () => {
     const germanMessages = JSON.parse(germanRaw)
 
     assert.equal(pkg.name, 'ecadforge_app')
-    assert.match(indexRaw, /<title>ECAD Forge<\/title>/)
+    assert.match(
+        indexRaw,
+        /<title>ECAD Forge .* Altium & KiCad Viewer in Your Browser<\/title>/
+    )
     assert.match(indexRaw, /<h1[^>]*>ECAD Forge<\/h1>/)
     assert.match(indexRaw, /<link[^>]+rel="icon"[^>]+href="\/favicon\.svg"/)
     assert.equal(englishMessages['app.title'], 'ECAD Forge')
@@ -166,8 +169,10 @@ test('app shell exposes indexable search metadata', async () => {
     const robotsRaw = await readFile(new URL('src/robots.txt', root), 'utf8')
     const sitemapRaw = await readFile(new URL('src/sitemap.xml', root), 'utf8')
 
-    assert.match(indexRaw, /<title>ECAD Forge<\/title>/)
+    assert.match(indexRaw, /Altium & KiCad Viewer in Your Browser/)
     assert.match(indexRaw, /<meta\s+name="description"/)
+    assert.match(indexRaw, /property="og:image"/)
+    assert.match(indexRaw, /application\/ld\+json/)
     assert.match(indexRaw, /<meta\s+name="robots"\s+content="index,follow"/)
     assert.match(
         indexRaw,
@@ -203,44 +208,65 @@ test('app shell uses normal internal links for important views', async () => {
 })
 
 /**
- * Verifies the app shell exposes the shared legal footer and keeps the
+ * Verifies the app shell exposes the compact brand footer and keeps the
  * runtime version display in the footer only.
  */
 test('app shell includes localized footer metadata and footer-only version UI', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const layoutRaw = await readFile(
+        new URL('src/styles/10-layout.css', root),
+        'utf8'
+    )
     const englishRaw = await readFile(new URL('src/i18n/en.json', root), 'utf8')
     const germanRaw = await readFile(new URL('src/i18n/de.json', root), 'utf8')
 
     const englishMessages = JSON.parse(englishRaw)
     const germanMessages = JSON.parse(germanRaw)
 
-    assert.match(indexRaw, /<footer class="page-footer">/)
-    assert.match(indexRaw, /data-i18n="footer\.title"/)
-    assert.match(indexRaw, /data-i18n="footer\.responsible"/)
+    assert.match(indexRaw, /<footer class="[^"]*page-footer[^"]*footer-inline[^"]*">/)
+    assert.match(indexRaw, /class="footer-inline__main"/)
+    assert.match(indexRaw, /class="footer-inline__meta"/)
     assert.match(indexRaw, /data-i18n="footer\.contact"/)
+    assert.match(indexRaw, /data-i18n="footer\.responsible"/)
     assert.match(indexRaw, /data-i18n="footer\.version"/)
     assert.match(indexRaw, /data-i18n="footer\.slogan"/)
     assert.match(indexRaw, /id="appVersion"/)
     assert.doesNotMatch(indexRaw, /class="version-pill"/)
-    assert.equal(englishMessages['footer.title'], 'Imprint')
-    assert.equal(germanMessages['footer.title'], 'Impressum')
-    assert.equal(
-        englishMessages['footer.responsible'],
-        'Responsible for this website'
-    )
-    assert.equal(
-        germanMessages['footer.responsible'],
-        'Verantwortlich fuer diese Website'
-    )
+    assert.doesNotMatch(indexRaw, /data-i18n="footer\.(imprint|privacy)"/)
+    assert.doesNotMatch(indexRaw, />\s*(Imprint|Privacy)\s*</)
+    assert.match(indexRaw, /08523 Plauen/)
+    assert.match(layoutRaw, /\.footer-inline\s*{[^}]*grid-template-columns/s)
+    assert.match(layoutRaw, /\.footer-inline__meta\s*{[^}]*justify-content:\s*center/s)
     assert.equal(englishMessages['footer.contact'], 'Contact')
     assert.equal(germanMessages['footer.contact'], 'Kontakt')
+    assert.equal(englishMessages['footer.responsible'], 'Responsible')
+    assert.equal(germanMessages['footer.responsible'], 'Verantwortlich')
     assert.equal(englishMessages['footer.version'], 'Version')
     assert.equal(germanMessages['footer.version'], 'Version')
     assert.equal(
         englishMessages['footer.slogan'],
-        'Build and hostet in Germany'
+        'Built and hosted in Germany'
     )
-    assert.equal(germanMessages['footer.slogan'], 'Build and hostet in Germany')
+    assert.equal(germanMessages['footer.slogan'], 'Built and hosted in Germany')
+})
+
+/**
+ * Verifies the active document summary stays out of the landing hero and near
+ * the persistent footer.
+ */
+test('app shell places session summary above the footer', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const heroIndex = indexRaw.indexOf('<section class="panel hero-grid">')
+    const viewerIndex = indexRaw.indexOf('id="viewerStage"')
+    const summaryIndex = indexRaw.indexOf(
+        '<section class="panel meta-column"'
+    )
+    const footerIndex = indexRaw.indexOf('<footer class="page-footer footer-inline">')
+
+    assert.ok(heroIndex >= 0)
+    assert.ok(viewerIndex > heroIndex)
+    assert.ok(summaryIndex > viewerIndex)
+    assert.ok(footerIndex > summaryIndex)
 })
 
 /**
@@ -259,16 +285,67 @@ test('app shell exposes multi-file and project-folder intake', async () => {
     assert.match(indexRaw, /multiple/)
     assert.match(indexRaw, /id="folderInput"/)
     assert.match(indexRaw, /webkitdirectory/)
-    assert.equal(englishMessages['app.dropHint'], 'Drag ECAD files here')
-    assert.equal(germanMessages['app.dropHint'], 'ECAD-Dateien hier ablegen')
+    assert.equal(englishMessages['app.dropHint'], 'Private · Local · No upload')
+    assert.equal(germanMessages['app.dropHint'], 'Privat · Lokal · Kein Upload')
     assert.equal(
         englishMessages['status.ready'],
-        'Drop native Altium or KiCad files, project folders, ZIPs, or companion model files to begin.'
+        'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.'
     )
     assert.equal(
         germanMessages['status.ready'],
-        'Native Altium- oder KiCad-Dateien, Projektordner, ZIPs oder Begleitmodelle ablegen, um zu starten.'
+        '.PcbDoc-, .SchDoc-, .kicad_pcb- oder KiCad-Projektdateien hier ablegen. Dateien werden lokal im Browser verarbeitet.'
     )
+})
+
+/**
+ * Verifies the landing shell follows the marketing design with a compact
+ * branded header, concrete ECAD previews, icon-backed actions, and a slim
+ * legal footer.
+ */
+test('app shell implements the marketing landingpage design shell', async () => {
+    const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
+    const appViewRaw = await readFile(
+        new URL('src/ui/AppView.mjs', root),
+        'utf8'
+    )
+    const emptyStateRaw = await readFile(
+        new URL('src/ui/ViewerEmptyStateRenderer.mjs', root),
+        'utf8'
+    )
+    const heroRaw = indexRaw.slice(
+        indexRaw.indexOf('<div class="hero-actions"'),
+        indexRaw.indexOf('<form')
+    )
+
+    assert.match(indexRaw, /class="brand-lockup"/)
+    assert.match(indexRaw, /<img src="\/favicon\.svg" alt="" \/>/)
+    assert.match(indexRaw, /class="topbar__description"/)
+    assert.match(indexRaw, /Private ECAD viewer for Altium &amp; KiCad/)
+    assert.match(indexRaw, /class="icon icon--upload"/)
+    assert.match(indexRaw, /class="icon icon--folder"/)
+    assert.match(indexRaw, /class="icon icon--globe"/)
+    assert.match(indexRaw, /PRIVATE\s*&middot;\s*LOCAL\s*&middot;\s*NO UPLOAD/)
+    assert.match(indexRaw, /Open Altium &amp; KiCad designs locally/)
+    assert.doesNotMatch(indexRaw, /no tracking/)
+    assert.match(indexRaw, /class="hero-proof__screen"/)
+    assert.match(indexRaw, /src="\/og\/ecadforge-product-preview\.png"/)
+    assert.match(indexRaw, /Preview of supported views/)
+    assert.match(indexRaw, /class="chip-icon chip-icon--schematic"/)
+    assert.match(indexRaw, /class="chip-icon chip-icon--board"/)
+    assert.match(indexRaw, /class="chip-icon chip-icon--cloud"/)
+    assert.match(indexRaw, /data-view-chip="schematic"/)
+    assert.match(indexRaw, /data-view-chip="diagnostics"/)
+    assert.match(indexRaw, /class="github-open__input-wrap"/)
+    assert.match(indexRaw, /class="meta-card__icon"/)
+    assert.match(indexRaw, /class="[^"]*footer-inline[^"]*"/)
+    assert.doesNotMatch(indexRaw, /<div class="footer-card">/)
+    assert.match(heroRaw, /class="file-pill file-pill--kicad"/)
+    assert.match(heroRaw, /class="file-pill file-pill--altium"/)
+    assert.ok(heroRaw.indexOf('Try KiCad sample') < heroRaw.indexOf('Try Altium sample'))
+    assert.ok(heroRaw.indexOf('Try Altium sample') < heroRaw.indexOf('Open local files'))
+    assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(\)/)
+    assert.match(emptyStateRaw, /file-pill file-pill--kicad[\s\S]+Try KiCad sample/)
+    assert.match(emptyStateRaw, /file-pill file-pill--altium[\s\S]+Try Altium sample/)
 })
 
 /**

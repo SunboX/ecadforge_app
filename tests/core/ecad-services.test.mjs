@@ -96,8 +96,10 @@ test('ECAD renderer and 3D services accept KiCad document models', () => {
         bom: []
     }
     const scene = EcadScene3dService.build(kicadPcbDocument)
+    const kicadPcbMarkup = EcadRendererService.renderPcb(kicadPcbDocument)
 
-    assert.match(EcadRendererService.renderPcb(kicadPcbDocument), /pcb-svg/)
+    assert.match(kicadPcbMarkup, /pcb-svg/)
+    assert.match(kicadPcbMarkup, /pcb-svg--kicad/)
     assert.equal(scene.sourceFormat, 'kicad')
     assert.equal(scene.board.widthMil, 100)
 })

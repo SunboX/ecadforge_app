@@ -9,7 +9,7 @@ export class AppMetaLoader {
      * @param {typeof fetch | undefined} fetchImplementation
      * @returns {Promise<string>}
      */
-    static async loadVersion(fetchImplementation = globalThis.fetch) {
+    static async loadVersion(fetchImplementation = AppMetaLoader.#defaultFetch()) {
         if (typeof fetchImplementation !== 'function') {
             return ''
         }
@@ -49,5 +49,17 @@ export class AppMetaLoader {
         } catch (_error) {
             return ''
         }
+    }
+
+    /**
+     * Returns a fetch implementation that keeps the browser receiver intact.
+     * @returns {typeof fetch | undefined}
+     */
+    static #defaultFetch() {
+        if (typeof globalThis.fetch !== 'function') {
+            return undefined
+        }
+
+        return globalThis.fetch.bind(globalThis)
     }
 }

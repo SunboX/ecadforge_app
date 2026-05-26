@@ -111,6 +111,10 @@ export class StaticDeployBuilder {
             '    RewriteEngine On\n' +
             '    RewriteCond %{REQUEST_FILENAME} !-f\n' +
             '    RewriteCond %{REQUEST_FILENAME} !-d\n' +
+            '    RewriteCond %{REQUEST_FILENAME}.html -f\n' +
+            '    RewriteRule ^(.+)$ $1.html [L]\n' +
+            '    RewriteCond %{REQUEST_FILENAME} !-f\n' +
+            '    RewriteCond %{REQUEST_FILENAME} !-d\n' +
             '    RewriteRule ^ index.html [L]\n' +
             '</IfModule>\n' +
             '<IfModule mod_headers.c>\n' +

@@ -543,6 +543,16 @@ test('server exposes public indexable app URLs and crawl assets', async (t) => {
         '/3d',
         '/bom',
         '/diagnostics',
+        '/demo/kicad',
+        '/demo/altium',
+        '/altium-pcbdoc-viewer',
+        '/altium-schdoc-viewer',
+        '/kicad-viewer-online',
+        '/kicad-project-viewer',
+        '/ecad-viewer-no-upload',
+        '/altium-kicad-browser-viewer',
+        '/pcb-3d-viewer-browser',
+        '/bom-viewer-kicad-altium',
         '/robots.txt',
         '/sitemap.xml'
     ]

@@ -6,6 +6,7 @@ import { AppView } from './ui/AppView.mjs'
 import { PcbScene3dController } from './ui/PcbScene3dController.mjs'
 import { PcbScene3dWorkerClient } from './ui/PcbScene3dWorkerClient.mjs'
 import { I18nService } from './I18n.mjs'
+import { StartupSourceResolver } from './StartupSourceResolver.mjs'
 import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 
 /**
@@ -20,7 +21,7 @@ async function bootstrap() {
         parseStatus: 'idle',
         statusMessage: i18n
             ? i18n.translate('status.ready')
-            : 'Drop a native SchDoc or PcbDoc file to begin.'
+            : 'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.'
     })
 
     const parserWorkerUrl = WorkerUrlBuilder.buildParserWorkerUrl(
@@ -45,7 +46,8 @@ async function bootstrap() {
         state,
         view,
         i18n,
-        workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' })
+        workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' }),
+        startupSource: StartupSourceResolver.resolve(window.location.href)
     })
 
     await controller.init()

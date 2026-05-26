@@ -4,6 +4,25 @@ import test from 'node:test'
 import { Scene3dRenderer } from '../../../src/ui/Scene3dRenderer.mjs'
 
 /**
+ * Reads the full application stylesheet in import order.
+ * @returns {Promise<string>}
+ */
+async function readAppStylesheet() {
+    const entryUrl = new URL('../../../src/style.css', import.meta.url)
+    const entryCss = await readFile(entryUrl, 'utf8')
+    const importPaths = [...entryCss.matchAll(/@import\s+'([^']+)';/g)].map(
+        (match) => match[1]
+    )
+    const importedCss = await Promise.all(
+        importPaths.map((importPath) => {
+            return readFile(new URL(importPath, entryUrl), 'utf8')
+        })
+    )
+
+    return [entryCss, ...importedCss].join('\n')
+}
+
+/**
  * Verifies the 3D renderer emits an interactive scene shell instead of a
  * presentational summary card.
  */
@@ -41,7 +60,7 @@ test('renderScene3d emits viewport and control chrome for the 3D scene', () => {
  */
 test('scene3d stylesheet defines viewport, controls, and canvas layout', async () => {
     const cssPath = new URL(
-        '../../../src/styles/20-viewer.css',
+        '../../../src/styles/30-scene3d.css',
         import.meta.url
     )
     const css = await readFile(cssPath, 'utf8')
@@ -87,4 +106,45 @@ test('viewer stylesheet colors PCB copper regions', async () => {
     assert.match(css, /--pcb-subsurface-fill:\s*rgba\(114,\s*84,\s*62,\s*0\.045\);/)
     assert.match(css, /--pcb-copper-solid-fill:\s*rgba\(196,\s*118,\s*70,\s*0\.54\);/)
     assert.match(css, /--pcb-component-top-fill:\s*rgba\(203,\s*139,\s*96,\s*0\.68\);/)
+})
+
+/**
+ * Verifies KiCad PCB renderer output is recolored from the toolkit's
+ * black/gray presentation attributes into the ECAD Forge viewer palette.
+ */
+test('app stylesheet recolors KiCad PCB renderer primitives', async () => {
+    const css = await readAppStylesheet()
+
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+\.pcb-board\s*\{[\s\S]*fill:\s*var\(--pcb-board-fill\);[\s\S]*stroke:\s*var\(--pcb-board-stroke\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+\.pcb-zone\s*\{[\s\S]*fill:\s*var\(--pcb-surface-fill\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+line\.pcb-segment\s*\{[\s\S]*stroke:\s*var\(--pcb-surface-track-color\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+path\.pcb-arc\s*\{[\s\S]*stroke:\s*var\(--pcb-surface-track-color\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+:is\(circle,\s*rect\)\.pcb-pad\s*\{[\s\S]*fill:\s*var\(--pcb-copper-solid-fill\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+circle\.pcb-via\s*\{[\s\S]*fill:\s*var\(--pcb-via-ring-fill\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+:is\(\.pcb-via-drill,\s*\.pcb-pad-drill\)\s*\{[\s\S]*fill:\s*var\(--pcb-via-hole-fill\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+\.pcb-label\s*\{[\s\S]*stroke:\s*var\(--pcb-component-text\);/
+    )
 })

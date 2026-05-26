@@ -2,6 +2,8 @@ import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
+import { SummaryCardRenderer } from './SummaryCardRenderer.mjs'
+import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 
 /**
  * DOM rendering and event binding helper.
@@ -49,6 +51,18 @@ export class AppView {
     /** @type {HTMLElement | null} */
     #diagnosticsCountNode
 
+    /** @type {HTMLFormElement | null} */
+    #githubOpenForm
+
+    /** @type {HTMLInputElement | null} */
+    #githubUrlInput
+
+    /** @type {HTMLElement | null} */
+    #pcbStylerCtaNode
+
+    /** @type {HTMLAnchorElement | null} */
+    #pcbStylerLinkNode
+
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
@@ -80,6 +94,10 @@ export class AppView {
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#diagnosticsCountNode =
             this.#document.querySelector('#diagnosticsCount')
+        this.#githubOpenForm = this.#document.querySelector('#githubOpenForm')
+        this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
+        this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
+        this.#pcbStylerLinkNode = this.#document.querySelector('#pcbStylerLink')
         this.#svgViewportController = null
         this.#scene3dController = null
         this.#createScene3dController =
@@ -98,6 +116,12 @@ export class AppView {
     render(snapshot) {
         this.setStatus(snapshot.statusMessage)
         this.setLocale(snapshot.locale)
+        const bodyClassList = this.#document.body?.classList
+        if (bodyClassList) {
+            bodyClassList[snapshot.documentModel ? 'add' : 'remove'](
+                'is-viewer-mode'
+            )
+        }
         this.#renderActiveFile(snapshot.activeFileName)
         this.#renderTabs(snapshot.activeView)
         this.#renderSummary(snapshot.documentModel)
@@ -223,6 +247,83 @@ export class AppView {
     }
 
     /**
+     * Binds bundled demo buttons.
+     * @param {(demoId: string) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindDemoSelection(callback) {
+        this.#document.addEventListener('click', (event) => {
+            const target = event.target
+            if (!(target instanceof HTMLElement)) return
+            const button = target.closest('[data-demo-id]')
+            if (!(button instanceof HTMLElement)) return
+
+            event.preventDefault()
+            callback(button.dataset.demoId || '')
+        })
+    }
+
+    /**
+     * Binds local-open CTA clicks.
+     * @param {() => void} callback
+     * @returns {void}
+     */
+    bindLocalOpen(callback) {
+        this.#document.addEventListener('click', (event) => {
+            const target = event.target
+            if (!(target instanceof HTMLElement)) return
+            const button = target.closest('[data-local-open]')
+            if (!(button instanceof HTMLElement)) return
+
+            callback()
+        })
+    }
+
+    /**
+     * Binds the GitHub URL form.
+     * @param {(url: string) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindGitHubOpen(callback) {
+        this.#githubOpenForm?.addEventListener('submit', (event) => {
+            event.preventDefault()
+            const value = String(this.#githubUrlInput?.value || '').trim()
+            if (!value) return
+            callback(value)
+        })
+    }
+
+    /**
+     * Binds PCB Styler crosslink clicks.
+     * @param {() => void} callback
+     * @returns {void}
+     */
+    bindPcbStylerClick(callback) {
+        this.#pcbStylerLinkNode?.addEventListener('click', () => {
+            callback()
+        })
+    }
+
+    /**
+     * Updates the contextual PCB Styler crosslink.
+     * @param {string} url Link URL.
+     * @param {string} mode Link mode.
+     * @returns {void}
+     */
+    setPcbStylerLink(url, mode) {
+        if (!this.#pcbStylerCtaNode || !this.#pcbStylerLinkNode) {
+            return
+        }
+
+        this.#pcbStylerLinkNode.href = url || 'https://pcb-styler.app/'
+        this.#pcbStylerLinkNode.textContent =
+            mode === 'github'
+                ? 'Open this board in PCB Styler'
+                : 'Export or reopen in PCB Styler'
+        this.#pcbStylerCtaNode.removeAttribute('hidden')
+    }
+
+    /**
      * Binds locale changes.
      * @param {(locale: string) => void | Promise<void>} callback
      */
@@ -269,26 +370,7 @@ export class AppView {
     #renderSummary(documentModel) {
         if (!this.#summaryNode) return
 
-        if (!documentModel) {
-            this.#summaryNode.innerHTML =
-                '<article class="summary-card"><span class="summary-card__label">Status</span><strong>Awaiting native ECAD files</strong></article>' +
-                '<article class="summary-card"><span class="summary-card__label">Formats</span><strong>Altium, KiCad</strong></article>' +
-                '<article class="summary-card"><span class="summary-card__label">Parser</span><strong>Client-side JS</strong></article>' +
-                '<article class="summary-card"><span class="summary-card__label">Views</span><strong>5 tabs ready</strong></article>'
-            return
-        }
-
-        const cards = AppView.#buildSummaryCards(documentModel)
-        this.#summaryNode.innerHTML = cards
-            .map(
-                (card) =>
-                    '<article class="summary-card"><span class="summary-card__label">' +
-                    AppView.#escapeHtml(card.label) +
-                    '</span><strong>' +
-                    AppView.#escapeHtml(card.value) +
-                    '</strong></article>'
-            )
-            .join('')
+        this.#summaryNode.innerHTML = SummaryCardRenderer.render(documentModel)
     }
 
     /**
@@ -355,8 +437,7 @@ export class AppView {
         }
 
         if (!snapshot.documentModel) {
-            this.#contentNode.innerHTML =
-                '<section class="viewer-empty"><h3>Drop a native file</h3><p>Open Altium <code>.SchDoc</code>/<code>.PcbDoc</code> documents or KiCad <code>.kicad_pro</code>, <code>.kicad_sch</code>, <code>.kicad_pcb</code>, and ZIP project archives directly in the browser.</p></section>'
+            this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render()
             return
         }
 
@@ -478,57 +559,6 @@ export class AppView {
     #disposeScene3dController() {
         this.#scene3dController?.dispose()
         this.#scene3dController = null
-    }
-
-    /**
-     * Builds summary card values by document type.
-     * @param {any} documentModel
-     * @returns {{ label: string, value: string }[]}
-     */
-    static #buildSummaryCards(documentModel) {
-        if (documentModel.kind === 'schematic') {
-            return [
-                {
-                    label: 'Components',
-                    value: String(documentModel.summary.componentCount || 0)
-                },
-                {
-                    label: 'Graphics',
-                    value: String(documentModel.summary.lineCount || 0)
-                },
-                {
-                    label: 'Texts',
-                    value: String(documentModel.summary.textCount || 0)
-                },
-                {
-                    label: 'BOM groups',
-                    value: String(documentModel.summary.bomRowCount || 0)
-                }
-            ]
-        }
-
-        return [
-            {
-                label: 'Placements',
-                value: String(documentModel.summary.componentCount || 0)
-            },
-            {
-                label: 'Layers',
-                value: String(documentModel.summary.layerCount || 0)
-            },
-            {
-                label: 'Outline segments',
-                value: String(documentModel.summary.outlineSegmentCount || 0)
-            },
-            {
-                label: 'Board envelope',
-                value:
-                    String(documentModel.summary.boardWidthMil || 0) +
-                    ' x ' +
-                    String(documentModel.summary.boardHeightMil || 0) +
-                    ' mil'
-            }
-        ]
     }
 
     /**
@@ -728,13 +758,29 @@ export class AppView {
 
         const previewSvgMarkup = svgMatch[0].replace(
             /class="[^"]*"/,
-            'class="' + previewClassName + '"'
+            'class="' +
+                AppView.#previewSvgClassName(svgMatch[1], previewClassName) +
+                '"'
         )
 
         return AppView.#prefixSvgMarkupIds(
             previewSvgMarkup,
             'preview-' + documentId
         )
+    }
+
+    /**
+     * Preserves source renderer modifier classes on preview SVGs.
+     * @param {string} sourceClassList Original SVG class attribute.
+     * @param {string} previewClassName Preview class replacement.
+     * @returns {string}
+     */
+    static #previewSvgClassName(sourceClassList, previewClassName) {
+        const retainedModifiers = String(sourceClassList)
+            .split(/\s+/)
+            .filter((className) => /--[a-z0-9-]+$/i.test(className))
+
+        return [previewClassName, ...retainedModifiers].join(' ')
     }
 
     /**

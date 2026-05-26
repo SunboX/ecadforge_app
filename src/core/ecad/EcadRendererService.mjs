@@ -32,7 +32,7 @@ export class EcadRendererService {
      */
     static renderPcb(documentModel) {
         return EcadRendererService.#isKiCad(documentModel)
-            ? KicadPcbSvgRenderer.render(documentModel)
+            ? EcadRendererService.#renderKicadPcb(documentModel)
             : AltiumPcbSvgRenderer.render(documentModel)
     }
 
@@ -57,6 +57,18 @@ export class EcadRendererService {
         return (
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
+        )
+    }
+
+    /**
+     * Renders KiCad PCB SVG with an app-scoped marker class for palette fixes.
+     * @param {object} documentModel Document model.
+     * @returns {string}
+     */
+    static #renderKicadPcb(documentModel) {
+        return KicadPcbSvgRenderer.render(documentModel).replace(
+            'class="pcb-svg"',
+            'class="pcb-svg pcb-svg--kicad"'
         )
     }
 }

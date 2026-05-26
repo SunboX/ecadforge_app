@@ -19,6 +19,9 @@ class FakeView {
     /** @type {((documentId: string) => void) | null} */
     #documentSelectionCallback
 
+    /** @type {((demoId: string) => void | Promise<void>) | null} */
+    #demoSelectionCallback
+
     /** @type {{ activeView: string, parseStatus: string, documents: { id: string, documentModel: object }[], activeDocumentId: string } | null} */
     latestSnapshot
 
@@ -30,6 +33,7 @@ class FakeView {
         this.#dropCallback = null
         this.#viewChangeCallback = null
         this.#documentSelectionCallback = null
+        this.#demoSelectionCallback = null
         this.latestSnapshot = null
         this.statuses = []
     }
@@ -65,6 +69,39 @@ class FakeView {
     bindDocumentSelection(callback) {
         this.#documentSelectionCallback = callback
     }
+
+    /**
+     * @param {(demoId: string) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindDemoSelection(callback) {
+        this.#demoSelectionCallback = callback
+    }
+
+    /**
+     * @param {() => void} _callback
+     * @returns {void}
+     */
+    bindLocalOpen(_callback) {}
+
+    /**
+     * @param {(url: string) => void | Promise<void>} _callback
+     * @returns {void}
+     */
+    bindGitHubOpen(_callback) {}
+
+    /**
+     * @param {() => void} _callback
+     * @returns {void}
+     */
+    bindPcbStylerClick(_callback) {}
+
+    /**
+     * @param {string} _url
+     * @param {string} _mode
+     * @returns {void}
+     */
+    setPcbStylerLink(_url, _mode) {}
 
     /**
      * @param {(locale: string) => void | Promise<void>} _callback
@@ -107,6 +144,14 @@ class FakeView {
      */
     async chooseFiles(files) {
         await this.#fileSelectionCallback?.(files)
+    }
+
+    /**
+     * @param {string} demoId
+     * @returns {Promise<void>}
+     */
+    async chooseDemo(demoId) {
+        await this.#demoSelectionCallback?.(demoId)
     }
 
     /**
@@ -319,6 +364,27 @@ class BatchParser {
     parseEntries(entries) {
         this.seenNames = entries.map((entry) => entry.name)
         return this.#result
+    }
+}
+
+/**
+ * Analytics double that records emitted events.
+ */
+class RecordingAnalytics {
+    /** @type {{ name: string, properties: object }[]} */
+    events
+
+    constructor() {
+        this.events = []
+    }
+
+    /**
+     * @param {string} name
+     * @param {object} [properties]
+     * @returns {void}
+     */
+    track(name, properties = {}) {
+        this.events.push({ name, properties })
     }
 }
 
@@ -600,7 +666,7 @@ test('AppController rejects invalid files without clearing the open session', as
     assert.equal(snapshot.activeFileName, 'board.PcbDoc')
     assert.equal(
         snapshot.statusMessage,
-        'Please choose an Altium .SchDoc/.PcbDoc or KiCad .kicad_pro/.kicad_sch/.kicad_pcb/.zip project file.'
+        'This file type is not supported yet. ECAD Forge currently supports selected Altium and KiCad design files. Try a sample project or open a supported board/schematic file.'
     )
 })
 
@@ -700,4 +766,149 @@ test('AppController reports companion-only loads without creating documents', as
         snapshot.statusMessage,
         'Companion 3D assets added to the current session.'
     )
+})
+
+/**
+ * Verifies bundled demo startup reuses the parser path and emits activation
+ * events without requiring user files.
+ */
+test('AppController loads a bundled demo startup source through the parser', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const analytics = new RecordingAnalytics()
+    const parser = new BatchParser({
+        documents: [
+            createSchematicDocument('RP2040_minimal.kicad_sch'),
+            createPcbDocument('RP2040_minimal.kicad_pcb')
+        ],
+        assets: []
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        analytics,
+        fetcher: async () => new Response('demo', { status: 200 }),
+        startupSource: { type: 'demo', id: 'kicad' }
+    })
+
+    await controller.init()
+
+    const snapshot = state.getSnapshot()
+
+    assert.deepEqual(parser.seenNames, [
+        'NODEMCU_ESP12.SchDoc',
+        'NODEMCU_ESP12.PcbDoc',
+        'RP2040_minimal.kicad_pro',
+        'RP2040_minimal.kicad_sch',
+        'RP2040_minimal.kicad_pcb'
+    ].slice(2))
+    assert.equal(snapshot.documents.length, 2)
+    assert.equal(snapshot.parseStatus, 'ready')
+    assert.match(snapshot.statusMessage, /sample project is parsed locally/i)
+    assert.deepEqual(
+        analytics.events.map((event) => event.name),
+        [
+            'landing_view',
+            'sample_kicad_clicked',
+            'sample_loaded_success',
+            'view_pcb_opened'
+        ]
+    )
+})
+
+/**
+ * Verifies the browser fetch receiver stays bound when no test fetcher is
+ * injected. Browser `window.fetch` rejects detached calls.
+ */
+test('AppController uses a bound browser fetch for bundled demo startup', async () => {
+    const originalFetch = globalThis.fetch
+    const seenUrls = []
+    globalThis.fetch = async function boundFetch(url) {
+        assert.equal(this, globalThis)
+        seenUrls.push(String(url))
+        return new Response('demo', { status: 200 })
+    }
+
+    try {
+        const state = new AppState()
+        const controller = new AppController({
+            state,
+            view: new FakeView(),
+            parser: new BatchParser({
+                documents: [createPcbDocument('RP2040_minimal.kicad_pcb')],
+                assets: []
+            }),
+            analytics: new RecordingAnalytics(),
+            startupSource: { type: 'demo', id: 'kicad' }
+        })
+
+        await controller.init()
+
+        assert.equal(state.getSnapshot().parseStatus, 'ready')
+        assert.equal(seenUrls.length, 3)
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+})
+
+/**
+ * Verifies GitHub startup sources load through the URL loader, parse normally,
+ * and retain only coarse activation properties.
+ */
+test('AppController loads GitHub startup sources through the parser', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const analytics = new RecordingAnalytics()
+    const parser = new BatchParser({
+        documents: [createPcbDocument('board.kicad_pcb')],
+        assets: []
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        analytics,
+        githubSourceLoader: {
+            async loadUrl(_url) {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'kicad',
+                    boardUrl:
+                        'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
+                    entries: [
+                        {
+                            name: 'board.kicad_pcb',
+                            buffer: new ArrayBuffer(8)
+                        }
+                    ]
+                }
+            }
+        },
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/a/b/blob/main/board.kicad_pcb'
+        }
+    })
+
+    await controller.init()
+
+    const snapshot = state.getSnapshot()
+
+    assert.deepEqual(parser.seenNames, ['board.kicad_pcb'])
+    assert.equal(snapshot.parseStatus, 'ready')
+    assert.match(snapshot.statusMessage, /Design loaded locally/)
+    assert.deepEqual(
+        analytics.events.map((event) => event.name),
+        [
+            'landing_view',
+            'github_url_open_attempted',
+            'github_url_loaded_success',
+            'view_pcb_opened'
+        ]
+    )
+    assert.deepEqual(analytics.events[2].properties, {
+        sourceType: 'github',
+        formatFamily: 'kicad'
+    })
 })

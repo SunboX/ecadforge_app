@@ -342,6 +342,7 @@ class FakeDocument extends FakeEventTarget {
 
     constructor() {
         super()
+        this.body = new FakeNode()
         this.#nodes = new Map([
             ['#fileInput', new FakeNode()],
             ['#dropZone', new FakeNode()],
@@ -722,6 +723,30 @@ test('AppView renders the raw runtime version text in the footer node', () => {
 })
 
 /**
+ * Verifies AppView marks the app as an active viewer once a document is
+ * available so the landing hero can collapse.
+ */
+test('AppView toggles viewer mode when a design is loaded', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render({
+        activeView: 'schematic',
+        locale: 'en',
+        parseStatus: 'ready',
+        statusMessage: 'Ready.',
+        activeFileName: '',
+        documentModel: null
+    })
+
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), false)
+
+    view.render(createSchematicSnapshot())
+
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
+})
+
+/**
  * Verifies AppView makes the rendered schematic SVG interactive.
  */
 test('AppView wires mouse-wheel zoom onto the rendered schematic svg', () => {
@@ -779,9 +804,6 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
     assert.equal(firstSvg.getListenerCount('mousedown'), 0)
 })
 
-/**
- * Verifies AppView makes the rendered PCB SVG interactive.
- */
 test('AppView wires zoom and drag onto the rendered pcb svg', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)

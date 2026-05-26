@@ -1,0 +1,46 @@
+.pcb-svg--kicad .pcb-board {
+    fill: var(--pcb-board-fill);
+    stroke: var(--pcb-board-stroke);
+}
+
+.pcb-svg--kicad .pcb-zone {
+    fill: var(--pcb-surface-fill);
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad line.pcb-segment {
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad path.pcb-arc {
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad .pcb-drawing--copper {
+    fill: var(--pcb-surface-fill);
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad .pcb-drawing--silk {
+    fill: rgba(66, 93, 112, 0.1);
+    stroke: rgba(66, 93, 112, 0.72);
+}
+
+.pcb-svg--kicad :is(circle, rect).pcb-pad {
+    fill: var(--pcb-copper-solid-fill);
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad circle.pcb-via {
+    fill: var(--pcb-via-ring-fill);
+    stroke: var(--pcb-surface-track-color);
+}
+
+.pcb-svg--kicad :is(.pcb-via-drill, .pcb-pad-drill) {
+    fill: var(--pcb-via-hole-fill);
+    stroke: rgba(255, 255, 255, 0.72);
+}
+
+.pcb-svg--kicad .pcb-label {
+    stroke: var(--pcb-component-text);
+}

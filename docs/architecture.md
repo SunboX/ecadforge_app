@@ -5,6 +5,10 @@
 - `src/index.html`: static viewer shell with file intake, tabs, and render anchors
 - `src/main.mjs`: bootstrap and dependency wiring
 - `src/AppController.mjs`: file intake, worker coordination, state transitions
+- `src/StartupSourceResolver.mjs`: route and query-string startup source detection
+- `src/DemoProjectRegistry.mjs`: bundled demo metadata, source URLs, and license metadata
+- `src/GitHubSourceLoader.mjs`: GitHub raw/blob URL normalization and browser fetch handling
+- `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation events without file names, raw URLs, or contents
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
 - `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
@@ -53,9 +57,12 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 - `src/styles/00-core.css` defines theme tokens
 - `src/styles/10-layout.css` defines shell/layout primitives
 - `src/styles/20-viewer.css` defines viewer-specific presentation
+- `src/styles/30-scene3d.css` defines interactive 3D viewer presentation
 
 ## Server Endpoints
 
+- `GET /`, `/demo/kicad`, `/demo/altium`, and supported query variants return the app shell and are resolved by browser startup logic
+- `GET /altium-pcbdoc-viewer`, `/altium-schdoc-viewer`, `/kicad-viewer-online`, `/kicad-project-viewer`, `/ecad-viewer-no-upload`, `/altium-kicad-browser-viewer`, `/pcb-3d-viewer-browser`, and `/bom-viewer-kicad-altium`: crawlable SEO landing pages
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
@@ -65,4 +72,4 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 
 ## Static Deployment
 
-The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` also rewrites extensionless app routes such as `/pcb` and `/diagnostics` to `index.html` so crawlable view links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, `package.json` to `/`, and production `node_modules/` to `/node_modules/` when dependency metadata changes.
+The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, `package.json` to `/`, and production `node_modules/` to `/node_modules/` when dependency metadata changes.

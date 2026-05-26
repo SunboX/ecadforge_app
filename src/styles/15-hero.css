@@ -1,0 +1,302 @@
+.hero-grid {
+    padding: 0.75rem;
+}
+
+.dropzone {
+    position: relative;
+    min-height: 292px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(330px, 0.8fr);
+    grid-template-areas:
+        'eyebrow visual'
+        'title visual'
+        'copy visual'
+        'actions visual'
+        'github visual'
+        'chips visual'
+        'status visual';
+    align-content: start;
+    gap: 0.5rem 1.3rem;
+    padding: clamp(1rem, 1.55vw, 1.45rem);
+    border-radius: calc(var(--radius) - 4px);
+    background:
+        linear-gradient(
+            120deg,
+            rgba(255, 255, 255, 0.96) 0%,
+            rgba(255, 255, 255, 0.9) 54%,
+            rgba(255, 250, 244, 0.82) 100%
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(184, 90, 37, 0.035) 0 1px,
+            transparent 1px 34px
+        );
+    overflow: hidden;
+    transition:
+        transform 140ms ease,
+        border-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.dropzone.is-dragover {
+    transform: translateY(-2px);
+    border-color: rgba(184, 90, 37, 0.42);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+        0 30px 76px rgba(184, 90, 37, 0.18);
+}
+
+.dropzone__eyebrow {
+    grid-area: eyebrow;
+}
+
+.dropzone h2 {
+    grid-area: title;
+    max-width: 26ch;
+    margin: 0;
+    color: #14212d;
+    font-size: clamp(1.95rem, 2.55vw, 2.75rem);
+    line-height: 1.08;
+    letter-spacing: 0;
+}
+
+.dropzone__copy {
+    grid-area: copy;
+    max-width: 42rem;
+    margin: 0;
+    color: #425968;
+    font-size: clamp(0.95rem, 1vw, 1.02rem);
+    line-height: 1.48;
+}
+
+.hero-actions {
+    grid-area: actions;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+
+.hero-actions .file-pill {
+    min-height: 2.75rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.94rem;
+    box-shadow: 0 14px 24px rgba(35, 44, 50, 0.08);
+}
+
+.file-pill--ghost {
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.hero-actions button {
+    appearance: none;
+}
+
+.github-open {
+    grid-area: github;
+    display: grid;
+    gap: 0.42rem;
+    max-width: 49rem;
+}
+
+.github-open__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+}
+
+.github-open__input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 0.8rem;
+    border: 1px solid rgba(95, 112, 124, 0.2);
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.github-open__input-wrap .icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    fill: #263a4a;
+}
+
+.github-open input {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    font-size: 0.94rem;
+    outline: none;
+}
+
+.github-open button {
+    min-height: 2.75rem;
+    border: 1px solid rgba(15, 116, 108, 0.3);
+    border-radius: 0.5rem;
+    padding: 0 1.05rem;
+    background: rgba(255, 255, 255, 0.86);
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.dropzone__chips {
+    grid-area: chips;
+    display: flex;
+    gap: 0.42rem;
+    flex-wrap: wrap;
+    margin-top: 0.15rem;
+}
+
+.dropzone__chips span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    min-height: 1.85rem;
+    padding: 0.32rem 0.58rem;
+    border: 1px solid rgba(95, 112, 124, 0.1);
+    border-radius: 999px;
+    color: var(--accent);
+    background: rgba(240, 247, 244, 0.8);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.chip-icon {
+    width: 0.98rem;
+    height: 0.98rem;
+    flex: 0 0 auto;
+}
+
+.chip-icon path,
+.chip-icon rect {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.trust-line,
+.secondary-links {
+    display: none;
+}
+
+.dropzone > .status {
+    display: none;
+}
+
+.hero-proof {
+    grid-area: visual;
+    align-self: start;
+    display: grid;
+    gap: 0.56rem;
+    min-width: 0;
+    padding: 0.72rem;
+    border: 1px solid rgba(95, 112, 124, 0.13);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow:
+        0 18px 40px rgba(35, 44, 50, 0.08),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.hero-proof strong {
+    color: #172635;
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.hero-proof__screen {
+    margin: 0;
+    overflow: hidden;
+    border-radius: 0.7rem;
+    border: 1px solid rgba(95, 112, 124, 0.14);
+    background: #f8f4ed;
+}
+
+.hero-proof__screen img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    object-position: center;
+}
+
+.hero-proof__views {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hero-proof__views li {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 2.2rem;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    border-radius: 0.5rem;
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.78);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.hero-proof__views li:first-child {
+    color: var(--brand-strong);
+    border-color: rgba(184, 90, 37, 0.22);
+    background: rgba(255, 248, 241, 0.84);
+}
+
+body.is-viewer-mode .hero-grid {
+    display: none;
+}
+
+@media (max-width: 1180px) {
+    .dropzone {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            'eyebrow'
+            'title'
+            'copy'
+            'actions'
+            'github'
+            'chips'
+            'visual'
+            'status';
+    }
+
+    .dropzone h2 {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .hero-grid,
+    .dropzone {
+        padding: 1rem;
+    }
+
+    .dropzone h2 {
+        font-size: clamp(1.9rem, 9vw, 2.6rem);
+    }
+
+    .github-open__row,
+    .hero-proof__views {
+        grid-template-columns: 1fr;
+    }
+}

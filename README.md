@@ -9,6 +9,8 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 ## Features
 
 - Client-side parsing for native Altium and KiCad files with no server-side preprocessing
+- Bundled Altium and KiCad demo projects with preserved third-party license notices
+- GitHub raw/blob URL loading for supported native ECAD files and KiCad project triplets
 - Schematic SVG view derived from recovered record geometry and text
 - PCB SVG view with recovered board outline, layer stack, and component placements
 - BOM grouping from recovered component metadata
@@ -23,6 +25,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
+- `src/demo/`: bundled demo project files plus source and license notices
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
 - `tests/`: app state, server, interaction, and structure tests
@@ -47,6 +50,8 @@ npm start
 
 Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, companion `WRL`, or companion `STEP` files. KiCad projects can also be selected as folders from the header.
 
+Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching.
+
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
 
 ## Deploy
@@ -64,6 +69,8 @@ npm test
 ```
 
 Parser and deterministic renderer tests live in the shared `altium-toolkit` and `kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
+
+Privacy-safe activation events are emitted through the optional centralized tracker when present. Event properties intentionally exclude file names, raw URLs, file contents, and other personal data.
 
 ## Formatting
 

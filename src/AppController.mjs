@@ -1,5 +1,8 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
+import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
+import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
+import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
 /**
  * Coordinates file intake, parsing, state, and rendering.
@@ -32,13 +35,29 @@ export class AppController {
     /** @type {Map<string, { resolve: (documentModel: object) => void, reject: (error: Error) => void }>} */
     #pendingWorkerParses
 
+    /** @type {(url: string) => Promise<Response>} */
+    #fetcher
+
+    /** @type {{ loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> }} */
+    #githubSourceLoader
+
+    /** @type {{ track: (eventName: string, properties?: object) => void }} */
+    #analytics
+
+    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string } | null} */
+    #startupSource
+
     /**
      * @param {{
      * state: import('./core/AppState.mjs').AppState,
      * view: import('./ui/AppView.mjs').AppView,
      * i18n?: { getLocale: () => string, setLocale: (locale: string) => void, translate: (key: string) => string, applyToDom: (node: Document) => void } | null,
      * workerFactory?: (() => Worker) | null,
-     * parser?: { parseArrayBuffer?: (fileName: string, buffer: ArrayBuffer) => object, parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object }
+     * parser?: { parseArrayBuffer?: (fileName: string, buffer: ArrayBuffer) => object, parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object },
+     * fetcher?: (url: string) => Promise<Response>,
+     * githubSourceLoader?: { loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> },
+     * analytics?: { track: (eventName: string, properties?: object) => void },
+     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string } | null
      * }} dependencies
      */
     constructor(dependencies) {
@@ -51,6 +70,17 @@ export class AppController {
         this.#documentSequence = 1
         this.#workerRequestSequence = 1
         this.#pendingWorkerParses = new Map()
+        this.#fetcher =
+            dependencies.fetcher ||
+            (typeof globalThis.fetch === 'function'
+                ? globalThis.fetch.bind(globalThis)
+                : undefined)
+        this.#githubSourceLoader =
+            dependencies.githubSourceLoader ||
+            new GitHubSourceLoader({ fetcher: this.#fetcher })
+        this.#analytics =
+            dependencies.analytics || PrivacySafeAnalytics.fromWindow()
+        this.#startupSource = dependencies.startupSource || null
     }
 
     /**
@@ -65,16 +95,37 @@ export class AppController {
         this.#view.bindFileSelection((files) => this.#handleFiles(files))
         this.#view.bindDrop((files) => this.#handleFiles(files))
         this.#view.bindViewChange((viewName) => {
-            this.#state.patch(
+            const snapshot = this.#state.patch(
                 this.#buildCompatibleViewPatch(
                     viewName,
                     this.#state.getSnapshot()
                 )
             )
+            this.#trackViewOpened(snapshot.activeView)
         })
         if (typeof this.#view.bindDocumentSelection === 'function') {
             this.#view.bindDocumentSelection((documentId) => {
                 this.#state.setValue('activeDocumentId', documentId)
+            })
+        }
+        if (typeof this.#view.bindDemoSelection === 'function') {
+            this.#view.bindDemoSelection((demoId) => this.#loadDemo(demoId))
+        }
+        if (typeof this.#view.bindGitHubOpen === 'function') {
+            this.#view.bindGitHubOpen((url) => this.#loadGitHubUrl(url))
+        }
+        if (typeof this.#view.bindLocalOpen === 'function') {
+            this.#view.bindLocalOpen(() => {
+                this.#analytics.track('local_file_open_clicked', {
+                    sourceType: 'local'
+                })
+            })
+        }
+        if (typeof this.#view.bindPcbStylerClick === 'function') {
+            this.#view.bindPcbStylerClick(() => {
+                this.#analytics.track('crosslink_pcb_styler_clicked', {
+                    sourceType: 'crosslink'
+                })
             })
         }
 
@@ -107,6 +158,8 @@ export class AppController {
         }
 
         this.#view.setStatus(this.#translate('status.ready'))
+        this.#analytics.track('landing_view')
+        await this.#loadStartupSource()
     }
 
     /**
@@ -143,6 +196,10 @@ export class AppController {
         if (!nativeFiles.length) {
             if (!companionFiles.length) {
                 this.#handleParseError(this.#translate('status.invalidFile'))
+                this.#analytics.track('local_file_loaded_error', {
+                    sourceType: 'local',
+                    errorBucket: 'unsupported_file'
+                })
                 return
             }
 
@@ -162,27 +219,218 @@ export class AppController {
                 nativeFiles.map((file) => AppController.#buildParserEntry(file))
             )
             const parseResult = await this.#parseEntries(entries)
-            const parsedAssets = parseResult.assets.map((asset) =>
-                AppController.#buildParsedAsset(asset)
-            )
-
-            if (parsedAssets.length) {
-                this.#state.setValue(
-                    'sessionAssets',
-                    AppController.#mergeSessionAssets(
-                        this.#state.getSnapshot().sessionAssets,
-                        parsedAssets
-                    )
-                )
-            }
-
-            this.#handleParsedDocuments(parseResult.documents, {
-                adoptPreferredView: shouldAdoptPreferredView
+            const snapshotAfterLoad = this.#applyParseResult(parseResult, {
+                adoptPreferredView: shouldAdoptPreferredView,
+                statusMessage:
+                    'Design loaded locally. Use the tabs to inspect PCB, schematic, 3D view, BOM and diagnostics.'
             })
             shouldAdoptPreferredView = sessionWasEmpty
+            this.#analytics.track('local_file_loaded_success', {
+                sourceType: 'local',
+                formatFamily: AppController.#resolveFormatFamily(entries)
+            })
+            this.#trackViewOpened(snapshotAfterLoad.activeView)
+            this.#setPcbStylerLink('', 'local')
         } catch (error) {
             this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#analytics.track('local_file_loaded_error', {
+                sourceType: 'local',
+                errorBucket: 'parse'
+            })
         }
+    }
+
+    /**
+     * Loads a bundled demo project by id.
+     * @param {string} demoId Demo id.
+     * @returns {Promise<void>}
+     */
+    async #loadDemo(demoId) {
+        const demo = DemoProjectRegistry.get(demoId)
+        if (!demo) {
+            this.#handleParseError('Unknown sample project.')
+            return
+        }
+
+        this.#analytics.track('sample_' + demo.id + '_clicked', {
+            sourceType: 'sample',
+            formatFamily: demo.formatFamily
+        })
+        this.#state.patch({
+            parseStatus: 'loading',
+            statusMessage: 'Loading sample project locally in your browser...'
+        })
+
+        try {
+            const entries = await Promise.all(
+                demo.files.map((file) =>
+                    this.#fetchParserEntry(file.path, file.name)
+                )
+            )
+            const parseResult = await this.#parseEntries(entries)
+            const snapshotAfterLoad = this.#applyParseResult(parseResult, {
+                adoptPreferredView: true,
+                statusMessage:
+                    'This sample project is parsed locally in your browser. Try switching between schematic, PCB, 3D, BOM and diagnostics.'
+            })
+
+            this.#analytics.track('sample_loaded_success', {
+                sourceType: 'sample',
+                formatFamily: demo.formatFamily
+            })
+            this.#trackViewOpened(snapshotAfterLoad.activeView)
+            this.#setPcbStylerLink('', 'local')
+        } catch (error) {
+            this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#analytics.track('sample_loaded_error', {
+                sourceType: 'sample',
+                formatFamily: demo.formatFamily,
+                errorBucket: 'parse'
+            })
+        }
+    }
+
+    /**
+     * Loads a GitHub URL source.
+     * @param {string} url Raw or GitHub blob URL.
+     * @returns {Promise<void>}
+     */
+    async #loadGitHubUrl(url) {
+        await this.#loadGitHubSource(async () => {
+            return this.#githubSourceLoader.loadUrl(url)
+        })
+    }
+
+    /**
+     * Loads a GitHub path source.
+     * @param {string} githubPath Query path.
+     * @param {string} ref Optional git ref.
+     * @returns {Promise<void>}
+     */
+    async #loadGitHubPath(githubPath, ref) {
+        await this.#loadGitHubSource(async () => {
+            if (typeof this.#githubSourceLoader.loadGitHubPath === 'function') {
+                return this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
+            }
+
+            const loader = new GitHubSourceLoader({ fetcher: this.#fetcher })
+            return loader.loadGitHubPath(githubPath, ref)
+        })
+    }
+
+    /**
+     * Loads and parses one GitHub source descriptor.
+     * @param {() => Promise<object>} loadSource Source loader.
+     * @returns {Promise<void>}
+     */
+    async #loadGitHubSource(loadSource) {
+        this.#analytics.track('github_url_open_attempted', {
+            sourceType: 'github'
+        })
+        this.#state.patch({
+            parseStatus: 'loading',
+            statusMessage:
+                'Loading the GitHub file. Parsing still happens locally in your browser...'
+        })
+
+        try {
+            const source = await loadSource()
+            const parseResult = await this.#parseEntries(source.entries || [])
+            const snapshotAfterLoad = this.#applyParseResult(parseResult, {
+                adoptPreferredView: true,
+                statusMessage:
+                    'Design loaded locally. The external file was fetched from GitHub, then parsed in your browser.'
+            })
+
+            this.#analytics.track('github_url_loaded_success', {
+                sourceType: 'github',
+                formatFamily: source.formatFamily
+            })
+            this.#trackViewOpened(snapshotAfterLoad.activeView)
+            this.#setPcbStylerLink(String(source.boardUrl || ''), 'github')
+        } catch (error) {
+            this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#analytics.track('github_url_loaded_error', {
+                sourceType: 'github',
+                errorBucket: AppController.#resolveErrorBucket(error)
+            })
+        }
+    }
+
+    /**
+     * Loads the configured startup source, if any.
+     * @returns {Promise<void>}
+     */
+    async #loadStartupSource() {
+        if (!this.#startupSource) {
+            return
+        }
+
+        if (this.#startupSource.type === 'demo') {
+            await this.#loadDemo(String(this.#startupSource.id || ''))
+            return
+        }
+
+        if (this.#startupSource.type === 'url') {
+            await this.#loadGitHubUrl(String(this.#startupSource.url || ''))
+            return
+        }
+
+        if (this.#startupSource.type === 'github') {
+            await this.#loadGitHubPath(
+                String(this.#startupSource.path || ''),
+                String(this.#startupSource.ref || 'main')
+            )
+        }
+    }
+
+    /**
+     * Fetches one static demo file as a parser entry.
+     * @param {string} url File URL.
+     * @param {string} fileName Parser file name.
+     * @returns {Promise<{ name: string, buffer: ArrayBuffer }>}
+     */
+    async #fetchParserEntry(url, fileName) {
+        if (typeof this.#fetcher !== 'function') {
+            throw new Error('Browser fetch is unavailable.')
+        }
+
+        const response = await this.#fetcher(url)
+        if (!response?.ok) {
+            throw new Error(
+                'Could not load sample file. HTTP ' +
+                    String(response?.status || 0)
+            )
+        }
+
+        return {
+            name: fileName,
+            buffer: await response.arrayBuffer()
+        }
+    }
+
+    /**
+     * Applies parser assets and documents to state.
+     * @param {{ documents: object[], assets: object[] }} parseResult Parse result.
+     * @param {{ adoptPreferredView?: boolean, statusMessage?: string }} options
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
+     */
+    #applyParseResult(parseResult, options = {}) {
+        const parsedAssets = parseResult.assets.map((asset) =>
+            AppController.#buildParsedAsset(asset)
+        )
+
+        if (parsedAssets.length) {
+            this.#state.setValue(
+                'sessionAssets',
+                AppController.#mergeSessionAssets(
+                    this.#state.getSnapshot().sessionAssets,
+                    parsedAssets
+                )
+            )
+        }
+
+        return this.#handleParsedDocuments(parseResult.documents, options)
     }
 
     /**
@@ -303,7 +551,8 @@ export class AppController {
     /**
      * Applies parsed documents to state.
      * @param {object[]} documentModels Parsed documents.
-     * @param {{ adoptPreferredView?: boolean }} [options]
+     * @param {{ adoptPreferredView?: boolean, statusMessage?: string }} [options]
+     * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #handleParsedDocuments(documentModels, options = {}) {
         const parsedDocuments = (documentModels || []).filter(Boolean)
@@ -332,14 +581,15 @@ export class AppController {
                 preferredDocumentId
             ),
             parseStatus: 'ready',
-            statusMessage: this.#translate('status.loaded')
+            statusMessage:
+                options.statusMessage || this.#translate('status.loaded')
         }
 
         if (options.adoptPreferredView) {
             patch.activeView = nextActiveView
         }
 
-        this.#state.patch({
+        return this.#state.patch({
             ...patch
         })
     }
@@ -353,6 +603,39 @@ export class AppController {
             parseStatus: 'error',
             statusMessage: message
         })
+    }
+
+    /**
+     * Emits the active view analytics event.
+     * @param {string} viewName Active view.
+     * @returns {void}
+     */
+    #trackViewOpened(viewName) {
+        const normalizedView = String(viewName || '')
+        if (!normalizedView) {
+            return
+        }
+
+        this.#analytics.track('view_' + normalizedView + '_opened', {
+            activeView: normalizedView
+        })
+    }
+
+    /**
+     * Updates the PCB Styler crosslink when a board is available.
+     * @param {string} boardUrl Optional raw board URL.
+     * @param {string} mode Link mode.
+     * @returns {void}
+     */
+    #setPcbStylerLink(boardUrl, mode) {
+        if (typeof this.#view.setPcbStylerLink !== 'function') {
+            return
+        }
+
+        const url = boardUrl
+            ? 'https://pcb-styler.app/?url=' + encodeURIComponent(boardUrl)
+            : 'https://pcb-styler.app/'
+        this.#view.setPcbStylerLink(url, mode)
     }
 
     /**
@@ -450,11 +733,12 @@ export class AppController {
     static #fallbackMessage(key) {
         const fallbackMap = {
             'status.ready':
-                'Drop native Altium or KiCad files, project folders, ZIPs, or companion model files to begin.',
+                'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.',
             'status.loading': 'Parsing native ECAD files in the browser...',
-            'status.loaded': 'File parsed successfully.',
+            'status.loaded':
+                'Design loaded locally. Use the tabs to inspect PCB, schematic, 3D view, BOM and diagnostics.',
             'status.invalidFile':
-                'Please choose an Altium .SchDoc/.PcbDoc or KiCad .kicad_pro/.kicad_sch/.kicad_pcb/.zip project file.',
+                'This file type is not supported yet. ECAD Forge currently supports selected Altium and KiCad design files. Try a sample project or open a supported board/schematic file.',
             'status.assetsAdded':
                 'Companion 3D assets added to the current session.',
             'status.localeChanged': 'Language updated.'
@@ -472,6 +756,35 @@ export class AppController {
             return error.message
         }
         return 'Unknown parser error.'
+    }
+
+    /**
+     * Resolves a coarse analytics error bucket.
+     * @param {unknown} error Error value.
+     * @returns {string}
+     */
+    static #resolveErrorBucket(error) {
+        const message = AppController.#getErrorMessage(error).toLowerCase()
+        if (message.includes('not supported')) {
+            return 'unsupported_file'
+        }
+        if (message.includes('http')) {
+            return 'http'
+        }
+        if (message.includes('cors') || message.includes('network')) {
+            return 'network_or_cors'
+        }
+        return 'parse'
+    }
+
+    /**
+     * Resolves the coarse format family for a parser entry batch.
+     * @param {{ name: string }[]} entries Parser entries.
+     * @returns {string}
+     */
+    static #resolveFormatFamily(entries) {
+        const role = EcadFormatRegistry.resolveNativeRole(entries[0]?.name)
+        return role?.sourceFormat || ''
     }
 
     /**

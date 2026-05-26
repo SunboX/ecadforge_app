@@ -1,71 +1,172 @@
 .app-shell {
-    width: min(1400px, 100% - 2rem);
-    margin: 1.2rem auto 2rem;
+    width: min(1480px, 100% - 3rem);
+    margin: 0.55rem auto 1rem;
     display: grid;
-    gap: 1rem;
+    gap: 0.62rem;
 }
 
 .panel {
-    background: var(--panel);
+    background: rgba(255, 255, 255, 0.78);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: calc(var(--radius) - 2px);
     box-shadow: var(--shadow);
-    padding: 1rem 1.2rem;
-    backdrop-filter: blur(18px);
+    padding: 1rem;
+    backdrop-filter: blur(20px);
 }
 
 .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 1fr) auto;
+    gap: clamp(1rem, 2vw, 1.9rem);
+    align-items: center;
+    min-height: 4.6rem;
+    padding: 0.1rem 0;
 }
 
-.eyebrow {
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    min-width: max-content;
+}
+
+.brand-mark {
+    width: 3rem;
+    height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 10px 18px rgba(17, 32, 51, 0.12));
+}
+
+.brand-mark img {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.eyebrow,
+.dropzone__eyebrow,
+.hero-proof__eyebrow,
+.github-open label {
     margin: 0;
     color: var(--brand);
     font-size: 0.78rem;
-    letter-spacing: 0.08em;
+    font-weight: 800;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
 }
 
 h1 {
-    margin: 0.3rem 0 0.2rem;
-    font-size: clamp(1.9rem, 3vw, 3rem);
+    margin: 0.08rem 0 0;
+    font-size: clamp(2rem, 2.7vw, 2.7rem);
+    line-height: 0.95;
 }
 
-.subtitle {
+.topbar__description {
     margin: 0;
-    color: var(--muted);
-    max-width: 52rem;
+    max-width: 32rem;
+    color: #273b4a;
+    font-size: 0.98rem;
+    line-height: 1.35;
 }
 
 .toolbar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: flex-end;
+    gap: 0.85rem;
     flex-wrap: wrap;
 }
 
 .inline-field {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.55rem;
 }
 
 .file-pill,
 .inline-field select {
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.45rem 0.8rem;
+    border-radius: 0.48rem;
+    padding: 0.64rem 0.95rem;
     color: var(--muted);
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.74);
+    box-shadow: 0 8px 18px rgba(35, 44, 50, 0.04);
 }
 
 .file-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     color: var(--brand-strong);
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.file-pill--altium {
+    color: #fff;
+    background: linear-gradient(180deg, #d85d19, #b9420c);
+    border-color: #c64a0d;
+    box-shadow: 0 14px 24px rgba(184, 90, 37, 0.18);
+}
+
+.file-pill--kicad {
+    color: #fff;
+    background: linear-gradient(180deg, #10998f, #08736c);
+    border-color: #0f746c;
+    box-shadow: 0 14px 24px rgba(15, 116, 108, 0.18);
+}
+
+.file-pill .icon,
+.inline-field .icon,
+.view-tab .icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: 0 0 auto;
+}
+
+.file-pill .icon path,
+.inline-field .icon path,
+.inline-field .icon circle,
+.view-tab .icon path,
+.view-tab .icon rect {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.toolbar .file-pill:first-of-type {
+    color: var(--brand-strong);
+    border-color: rgba(184, 90, 37, 0.28);
+}
+
+.toolbar .file-pill--secondary {
+    color: var(--accent);
+    border-color: rgba(15, 116, 108, 0.22);
+}
+
+.inline-field {
+    min-height: 2.85rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.48rem;
+    color: #263a4a;
+    background: rgba(255, 255, 255, 0.74);
+    box-shadow: 0 8px 18px rgba(35, 44, 50, 0.04);
+}
+
+.inline-field select {
+    padding: 0;
+    border: 0;
+    color: #263a4a;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
 }
 
 .status {
@@ -85,71 +186,72 @@ h1 {
 }
 
 .page-footer {
-    margin-top: 0.25rem;
+    margin-top: 0;
 }
 
-.footer-card {
-    background: linear-gradient(
-        160deg,
-        rgba(255, 251, 245, 0.96),
-        rgba(240, 247, 244, 0.94)
-    );
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 1rem 1.2rem;
-}
-
-.footer-title {
-    margin-bottom: 0.65rem;
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-}
-
-.footer-slogan {
-    margin: -0.15rem 0 0.85rem;
-    color: var(--brand-strong);
-    font-size: 0.96rem;
-    font-weight: 700;
-    line-height: 1.4;
-    text-align: center;
-}
-
-.footer-grid {
+.footer-inline {
     display: grid;
-    grid-template-columns: auto auto auto 1fr;
-    gap: 1rem;
-    align-items: start;
+    grid-template-columns: minmax(12rem, 1fr) minmax(0, auto) minmax(4rem, 1fr);
+    align-items: center;
+    gap: 0.7rem 1.2rem;
+    padding: 0 0.4rem 0.1rem;
+    color: #435969;
+    font-size: 0.84rem;
+    line-height: 1.35;
 }
 
-.footer-block {
-    display: flex;
-    flex-direction: column;
+.footer-inline__main,
+.footer-inline__meta {
+    display: inline-flex;
+    align-items: center;
+}
+
+.footer-inline__main {
+    justify-self: start;
+    gap: 0.45rem;
+    white-space: nowrap;
+}
+
+.footer-inline__meta {
+    justify-self: center;
+    justify-content: center;
+    min-width: 0;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.footer-inline__item {
+    display: inline-flex;
+    align-items: center;
     gap: 0.35rem;
+    min-width: 0;
+    white-space: nowrap;
 }
 
-.footer-label {
-    color: var(--muted);
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+.footer-inline__responsible {
+    max-width: min(36rem, 100%);
 }
 
-.footer-text {
-    color: var(--text);
-    font-size: 0.94rem;
-    line-height: 1.55;
+.footer-inline__responsible span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.footer-text a {
+.footer-inline__separator {
+    width: 1px;
+    height: 1rem;
+    background: rgba(67, 89, 105, 0.3);
+    flex: 0 0 auto;
+}
+
+.footer-inline a {
     color: var(--brand-strong);
     text-decoration: none;
     border-bottom: 1px solid rgba(148, 65, 21, 0.28);
 }
 
-.footer-text a:hover {
+.footer-inline a:hover {
     color: var(--brand);
     border-bottom-color: rgba(184, 90, 37, 0.45);
 }
@@ -159,19 +261,26 @@ h1 {
     font-weight: 600;
 }
 
+.germany-flag {
+    width: 1.1rem;
+    height: 0.72rem;
+    display: inline-block;
+    border-radius: 0.12rem;
+    background: linear-gradient(#111 0 33%, #dd0000 33% 66%, #ffce00 66%);
+    box-shadow: 0 0 0 1px rgba(35, 44, 50, 0.1);
+}
+
 .footer-actions {
     display: flex;
-    justify-content: flex-end;
-    align-items: end;
-    gap: 0.7rem;
+    align-items: center;
+    gap: 0.55rem;
     justify-self: end;
-    align-self: stretch;
 }
 
 .icon-link {
-    width: 2.4rem;
-    height: 2.4rem;
-    border-radius: 0.85rem;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 0.65rem;
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, 0.74);
     color: var(--text);
@@ -199,9 +308,26 @@ h1 {
     fill: currentColor;
 }
 
+.file-pill:focus-visible,
+.inline-field:focus-within,
+.github-open input:focus-visible,
+.github-open button:focus-visible,
+.view-tab:focus-visible,
+.icon-link:focus-visible {
+    outline: 3px solid rgba(15, 116, 108, 0.22);
+    outline-offset: 3px;
+}
+
+@media (max-width: 1279px) {
+    .topbar__description {
+        display: none;
+    }
+}
+
 @media (max-width: 720px) {
     .topbar {
-        flex-direction: column;
+        grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .toolbar {
@@ -209,13 +335,21 @@ h1 {
         justify-content: flex-start;
     }
 
-    .footer-grid {
+    .footer-inline {
         grid-template-columns: 1fr;
     }
 
+    .footer-inline__main,
+    .footer-inline__meta,
     .footer-actions {
         justify-self: start;
+    }
+
+    .footer-inline__meta {
         justify-content: flex-start;
-        align-items: center;
+    }
+
+    .footer-inline__separator {
+        display: none;
     }
 }
