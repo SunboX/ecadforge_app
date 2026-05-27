@@ -677,6 +677,13 @@ function formatNumber(value) {
             patched: KicadToolkitPcbRendererPatcher.#sheetZoneResolverPatched,
             label: 'schematic sheet zone paper defaults'
         })
+
+        if (
+            await KicadToolkitPcbRendererPatcher.#usesUpstreamSymbolHiddenPins()
+        ) {
+            return
+        }
+
         await KicadToolkitPcbRendererPatcher.#applyPatch({
             sourcePath:
                 KicadToolkitPcbRendererPatcher.#resolveSchematicSymbolParserSourcePath(),
@@ -774,6 +781,24 @@ function formatNumber(value) {
         )
         await mkdir(path.dirname(shapePath), { recursive: true })
         await writeFile(shapePath, templateSource)
+    }
+
+    /**
+     * Checks whether the installed symbol parser already handles hidden pins.
+     * @returns {Promise<boolean>}
+     */
+    static async #usesUpstreamSymbolHiddenPins() {
+        const source = await readFile(
+            KicadToolkitPcbRendererPatcher.#resolveSchematicSymbolParserSourcePath(),
+            'utf8'
+        )
+        return [
+            'const visible = !pinHidden(node)',
+            'numberVisible: visible && numberFont.visible && !hidePinNumbers',
+            'endpointVisible: visible && Boolean(transform.endpointVisible)',
+            'function pinHidden(node) {',
+            'function hasScalar(node, name) {'
+        ].every((token) => source.includes(token))
     }
 
     /**
