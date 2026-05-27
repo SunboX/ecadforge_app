@@ -22,6 +22,15 @@ async function readStylesheet(fileName) {
 }
 
 /**
+ * Reads the browser app shell markup.
+ * @returns {Promise<string>}
+ */
+async function readIndexMarkup() {
+    const indexPath = new URL('../../src/index.html', import.meta.url)
+    return readFile(indexPath, 'utf8')
+}
+
+/**
  * Verifies the primary viewer stage is a bounded work surface on the landing
  * page instead of a full-screen empty panel.
  */
@@ -41,7 +50,10 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
         css,
         /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*height:\s*min\(82vh, 1080px\);/
     )
-    assert.match(css, /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*min-height:\s*680px;/)
+    assert.match(
+        css,
+        /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*min-height:\s*680px;/
+    )
     assert.match(css, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
 })
 
@@ -91,6 +103,56 @@ test('landing hero separates GitHub URL intake from sample CTAs', async () => {
 })
 
 /**
+ * Verifies the app header matches the reference lockup with a full-width
+ * eyebrow above the large logo and ECAD Forge wordmark.
+ */
+test('topbar renders the reference ECAD Forge brand lockup', async () => {
+    const indexRaw = await readIndexMarkup()
+    const layoutCss = await readStylesheet('10-layout.css')
+    const faviconRaw = await readFile(
+        new URL('../../src/favicon.svg', import.meta.url),
+        'utf8'
+    )
+
+    assert.match(
+        indexRaw,
+        /<div class="brand-lockup">\s*<p class="eyebrow"[^>]*>[\s\S]*Local Browser Viewer[\s\S]*<\/p>\s*<span class="brand-mark"/
+    )
+    assert.match(
+        indexRaw,
+        /<\/span>\s*<h1 data-i18n="app\.title">ECAD Forge<\/h1>\s*<\/div>/
+    )
+    assert.match(
+        layoutCss,
+        /\.topbar\s*\{[\s\S]*min-height:\s*clamp\(5\.8rem,\s*6\.5vw,\s*6rem\);/
+    )
+    assert.match(layoutCss, /\.topbar__description\s*\{[\s\S]*display:\s*none;/)
+    assert.match(
+        layoutCss,
+        /\.brand-lockup\s*\{[\s\S]*grid-template-areas:\s*'eyebrow eyebrow'\s*'mark title';/
+    )
+    assert.match(
+        layoutCss,
+        /\.brand-lockup \.eyebrow\s*\{[\s\S]*grid-area:\s*eyebrow;/
+    )
+    assert.match(
+        layoutCss,
+        /\.brand-mark\s*\{[\s\S]*grid-area:\s*mark;[\s\S]*width:\s*clamp\(3rem,\s*4vw,\s*3\.2rem\);/
+    )
+    assert.match(
+        layoutCss,
+        /\.brand-lockup h1\s*\{[\s\S]*grid-area:\s*title;[\s\S]*font-size:\s*clamp\(2\.3rem,\s*3\.2vw,\s*2\.9rem\);/
+    )
+    assert.match(
+        faviconRaw,
+        /<rect x="6" y="6" width="52" height="52" rx="14" fill="#0d1a2a"/
+    )
+    assert.match(faviconRaw, /M18 22h22M18 32h32M18 42h22M52 22v20M42 32h10/)
+    assert.match(faviconRaw, /<circle cx="42" cy="32" r="3" fill="#f8fafc"/)
+    assert.doesNotMatch(faviconRaw, /<circle cx="18" cy="32"/)
+})
+
+/**
  * Verifies the empty viewer illustration is drawn from layered elements instead
  * of the old pseudo-element plus tile.
  */
@@ -98,10 +160,22 @@ test('viewer stylesheet draws the layered empty-state illustration', async () =>
     const viewerCss = await readStylesheet('22-viewer-empty.css')
 
     assert.doesNotMatch(viewerCss, /\.viewer-empty::before/)
-    assert.match(viewerCss, /\.viewer-empty__mark\s*\{[\s\S]*position: relative;/)
-    assert.match(viewerCss, /\.viewer-empty__screen\s*\{[\s\S]*border: 2px solid var\(--accent\);/)
-    assert.match(viewerCss, /\.viewer-empty__plus\s*\{[\s\S]*border-radius: 50%;/)
-    assert.match(viewerCss, /\.viewer-empty__spark\s*\{[\s\S]*transform: rotate\(45deg\);/)
+    assert.match(
+        viewerCss,
+        /\.viewer-empty__mark\s*\{[\s\S]*position: relative;/
+    )
+    assert.match(
+        viewerCss,
+        /\.viewer-empty__screen\s*\{[\s\S]*border: 2px solid var\(--accent\);/
+    )
+    assert.match(
+        viewerCss,
+        /\.viewer-empty__plus\s*\{[\s\S]*border-radius: 50%;/
+    )
+    assert.match(
+        viewerCss,
+        /\.viewer-empty__spark\s*\{[\s\S]*transform: rotate\(45deg\);/
+    )
 })
 
 /**
@@ -112,7 +186,16 @@ test('viewer stylesheet uses explicit summary icons and clipped text', async () 
 
     assert.doesNotMatch(viewerCss, /\.summary-card::before/)
     assert.doesNotMatch(viewerCss, /\.summary-grid \.summary-card:nth-child/)
-    assert.match(viewerCss, /\.meta-card > span:not\(\.meta-card__icon\)\s*\{[\s\S]*min-width: 0;/)
-    assert.match(viewerCss, /\.meta-card strong,[\s\S]*\.summary-card strong\s*\{[\s\S]*text-overflow: ellipsis;/)
-    assert.match(viewerCss, /\.summary-card__label\s*\{[\s\S]*text-overflow: ellipsis;/)
+    assert.match(
+        viewerCss,
+        /\.meta-card > span:not\(\.meta-card__icon\)\s*\{[\s\S]*min-width: 0;/
+    )
+    assert.match(
+        viewerCss,
+        /\.meta-card strong,[\s\S]*\.summary-card strong\s*\{[\s\S]*text-overflow: ellipsis;/
+    )
+    assert.match(
+        viewerCss,
+        /\.summary-card__label\s*\{[\s\S]*text-overflow: ellipsis;/
+    )
 })

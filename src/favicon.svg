@@ -5,9 +5,9 @@
             <stop offset="1" stop-color="#f97316" />
         </linearGradient>
     </defs>
-    <rect x="6" y="6" width="52" height="52" rx="14" fill="#0f172a" />
+    <rect x="6" y="6" width="52" height="52" rx="14" fill="#0d1a2a" />
     <path
-        d="M18 22h18m-18 10h28m-28 10h18m22-20v20m-10-10h10"
+        d="M18 22h22M18 32h32M18 42h22M52 22v20M42 32h10"
         fill="none"
         stroke="url(#boardGlow)"
         stroke-linecap="round"
@@ -15,6 +15,6 @@
         stroke-width="4"
     />
     <circle cx="18" cy="22" r="3" fill="#f8fafc" />
-    <circle cx="46" cy="32" r="3" fill="#f8fafc" />
+    <circle cx="42" cy="32" r="3" fill="#f8fafc" />
     <circle cx="18" cy="42" r="3" fill="#f8fafc" />
 </svg>

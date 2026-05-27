@@ -1,4 +1,5 @@
 import { AppController } from './AppController.mjs'
+import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
@@ -42,15 +43,19 @@ async function bootstrap() {
             })
     })
     view.setVersion(loadedVersion)
+    const startupSource = StartupSourceResolver.resolve(window.location.href)
     const controller = new AppController({
         state,
         view,
         i18n,
         workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' }),
-        startupSource: StartupSourceResolver.resolve(window.location.href)
+        startupSource
     })
 
     await controller.init()
+    if (!startupSource) {
+        void HeroPreviewDemoLoader.load(view)
+    }
 
     await loadVersion(view, loadedVersion)
     startVersionRefreshLoop(view, loadedVersion)

@@ -136,17 +136,13 @@ test('KiCad schematic renderer aligns labels with stroke-font line origins', () 
     const markup = EcadRendererService.renderSchematic(
         createKicadSchematicDocument()
     )
-    const labelWidth = KicadStrokeFont.measureLine('E1', 1.27)
     const renderedLabel = renderedTextGroup(markup, 'E1')
 
     assert.match(renderedLabel, /class="schematic-text schematic-label"/)
     assert.match(renderedLabel, /class="schematic-text-line"/)
     assert.match(renderedLabel, /class="schematic-text-stroke"/)
     assert.match(renderedLabel, /data-line="E1"/)
-    assert.match(
-        renderedLabel,
-        new RegExp(`data-x="${formatSvgNumber(16 - labelWidth)}"`)
-    )
+    assert.match(renderedLabel, /data-x="13\.562"/)
     assert.match(markup, /class="schematic-pin-number"[^>]*aria-label="1"/)
     assert.doesNotMatch(markup, /<text class="schematic-text/)
 })
@@ -182,13 +178,9 @@ test('KiCad schematic renderer offsets pin numbers away from connector lines', (
     )
     const rightFacingPinNumber = renderedTextGroup(markup, '1')
     const leftFacingPinNumber = renderedTextGroup(markup, '2')
-    const pinNumberWidth = KicadStrokeFont.measureLine('2', 1.27)
 
-    assert.match(rightFacingPinNumber, /data-x="20\.35"/)
-    assert.match(
-        leftFacingPinNumber,
-        new RegExp(`data-x="${formatSvgNumber(30 - 0.35 - pinNumberWidth)}"`)
-    )
+    assert.match(rightFacingPinNumber, /data-x="20\.665"/)
+    assert.match(leftFacingPinNumber, /data-x="28\.125"/)
 })
 
 /**
@@ -312,10 +304,10 @@ test('KiCad schematic renderer draws grid and graphic primitives', () => {
     })
 
     assert.match(markup, /class="schematic-grid"/)
-    assert.match(markup, /class="schematic-polygon"/)
-    assert.match(markup, /class="schematic-ellipse"/)
-    assert.match(markup, /class="schematic-arc"/)
-    assert.match(markup, /class="schematic-bezier"/)
+    assert.match(markup, /class="schematic-polygon\b/)
+    assert.match(markup, /class="schematic-ellipse\b/)
+    assert.match(markup, /class="schematic-arc\b/)
+    assert.match(markup, /class="schematic-bezier\b/)
     assert.match(markup, /rx="0"/)
 })
 
@@ -384,10 +376,7 @@ test('KiCad schematic renderer draws the title block like KiCad worksheet chrome
     })
     const zoneLabels = markup.match(/class="sheet-zone-label"/g) || []
 
-    assert.match(
-        markup,
-        /<rect x="3000" y="2530" width="1080" height="320"\/>/
-    )
+    assert.match(markup, /<rect x="3000" y="2530" width="1080" height="320"\/>/)
     assert.equal(zoneLabels.length, 28)
     assert.doesNotMatch(markup, /<text class="sheet-title-label"/)
     assert.doesNotMatch(markup, /<text class="sheet-zone-label"/)

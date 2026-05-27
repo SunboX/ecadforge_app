@@ -1,6 +1,7 @@
 import { PcbScene3dBoardShapeFactory } from './PcbScene3dBoardShapeFactory.mjs'
 import { PcbScene3dCameraRig } from './PcbScene3dCameraRig.mjs'
 import { PcbScene3dCopperFactory } from './PcbScene3dCopperFactory.mjs'
+import { PcbScene3dCopperDetailFilter } from './PcbScene3dCopperDetailFilter.mjs'
 import { PcbScene3dExternalModels } from './PcbScene3dExternalModels.mjs'
 import { PcbScene3dFallbackVisibility } from './PcbScene3dFallbackVisibility.mjs'
 import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
@@ -9,6 +10,7 @@ import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
 import { PcbScene3dSelectionStyler } from './PcbScene3dSelectionStyler.mjs'
 import { PcbScene3dViaFactory } from './PcbScene3dViaFactory.mjs'
+import { PcbScene3dViewScale } from './PcbScene3dViewScale.mjs'
 /**
  * Browser-side Three.js runtime for the interactive PCB 3D viewport.
  */
@@ -25,16 +27,12 @@ export class PcbScene3dRuntime {
     #groups
     /** @type {Array<{ node: EventTarget, type: string, listener: (event: any) => void }>} */
     #listeners
-
     /** @type {any} */
     #three
-
     /** @type {any} */
     #renderer
-
     /** @type {any} */
     #scene
-
     /** @type {any} */
     #camera
 
@@ -346,7 +344,10 @@ export class PcbScene3dRuntime {
         if (!this.#viewOrientationGroup) {
             return
         }
-        const scale = PcbScene3dRuntime.resolveViewScale(preset)
+        const scale = PcbScene3dRuntime.resolveViewScale(
+            preset,
+            this.#sceneDescription
+        )
         this.#viewOrientationGroup.scale.set(scale.x, scale.y, scale.z)
     }
 
@@ -433,12 +434,17 @@ export class PcbScene3dRuntime {
 
         const detailGroup = PcbScene3dCopperFactory.buildGroup(
             this.#three,
-            this.#sceneDescription.detail || {},
+            PcbScene3dCopperDetailFilter.resolve(this.#sceneDescription),
             this.#sceneDescription.board.thicknessMil / 2 + 0.9,
             -(this.#sceneDescription.board.thicknessMil / 2 + 0.9),
             (x, y) => this.#normalizeBoardPoint(x, y)
         )
-        const viaGroup = this.#buildViaMeshes()
+        const viaGroup =
+            PcbScene3dCopperDetailFilter.shouldRenderStandaloneVias(
+                this.#sceneDescription
+            )
+                ? this.#buildViaMeshes()
+                : new this.#three.Group()
 
         if (detailGroup.children.length) {
             copperGroup.add(detailGroup)
@@ -899,16 +905,12 @@ export class PcbScene3dRuntime {
 
     /**
      * Resolves the scene-scale transform for one named preset.
-     * @param {string} preset
+     * @param {string} preset Preset name.
+     * @param {{ coordinateSystem?: string } | null} [sceneDescription] Scene coordinate metadata.
      * @returns {{ x: number, y: number, z: number }}
      */
-    static resolveViewScale(preset) {
-        const normalizedPreset = String(preset || 'isometric').toLowerCase()
-        return normalizedPreset === 'top'
-            ? { x: 1, y: -1, z: 1 }
-            : normalizedPreset === 'bottom'
-              ? { x: -1, y: 1, z: 1 }
-              : { x: 1, y: 1, z: 1 }
+    static resolveViewScale(preset, sceneDescription = null) {
+        return PcbScene3dViewScale.resolve(preset, sceneDescription)
     }
 
     /**

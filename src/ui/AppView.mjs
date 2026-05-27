@@ -1,4 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
@@ -69,6 +70,8 @@ export class AppView {
     /** @type {PcbScene3dController | null} */
     #scene3dController
 
+    #heroPreviewController
+
     /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void }) => PcbScene3dController} */
     #createScene3dController
 
@@ -107,6 +110,12 @@ export class AppView {
                     sessionAssets: sceneOptions.sessionAssets || [],
                     setLoadingVisible: sceneOptions.setLoadingVisible
                 }))
+        this.#heroPreviewController = new HeroPreviewController(
+            this.#document,
+            {
+                createScene3dController: this.#createScene3dController
+            }
+        )
     }
 
     /**
@@ -158,6 +167,15 @@ export class AppView {
         if (this.#localeSelect) {
             this.#localeSelect.value = locale
         }
+    }
+
+    /**
+     * Stores the parsed demo documents used by the landing preview.
+     * @param {any[]} documentModels Parsed demo document models.
+     * @returns {void}
+     */
+    setHeroPreviewDocuments(documentModels) {
+        this.#heroPreviewController.setDocuments(documentModels)
     }
 
     /**
@@ -215,12 +233,12 @@ export class AppView {
      */
     bindViewChange(callback) {
         this.#tabsNode?.addEventListener('click', (event) => {
-            const target = event.target
-            if (!(target instanceof HTMLElement)) return
-            const button = target.closest('[data-view]')
-            if (!(button instanceof HTMLElement)) return
-            event.preventDefault()
-            callback(button.dataset.view || 'schematic')
+            this.#handleViewSelection(
+                event,
+                '[data-view]',
+                'data-view',
+                callback
+            )
         })
     }
 
@@ -361,6 +379,31 @@ export class AppView {
             const selected = button.getAttribute('data-view') === activeView
             button.setAttribute('aria-selected', selected ? 'true' : 'false')
         })
+    }
+
+    /**
+     * Resolves one clicked view target and emits its view name.
+     * @param {Event} event
+     * @param {string} selector
+     * @param {string} attributeName
+     * @param {(viewName: string) => void} callback
+     * @returns {void}
+     */
+    #handleViewSelection(event, selector, attributeName, callback) {
+        const target = event.target
+        const button =
+            target &&
+            typeof target === 'object' &&
+            typeof target.closest === 'function'
+                ? target.closest(selector)
+                : null
+
+        if (!button || typeof button.getAttribute !== 'function') {
+            return
+        }
+
+        event.preventDefault?.()
+        callback(button.getAttribute(attributeName) || 'schematic')
     }
 
     /**
@@ -742,9 +785,9 @@ export class AppView {
         )
         const svgMatch = markup.match(
             new RegExp(
-                '<svg class="([^"]*\\b' +
+                '<svg\\b(?=[^>]*\\bclass="([^"]*\\b' +
                     escapedClassName +
-                    '\\b[^"]*)"[^>]*>[\\s\\S]*?<\\/svg>'
+                    '\\b[^"]*)")[^>]*>[\\s\\S]*?<\\/svg>'
             )
         )
 

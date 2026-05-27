@@ -11,7 +11,9 @@ export class PcbScene3dCopperFactory {
     static #BOTTOM_COPPER_LAYER_ID = 32
     static #FULL_CIRCLE_EPSILON = 0.001
     static #ROUND_CAP_SEGMENTS = 16
-    static #DRILL_MASK_Z_OFFSET = 0.35
+    // Keep synthetic drill openings above extruded pad tops so overlapping
+    // SMD shield pads do not visually cover slotted through-holes.
+    static #DRILL_MASK_Z_OFFSET = 1.35
     static #PAD_HOLE_SHAPE_SLOT = 2
 
     /**

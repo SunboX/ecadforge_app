@@ -64,15 +64,13 @@
         <main class="app-shell">
             <header class="topbar">
                 <div class="brand-lockup">
+                    <p class="eyebrow" data-i18n="app.kicker">
+                        Local Browser Viewer
+                    </p>
                     <span class="brand-mark" aria-hidden="true">
                         <img src="/favicon.svg" alt="" />
                     </span>
-                    <div>
-                        <p class="eyebrow" data-i18n="app.kicker">
-                            Local Browser Viewer
-                        </p>
-                        <h1 data-i18n="app.title">ECAD Forge</h1>
-                    </div>
+                    <h1 data-i18n="app.title">ECAD Forge</h1>
                 </div>
                 <p class="topbar__description" data-i18n="app.subtitle">
                     Private ECAD viewer for Altium &amp; KiCad.
@@ -165,18 +163,62 @@
                             Preview of supported views
                         </p>
                         <strong>Schematic, PCB, 3D, BOM and diagnostics</strong>
-                        <figure class="hero-proof__screen">
+                        <figure class="hero-proof__screen" id="heroPreviewScreen">
                             <img
                                 src="/og/ecadforge-product-preview.png"
                                 alt="RP2040 KiCad sample board shown inside ECAD Forge"
                             />
                         </figure>
-                        <ul class="hero-proof__views">
-                            <li data-view-chip="schematic">Schematic</li>
-                            <li data-view-chip="pcb">PCB layout</li>
-                            <li data-view-chip="3d">3D board</li>
-                            <li data-view-chip="bom">BOM</li>
-                            <li data-view-chip="diagnostics">Diagnostics</li>
+                        <ul
+                            class="hero-proof__views"
+                            id="heroViewChips"
+                            aria-label="Preview view selector"
+                        >
+                            <li>
+                                <button
+                                    type="button"
+                                    data-view-chip="schematic"
+                                    aria-pressed="false"
+                                >
+                                    Schematic
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    type="button"
+                                    data-view-chip="pcb"
+                                    aria-pressed="true"
+                                >
+                                    PCB layout
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    type="button"
+                                    data-view-chip="3d"
+                                    aria-pressed="false"
+                                >
+                                    3D board
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    type="button"
+                                    data-view-chip="bom"
+                                    aria-pressed="false"
+                                >
+                                    BOM
+                                </button>
+                            </li>
+                            <li>
+                                <button
+                                    type="button"
+                                    data-view-chip="diagnostics"
+                                    aria-pressed="false"
+                                >
+                                    Diagnostics
+                                </button>
+                            </li>
                         </ul>
                     </aside>
                     <div class="hero-actions" aria-label="Demo actions">

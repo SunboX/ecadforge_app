@@ -141,6 +141,16 @@ export class ServerAssetVersioner {
     static rewriteHtmlDocument(source, versionKey) {
         return String(source || '')
             .replace(
+                /((?:href|src)=")(\/favicon\.svg(?:\?[^"]*)?)(")/g,
+                (_match, prefix, assetPath, suffix) =>
+                    prefix +
+                    ServerAssetVersioner.appendVersionQuery(
+                        assetPath,
+                        versionKey
+                    ) +
+                    suffix
+            )
+            .replace(
                 /href="\/style\.css(?:\?[^"]*)?"/g,
                 'href="' +
                     ServerAssetVersioner.appendVersionQuery(

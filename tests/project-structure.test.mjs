@@ -145,8 +145,8 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.15')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.13')
+    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.20')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.26')
 })
 
 /**
@@ -271,9 +271,7 @@ test('app shell places session summary above the footer', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
     const heroIndex = indexRaw.indexOf('<section class="panel hero-grid">')
     const viewerIndex = indexRaw.indexOf('id="viewerStage"')
-    const summaryIndex = indexRaw.indexOf(
-        '<section class="panel meta-column"'
-    )
+    const summaryIndex = indexRaw.indexOf('class="panel meta-column"')
     const footerIndex = indexRaw.indexOf('<footer class="page-footer footer-inline">')
 
     assert.ok(heroIndex >= 0)
@@ -344,9 +342,15 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /PRIVATE\s*&middot;\s*LOCAL\s*&middot;\s*NO UPLOAD/)
     assert.match(indexRaw, /Open Altium &amp; KiCad designs locally/)
     assert.doesNotMatch(indexRaw, /no tracking/)
+    assert.match(indexRaw, /id="heroPreviewScreen"/)
     assert.match(indexRaw, /class="hero-proof__screen"/)
     assert.match(indexRaw, /src="\/og\/ecadforge-product-preview\.png"/)
     assert.match(indexRaw, /Preview of supported views/)
+    assert.match(indexRaw, /id="heroViewChips"/)
+    assert.match(
+        indexRaw,
+        /<button\s+type="button"\s+data-view-chip="schematic"/
+    )
     assert.match(indexRaw, /class="chip-icon chip-icon--schematic"/)
     assert.match(indexRaw, /class="chip-icon chip-icon--board"/)
     assert.match(indexRaw, /class="chip-icon chip-icon--cloud"/)
@@ -354,8 +358,9 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /data-view-chip="diagnostics"/)
     assert.match(
         heroStyleRaw,
-        /\.hero-proof__views li\[data-view-chip='pcb'\]/
+        /\.hero-proof__views button\[aria-pressed='true'\]/
     )
+    assert.match(heroStyleRaw, /\.hero-proof__svg/)
     assert.doesNotMatch(heroStyleRaw, /\.hero-proof__views li:first-child/)
     assert.match(indexRaw, /class="github-open__input-wrap"/)
     assert.match(indexRaw, /class="meta-card__icon"/)

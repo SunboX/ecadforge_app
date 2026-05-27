@@ -73,20 +73,25 @@ const scalePoint = (point, scale) => ({
 /**
  * Projects one board-space point through the preset basis and runtime scale.
  * @param {'top' | 'bottom' | 'isometric'} presetName
- * @param {{ x: number, y: number, z: number }} point
+ * @param {{ x: number, y: number, z: number, sceneDescription?: object }} point
  * @returns {{ x: number, y: number }}
  */
 const projectPresetPoint = (presetName, point) => {
-    const preset = PcbScene3dCameraRig.resolvePreset(presetName, {
+    const sceneDescription = {
         board: {
             widthMil: 2200,
             heightMil: 1400
-        }
-    })
+        },
+        ...(point.sceneDescription || {})
+    }
+    const preset = PcbScene3dCameraRig.resolvePreset(
+        presetName,
+        sceneDescription
+    )
     const basis = resolveScreenBasis(preset)
     const scaledPoint = scalePoint(
         point,
-        PcbScene3dRuntime.resolveViewScale(presetName)
+        PcbScene3dRuntime.resolveViewScale(presetName, sceneDescription)
     )
 
     return projectPointToScreen(scaledPoint, basis)
@@ -676,6 +681,30 @@ test('PcbScene3dRuntime flips the top preset vertically into the reference top-r
         y: -1,
         z: 1
     })
+    assert.ok(topScreenPoint.x > 0)
+    assert.ok(topScreenPoint.y > 0)
+})
+
+test('PcbScene3dRuntime keeps KiCad 3D top geometry unflipped', () => {
+    const topScreenPoint = projectPresetPoint('top', {
+        x: 1,
+        y: 1,
+        z: 0,
+        sceneDescription: {
+            coordinateSystem: 'kicad-3d-y-up'
+        }
+    })
+
+    assert.deepEqual(
+        PcbScene3dRuntime.resolveViewScale('top', {
+            coordinateSystem: 'kicad-3d-y-up'
+        }),
+        {
+            x: 1,
+            y: 1,
+            z: 1
+        }
+    )
     assert.ok(topScreenPoint.x > 0)
     assert.ok(topScreenPoint.y > 0)
 })

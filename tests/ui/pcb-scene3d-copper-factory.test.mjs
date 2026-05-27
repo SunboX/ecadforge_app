@@ -165,7 +165,7 @@ test('PcbScene3dCopperFactory rounds track endpoints like KiCad copper', () => {
     assert.equal(bounds.maxY, 10)
 })
 
-test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => {
+test('PcbScene3dCopperFactory masks drilled openings above extruded pad copper', () => {
     const group = PcbScene3dCopperFactory.buildGroup(
         THREE,
         {
@@ -175,7 +175,21 @@ test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => 
                 {
                     x: 100,
                     y: 0,
+                    sizeTopX: 60,
+                    sizeTopY: 36,
+                    shapeTop: 2,
                     holeDiameter: 20,
+                    holeShape: 2,
+                    holeSlotLength: 42,
+                    rotation: 90
+                },
+                {
+                    x: 100,
+                    y: 0,
+                    sizeTopX: 80,
+                    sizeTopY: 44,
+                    shapeTop: 2,
+                    holeDiameter: null,
                     holeShape: null,
                     holeSlotLength: null,
                     rotation: 0
@@ -197,7 +211,7 @@ test('PcbScene3dCopperFactory masks drilled openings above trace copper', () => 
         .filter((_, index) => index % 3 === 2)
 
     assert.equal(maskGroup.children.length, 2)
-    assert.ok(maskPositions.every((z) => z > 5))
+    assert.ok(maskPositions.every((z) => z > 6.09))
 })
 
 test('PcbScene3dCopperFactory renders KiCad front copper text as stroke copper', () => {
