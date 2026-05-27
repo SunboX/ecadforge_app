@@ -165,7 +165,7 @@ test('PcbScene3dCopperFactory rounds track endpoints like KiCad copper', () => {
     assert.equal(bounds.maxY, 10)
 })
 
-test('PcbScene3dCopperFactory masks drilled openings above extruded pad copper', () => {
+test('PcbScene3dCopperFactory leaves drilled openings uncovered for real board holes', () => {
     const group = PcbScene3dCopperFactory.buildGroup(
         THREE,
         {
@@ -206,12 +206,8 @@ test('PcbScene3dCopperFactory masks drilled openings above extruded pad copper',
     const maskGroup = topGroup.children.find(
         (child) => child.name === 'copper-drill-masks'
     )
-    const maskPositions = maskGroup.children
-        .flatMap((mesh) => Array.from(mesh.geometry.attributes.position.array))
-        .filter((_, index) => index % 3 === 2)
 
-    assert.equal(maskGroup.children.length, 2)
-    assert.ok(maskPositions.every((z) => z > 6.09))
+    assert.equal(maskGroup, undefined)
 })
 
 test('PcbScene3dCopperFactory renders KiCad front copper text as stroke copper', () => {

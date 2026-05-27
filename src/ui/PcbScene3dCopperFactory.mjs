@@ -1,5 +1,4 @@
 import { PcbArcUtils } from 'altium-toolkit/renderers'
-import { PcbScene3dDrillPathFactory } from './PcbScene3dDrillPathFactory.mjs'
 import { PcbScene3dPadFactory } from './PcbScene3dPadFactory.mjs'
 import { PcbScene3dCopperTextFactory } from './PcbScene3dCopperTextFactory.mjs'
 
@@ -11,10 +10,6 @@ export class PcbScene3dCopperFactory {
     static #BOTTOM_COPPER_LAYER_ID = 32
     static #FULL_CIRCLE_EPSILON = 0.001
     static #ROUND_CAP_SEGMENTS = 16
-    // Keep synthetic drill openings above extruded pad tops so overlapping
-    // SMD shield pads do not visually cover slotted through-holes.
-    static #DRILL_MASK_Z_OFFSET = 1.35
-    static #PAD_HOLE_SHAPE_SLOT = 2
 
     /**
      * Builds the combined top and bottom copper group.
@@ -108,13 +103,6 @@ export class PcbScene3dCopperFactory {
                 mirrorY
             }
         )
-        const drillMaskGroup = PcbScene3dCopperFactory.#buildDrillMaskGroup(
-            THREE,
-            detail,
-            z + PcbScene3dCopperFactory.#DRILL_MASK_Z_OFFSET,
-            normalizeBoardPoint,
-            mirrorY
-        )
         const textGroup = PcbScene3dCopperTextFactory.buildGroup(
             THREE,
             detail?.copperTexts || [],
@@ -134,9 +122,6 @@ export class PcbScene3dCopperFactory {
         }
         if (padGroup.children.length) {
             group.add(padGroup)
-        }
-        if (drillMaskGroup.children.length) {
-            group.add(drillMaskGroup)
         }
         if (textGroup.children.length) {
             group.add(textGroup)
@@ -453,172 +438,6 @@ export class PcbScene3dCopperFactory {
                 z
             )
         }
-    }
-
-    /**
-     * Builds flat drill masks that hide copper surfaces inside drilled
-     * openings.
-     * @param {any} THREE
-     * @param {{ pads?: any[], vias?: any[] }} detail
-     * @param {number} z
-     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
-     * @param {boolean} mirrorY
-     * @returns {any}
-     */
-    static #buildDrillMaskGroup(
-        THREE,
-        detail,
-        z,
-        normalizeBoardPoint,
-        mirrorY
-    ) {
-        const group = new THREE.Group()
-        const material = PcbScene3dCopperFactory.#buildDrillMaskMaterial(THREE)
-        const seen = new Set()
-        group.name = 'copper-drill-masks'
-
-        for (const drillSpec of PcbScene3dCopperFactory.#resolveDrillSpecs(
-            detail
-        )) {
-            const point = PcbScene3dCopperFactory.#normalizePoint(
-                normalizeBoardPoint,
-                drillSpec.x,
-                drillSpec.y,
-                mirrorY
-            )
-            const normalizedSpec = {
-                ...drillSpec,
-                x: point.x,
-                y: point.y,
-                rotationDeg: mirrorY
-                    ? -Number(drillSpec.rotationDeg || 0)
-                    : Number(drillSpec.rotationDeg || 0)
-            }
-            const key = PcbScene3dCopperFactory.#drillMaskKey(normalizedSpec)
-            if (seen.has(key)) {
-                continue
-            }
-
-            const path = PcbScene3dDrillPathFactory.buildDrillPath(
-                THREE,
-                normalizedSpec
-            )
-            if (!path) {
-                continue
-            }
-
-            const shape = new THREE.Shape(path.getPoints(32))
-            const geometry = new THREE.ShapeGeometry(shape, 24)
-            geometry.translate?.(0, 0, z)
-            group.add(new THREE.Mesh(geometry, material))
-            seen.add(key)
-        }
-
-        return group
-    }
-
-    /**
-     * Builds the material used to visually keep drilled copper openings clear.
-     * @param {any} THREE
-     * @returns {any}
-     */
-    static #buildDrillMaskMaterial(THREE) {
-        return new THREE.MeshBasicMaterial({
-            color: 0xf8f5ef,
-            side: THREE.DoubleSide,
-            depthWrite: true,
-            polygonOffset: true,
-            polygonOffsetFactor: -2,
-            polygonOffsetUnits: -2
-        })
-    }
-
-    /**
-     * Resolves board-space drill masks from pad and via detail.
-     * @param {{ pads?: any[], vias?: any[] }} detail
-     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
-     */
-    static #resolveDrillSpecs(detail) {
-        return [
-            ...PcbScene3dCopperFactory.#resolveViaDrillSpecs(
-                detail?.vias || []
-            ),
-            ...PcbScene3dCopperFactory.#resolvePadDrillSpecs(detail?.pads || [])
-        ]
-    }
-
-    /**
-     * Resolves via drill masks from normalized via detail.
-     * @param {any[]} vias
-     * @returns {{ x: number, y: number, diameter: number, slotLength: null, rotationDeg: 0 }[]}
-     */
-    static #resolveViaDrillSpecs(vias) {
-        return (vias || [])
-            .map((via) => {
-                const diameter = Number(via?.holeDiameter || 0)
-                if (diameter <= 0) {
-                    return null
-                }
-
-                return {
-                    x: Number(via?.x || 0),
-                    y: Number(via?.y || 0),
-                    diameter,
-                    slotLength: null,
-                    rotationDeg: 0
-                }
-            })
-            .filter(Boolean)
-    }
-
-    /**
-     * Resolves pad drill masks from normalized pad detail.
-     * @param {any[]} pads
-     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
-     */
-    static #resolvePadDrillSpecs(pads) {
-        return (pads || [])
-            .map((pad) => {
-                const diameter = Number(pad?.holeDiameter || 0)
-                if (diameter <= 0) {
-                    return null
-                }
-
-                const slotLength =
-                    Number(pad?.holeShape) ===
-                        PcbScene3dCopperFactory.#PAD_HOLE_SHAPE_SLOT &&
-                    Number(pad?.holeSlotLength || 0) > diameter
-                        ? Number(pad?.holeSlotLength || 0)
-                        : null
-
-                return {
-                    x: Number(pad?.x || 0),
-                    y: Number(pad?.y || 0),
-                    diameter,
-                    slotLength,
-                    rotationDeg:
-                        slotLength === null
-                            ? 0
-                            : Number(pad?.rotation || 0) +
-                              Number(pad?.holeRotation || 0)
-                }
-            })
-            .filter(Boolean)
-    }
-
-    /**
-     * Builds a stable key for one normalized drill mask.
-     * @param {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }} drillSpec
-     * @returns {string}
-     */
-    static #drillMaskKey(drillSpec) {
-        return [
-            Number(drillSpec.x || 0).toFixed(4),
-            Number(drillSpec.y || 0).toFixed(4),
-            Number(drillSpec.diameter || 0).toFixed(4),
-            Number(drillSpec.slotLength || 0).toFixed(4),
-            Number(drillSpec.rotationDeg || 0).toFixed(4)
-        ].join(':')
     }
 
     /**
