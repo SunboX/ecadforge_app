@@ -151,20 +151,27 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const pkg = JSON.parse(raw)
 
     assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.20')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.26')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.27')
 })
 
 /**
  * Verifies the KiCad postinstall patcher tolerates current toolkit releases.
  */
 test('KiCad toolkit postinstall patcher is idempotent', async () => {
+    const rendererUrl = new URL(
+        'node_modules/kicad-toolkit/src/ui/SchematicSvgRenderer.mjs',
+        root
+    )
+    const rendererBefore = await readFile(rendererUrl, 'utf8')
     const result = await execFileAsync(
         process.execPath,
         ['scripts/patch-kicad-toolkit-pcb-renderer.mjs'],
         { cwd: rootPath, timeout: 15000 }
     )
+    const rendererAfter = await readFile(rendererUrl, 'utf8')
 
     assert.equal(result.stderr, '')
+    assert.equal(rendererAfter, rendererBefore)
 })
 
 /**
@@ -254,7 +261,10 @@ test('app shell includes localized footer metadata and footer-only version UI', 
     const englishMessages = JSON.parse(englishRaw)
     const germanMessages = JSON.parse(germanRaw)
 
-    assert.match(indexRaw, /<footer class="[^"]*page-footer[^"]*footer-inline[^"]*">/)
+    assert.match(
+        indexRaw,
+        /<footer class="[^"]*page-footer[^"]*footer-inline[^"]*">/
+    )
     assert.match(indexRaw, /class="footer-inline__main"/)
     assert.match(indexRaw, /class="footer-inline__meta"/)
     assert.match(indexRaw, /data-i18n="footer\.contact"/)
@@ -267,7 +277,10 @@ test('app shell includes localized footer metadata and footer-only version UI', 
     assert.doesNotMatch(indexRaw, />\s*(Imprint|Privacy)\s*</)
     assert.match(indexRaw, /08523 Plauen/)
     assert.match(layoutRaw, /\.footer-inline\s*{[^}]*grid-template-columns/s)
-    assert.match(layoutRaw, /\.footer-inline__meta\s*{[^}]*justify-content:\s*center/s)
+    assert.match(
+        layoutRaw,
+        /\.footer-inline__meta\s*{[^}]*justify-content:\s*center/s
+    )
     assert.equal(englishMessages['footer.contact'], 'Contact')
     assert.equal(germanMessages['footer.contact'], 'Kontakt')
     assert.equal(englishMessages['footer.responsible'], 'Responsible')
@@ -290,7 +303,9 @@ test('app shell places session summary above the footer', async () => {
     const heroIndex = indexRaw.indexOf('<section class="panel hero-grid">')
     const viewerIndex = indexRaw.indexOf('id="viewerStage"')
     const summaryIndex = indexRaw.indexOf('class="panel meta-column"')
-    const footerIndex = indexRaw.indexOf('<footer class="page-footer footer-inline">')
+    const footerIndex = indexRaw.indexOf(
+        '<footer class="page-footer footer-inline">'
+    )
 
     assert.ok(heroIndex >= 0)
     assert.ok(viewerIndex > heroIndex)
@@ -403,8 +418,14 @@ test('app shell implements the marketing landingpage design shell', async () => 
             heroRaw.indexOf('Open local files')
     )
     assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(\)/)
-    assert.match(emptyStateRaw, /file-pill file-pill--kicad[\s\S]+Try KiCad sample/)
-    assert.match(emptyStateRaw, /file-pill file-pill--altium[\s\S]+Try Altium sample/)
+    assert.match(
+        emptyStateRaw,
+        /file-pill file-pill--kicad[\s\S]+Try KiCad sample/
+    )
+    assert.match(
+        emptyStateRaw,
+        /file-pill file-pill--altium[\s\S]+Try Altium sample/
+    )
     assert.match(
         emptyStateRaw,
         /class="icon icon--sample-kicad"[\s\S]+Try KiCad sample/

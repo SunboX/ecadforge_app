@@ -142,7 +142,7 @@ test('KiCad schematic renderer aligns labels with stroke-font line origins', () 
     assert.match(renderedLabel, /class="schematic-text-line"/)
     assert.match(renderedLabel, /class="schematic-text-stroke"/)
     assert.match(renderedLabel, /data-line="E1"/)
-    assert.match(renderedLabel, /data-x="13\.641"/)
+    assert.match(renderedLabel, /data-x="13\.562"/)
     assert.match(markup, /class="schematic-pin-number"[^>]*aria-label="1"/)
     assert.doesNotMatch(markup, /<text class="schematic-text/)
 })
@@ -179,8 +179,8 @@ test('KiCad schematic renderer offsets pin numbers away from connector lines', (
     const rightFacingPinNumber = renderedTextGroup(markup, '1')
     const leftFacingPinNumber = renderedTextGroup(markup, '2')
 
-    assert.match(rightFacingPinNumber, /data-x="20\.35"/)
-    assert.match(leftFacingPinNumber, /data-x="28\.44"/)
+    assert.match(rightFacingPinNumber, /data-x="20\.665"/)
+    assert.match(leftFacingPinNumber, /data-x="28\.125"/)
 })
 
 /**

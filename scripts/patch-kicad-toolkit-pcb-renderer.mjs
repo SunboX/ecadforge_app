@@ -375,7 +375,7 @@ function formatNumber(value) {
 
     static #schematicHiddenPinPatched =
         '        .map((pin) => {\n' +
-        '            if (pin.visible === false) return \'\'\n' +
+        "            if (pin.visible === false) return ''\n" +
         '            const end = pinConnectionPoint(pin)'
 
     static #hiddenEffectOriginal =
@@ -383,7 +383,7 @@ function formatNumber(value) {
         '    return (\n' +
         '        children(node).some(\n' +
         "            (entry) => entry[0] === 'effects' && hasChild(entry, 'hide')\n" +
-        '        ) || hasChild(node, \'hide\')\n' +
+        "        ) || hasChild(node, 'hide')\n" +
         '    )\n' +
         '}'
 
@@ -492,13 +492,13 @@ function formatNumber(value) {
         '}'
 
     static #symbolVisibleOriginal =
-        '            const at = parseAt(child(node, \'at\'))\n' +
-        '            const numberFont = parsePinTextFont(child(node, \'number\'))\n' +
+        "            const at = parseAt(child(node, 'at'))\n" +
+        "            const numberFont = parsePinTextFont(child(node, 'number'))\n" +
         '            const connection = transformPoint({ x: at.x, y: at.y }, transform)'
 
     static #symbolVisiblePatched =
-        '            const at = parseAt(child(node, \'at\'))\n' +
-        '            const numberFont = parsePinTextFont(child(node, \'number\'))\n' +
+        "            const at = parseAt(child(node, 'at'))\n" +
+        "            const numberFont = parsePinTextFont(child(node, 'number'))\n" +
         '            const visible = !pinHidden(node)\n' +
         '            const connection = transformPoint({ x: at.x, y: at.y }, transform)'
 
@@ -509,7 +509,7 @@ function formatNumber(value) {
         '                electrical: 4,\n' +
         '                color: defaultInkColor,\n' +
         '                labelColor: defaultInkColor,\n' +
-        '                labelMode: \'number-only\',\n' +
+        "                labelMode: 'number-only',\n" +
         '                endpointVisible: Boolean(transform.endpointVisible),\n' +
         '                ownerIndex'
 
@@ -520,7 +520,7 @@ function formatNumber(value) {
         '                electrical: 4,\n' +
         '                color: defaultInkColor,\n' +
         '                labelColor: defaultInkColor,\n' +
-        '                labelMode: \'number-only\',\n' +
+        "                labelMode: 'number-only',\n" +
         '                endpointVisible: visible && Boolean(transform.endpointVisible),\n' +
         '                visible,\n' +
         '                ownerIndex'
@@ -617,8 +617,7 @@ function formatNumber(value) {
         await KicadToolkitPcbRendererPatcher.#applyPatch({
             original:
                 KicadToolkitPcbRendererPatcher.#segmentVectorEffectOriginal,
-            patched:
-                KicadToolkitPcbRendererPatcher.#segmentVectorEffectPatched,
+            patched: KicadToolkitPcbRendererPatcher.#segmentVectorEffectPatched,
             label: 'PCB routed segment scaling'
         })
         await KicadToolkitPcbRendererPatcher.#applyPatch({
@@ -633,8 +632,13 @@ function formatNumber(value) {
      * @returns {Promise<void>}
      */
     static async #applySchematicPatches() {
-        await KicadToolkitPcbRendererPatcher.#writeSchematicRenderer()
-        await KicadToolkitPcbRendererPatcher.#writeSchematicShapeRenderer()
+        if (
+            !(await KicadToolkitPcbRendererPatcher.#usesUpstreamSchematicRenderer())
+        ) {
+            await KicadToolkitPcbRendererPatcher.#writeSchematicRenderer()
+            await KicadToolkitPcbRendererPatcher.#writeSchematicShapeRenderer()
+        }
+
         await KicadToolkitPcbRendererPatcher.#applyPatch({
             sourcePath:
                 KicadToolkitPcbRendererPatcher.#resolveSchematicParserSourcePath(),
@@ -816,6 +820,24 @@ function formatNumber(value) {
         return KicadToolkitPcbRendererPatcher.#isAtLeastVersion(
             packageJson.version,
             '0.2.17'
+        )
+    }
+
+    /**
+     * Returns true when the installed package already has the schematic fixes.
+     * @returns {Promise<boolean>}
+     */
+    static async #usesUpstreamSchematicRenderer() {
+        const packageJson = JSON.parse(
+            await readFile(
+                KicadToolkitPcbRendererPatcher.#resolvePackageManifestPath(),
+                'utf8'
+            )
+        )
+
+        return KicadToolkitPcbRendererPatcher.#isAtLeastVersion(
+            packageJson.version,
+            '0.2.27'
         )
     }
 
