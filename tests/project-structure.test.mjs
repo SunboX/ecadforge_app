@@ -151,7 +151,7 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const pkg = JSON.parse(raw)
 
     assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.20')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.27')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.28')
 })
 
 /**
