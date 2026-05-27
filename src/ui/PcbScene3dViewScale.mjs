@@ -11,10 +11,7 @@ export class PcbScene3dViewScale {
     static resolve(preset, sceneDescription = null) {
         const normalizedPreset = String(preset || 'isometric').toLowerCase()
 
-        if (
-            normalizedPreset === 'top' &&
-            sceneDescription?.coordinateSystem === 'kicad-3d-y-up'
-        ) {
+        if (sceneDescription?.coordinateSystem === 'kicad-3d-y-up') {
             return { x: 1, y: 1, z: 1 }
         }
 

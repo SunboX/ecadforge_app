@@ -709,6 +709,23 @@ test('PcbScene3dRuntime keeps KiCad 3D top geometry unflipped', () => {
     assert.ok(topScreenPoint.y > 0)
 })
 
+test('PcbScene3dRuntime keeps KiCad 3D view presets camera-only', () => {
+    const sceneDescription = {
+        coordinateSystem: 'kicad-3d-y-up'
+    }
+
+    for (const presetName of ['top', 'bottom', 'isometric']) {
+        assert.deepEqual(
+            PcbScene3dRuntime.resolveViewScale(presetName, sceneDescription),
+            {
+                x: 1,
+                y: 1,
+                z: 1
+            }
+        )
+    }
+})
+
 test('PcbScene3dRuntime mirrors the bottom preset without rotating the board', () => {
     const bottomScreenPoint = projectPresetPoint('bottom', {
         x: 1,
