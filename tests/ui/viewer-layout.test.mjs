@@ -37,10 +37,27 @@ async function readIndexMarkup() {
 test('viewer stylesheet sizes the main viewer stage as a bounded work surface', async () => {
     const css = await readViewerStylesheet()
     const layoutCss = await readStylesheet('10-layout.css')
+    const sceneCss = await readStylesheet('30-scene3d.css')
 
     assert.match(
         layoutCss,
         /\.app-shell\s*\{[\s\S]*width:\s*min\(2200px, 100% - clamp\(1rem, 2vw, 3rem\)\);/
+    )
+    assert.match(
+        layoutCss,
+        /body\.is-viewer-mode\.is-viewer-visual \.app-shell\s*\{[\s\S]*min-height:\s*calc\(100vh - 1\.55rem\);/
+    )
+    assert.match(
+        layoutCss,
+        /body\.is-viewer-mode\.is-viewer-visual \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
+    )
+    assert.match(
+        layoutCss,
+        /body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell\s*\{[\s\S]*height:\s*calc\(100vh - 1\.55rem\);/
+    )
+    assert.doesNotMatch(
+        layoutCss,
+        /body\.is-viewer-mode \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
     )
     assert.match(
         css,
@@ -48,13 +65,81 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         css,
-        /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*height:\s*min\(82vh, 1080px\);/
+        /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*height:\s*auto;/
     )
     assert.match(
         css,
-        /body\.is-viewer-mode \.viewer-stage\s*\{[\s\S]*min-height:\s*680px;/
+        /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*align-self:\s*stretch;/
+    )
+    assert.match(
+        css,
+        /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*min-height:\s*360px;/
+    )
+    assert.match(
+        css,
+        /body\.is-viewer-mode\.is-viewer-schematic \.viewer-main,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.viewer-main,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.pcb-view,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.pcb-view__content\s*\{[\s\S]*overflow:\s*hidden;/
+    )
+    assert.match(
+        css,
+        /body\.is-viewer-mode\.is-viewer-schematic \.schematic-svg,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.pcb-svg\s*\{[\s\S]*display:\s*block;/
+    )
+    assert.match(
+        css,
+        /body\.is-viewer-mode\.is-viewer-pcb \.pcb-svg\s*\{[\s\S]*display:\s*block;/
+    )
+    assert.match(
+        sceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
     )
     assert.match(css, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
+})
+
+/**
+ * Verifies the landing page gives the empty drop area the remaining viewport
+ * space instead of leaving it as a shallow fixed panel.
+ */
+test('landing viewer stage scales the empty drop area into the viewport', async () => {
+    const css = await readViewerStylesheet()
+    const layoutCss = await readStylesheet('10-layout.css')
+    const emptyCss = await readStylesheet('22-viewer-empty.css')
+
+    assert.match(
+        layoutCss,
+        /body:not\(\.is-viewer-mode\) \.app-shell\s*\{[\s\S]*min-height:\s*calc\(100vh - 1\.55rem\);/
+    )
+    assert.match(
+        layoutCss,
+        /body:not\(\.is-viewer-mode\) \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto auto minmax\(min\(34vh, 27\.5rem\), 1fr\) auto auto;/
+    )
+    assert.match(
+        css,
+        /body:not\(\.is-viewer-mode\) \.viewer-stage\s*\{[\s\S]*height:\s*auto;/
+    )
+    assert.match(
+        css,
+        /body:not\(\.is-viewer-mode\) \.viewer-stage\s*\{[\s\S]*min-height:\s*clamp\(340px, 34vh, 440px\);/
+    )
+    assert.match(
+        css,
+        /body:not\(\.is-viewer-mode\) \.viewer-stage\s*\{[\s\S]*align-self:\s*stretch;/
+    )
+    assert.match(
+        emptyCss,
+        /body:not\(\.is-viewer-mode\) \.viewer-empty\s*\{[\s\S]*align-content:\s*center;/
+    )
+})
+
+/**
+ * Verifies the transient parser loading prompt is centered in the same
+ * full-height stage as the empty drop prompt.
+ */
+test('viewer loading state centers the spinner in the stage', async () => {
+    const css = await readViewerStylesheet()
+
+    assert.match(
+        css,
+        /\.viewer-loading\s*\{[\s\S]*align-content:\s*center;/
+    )
 })
 
 /**
@@ -116,11 +201,11 @@ test('topbar renders the reference ECAD Forge brand lockup', async () => {
 
     assert.match(
         indexRaw,
-        /<div class="brand-lockup">\s*<p class="eyebrow"[^>]*>[\s\S]*Local Browser Viewer[\s\S]*<\/p>\s*<span class="brand-mark"/
+        /<a[\s\S]*id="brandHomeLink"[\s\S]*class="brand-lockup"[\s\S]*href="\/"[\s\S]*>\s*<p class="eyebrow"[^>]*>[\s\S]*Local Browser Viewer[\s\S]*<\/p>\s*<span class="brand-mark"/
     )
     assert.match(
         indexRaw,
-        /<\/span>\s*<h1 data-i18n="app\.title">ECAD Forge<\/h1>\s*<\/div>/
+        /<\/span>\s*<h1 data-i18n="app\.title">ECAD Forge<\/h1>\s*<\/a>/
     )
     assert.match(
         layoutCss,

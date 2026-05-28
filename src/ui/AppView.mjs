@@ -1,5 +1,7 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
+import { PcbViewController } from './PcbViewController.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
@@ -21,6 +23,9 @@ export class AppView {
 
     /** @type {HTMLElement | null} */
     #dropZone
+
+    /** @type {HTMLAnchorElement | null} */
+    #brandHomeLink
 
     /** @type {HTMLElement | null} */
     #statusNode
@@ -67,6 +72,9 @@ export class AppView {
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
+    /** @type {PcbViewController | null} */
+    #pcbViewController
+
     /** @type {PcbScene3dController | null} */
     #scene3dController
 
@@ -84,6 +92,7 @@ export class AppView {
         this.#fileInput = this.#document.querySelector('#fileInput')
         this.#folderInput = this.#document.querySelector('#folderInput')
         this.#dropZone = this.#document.querySelector('#dropZone')
+        this.#brandHomeLink = this.#document.querySelector('#brandHomeLink')
         this.#statusNode = this.#document.querySelector('#statusMessage')
         this.#versionNode = this.#document.querySelector('#appVersion')
         this.#localeSelect = this.#document.querySelector('#localeSelect')
@@ -102,6 +111,7 @@ export class AppView {
         this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
         this.#pcbStylerLinkNode = this.#document.querySelector('#pcbStylerLink')
         this.#svgViewportController = null
+        this.#pcbViewController = null
         this.#scene3dController = null
         this.#createScene3dController =
             options.createScene3dController ||
@@ -127,9 +137,13 @@ export class AppView {
         this.setLocale(snapshot.locale)
         const bodyClassList = this.#document.body?.classList
         if (bodyClassList) {
-            bodyClassList[snapshot.documentModel ? 'add' : 'remove'](
-                'is-viewer-mode'
-            )
+            const isViewerMode = Boolean(snapshot.documentModel)
+            bodyClassList[isViewerMode ? 'add' : 'remove']('is-viewer-mode')
+            bodyClassList.remove('is-viewer-visual', 'is-viewer-schematic', 'is-viewer-pcb', 'is-viewer-3d')
+            if (isViewerMode && ['schematic', 'pcb', '3d'].includes(snapshot.activeView)) bodyClassList.add('is-viewer-visual')
+            if (isViewerMode && snapshot.activeView === 'schematic') bodyClassList.add('is-viewer-schematic')
+            if (isViewerMode && snapshot.activeView === 'pcb') bodyClassList.add('is-viewer-pcb')
+            if (isViewerMode && snapshot.activeView === '3d') bodyClassList.add('is-viewer-3d')
         }
         this.#renderActiveFile(snapshot.activeFileName)
         this.#renderTabs(snapshot.activeView)
@@ -237,8 +251,24 @@ export class AppView {
                 event,
                 '[data-view]',
                 'data-view',
-                callback
+                (viewName) => {
+                    ViewDeepLinkState.update(viewName)
+                    callback(viewName)
+                }
             )
+        })
+    }
+
+    /**
+     * Binds the brand lockup to return to the landing page view.
+     * @param {() => void} callback
+     * @returns {void}
+     */
+    bindHomeNavigation(callback) {
+        this.#brandHomeLink?.addEventListener('click', (event) => {
+            event.preventDefault()
+            ViewDeepLinkState.reset()
+            callback()
         })
     }
 
@@ -339,6 +369,20 @@ export class AppView {
                 ? 'Open this board in PCB Styler'
                 : 'Export or reopen in PCB Styler'
         this.#pcbStylerCtaNode.removeAttribute('hidden')
+    }
+
+    /**
+     * Hides the PCB Styler crosslink when returning to landing mode.
+     * @returns {void}
+     */
+    clearPcbStylerLink() {
+        if (!this.#pcbStylerCtaNode || !this.#pcbStylerLinkNode) {
+            return
+        }
+
+        this.#pcbStylerLinkNode.href = 'https://pcb-styler.app/'
+        this.#pcbStylerLinkNode.textContent = 'Open this board in PCB Styler'
+        this.#pcbStylerCtaNode.setAttribute('hidden', 'hidden')
     }
 
     /**
@@ -471,6 +515,7 @@ export class AppView {
         if (!this.#contentNode) return
 
         this.#disposeSvgViewportController()
+        this.#disposePcbViewController()
         this.#disposeScene3dController()
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
@@ -493,10 +538,10 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'pcb') {
-            this.#contentNode.innerHTML = EcadRendererService.renderPcb(
+            this.#pcbViewController = new PcbViewController(
+                this.#contentNode,
                 snapshot.documentModel
             )
-            this.#attachSvgViewportController('.pcb-svg')
             return
         }
 
@@ -548,6 +593,16 @@ export class AppView {
     #disposeSvgViewportController() {
         this.#svgViewportController?.dispose()
         this.#svgViewportController = null
+    }
+
+    /**
+     * Disposes the active PCB view controller before the panel content
+     * changes.
+     * @returns {void}
+     */
+    #disposePcbViewController() {
+        this.#pcbViewController?.dispose()
+        this.#pcbViewController = null
     }
 
     /**

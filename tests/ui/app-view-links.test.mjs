@@ -180,6 +180,27 @@ class FakeTabsNode extends FakeNode {
 }
 
 /**
+ * Minimal brand-home link node.
+ */
+class FakeBrandHomeLink extends FakeNode {
+    /**
+     * Dispatches a click event as if the brand lockup was selected.
+     * @returns {{ prevented: boolean }}
+     */
+    clickBrand() {
+        const eventState = { prevented: false }
+
+        this.dispatch('click', {
+            preventDefault: () => {
+                eventState.prevented = true
+            }
+        })
+
+        return eventState
+    }
+}
+
+/**
  * Minimal document exposing AppView mount points.
  */
 class FakeDocument {
@@ -188,6 +209,7 @@ class FakeDocument {
 
     constructor() {
         this.#nodes = new Map([
+            ['#brandHomeLink', new FakeBrandHomeLink()],
             ['#fileInput', new FakeNode()],
             ['#folderInput', new FakeNode()],
             ['#dropZone', new FakeNode()],
@@ -251,6 +273,65 @@ test('AppView binds normal view links without navigating away', () => {
 })
 
 /**
+ * Verifies view links keep the current browser URL copyable for the active
+ * tab without discarding existing source parameters.
+ */
+test('AppView writes selected views into the browser URL', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const replaceCalls = []
+    const originalHistory = globalThis.history
+    const originalLocation = globalThis.location
+
+    try {
+        Object.defineProperty(globalThis, 'history', {
+            configurable: true,
+            value: {
+                state: { source: true },
+                replaceState(...args) {
+                    replaceCalls.push(args)
+                }
+            }
+        })
+        Object.defineProperty(globalThis, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://ecadforge.app/?reload=1.4.57&url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware'
+            }
+        })
+
+        view.bindViewChange(() => {})
+        fakeDocument.querySelector('#viewTabs').clickView('3d')
+
+        assert.deepEqual(replaceCalls, [
+            [
+                { source: true },
+                '',
+                'https://ecadforge.app/?reload=1.4.57&url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware&view=3d'
+            ]
+        ])
+    } finally {
+        if (originalHistory === undefined) {
+            delete globalThis.history
+        } else {
+            Object.defineProperty(globalThis, 'history', {
+                configurable: true,
+                value: originalHistory
+            })
+        }
+
+        if (originalLocation === undefined) {
+            delete globalThis.location
+        } else {
+            Object.defineProperty(globalThis, 'location', {
+                configurable: true,
+                value: originalLocation
+            })
+        }
+    }
+})
+
+/**
  * Verifies selected state updates still work when view controls are links.
  */
 test('AppView marks the active view link as selected', () => {
@@ -266,4 +347,65 @@ test('AppView marks the active view link as selected', () => {
 
     assert.equal(selected.length, 1)
     assert.equal(selected[0]?.getAttribute('data-view'), 'pcb')
+})
+
+/**
+ * Verifies the app brand lockup behaves as an in-app home link.
+ */
+test('AppView binds the brand lockup as a landing-page link', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const replaceCalls = []
+    const originalHistory = globalThis.history
+    const originalLocation = globalThis.location
+    let homeClicks = 0
+
+    try {
+        Object.defineProperty(globalThis, 'history', {
+            configurable: true,
+            value: {
+                state: { source: true },
+                replaceState(...args) {
+                    replaceCalls.push(args)
+                }
+            }
+        })
+        Object.defineProperty(globalThis, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://ecadforge.app/?view=schematic&url=https%3A%2F%2Fgithub.com%2Fowner%2Frepo%2Ftree%2Fmain%2Fhardware&reload=1.4.62'
+            }
+        })
+
+        view.bindHomeNavigation(() => {
+            homeClicks += 1
+        })
+        const eventState = fakeDocument
+            .querySelector('#brandHomeLink')
+            .clickBrand()
+
+        assert.equal(homeClicks, 1)
+        assert.equal(eventState.prevented, true)
+        assert.deepEqual(replaceCalls, [
+            [{ source: true }, '', 'https://ecadforge.app/']
+        ])
+    } finally {
+        if (originalHistory === undefined) {
+            delete globalThis.history
+        } else {
+            Object.defineProperty(globalThis, 'history', {
+                configurable: true,
+                value: originalHistory
+            })
+        }
+
+        if (originalLocation === undefined) {
+            delete globalThis.location
+        } else {
+            Object.defineProperty(globalThis, 'location', {
+                configurable: true,
+                value: originalLocation
+            })
+        }
+    }
 })

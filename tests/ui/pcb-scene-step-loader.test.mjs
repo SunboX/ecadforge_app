@@ -232,6 +232,59 @@ test('PcbScene3dStepLoader normalizes large baked-in XY model offsets', async ()
 })
 
 /**
+ * Verifies project-local STEP models keep their authored origin because KiCad
+ * applies footprint model transforms against that raw coordinate frame.
+ */
+test('PcbScene3dStepLoader preserves session STEP model origins', async () => {
+    const loader = new PcbScene3dStepLoader({
+        importerLoader: async () => ({
+            ReadStepFile() {
+                return {
+                    success: true,
+                    meshes: [
+                        {
+                            name: 'body',
+                            color: [0.5, 0.5, 0.5],
+                            attributes: {
+                                position: {
+                                    array: [
+                                        1000, 10, 0,
+                                        1001, 10, 0,
+                                        1000, 11, 0
+                                    ]
+                                },
+                                normal: {
+                                    array: [
+                                        0, 0, 1,
+                                        0, 0, 1,
+                                        0, 0, 1
+                                    ]
+                                }
+                            },
+                            index: { array: [0, 1, 2] }
+                        }
+                    ]
+                }
+            }
+        })
+    })
+
+    const load = await loader.loadModel({
+        origin: 'session',
+        name: 'project-local.step',
+        format: 'step',
+        payloadText: 'ISO-10303-21;',
+        relativePath: 'parts/project-local.step'
+    })
+
+    assert.deepEqual(load.meshPayloads[0].positions, [
+        1000, 10, 0,
+        1001, 10, 0,
+        1000, 11, 0
+    ])
+})
+
+/**
  * Verifies worker-backed STEP imports reuse one persistent worker across
  * distinct model loads.
  */

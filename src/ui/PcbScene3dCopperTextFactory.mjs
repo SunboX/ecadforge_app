@@ -4,6 +4,7 @@ import { KicadStrokeFont } from 'kicad-toolkit/renderers'
  * Builds KiCad copper text as widened stroke meshes for the 3D PCB scene.
  */
 export class PcbScene3dCopperTextFactory {
+    static #DEFAULT_MATERIAL_COLOR = 0xd9a61d
     static #TEXT_LINE_SPACING_RATIO = 1.61
     static #FIRST_LINE_HEIGHT_RATIO = 1.17
     static #STROKE_BASELINE_FUDGE_RATIO = 0.052
@@ -14,7 +15,7 @@ export class PcbScene3dCopperTextFactory {
      * @param {any[]} texts
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
-     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean }} [options]
+     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean, materialColor?: number, filterSide?: boolean }} [options]
      * @returns {any}
      */
     static buildGroup(THREE, texts, z, normalizeBoardPoint, options = {}) {
@@ -22,10 +23,13 @@ export class PcbScene3dCopperTextFactory {
         const positions = []
         const side = PcbScene3dCopperTextFactory.#normalizeSide(options?.side)
         const mirrorY = Boolean(options?.mirrorY)
+        const shouldFilterSide = options?.filterSide !== false
         group.name = 'copper-texts'
         ;(texts || [])
             .filter((text) =>
-                PcbScene3dCopperTextFactory.#matchesSide(text, side)
+                shouldFilterSide
+                    ? PcbScene3dCopperTextFactory.#matchesSide(text, side)
+                    : true
             )
             .forEach((text) => {
                 PcbScene3dCopperTextFactory.#appendTextTriangles(
@@ -50,7 +54,12 @@ export class PcbScene3dCopperTextFactory {
 
         const mesh = new THREE.Mesh(
             geometry,
-            PcbScene3dCopperTextFactory.#buildMaterial(THREE)
+            PcbScene3dCopperTextFactory.#buildMaterial(
+                THREE,
+                PcbScene3dCopperTextFactory.#resolveMaterialColor(
+                    options?.materialColor
+                )
+            )
         )
         mesh.name = 'copper-text'
         group.add(mesh)
@@ -168,7 +177,8 @@ export class PcbScene3dCopperTextFactory {
     static #textHeight(text) {
         return PcbScene3dCopperTextFactory.#positiveTextSize(
             text?.sizeX,
-            text?.sizeY
+            text?.sizeY,
+            text?.height
         )
     }
 
@@ -180,7 +190,8 @@ export class PcbScene3dCopperTextFactory {
     static #textWidth(text) {
         return PcbScene3dCopperTextFactory.#positiveTextSize(
             text?.sizeY,
-            text?.sizeX
+            text?.sizeX,
+            text?.height
         )
     }
 
@@ -188,11 +199,15 @@ export class PcbScene3dCopperTextFactory {
      * Resolves a positive text metric.
      * @param {number | undefined} primary
      * @param {number | undefined} secondary
+     * @param {number | undefined} tertiary
      * @returns {number}
      */
-    static #positiveTextSize(primary, secondary) {
+    static #positiveTextSize(primary, secondary, tertiary) {
         return Math.max(
-            Number(primary) || Number(secondary) || 39.37007874,
+            Number(primary) ||
+                Number(secondary) ||
+                Number(tertiary) ||
+                39.37007874,
             0.001
         )
     }
@@ -251,7 +266,12 @@ export class PcbScene3dCopperTextFactory {
      * @returns {number}
      */
     static #textStrokeWidth(text) {
-        return Math.max(Number(text?.thickness) || 4.7244094488, 0.01)
+        return Math.max(
+            Number(text?.thickness) ||
+                Number(text?.strokeWidth) ||
+                4.7244094488,
+            0.01
+        )
     }
 
     /**
@@ -405,15 +425,31 @@ export class PcbScene3dCopperTextFactory {
     /**
      * Builds the shared copper text material.
      * @param {any} THREE
+     * @param {number} color
      * @returns {any}
      */
-    static #buildMaterial(THREE) {
+    static #buildMaterial(THREE, color) {
         return new THREE.MeshStandardMaterial({
-            color: 0xd9a61d,
+            color,
             roughness: 0.38,
             metalness: 0.55,
             side: THREE.DoubleSide
         })
+    }
+
+    /**
+     * Resolves a safe RGB material color.
+     * @param {unknown} color
+     * @returns {number}
+     */
+    static #resolveMaterialColor(color) {
+        const numericColor = Number(color)
+
+        return Number.isInteger(numericColor) &&
+            numericColor >= 0 &&
+            numericColor <= 0xffffff
+            ? numericColor
+            : PcbScene3dCopperTextFactory.#DEFAULT_MATERIAL_COLOR
     }
 
     /**

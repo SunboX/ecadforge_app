@@ -663,6 +663,15 @@ function resolveFallbackBodiesGroup() {
 }
 
 /**
+ * Resolves the board shell mesh from the current fake scene tree.
+ * @returns {FakeMesh | undefined}
+ */
+function resolveBoardMesh() {
+    return lastCreatedScene?.children?.[0]?.children?.[0]?.children?.[0]
+        ?.children?.[0]
+}
+
+/**
  * Flushes a few promise turns so async runtime stages can advance.
  * @param {number} turns
  * @returns {Promise<void>}
@@ -726,7 +735,7 @@ test('PcbScene3dRuntime keeps KiCad 3D view presets camera-only', () => {
     }
 })
 
-test('PcbScene3dRuntime mirrors the bottom preset without rotating the board', () => {
+test('PcbScene3dRuntime mirrors the bottom preset into Altium bottom orientation', () => {
     const bottomScreenPoint = projectPresetPoint('bottom', {
         x: 1,
         y: -1,
@@ -758,6 +767,126 @@ test('PcbScene3dRuntime shows front-right KiCad anchors on the right in isometri
     })
 
     assert.ok(screenPoint.x > 0)
+})
+
+test('PcbScene3dRuntime uses a substrate-colored side material for board edges and drill walls', async () => {
+    const originalWindow = globalThis.window
+    const originalDocument = globalThis.document
+    const originalLoadIntoScene = PcbScene3dExternalModels.loadIntoScene
+
+    globalThis.window = {
+        devicePixelRatio: 1,
+        requestAnimationFrame(callback) {
+            callback()
+        },
+        addEventListener() {},
+        removeEventListener() {}
+    }
+    globalThis.document = {}
+    lastCreatedScene = null
+    PcbScene3dExternalModels.loadIntoScene = async () => []
+
+    const runtime = new PcbScene3dRuntime(
+        new FakeViewportNode(),
+        {
+            board: {
+                widthMil: 1200,
+                heightMil: 800,
+                centerX: 0,
+                centerY: 0,
+                thicknessMil: 62,
+                segments: [],
+                surfaceColor: 0x17396b,
+                edgeColor: 0xf7f9d1
+            },
+            components: [],
+            detail: {
+                silkscreen: {},
+                tracks: [],
+                arcs: [],
+                pads: [],
+                vias: []
+            },
+            externalPlacements: []
+        },
+        {
+            loadRuntimeModules: async () => createFakeRuntimeModules()
+        }
+    )
+
+    try {
+        await runtime.whenReady()
+        const boardMesh = resolveBoardMesh()
+
+        assert.ok(Array.isArray(boardMesh?.material))
+        assert.equal(boardMesh.material[0].options.color, 0x17396b)
+        assert.equal(boardMesh.material[1].options.color, 0xf7f9d1)
+    } finally {
+        runtime.dispose()
+        PcbScene3dExternalModels.loadIntoScene = originalLoadIntoScene
+        globalThis.window = originalWindow
+        globalThis.document = originalDocument
+    }
+})
+
+test('PcbScene3dRuntime passes active view scale into external model loading', async () => {
+    const originalWindow = globalThis.window
+    const originalDocument = globalThis.document
+    const originalLoadIntoScene = PcbScene3dExternalModels.loadIntoScene
+    let capturedModelViewScale = null
+
+    globalThis.window = {
+        devicePixelRatio: 1,
+        requestAnimationFrame(callback) {
+            callback()
+        },
+        addEventListener() {},
+        removeEventListener() {}
+    }
+    globalThis.document = {}
+    lastCreatedScene = null
+    PcbScene3dExternalModels.loadIntoScene = async (options) => {
+        capturedModelViewScale = options.modelViewScale
+        return []
+    }
+
+    const runtime = new PcbScene3dRuntime(
+        new FakeViewportNode(),
+        {
+            board: {
+                widthMil: 1200,
+                heightMil: 800,
+                centerX: 0,
+                centerY: 0,
+                thicknessMil: 62,
+                segments: []
+            },
+            components: [],
+            detail: {
+                silkscreen: {},
+                tracks: [],
+                arcs: [],
+                pads: [],
+                vias: []
+            },
+            externalPlacements: [{}]
+        },
+        {
+            loadRuntimeModules: async () => createFakeRuntimeModules()
+        }
+    )
+
+    try {
+        runtime.setPreset('top')
+        await runtime.whenReady()
+
+        assert.deepEqual(capturedModelViewScale, { x: 1, y: -1, z: 1 })
+    } finally {
+        runtime.dispose()
+        PcbScene3dExternalModels.loadIntoScene = originalLoadIntoScene
+        globalThis.window = originalWindow
+        globalThis.document = originalDocument
+    }
 })
 
 test('PcbScene3dRuntime keeps fallback bodies hidden by default and waits for deferred settlement before reporting ready', async () => {

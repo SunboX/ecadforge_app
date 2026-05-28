@@ -71,6 +71,24 @@ class GithubOpenView {
 }
 
 /**
+ * View double that stores the latest rendered controller state.
+ */
+class StartupView extends GithubOpenView {
+    /** @type {any | null} */
+    snapshot
+
+    constructor() {
+        super()
+        this.snapshot = null
+    }
+
+    /** @param {any} snapshot @returns {void} */
+    render(snapshot) {
+        this.snapshot = snapshot
+    }
+}
+
+/**
  * Parser double that returns one PCB document for any GitHub batch.
  */
 class GithubBatchParser {
@@ -195,4 +213,42 @@ test('AppController writes successful GitHub form loads into the share URL', asy
             })
         }
     }
+})
+
+test('AppController restores a startup GitHub source view from deep links', async () => {
+    const view = new StartupView()
+    const state = new AppState({ activeView: 'schematic' })
+    const controller = new AppController({
+        state,
+        view,
+        parser: new GithubBatchParser(),
+        analytics: new NoopAnalytics(),
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/acme/demo/tree/main/hardware',
+            view: '3d'
+        },
+        githubSourceLoader: {
+            async loadUrl(_url) {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'kicad',
+                    shareUrl: 'https://github.com/acme/demo/tree/main/hardware',
+                    entries: [
+                        {
+                            name: 'board.kicad_pcb',
+                            buffer: new ArrayBuffer(4)
+                        }
+                    ],
+                    assets: [],
+                    modelReferences: []
+                }
+            }
+        }
+    })
+
+    await controller.init()
+
+    assert.equal(view.snapshot?.activeView, '3d')
+    assert.equal(state.getSnapshot().activeView, '3d')
 })

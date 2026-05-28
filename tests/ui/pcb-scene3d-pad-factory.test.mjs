@@ -280,6 +280,54 @@ test('buildGroup preserves pad-specific geometry kinds and local offsets', () =>
     )
 })
 
+test('buildGroup respects explicit side solder-mask openings', () => {
+    const THREE = createFakeThree()
+    const pads = [
+        {
+            x: 100,
+            y: 100,
+            sizeTopX: 60,
+            sizeTopY: 40,
+            sizeBottomX: 60,
+            sizeBottomY: 40,
+            shapeTop: 2,
+            shapeBottom: 2,
+            hasTopSolderMaskOpening: true,
+            hasBottomSolderMaskOpening: false
+        },
+        {
+            x: 200,
+            y: 100,
+            sizeTopX: 50,
+            sizeTopY: 50,
+            sizeBottomX: 50,
+            sizeBottomY: 50,
+            shapeTop: 1,
+            shapeBottom: 1,
+            hasTopSolderMaskOpening: true,
+            hasBottomSolderMaskOpening: true
+        }
+    ]
+    const topGroup = PcbScene3dPadFactory.buildGroup(
+        THREE,
+        pads,
+        14.2,
+        (x, y) => ({ x, y }),
+        { side: 'top' }
+    )
+    const bottomGroup = PcbScene3dPadFactory.buildGroup(
+        THREE,
+        pads,
+        14.2,
+        (x, y) => ({ x, y }),
+        { side: 'bottom' }
+    )
+
+    assert.equal(topGroup.children.length, 2)
+    assert.equal(bottomGroup.children.length, 1)
+    assert.equal(bottomGroup.children[0].position.x, 200)
+})
+
 test('buildGroup extrudes drilled pads as annular rings', () => {
     const group = PcbScene3dPadFactory.buildGroup(
         THREE,

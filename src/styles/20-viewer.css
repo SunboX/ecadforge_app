@@ -170,9 +170,16 @@ html.is-schematic-panning body {
     gap: 0.75rem;
 }
 
-body.is-viewer-mode .viewer-stage {
-    height: min(82vh, 1080px);
-    min-height: 680px;
+body:not(.is-viewer-mode) .viewer-stage {
+    height: auto;
+    min-height: clamp(340px, 34vh, 440px);
+    align-self: stretch;
+}
+
+body.is-viewer-mode.is-viewer-visual .viewer-stage {
+    height: auto;
+    min-height: 360px;
+    align-self: stretch;
 }
 
 .viewer-stage.is-multi-document {
@@ -389,6 +396,7 @@ body.is-viewer-mode .viewer-stage {
 }
 
 .viewer-loading {
+    align-content: center;
     gap: 1rem;
 }
 
@@ -622,6 +630,38 @@ body.is-viewer-mode .viewer-stage {
     grid-template-columns: minmax(180px, 220px) 1fr;
     gap: 1rem;
     align-items: start;
+}
+
+.pcb-view {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.pcb-view__toolbar {
+    align-items: center;
+}
+
+.pcb-view__content {
+    min-width: 0;
+    min-height: 0;
+}
+
+body.is-viewer-mode.is-viewer-schematic .viewer-main,
+body.is-viewer-mode.is-viewer-pcb .viewer-main,
+body.is-viewer-mode.is-viewer-pcb .pcb-view,
+body.is-viewer-mode.is-viewer-pcb .pcb-view__content {
+    overflow: hidden;
+}
+
+body.is-viewer-mode.is-viewer-schematic .schematic-svg,
+body.is-viewer-mode.is-viewer-pcb .pcb-svg {
+    display: block;
+    max-height: 100%;
 }
 
 .pcb-legend {
@@ -902,6 +942,11 @@ body.is-viewer-mode .viewer-stage {
     }
 
     .viewer-stage {
+        height: auto;
+        min-height: 360px;
+    }
+
+    body.is-viewer-mode.is-viewer-visual .viewer-stage {
         height: auto;
         min-height: 360px;
     }

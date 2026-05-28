@@ -32,10 +32,7 @@ export class PcbScene3dPadFactory {
                 return
             }
 
-            const spec = PcbScene3dPadFactory.resolvePadSurfaceSpec(
-                pad,
-                side
-            )
+            const spec = PcbScene3dPadFactory.resolvePadSurfaceSpec(pad, side)
             const geometry = PcbScene3dPadFactory.#resolveGeometry(
                 THREE,
                 geometryCache,
@@ -105,7 +102,8 @@ export class PcbScene3dPadFactory {
             hasHole: Number(pad?.holeDiameter || 0) > 0,
             holeDiameter: Math.max(Number(pad?.holeDiameter || 0), 0),
             holeSlotLength:
-                Number(pad?.holeSlotLength || 0) > Number(pad?.holeDiameter || 0)
+                Number(pad?.holeSlotLength || 0) >
+                Number(pad?.holeDiameter || 0)
                     ? Number(pad?.holeSlotLength || 0)
                     : null,
             holeRotation: Number(pad?.holeRotation || 0)
@@ -120,13 +118,13 @@ export class PcbScene3dPadFactory {
      */
     static #resolvePadSurfaceSize(pad, side) {
         const preferredWidth =
-            side === 'bottom' ?
-                Number(pad?.sizeBottomX || 0)
-            :   Number(pad?.sizeTopX || 0)
+            side === 'bottom'
+                ? Number(pad?.sizeBottomX || 0)
+                : Number(pad?.sizeTopX || 0)
         const preferredHeight =
-            side === 'bottom' ?
-                Number(pad?.sizeBottomY || 0)
-            :   Number(pad?.sizeTopY || 0)
+            side === 'bottom'
+                ? Number(pad?.sizeBottomY || 0)
+                : Number(pad?.sizeTopY || 0)
         const width =
             Number(
                 preferredWidth ||
@@ -251,9 +249,9 @@ export class PcbScene3dPadFactory {
      */
     static #resolveRoundedRectCornerRadius(pad, size, side) {
         const rawCornerRadius =
-            side === 'bottom' ?
-                Number(pad?.cornerRadiusBottom)
-            :   Number(pad?.cornerRadiusTop)
+            side === 'bottom'
+                ? Number(pad?.cornerRadiusBottom)
+                : Number(pad?.cornerRadiusTop)
         if (
             pad?.hasRoundedRect &&
             Number.isFinite(rawCornerRadius) &&
@@ -274,12 +272,8 @@ export class PcbScene3dPadFactory {
     static #resolvePadOffset(pad, side) {
         if (side === 'bottom') {
             return {
-                x: Number(
-                    pad?.offsetBottomX ?? pad?.offsetTopX ?? 0
-                ),
-                y: Number(
-                    pad?.offsetBottomY ?? pad?.offsetTopY ?? 0
-                )
+                x: Number(pad?.offsetBottomX ?? pad?.offsetTopX ?? 0),
+                y: Number(pad?.offsetBottomY ?? pad?.offsetTopY ?? 0)
             }
         }
 
@@ -291,11 +285,19 @@ export class PcbScene3dPadFactory {
 
     /**
      * Returns true when one pad has visible copper on the requested face.
-     * @param {{ sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, holeDiameter?: number }} pad
+     * @param {{ sizeTopX?: number, sizeTopY?: number, sizeMidX?: number, sizeMidY?: number, sizeBottomX?: number, sizeBottomY?: number, holeDiameter?: number, hasTopSolderMaskOpening?: boolean, hasBottomSolderMaskOpening?: boolean }} pad
      * @param {'top' | 'bottom'} side
      * @returns {boolean}
      */
     static #hasVisibleSurface(pad, side) {
+        const maskOpening = PcbScene3dPadFactory.#resolveSolderMaskOpening(
+            pad,
+            side
+        )
+        if (maskOpening === false) {
+            return false
+        }
+
         const preferredSideHasSize = PcbScene3dPadFactory.#hasSideSize(
             pad,
             side
@@ -320,6 +322,25 @@ export class PcbScene3dPadFactory {
     }
 
     /**
+     * Resolves an explicit side-specific solder-mask opening when available.
+     * @param {{ hasTopSolderMaskOpening?: boolean, hasBottomSolderMaskOpening?: boolean }} pad
+     * @param {'top' | 'bottom'} side
+     * @returns {boolean | null}
+     */
+    static #resolveSolderMaskOpening(pad, side) {
+        const fieldName =
+            side === 'bottom'
+                ? 'hasBottomSolderMaskOpening'
+                : 'hasTopSolderMaskOpening'
+
+        if (typeof pad?.[fieldName] === 'boolean') {
+            return pad[fieldName]
+        }
+
+        return null
+    }
+
+    /**
      * Returns true when one face has an explicit copper size.
      * @param {{ sizeTopX?: number, sizeTopY?: number, sizeBottomX?: number, sizeBottomY?: number }} pad
      * @param {'top' | 'bottom'} side
@@ -333,9 +354,7 @@ export class PcbScene3dPadFactory {
             )
         }
 
-        return (
-            Number(pad?.sizeTopX || 0) > 0 || Number(pad?.sizeTopY || 0) > 0
-        )
+        return Number(pad?.sizeTopX || 0) > 0 || Number(pad?.sizeTopY || 0) > 0
     }
 
     /**
@@ -407,15 +426,12 @@ export class PcbScene3dPadFactory {
             if (drillHole) {
                 shape.holes.push(drillHole)
             }
-            geometry = new THREE.ExtrudeGeometry(
-                shape,
-                {
-                    depth: PcbScene3dPadFactory.#PAD_THICKNESS_MIL,
-                    bevelEnabled: false,
-                    curveSegments: 16,
-                    steps: 1
-                }
-            )
+            geometry = new THREE.ExtrudeGeometry(shape, {
+                depth: PcbScene3dPadFactory.#PAD_THICKNESS_MIL,
+                bevelEnabled: false,
+                curveSegments: 16,
+                steps: 1
+            })
             geometry.translate?.(
                 0,
                 0,

@@ -63,7 +63,12 @@
     <body>
         <main class="app-shell">
             <header class="topbar">
-                <div class="brand-lockup">
+                <a
+                    id="brandHomeLink"
+                    class="brand-lockup"
+                    href="/"
+                    aria-label="Return to ECAD Forge landing page"
+                >
                     <p class="eyebrow" data-i18n="app.kicker">
                         Local Browser Viewer
                     </p>
@@ -71,7 +76,7 @@
                         <img src="/favicon.svg" alt="" />
                     </span>
                     <h1 data-i18n="app.title">ECAD Forge</h1>
-                </div>
+                </a>
                 <p class="topbar__description" data-i18n="app.subtitle">
                     Private ECAD viewer for Altium &amp; KiCad.
                 </p>

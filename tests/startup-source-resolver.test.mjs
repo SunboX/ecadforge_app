@@ -16,11 +16,12 @@ test('StartupSourceResolver resolves demo routes and demo query parameters', () 
 test('StartupSourceResolver resolves GitHub URL inputs', () => {
     assert.deepEqual(
         StartupSourceResolver.resolve(
-            'https://ecadforge.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fa%2Fb%2Fmain%2Fboard.kicad_pcb'
+            'https://ecadforge.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fa%2Fb%2Fmain%2Fboard.kicad_pcb&view=3d'
         ),
         {
             type: 'url',
-            url: 'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb'
+            url: 'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
+            view: '3d'
         }
     )
     assert.deepEqual(

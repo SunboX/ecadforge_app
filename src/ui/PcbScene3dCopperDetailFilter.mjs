@@ -1,5 +1,5 @@
 /**
- * Filters 3D copper detail to match realistic KiCad solder-mask visibility.
+ * Filters 3D copper detail to match realistic solder-mask visibility.
  */
 export class PcbScene3dCopperDetailFilter {
     /**
@@ -11,7 +11,7 @@ export class PcbScene3dCopperDetailFilter {
         const detail = sceneDescription?.detail || {}
 
         if (
-            !PcbScene3dCopperDetailFilter.#usesKiCadRealisticMasking(
+            !PcbScene3dCopperDetailFilter.#usesRealisticMasking(
                 sceneDescription
             )
         ) {
@@ -39,21 +39,50 @@ export class PcbScene3dCopperDetailFilter {
      * @returns {boolean}
      */
     static shouldRenderStandaloneVias(sceneDescription) {
-        return !PcbScene3dCopperDetailFilter.#usesKiCadRealisticMasking(
+        return !PcbScene3dCopperDetailFilter.#usesRealisticMasking(
             sceneDescription
         )
     }
 
     /**
-     * Checks whether one scene should use KiCad solder-mask visibility.
+     * Checks whether one scene should use solder-mask visibility.
      * @param {object} sceneDescription 3D scene description.
      * @returns {boolean}
      */
-    static #usesKiCadRealisticMasking(sceneDescription) {
-        return (
-            String(sceneDescription?.sourceFormat || '').toLowerCase() ===
-                'kicad' ||
-            sceneDescription?.coordinateSystem === 'kicad-3d-y-up'
+    static #usesRealisticMasking(sceneDescription) {
+        const sourceFormat = String(sceneDescription?.sourceFormat || '')
+            .trim()
+            .toLowerCase()
+
+        if (sourceFormat === 'altium' || sourceFormat === 'kicad') {
+            return true
+        }
+
+        if (sceneDescription?.coordinateSystem === 'kicad-3d-y-up') {
+            return true
+        }
+
+        return PcbScene3dCopperDetailFilter.#hasExplicitMaskMetadata(
+            sceneDescription?.detail
+        )
+    }
+
+    /**
+     * Checks whether parsed copper detail carries explicit solder-mask data.
+     * @param {object | undefined} detail Scene detail.
+     * @returns {boolean}
+     */
+    static #hasExplicitMaskMetadata(detail) {
+        return [
+            detail?.tracks,
+            detail?.arcs,
+            detail?.copperTexts,
+            detail?.vias,
+            detail?.pads
+        ].some((primitives) =>
+            (primitives || []).some((primitive) =>
+                PcbScene3dCopperDetailFilter.#hasMaskMetadata(primitive)
+            )
         )
     }
 
@@ -96,6 +125,25 @@ export class PcbScene3dCopperDetailFilter {
         return (
             Number.isFinite(Number(primitive?.solderMaskExpansion)) &&
             Number(primitive?.solderMaskExpansion) !== 0
+        )
+    }
+
+    /**
+     * Checks whether one primitive declares any solder-mask visibility field.
+     * @param {object} primitive Copper primitive.
+     * @returns {boolean}
+     */
+    static #hasMaskMetadata(primitive) {
+        return [
+            'hasSolderMask',
+            'solderMaskOpening',
+            'solderMaskExpansion',
+            'hasTopSolderMaskOpening',
+            'hasBottomSolderMaskOpening',
+            'isTentingTop',
+            'isTentingBottom'
+        ].some((fieldName) =>
+            Object.prototype.hasOwnProperty.call(primitive || {}, fieldName)
         )
     }
 }

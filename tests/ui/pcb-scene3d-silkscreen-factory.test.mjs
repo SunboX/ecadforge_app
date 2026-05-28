@@ -142,9 +142,65 @@ function createFakeThree() {
         }
     }
 
+    class FakePlaneGeometry {
+        /**
+         * @param {number} width
+         * @param {number} height
+         */
+        constructor(width, height) {
+            this.type = 'PlaneGeometry'
+            this.parameters = { width, height }
+            this.bounds = {
+                minX: -width / 2,
+                maxX: width / 2,
+                minY: -height / 2,
+                maxY: height / 2
+            }
+        }
+
+        /**
+         * @param {number} x
+         * @param {number} y
+         * @returns {void}
+         */
+        translate(x, y) {
+            this.bounds.minX += x
+            this.bounds.maxX += x
+            this.bounds.minY += y
+            this.bounds.maxY += y
+        }
+
+        /**
+         * @param {number} x
+         * @param {number} y
+         * @returns {void}
+         */
+        scale(x, y) {
+            const scaledX = [this.bounds.minX * x, this.bounds.maxX * x]
+            const scaledY = [this.bounds.minY * y, this.bounds.maxY * y]
+
+            this.bounds.minX = Math.min(...scaledX)
+            this.bounds.maxX = Math.max(...scaledX)
+            this.bounds.minY = Math.min(...scaledY)
+            this.bounds.maxY = Math.max(...scaledY)
+        }
+    }
+
+    class FakeCanvasTexture {
+        /**
+         * @param {any} canvas
+         */
+        constructor(canvas) {
+            this.type = 'CanvasTexture'
+            this.image = canvas
+            this.needsUpdate = false
+        }
+    }
+
     class FakeShape {
         constructor() {
             this.commands = []
+            this.holes = []
         }
 
         /**
@@ -173,6 +229,8 @@ function createFakeThree() {
         }
     }
 
+    class FakePath extends FakeShape {}
+
     class FakeShapeGeometry {
         /**
          * @param {FakeShape} shape
@@ -193,9 +251,112 @@ function createFakeThree() {
         MeshBasicMaterial: FakeMeshBasicMaterial,
         MeshStandardMaterial: FakeMeshStandardMaterial,
         BoxGeometry: FakeBoxGeometry,
+        PlaneGeometry: FakePlaneGeometry,
+        CanvasTexture: FakeCanvasTexture,
         Shape: FakeShape,
+        Path: FakePath,
         ShapeGeometry: FakeShapeGeometry,
         DoubleSide: 'DoubleSide'
+    }
+}
+
+/**
+ * Installs a minimal document/canvas double while one test renders canvas text.
+ * @param {() => void} callback
+ * @returns {void}
+ */
+function withFakeCanvas(callback) {
+    const hadDocument = Object.hasOwn(globalThis, 'document')
+    const originalDocument = globalThis.document
+
+    globalThis.document = {
+        /**
+         * @param {string} tagName
+         * @returns {any}
+         */
+        createElement(tagName) {
+            assert.equal(tagName, 'canvas')
+
+            const canvas = {
+                width: 0,
+                height: 0,
+                __drawOps: [],
+                __fillStyles: [],
+                /**
+                 * @param {string} type
+                 * @returns {any}
+                 */
+                getContext(type) {
+                    assert.equal(type, '2d')
+
+                    return {
+                        fillStyle: '',
+                        font: '',
+                        globalCompositeOperation: 'source-over',
+                        textAlign: '',
+                        textBaseline: '',
+                        /**
+                         * @returns {void}
+                         */
+                        clearRect() {},
+                        /**
+                         * @param {number} x
+                         * @param {number} y
+                         * @param {number} width
+                         * @param {number} height
+                         * @returns {void}
+                         */
+                        fillRect(x, y, width, height) {
+                            canvas.__drawOps.push({
+                                type: 'fillRect',
+                                composite: this.globalCompositeOperation,
+                                style: this.fillStyle,
+                                x,
+                                y,
+                                width,
+                                height
+                            })
+                        },
+                        /**
+                         * @param {string} value
+                         * @returns {{ width: number, actualBoundingBoxAscent: number, actualBoundingBoxDescent: number }}
+                         */
+                        measureText(value) {
+                            return {
+                                width: String(value).length * 24,
+                                actualBoundingBoxAscent: 32,
+                                actualBoundingBoxDescent: 8
+                            }
+                        },
+                        /**
+                         * @param {string} value
+                         * @returns {void}
+                         */
+                        fillText(value) {
+                            canvas.__fillStyles.push(this.fillStyle)
+                            canvas.__drawOps.push({
+                                type: 'fillText',
+                                composite: this.globalCompositeOperation,
+                                style: this.fillStyle,
+                                text: value
+                            })
+                        }
+                    }
+                }
+            }
+
+            return canvas
+        }
+    }
+
+    try {
+        callback()
+    } finally {
+        if (hadDocument) {
+            globalThis.document = originalDocument
+        } else {
+            delete globalThis.document
+        }
     }
 }
 
@@ -279,8 +440,8 @@ test('PcbScene3dSilkscreenFactory builds top and bottom overlay groups', () => {
     )
 
     assert.equal(topTrackMesh.material.options.side, 'DoubleSide')
-    assert.equal(topTrackBounds.minX, -40)
-    assert.equal(topTrackBounds.maxX, 20)
+    assert.equal(topTrackBounds.minX, -44)
+    assert.equal(topTrackBounds.maxX, 24)
     assert.equal(topTrackBounds.minY, -59)
     assert.equal(topTrackBounds.maxY, -51)
     assert.equal(topTrackBounds.minZ, 32.1)
@@ -295,7 +456,7 @@ test('PcbScene3dSilkscreenFactory builds top and bottom overlay groups', () => {
     assert.ok(bottomTrackBounds.maxX - bottomTrackBounds.minX > 20)
     assert.ok(bottomTrackBounds.maxY - bottomTrackBounds.minY > 30)
     assert.ok(bottomTrackBounds.minY < -176)
-    assert.ok(bottomTrackBounds.maxY < -143)
+    assert.ok(bottomTrackBounds.maxY <= -142)
     assert.ok(bottomTrackBounds.maxY > -144)
     assert.equal(bottomTrackBounds.minZ, 32.1)
     assert.equal(bottomTrackBounds.maxZ, 32.1)
@@ -340,6 +501,33 @@ test('PcbScene3dSilkscreenFactory renders start-equals-end arcs as full circles'
     assert.equal(bounds.maxZ, 12)
 })
 
+test('PcbScene3dSilkscreenFactory preserves authored sub-mil track widths', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [],
+                tracks: [{ x1: 10, y1: 20, x2: 10, y2: 80, width: 0.57 }],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        12,
+        -12,
+        (x, y) => ({ x, y })
+    )
+
+    const trackMesh = group.children[0].children[0]
+    const bounds = resolveBounds(
+        trackMesh.geometry.attributes.get('position').array
+    )
+
+    assert.equal(Number((bounds.maxX - bounds.minX).toFixed(2)), 0.57)
+    assert.equal(Number(bounds.minY.toFixed(3)), 19.715)
+    assert.equal(Number(bounds.maxY.toFixed(3)), 80.285)
+})
+
 test('PcbScene3dSilkscreenFactory preserves polygon fill outlines', () => {
     const THREE = createFakeThree()
     const group = PcbScene3dSilkscreenFactory.buildGroup(
@@ -375,4 +563,418 @@ test('PcbScene3dSilkscreenFactory preserves polygon fill outlines', () => {
         { type: 'closePath' }
     ])
     assert.equal(fillMesh.position.z, 18)
+})
+
+test('PcbScene3dSilkscreenFactory cuts polygon fill holes from shape fills', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [
+                    {
+                        points: [
+                            { x: 10, y: 20 },
+                            { x: 80, y: 20 },
+                            { x: 80, y: 90 },
+                            { x: 10, y: 90 }
+                        ],
+                        holes: [
+                            [
+                                { x: 35, y: 40 },
+                                { x: 55, y: 40 },
+                                { x: 55, y: 60 },
+                                { x: 35, y: 60 }
+                            ]
+                        ]
+                    }
+                ],
+                tracks: [],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const fillMesh = group.children[0].children[0]
+
+    assert.equal(fillMesh.geometry.type, 'ShapeGeometry')
+    assert.equal(fillMesh.geometry.shape.holes.length, 1)
+    assert.deepEqual(fillMesh.geometry.shape.holes[0].commands, [
+        { type: 'moveTo', x: 30, y: 30 },
+        { type: 'lineTo', x: 50, y: 30 },
+        { type: 'lineTo', x: 50, y: 50 },
+        { type: 'lineTo', x: 30, y: 50 },
+        { type: 'closePath' }
+    ])
+})
+
+test('PcbScene3dSilkscreenFactory ignores holes that cross polygon outlines', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [
+                    {
+                        points: [
+                            { x: 10, y: 20 },
+                            { x: 80, y: 20 },
+                            { x: 80, y: 90 },
+                            { x: 10, y: 90 }
+                        ],
+                        holes: [
+                            [
+                                { x: 35, y: 40 },
+                                { x: 55, y: 40 },
+                                { x: 55, y: 60 },
+                                { x: 35, y: 60 }
+                            ],
+                            [
+                                { x: 70, y: 80 },
+                                { x: 95, y: 80 },
+                                { x: 95, y: 105 },
+                                { x: 70, y: 105 }
+                            ]
+                        ]
+                    }
+                ],
+                tracks: [],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const fillMesh = group.children[0].children[0]
+
+    assert.equal(fillMesh.geometry.type, 'ShapeGeometry')
+    assert.equal(fillMesh.geometry.shape.holes.length, 1)
+    assert.deepEqual(fillMesh.geometry.shape.holes[0].commands, [
+        { type: 'moveTo', x: 30, y: 30 },
+        { type: 'lineTo', x: 50, y: 30 },
+        { type: 'lineTo', x: 50, y: 50 },
+        { type: 'lineTo', x: 30, y: 50 },
+        { type: 'closePath' }
+    ])
+})
+
+test('PcbScene3dSilkscreenFactory cuts holes from rectangular fills', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [
+                    {
+                        x1: 10,
+                        y1: 20,
+                        x2: 80,
+                        y2: 90,
+                        holes: [
+                            [
+                                { x: 35, y: 40 },
+                                { x: 55, y: 40 },
+                                { x: 55, y: 60 },
+                                { x: 35, y: 60 }
+                            ]
+                        ]
+                    }
+                ],
+                tracks: [],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const fillMesh = group.children[0].children[0]
+
+    assert.equal(fillMesh.geometry.type, 'ShapeGeometry')
+    assert.deepEqual(fillMesh.geometry.shape.commands, [
+        { type: 'moveTo', x: 5, y: 10 },
+        { type: 'lineTo', x: 75, y: 10 },
+        { type: 'lineTo', x: 75, y: 80 },
+        { type: 'lineTo', x: 5, y: 80 },
+        { type: 'closePath' }
+    ])
+    assert.equal(fillMesh.geometry.shape.holes.length, 1)
+})
+
+test('PcbScene3dSilkscreenFactory masks stroke silkscreen at drill cutouts', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fills: [],
+                tracks: [{ x1: 10, y1: 20, x2: 80, y2: 20, width: 8 }],
+                arcs: [],
+                drillCutouts: [
+                    [
+                        { x: 35, y: 14 },
+                        { x: 47, y: 14 },
+                        { x: 47, y: 26 },
+                        { x: 35, y: 26 }
+                    ]
+                ]
+            },
+            bottom: { fills: [], tracks: [], arcs: [], drillCutouts: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const topGroup = group.children[0]
+    const cutoutMesh = topGroup.children[1]
+
+    assert.equal(topGroup.children.length, 2)
+    assert.equal(cutoutMesh.geometry.type, 'ShapeGeometry')
+    assert.equal(cutoutMesh.material.options.color, 0xc9ca78)
+    assert.deepEqual(cutoutMesh.geometry.shape.commands, [
+        { type: 'moveTo', x: 30, y: 4 },
+        { type: 'lineTo', x: 42, y: 4 },
+        { type: 'lineTo', x: 42, y: 16 },
+        { type: 'lineTo', x: 30, y: 16 },
+        { type: 'closePath' }
+    ])
+    assert.ok(cutoutMesh.position.z > 18)
+})
+
+test('PcbScene3dSilkscreenFactory honors side-specific stroke and fill colors', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                fillColor: 0xf8f6ef,
+                strokeColor: 0x1f477d,
+                fills: [
+                    {
+                        points: [
+                            { x: 10, y: 20 },
+                            { x: 80, y: 20 },
+                            { x: 80, y: 90 },
+                            { x: 10, y: 90 }
+                        ]
+                    }
+                ],
+                tracks: [{ x1: 10, y1: 20, x2: 80, y2: 20, width: 8 }],
+                arcs: []
+            },
+            bottom: { fills: [], tracks: [], arcs: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const topGroup = group.children[0]
+    const trackMesh = topGroup.children[0]
+    const fillMesh = topGroup.children[1]
+    const trackZ = trackMesh.geometry.attributes.get('position').array[2]
+
+    assert.equal(trackMesh.material.options.color, 0x1f477d)
+    assert.equal(fillMesh.material.options.color, 0xf8f6ef)
+    assert.equal(trackMesh.material.options.transparent, false)
+    assert.equal(trackMesh.material.options.opacity, 1)
+    assert.equal(fillMesh.material.options.transparent, false)
+    assert.equal(fillMesh.material.options.opacity, 1)
+    assert.ok(trackZ > fillMesh.position.z)
+})
+
+test('PcbScene3dSilkscreenFactory renders silkscreen text with the stroke color', () => {
+    const THREE = createFakeThree()
+    const group = PcbScene3dSilkscreenFactory.buildGroup(
+        THREE,
+        {
+            top: {
+                strokeColor: 0x2f6a2c,
+                fills: [],
+                tracks: [],
+                arcs: [],
+                texts: [
+                    {
+                        text: 'A1',
+                        x: 20,
+                        y: 30,
+                        height: 24,
+                        strokeWidth: 4
+                    }
+                ]
+            },
+            bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+        },
+        18,
+        -18,
+        (x, y) => ({ x: x - 5, y: y - 10 })
+    )
+
+    const topGroup = group.children[0]
+    const textGroup = topGroup.children[0]
+    const textMesh = textGroup.children[0]
+    const positions = textMesh.geometry.attributes.get('position').array
+
+    assert.equal(textGroup.name, 'copper-texts')
+    assert.equal(textMesh.material.options.color, 0x2f6a2c)
+    assert.ok(positions.length > 0)
+    assert.ok(positions[2] > 18)
+})
+
+test('PcbScene3dSilkscreenFactory renders TrueType silkscreen as textured text', () => {
+    withFakeCanvas(() => {
+        const THREE = createFakeThree()
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            THREE,
+            {
+                top: {
+                    strokeColor: 0x2f6a2c,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'NODEMCU',
+                            x: 20,
+                            y: 30,
+                            height: 60,
+                            rotation: 90,
+                            mirrored: true,
+                            fontType: 1,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas'
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x: x - 5, y: y - 10 })
+        )
+
+        const topGroup = group.children[0]
+        const textGroup = topGroup.children.find(
+            (child) => child.name === 'true-type-texts'
+        )
+        const textMesh = textGroup?.children[0]
+
+        assert.ok(textGroup)
+        assert.equal(textMesh.name, 'true-type-text')
+        assert.equal(textMesh.geometry.type, 'PlaneGeometry')
+        assert.equal(textMesh.material.options.map.type, 'CanvasTexture')
+        assert.equal(textMesh.material.options.transparent, true)
+        assert.equal(textMesh.material.options.depthWrite, false)
+        assert.equal(textMesh.position.x, 15)
+        assert.equal(textMesh.position.y, 20)
+        assert.ok(textMesh.position.z > 18)
+        assert.equal(textMesh.rotation.z, Math.PI / 2)
+        assert.deepEqual(textMesh.material.options.map.image.__fillStyles, [
+            '#2f6a2c'
+        ])
+        assert.equal(
+            topGroup.children.some((child) => child.name === 'copper-texts'),
+            false
+        )
+    })
+})
+
+test('PcbScene3dSilkscreenFactory paints normal TrueType text with the stroke color', () => {
+    withFakeCanvas(() => {
+        const THREE = createFakeThree()
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            THREE,
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0x2f6a2c,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'connect.theWorld()',
+                            x: 20,
+                            y: 30,
+                            height: 60,
+                            mirrored: false,
+                            isInverted: false,
+                            fontType: 1,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas'
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+
+        const topGroup = group.children[0]
+        const textGroup = topGroup.children.find(
+            (child) => child.name === 'true-type-texts'
+        )
+        const textMesh = textGroup?.children[0]
+
+        assert.deepEqual(textMesh.material.options.map.image.__fillStyles, [
+            '#2f6a2c'
+        ])
+    })
+})
+
+test('PcbScene3dSilkscreenFactory mirrors TrueType planes across the local text axis', () => {
+    withFakeCanvas(() => {
+        const THREE = createFakeThree()
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            THREE,
+            {
+                top: {
+                    strokeColor: 0x2f6a2c,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'EDGE',
+                            x: 100,
+                            y: 20,
+                            height: 50,
+                            rotation: 0,
+                            mirrored: true,
+                            fontTypeName: 'TrueType'
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+
+        const topGroup = group.children[0]
+        const textGroup = topGroup.children.find(
+            (child) => child.name === 'true-type-texts'
+        )
+        const textMesh = textGroup?.children[0]
+        const bounds = textMesh.geometry.bounds
+
+        assert.equal(textMesh.position.x, 100)
+        assert.ok(bounds.minX < 0)
+        assert.ok(bounds.maxX > 0)
+        assert.ok(bounds.minY < 0)
+        assert.ok(bounds.maxY > 0)
+    })
 })

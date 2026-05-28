@@ -7,14 +7,13 @@ import { PcbScene3dStepLoader } from './PcbScene3dStepLoader.mjs'
 export class PcbScene3dExternalModels {
     /**
      * Loads all available external models into the supplied group.
-     * @param {{ three: any, sceneDescription: any, externalModelsGroup: any, isDisposed?: () => boolean, onPlacementGroup?: (placement: any, placementGroup: any) => void, stepLoader?: PcbScene3dStepLoader }} options
+     * @param {{ three: any, sceneDescription: any, externalModelsGroup: any, modelViewScale?: { x?: number, y?: number, z?: number }, isDisposed?: () => boolean, onPlacementGroup?: (placement: any, placementGroup: any) => void, stepLoader?: PcbScene3dStepLoader }} options
      * @returns {Promise<string[]>}
      */
     static async loadIntoScene(options) {
-        const placements =
-            PcbScene3dExternalModels.#resolvePlacements(
-                options?.sceneDescription
-            )
+        const placements = PcbScene3dExternalModels.#resolvePlacements(
+            options?.sceneDescription
+        )
         const externalModelsGroup = options?.externalModelsGroup
         if (!placements.length || !externalModelsGroup || !options?.three) {
             return []
@@ -38,7 +37,8 @@ export class PcbScene3dExternalModels {
                             options.three,
                             placement,
                             stepLoader,
-                            cachedModelGroups
+                            cachedModelGroups,
+                            options?.modelViewScale
                         )
                     if (!loadedGroup || options?.isDisposed?.()) {
                         continue
@@ -69,12 +69,42 @@ export class PcbScene3dExternalModels {
     }
 
     /**
+     * Applies the active view mirror compensation to loaded model geometry.
+     * @param {any} externalModelsGroup Root group containing placed models.
+     * @param {{ x?: number, y?: number, z?: number } | null | undefined} viewScale Active scene view scale.
+     * @returns {void}
+     */
+    static applyViewCompensation(externalModelsGroup, viewScale) {
+        const pendingGroups = [externalModelsGroup]
+
+        while (pendingGroups.length) {
+            const group = pendingGroups.pop()
+            if (!group) {
+                continue
+            }
+
+            if (group.userData?.scene3dViewCompensation) {
+                PcbScene3dExternalModels.#applyViewScaleCompensation(
+                    group,
+                    viewScale
+                )
+            }
+
+            if (Array.isArray(group.children)) {
+                group.children.forEach((child) => pendingGroups.push(child))
+            }
+        }
+    }
+
+    /**
      * Resolves the external-model placements the runtime should render.
      * @param {{ components?: any[], externalPlacements?: any[] }} sceneDescription
      * @returns {any[]}
      */
     static #resolvePlacements(sceneDescription) {
-        const explicitPlacements = Array.isArray(sceneDescription?.externalPlacements)
+        const explicitPlacements = Array.isArray(
+            sceneDescription?.externalPlacements
+        )
             ? sceneDescription.externalPlacements
             : []
         const explicitDesignators = new Set(
@@ -92,7 +122,9 @@ export class PcbScene3dExternalModels {
                           )
                   )
                   .map((component) =>
-                      PcbScene3dExternalModels.#buildFallbackPlacement(component)
+                      PcbScene3dExternalModels.#buildFallbackPlacement(
+                          component
+                      )
                   )
             : []
 
@@ -101,7 +133,7 @@ export class PcbScene3dExternalModels {
 
     /**
      * Builds one legacy component placement into the explicit placement shape.
-     * @param {{ designator?: string, mountSide?: string, rotationDeg?: number, positionMil?: { x?: number, y?: number, z?: number }, externalModel?: any }} component
+     * @param {{ designator?: string, mountSide?: string, rotationDeg?: number, positionMil?: { x?: number, y?: number, z?: number }, modelTransform?: object, externalModel?: any }} component
      * @returns {any}
      */
     static #buildFallbackPlacement(component) {
@@ -116,10 +148,9 @@ export class PcbScene3dExternalModels {
             },
             bodyPositionMil: { x: 0, y: 0 },
             bodyRotationDeg: 0,
-            modelTransform: {
-                rotationDeg: { x: 0, y: 0, z: 0 },
-                dzMil: 0
-            },
+            modelTransform: PcbScene3dExternalModels.#normalizeModelTransform(
+                component?.modelTransform
+            ),
             externalModel: component?.externalModel || null
         }
     }
@@ -127,16 +158,18 @@ export class PcbScene3dExternalModels {
     /**
      * Loads one model group for one resolved placement.
      * @param {any} THREE
-     * @param {{ mountSide?: string, rotationDeg?: number, positionMil?: { x?: number, y?: number, z?: number }, modelTransform?: { rotationDeg?: { x?: number, y?: number, z?: number }, dzMil?: number }, externalModel?: any }} placement
+     * @param {{ mountSide?: string, rotationDeg?: number, positionMil?: { x?: number, y?: number, z?: number }, modelTransform?: object, externalModel?: any }} placement
      * @param {PcbScene3dStepLoader} stepLoader
      * @param {Map<string, any>} cachedModelGroups
+     * @param {{ x?: number, y?: number, z?: number } | null | undefined} modelViewScale Active scene view scale.
      * @returns {Promise<any>}
      */
     static async #loadPlacementGroup(
         THREE,
         placement,
         stepLoader,
-        cachedModelGroups
+        cachedModelGroups,
+        modelViewScale
     ) {
         const model = placement?.externalModel
         if (!model) {
@@ -154,7 +187,8 @@ export class PcbScene3dExternalModels {
         return PcbScene3dExternalModels.#buildPlacementWrapper(
             THREE,
             placement,
-            PcbScene3dExternalModels.#cloneModelGroup(templateGroup)
+            PcbScene3dExternalModels.#cloneModelGroup(templateGroup),
+            modelViewScale
         )
     }
 
@@ -173,8 +207,7 @@ export class PcbScene3dExternalModels {
         stepLoader,
         cachedModelGroups
     ) {
-        const identity =
-            PcbScene3dExternalModels.#resolveModelIdentity(model)
+        const identity = PcbScene3dExternalModels.#resolveModelIdentity(model)
         if (cachedModelGroups.has(identity)) {
             return cachedModelGroups.get(identity)
         }
@@ -219,33 +252,312 @@ export class PcbScene3dExternalModels {
     /**
      * Wraps one loaded model group in its placement-specific mount rig.
      * @param {any} THREE
-     * @param {{ mountSide?: string, modelTransform?: { rotationDeg?: { x?: number, y?: number, z?: number }, dzMil?: number }, designator?: string }} placement
+     * @param {{ mountSide?: string, modelTransform?: object, designator?: string }} placement
      * @param {any} modelGroup
+     * @param {{ x?: number, y?: number, z?: number } | null | undefined} modelViewScale Active scene view scale.
      * @returns {any}
      */
-    static #buildPlacementWrapper(THREE, placement, modelGroup) {
+    static #buildPlacementWrapper(
+        THREE,
+        placement,
+        modelGroup,
+        modelViewScale
+    ) {
         const mountRig = PcbScene3dMountRig.create(THREE, placement)
         const wrapperGroup = mountRig.rootGroup
+        const viewCompensationGroup = new THREE.Group()
         wrapperGroup.userData.scene3dSelection = {
             designator: String(placement?.designator || 'component'),
             sourceType: 'external-model'
         }
+        viewCompensationGroup.userData.scene3dViewCompensation = true
+        PcbScene3dExternalModels.#applyViewScaleCompensation(
+            viewCompensationGroup,
+            modelViewScale
+        )
+        PcbScene3dExternalModels.#wrapPlacementOrientation(
+            wrapperGroup,
+            mountRig.orientationGroup,
+            viewCompensationGroup
+        )
         const modelTransform = placement?.modelTransform || {}
         const modelRotation = modelTransform.rotationDeg || {}
-        const dzMil = Number(modelTransform.dzMil || 0)
-        modelGroup.position.z =
-            String(placement?.mountSide || 'top').toLowerCase() === 'bottom'
-                ? -dzMil
-                : dzMil
-        modelGroup.rotation.x =
-            (Number(modelRotation.x || 0) * Math.PI) / 180
-        modelGroup.rotation.y =
-            (Number(modelRotation.y || 0) * Math.PI) / 180
-        modelGroup.rotation.z =
-            (Number(modelRotation.z || 0) * Math.PI) / 180
+        const modelOffset =
+            PcbScene3dExternalModels.#resolveModelOffset(modelTransform)
+        const sourceOriginAdjustment =
+            PcbScene3dExternalModels.#resolveEmbeddedSourceOriginAdjustment(
+                placement,
+                modelGroup,
+                modelRotation
+            )
+        const adjustedModelRotation = {
+            x:
+                Number(modelRotation.x || 0) +
+                sourceOriginAdjustment.rotationDeg.x,
+            y:
+                Number(modelRotation.y || 0) +
+                sourceOriginAdjustment.rotationDeg.y,
+            z:
+                Number(modelRotation.z || 0) +
+                sourceOriginAdjustment.rotationDeg.z
+        }
+        modelGroup.position.set(
+            modelOffset.x + sourceOriginAdjustment.offset.x,
+            modelOffset.y + sourceOriginAdjustment.offset.y,
+            modelOffset.z + sourceOriginAdjustment.offset.z
+        )
+        PcbScene3dExternalModels.#applyModelRotation(
+            THREE,
+            modelGroup,
+            adjustedModelRotation
+        )
+        PcbScene3dExternalModels.#applyModelScale(
+            modelGroup,
+            PcbScene3dExternalModels.#resolveModelScale(modelTransform)
+        )
         mountRig.faceGroup.add(modelGroup)
 
         return wrapperGroup
+    }
+
+    /**
+     * Places view compensation before footprint orientation so scene mirrors
+     * cancel globally instead of reflecting each rotated model locally.
+     * @param {any} wrapperGroup Placement root group.
+     * @param {any} orientationGroup Placement orientation group.
+     * @param {any} viewCompensationGroup View compensation group.
+     * @returns {void}
+     */
+    static #wrapPlacementOrientation(
+        wrapperGroup,
+        orientationGroup,
+        viewCompensationGroup
+    ) {
+        if (
+            typeof wrapperGroup?.remove === 'function' &&
+            typeof wrapperGroup?.add === 'function'
+        ) {
+            wrapperGroup.remove(orientationGroup)
+            wrapperGroup.add(viewCompensationGroup)
+        } else if (Array.isArray(wrapperGroup?.children)) {
+            const orientationIndex = wrapperGroup.children.indexOf(
+                orientationGroup
+            )
+            if (orientationIndex !== -1) {
+                wrapperGroup.children.splice(
+                    orientationIndex,
+                    1,
+                    viewCompensationGroup
+                )
+            }
+        }
+
+        viewCompensationGroup.add(orientationGroup)
+    }
+
+    /**
+     * Mirrors model geometry back against a preset-level scene mirror.
+     * @param {any} group View compensation group.
+     * @param {{ x?: number, y?: number, z?: number } | null | undefined} viewScale Active scene view scale.
+     * @returns {void}
+     */
+    static #applyViewScaleCompensation(group, viewScale) {
+        const axes = group?.userData?.scene3dViewCompensationAxes || {}
+
+        group?.scale?.set?.(
+            axes.x === false
+                ? 1
+                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.x),
+            axes.y === false
+                ? 1
+                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.y),
+            axes.z === false
+                ? 1
+                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.z)
+        )
+    }
+
+    /**
+     * Converts one view scale axis into the matching mirror compensation sign.
+     * @param {number | string | undefined} value View scale axis.
+     * @returns {1 | -1}
+     */
+    static #resolveViewScaleSign(value) {
+        return Number(value) < 0 ? -1 : 1
+    }
+
+    /**
+     * Adjusts embedded Altium models whose source geometry is authored with a
+     * strong Z-origin bias. A signed X tilt lays those models flat correctly,
+     * but source Z becomes lateral board Y. Strongly asymmetric source centers
+     * also need an in-plane flip so package markers keep their authored end.
+     * @param {{ externalModel?: { origin?: string } }} placement Placement metadata.
+     * @param {{ userData?: { scene3dSourceBoundsMil?: { centerX?: number, centerZ?: number, sizeX?: number, sizeY?: number, sizeZ?: number } } }} modelGroup Loaded model group.
+     * @param {{ x?: number }} modelRotation Model-local rotation.
+     * @returns {{ offset: { x: number, y: number, z: number }, rotationDeg: { x: number, y: number, z: number } }}
+     */
+    static #resolveEmbeddedSourceOriginAdjustment(
+        placement,
+        modelGroup,
+        modelRotation
+    ) {
+        const bounds = modelGroup?.userData?.scene3dSourceBoundsMil || null
+        const centerX = Number(bounds?.centerX || 0)
+        const centerZ = Number(bounds?.centerZ || 0)
+        const maxDimension = Math.max(
+            Math.abs(Number(bounds?.sizeX || 0)),
+            Math.abs(Number(bounds?.sizeY || 0)),
+            Math.abs(Number(bounds?.sizeZ || 0))
+        )
+
+        if (
+            String(placement?.externalModel?.origin || '').toLowerCase() !==
+                'embedded' ||
+            PcbScene3dExternalModels.#normalizeAngle(modelRotation?.x) !==
+                270 ||
+            !Number.isFinite(centerX) ||
+            !Number.isFinite(centerZ) ||
+            !Number.isFinite(maxDimension) ||
+            maxDimension <= 0 ||
+            Math.abs(centerZ) <= maxDimension * 0.2
+        ) {
+            return PcbScene3dExternalModels.#emptySourceOriginAdjustment()
+        }
+
+        if (Math.abs(centerX) > maxDimension * 0.2) {
+            return {
+                offset: { x: centerX * 2, y: 0, z: 0 },
+                rotationDeg: { x: 0, y: 0, z: 180 }
+            }
+        }
+
+        return {
+            offset: { x: 0, y: centerZ * 2, z: 0 },
+            rotationDeg: { x: 0, y: 0, z: 0 }
+        }
+    }
+
+    /**
+     * Returns the neutral embedded-source adjustment shape.
+     * @returns {{ offset: { x: number, y: number, z: number }, rotationDeg: { x: number, y: number, z: number } }}
+     */
+    static #emptySourceOriginAdjustment() {
+        return {
+            offset: { x: 0, y: 0, z: 0 },
+            rotationDeg: { x: 0, y: 0, z: 0 }
+        }
+    }
+
+    /**
+     * Normalizes one angle into [0, 360).
+     * @param {number | string | undefined} angle Source angle.
+     * @returns {number}
+     */
+    static #normalizeAngle(angle) {
+        const normalized = Number(angle || 0) % 360
+
+        return normalized < 0 ? normalized + 360 : normalized
+    }
+
+    /**
+     * Applies KiCad's 3D model rotation order to one loaded model group.
+     * @param {any} THREE Three.js namespace.
+     * @param {any} modelGroup Loaded model group.
+     * @param {{ x?: number, y?: number, z?: number }} modelRotation Model rotation.
+     * @returns {void}
+     */
+    static #applyModelRotation(THREE, modelGroup, modelRotation) {
+        const x = (-Number(modelRotation.x || 0) * Math.PI) / 180
+        const y = (-Number(modelRotation.y || 0) * Math.PI) / 180
+        const z = (-Number(modelRotation.z || 0) * Math.PI) / 180
+
+        if (THREE?.Matrix4 && modelGroup?.quaternion?.setFromRotationMatrix) {
+            const rotationMatrix = new THREE.Matrix4()
+                .makeRotationZ(z)
+                .multiply(new THREE.Matrix4().makeRotationY(y))
+                .multiply(new THREE.Matrix4().makeRotationX(x))
+
+            modelGroup.quaternion.setFromRotationMatrix(rotationMatrix)
+            return
+        }
+
+        if (!modelGroup?.rotation) {
+            return
+        }
+
+        modelGroup.rotation.x = x
+        modelGroup.rotation.y = y
+        modelGroup.rotation.z = z
+    }
+
+    /**
+     * Normalizes optional model transform metadata.
+     * @param {object | null | undefined} modelTransform Model transform.
+     * @returns {{ rotationDeg: { x: number, y: number, z: number }, offsetMil: { x: number, y: number, z: number }, dxMil: number, dyMil: number, dzMil: number, scale: { x: number, y: number, z: number } }}
+     */
+    static #normalizeModelTransform(modelTransform) {
+        const offsetMil =
+            PcbScene3dExternalModels.#resolveModelOffset(modelTransform)
+
+        return {
+            rotationDeg: {
+                x: Number(modelTransform?.rotationDeg?.x || 0),
+                y: Number(modelTransform?.rotationDeg?.y || 0),
+                z: Number(modelTransform?.rotationDeg?.z || 0)
+            },
+            offsetMil,
+            dxMil: offsetMil.x,
+            dyMil: offsetMil.y,
+            dzMil: offsetMil.z,
+            scale: PcbScene3dExternalModels.#resolveModelScale(modelTransform)
+        }
+    }
+
+    /**
+     * Resolves model offset from current and legacy transform shapes.
+     * @param {object | null | undefined} modelTransform Model transform.
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static #resolveModelOffset(modelTransform) {
+        const offsetMil = modelTransform?.offsetMil || {}
+
+        return {
+            x: Number(offsetMil.x ?? modelTransform?.dxMil ?? 0),
+            y: Number(offsetMil.y ?? modelTransform?.dyMil ?? 0),
+            z: Number(offsetMil.z ?? modelTransform?.dzMil ?? 0)
+        }
+    }
+
+    /**
+     * Resolves model scale from current and legacy transform shapes.
+     * @param {object | null | undefined} modelTransform Model transform.
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static #resolveModelScale(modelTransform) {
+        const scale = modelTransform?.scale || {}
+
+        return {
+            x: Number(scale.x ?? 1) || 1,
+            y: Number(scale.y ?? 1) || 1,
+            z: Number(scale.z ?? 1) || 1
+        }
+    }
+
+    /**
+     * Applies model scale while preserving importer unit conversion already on
+     * the loaded group.
+     * @param {any} modelGroup Loaded model group.
+     * @param {{ x: number, y: number, z: number }} scale Placement scale.
+     * @returns {void}
+     */
+    static #applyModelScale(modelGroup, scale) {
+        if (!modelGroup?.scale) {
+            return
+        }
+
+        modelGroup.scale.x *= scale.x
+        modelGroup.scale.y *= scale.y
+        modelGroup.scale.z *= scale.z
     }
 
     /**
@@ -346,7 +658,14 @@ export class PcbScene3dExternalModels {
             ? { meshPayloads: model.preparedMeshPayloads }
             : await stepLoader.loadModel(model)
         const group = new THREE.Group()
+        const sourceBounds =
+            PcbScene3dExternalModels.#measureSourceBoundsMil(
+                loadedModel.meshPayloads
+            )
         group.scale.setScalar(1000)
+        if (sourceBounds) {
+            group.userData.scene3dSourceBoundsMil = sourceBounds
+        }
 
         loadedModel.meshPayloads.forEach((meshPayload) => {
             const geometry = new THREE.BufferGeometry()
@@ -382,6 +701,69 @@ export class PcbScene3dExternalModels {
     }
 
     /**
+     * Measures raw STEP mesh bounds in mil before the group-level unit scale is
+     * applied.
+     * @param {{ positions?: number[] }[]} meshPayloads STEP mesh payloads.
+     * @returns {{ minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number, centerX: number, centerY: number, centerZ: number, sizeX: number, sizeY: number, sizeZ: number } | null}
+     */
+    static #measureSourceBoundsMil(meshPayloads) {
+        let minX = Number.POSITIVE_INFINITY
+        let minY = Number.POSITIVE_INFINITY
+        let minZ = Number.POSITIVE_INFINITY
+        let maxX = Number.NEGATIVE_INFINITY
+        let maxY = Number.NEGATIVE_INFINITY
+        let maxZ = Number.NEGATIVE_INFINITY
+
+        ;(Array.isArray(meshPayloads) ? meshPayloads : []).forEach(
+            (meshPayload) => {
+                ;(Array.isArray(meshPayload?.positions)
+                    ? meshPayload.positions
+                    : []
+                ).forEach((value, index) => {
+                    const numericValue = Number(value || 0) * 1000
+
+                    if (index % 3 === 0) {
+                        minX = Math.min(minX, numericValue)
+                        maxX = Math.max(maxX, numericValue)
+                    } else if (index % 3 === 1) {
+                        minY = Math.min(minY, numericValue)
+                        maxY = Math.max(maxY, numericValue)
+                    } else {
+                        minZ = Math.min(minZ, numericValue)
+                        maxZ = Math.max(maxZ, numericValue)
+                    }
+                })
+            }
+        )
+
+        if (
+            !Number.isFinite(minX) ||
+            !Number.isFinite(minY) ||
+            !Number.isFinite(minZ) ||
+            !Number.isFinite(maxX) ||
+            !Number.isFinite(maxY) ||
+            !Number.isFinite(maxZ)
+        ) {
+            return null
+        }
+
+        return {
+            minX,
+            minY,
+            minZ,
+            maxX,
+            maxY,
+            maxZ,
+            centerX: (minX + maxX) / 2,
+            centerY: (minY + maxY) / 2,
+            centerZ: (minZ + maxZ) / 2,
+            sizeX: maxX - minX,
+            sizeY: maxY - minY,
+            sizeZ: maxZ - minZ
+        }
+    }
+
+    /**
      * Builds the material set for one STEP mesh and assigns face-color groups
      * when the importer exposes them.
      * @param {any} THREE
@@ -394,8 +776,10 @@ export class PcbScene3dExternalModels {
             THREE,
             meshPayload?.color
         )
-        const defaultMaterial =
-            PcbScene3dExternalModels.#createStepMaterial(THREE, defaultColor)
+        const defaultMaterial = PcbScene3dExternalModels.#createStepMaterial(
+            THREE,
+            defaultColor
+        )
         const faceColors = Array.isArray(meshPayload?.faceColors)
             ? meshPayload.faceColors.filter((faceColor) =>
                   PcbScene3dExternalModels.#isValidFaceColorRange(
@@ -458,7 +842,9 @@ export class PcbScene3dExternalModels {
      * @returns {void}
      */
     static #applyFaceColorGroups(geometry, indices, faceColors) {
-        const triangleCount = Math.floor((Array.isArray(indices) ? indices.length : 0) / 3)
+        const triangleCount = Math.floor(
+            (Array.isArray(indices) ? indices.length : 0) / 3
+        )
         let triangleIndex = 0
         let faceColorIndex = 0
 
@@ -500,7 +886,9 @@ export class PcbScene3dExternalModels {
     static #isValidFaceColorRange(faceColor, indices) {
         const first = Number(faceColor?.first)
         const last = Number(faceColor?.last)
-        const triangleCount = Math.floor((Array.isArray(indices) ? indices.length : 0) / 3)
+        const triangleCount = Math.floor(
+            (Array.isArray(indices) ? indices.length : 0) / 3
+        )
 
         return (
             Number.isInteger(first) &&

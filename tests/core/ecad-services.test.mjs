@@ -259,6 +259,79 @@ test('ECAD renderer and 3D services accept KiCad document models', () => {
 })
 
 /**
+ * Verifies KiCad footprint model transforms stay raw so the 3D renderer can
+ * compose them with KiCad's model matrix order.
+ */
+test('ECAD 3D service preserves KiCad model transforms for external placements', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'model-board.kicad_pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 800,
+                segments: []
+            },
+            components: [
+                {
+                    designator: 'LED1',
+                    x: 400,
+                    y: 300,
+                    layer: 'TOP',
+                    pattern: 'Fixture:Matrix',
+                    rotation: 90,
+                    modelName: 'matrix.step',
+                    modelPath: '${KIPRJMOD}/parts/matrix.step',
+                    modelTransform: {
+                        rotationDeg: { x: -90, y: 0, z: -90 },
+                        offsetMil: { x: 10, y: -20, z: 30 },
+                        dxMil: 10,
+                        dyMil: -20,
+                        dzMil: 30,
+                        scale: { x: 1.5, y: 2, z: 0.5 }
+                    }
+                }
+            ],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'KiCad Board',
+                bounds: { minX: 0, minY: 0, width: 25.4, height: 20.32 },
+                outlines: [],
+                pads: [],
+                drawings: [],
+                texts: []
+            }
+        },
+        bom: []
+    }
+
+    const scene = EcadScene3dService.build(kicadPcbDocument, {
+        sessionAssets: [
+            {
+                name: 'matrix.step',
+                relativePath: 'parts/matrix.step',
+                format: 'step'
+            }
+        ]
+    })
+
+    assert.equal(scene.externalPlacements.length, 1)
+    assert.deepEqual(scene.externalPlacements[0].modelTransform, {
+        rotationDeg: { x: -90, y: 0, z: -90 },
+        offsetMil: { x: 10, y: -20, z: 30 },
+        dxMil: 10,
+        dyMil: -20,
+        dzMil: 30,
+        scale: { x: 1.5, y: 2, z: 0.5 }
+    })
+})
+
+/**
  * Verifies KiCad silkscreen drawings from the parser root are exposed to the
  * app's interactive 3D silkscreen layer.
  */
@@ -472,4 +545,84 @@ test('ECAD renderer includes subdued opposite-side copper for KiCad PCB views', 
     assert.match(markup, /data-layer="B\.Cu"/)
     assert.match(markup, /class="pcb-segment"[^>]+stroke-width="0\.8"/)
     assert.doesNotMatch(markup, /class="pcb-segment"[^>]+vector-effect/)
+})
+
+/**
+ * Verifies the app-level PCB renderer facade can request either board side
+ * from the KiCad renderer while retaining the full copper context.
+ */
+test('ECAD renderer switches KiCad PCB output between top and bottom sides', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'side-toggle-fake.kicad_pcb',
+        pcb: {
+            boardOutline: { widthMil: 400, heightMil: 400, segments: [] },
+            components: [],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'Side Toggle Fake',
+                bounds: {
+                    minX: 0,
+                    minY: 0,
+                    maxX: 10,
+                    maxY: 10,
+                    width: 10,
+                    height: 10
+                },
+                outlines: [],
+                pads: [],
+                drawings: [],
+                texts: [
+                    {
+                        value: 'TOP_SIDE_MARK',
+                        x: 2,
+                        y: 3,
+                        rotation: 0,
+                        layer: 'F.SilkS',
+                        side: 'front',
+                        hAlign: 'left',
+                        vAlign: 'bottom',
+                        sizeX: 0.5,
+                        sizeY: 0.6,
+                        thickness: 0.12,
+                        visible: true
+                    },
+                    {
+                        value: 'BOTTOM_SIDE_MARK',
+                        x: 4,
+                        y: 5,
+                        rotation: 0,
+                        layer: 'B.SilkS',
+                        side: 'back',
+                        hAlign: 'left',
+                        vAlign: 'bottom',
+                        sizeX: 0.5,
+                        sizeY: 0.6,
+                        thickness: 0.12,
+                        visible: true
+                    }
+                ]
+            }
+        },
+        bom: []
+    }
+
+    const topMarkup = EcadRendererService.renderPcb(kicadPcbDocument, {
+        side: 'top'
+    })
+    const bottomMarkup = EcadRendererService.renderPcb(kicadPcbDocument, {
+        side: 'bottom'
+    })
+
+    assert.match(topMarkup, /aria-label="TOP_SIDE_MARK"/)
+    assert.doesNotMatch(topMarkup, /aria-label="BOTTOM_SIDE_MARK"/)
+    assert.match(bottomMarkup, /aria-label="BOTTOM_SIDE_MARK"/)
+    assert.doesNotMatch(bottomMarkup, /aria-label="TOP_SIDE_MARK"/)
+    assert.match(
+        bottomMarkup,
+        /<g class="pcb-scene" transform="translate\(10 0\) scale\(-1 1\)">/
+    )
 })

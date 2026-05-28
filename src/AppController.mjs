@@ -1,6 +1,8 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
+import { AppControllerMessages } from './AppControllerMessages.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
+import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
 import { GitHubShareUrlWriter } from './GitHubShareUrlWriter.mjs'
@@ -42,7 +44,7 @@ export class AppController {
     /** @type {{ track: (eventName: string, properties?: object) => void }} */
     #analytics
 
-    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string } | null} */
+    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string } | null} */
     #startupSource
 
     /**
@@ -55,7 +57,7 @@ export class AppController {
      * fetcher?: (url: string) => Promise<Response>,
      * githubSourceLoader?: { loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> },
      * analytics?: { track: (eventName: string, properties?: object) => void },
-     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string } | null
+     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string } | null
      * }} dependencies
      */
     constructor(dependencies) {
@@ -108,6 +110,9 @@ export class AppController {
         }
         if (typeof this.#view.bindDemoSelection === 'function') {
             this.#view.bindDemoSelection((demoId) => this.#loadDemo(demoId))
+        }
+        if (typeof this.#view.bindHomeNavigation === 'function') {
+            this.#view.bindHomeNavigation(() => this.#handleHomeNavigation())
         }
         if (typeof this.#view.bindGitHubOpen === 'function') {
             this.#view.bindGitHubOpen((url) => this.#loadGitHubUrl(url))
@@ -230,7 +235,7 @@ export class AppController {
             this.#trackViewOpened(snapshotAfterLoad.activeView)
             this.#setPcbStylerLink('', 'local')
         } catch (error) {
-            this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('local_file_loaded_error', {
                 sourceType: 'local',
                 errorBucket: 'parse'
@@ -279,7 +284,7 @@ export class AppController {
             this.#trackViewOpened(snapshotAfterLoad.activeView)
             this.#setPcbStylerLink('', 'local')
         } catch (error) {
-            this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('sample_loaded_error', {
                 sourceType: 'sample',
                 formatFamily: demo.formatFamily,
@@ -350,12 +355,29 @@ export class AppController {
             this.#setPcbStylerLink(String(source.boardUrl || ''), 'github')
             GitHubShareUrlWriter.update(String(source.shareUrl || ''))
         } catch (error) {
-            this.#handleParseError(AppController.#getErrorMessage(error))
+            this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('github_url_loaded_error', {
                 sourceType: 'github',
-                errorBucket: AppController.#resolveErrorBucket(error)
+                errorBucket: AppControllerMessages.resolveErrorBucket(error)
             })
         }
+    }
+
+    /**
+     * Returns the current app session to the landing page view.
+     * @returns {void}
+     */
+    #handleHomeNavigation() {
+        this.#state.patch({
+            activeView: 'schematic',
+            parseStatus: 'idle',
+            statusMessage: this.#translate('status.ready'),
+            documents: [],
+            activeDocumentId: '',
+            sessionAssets: []
+        })
+        this.#view.clearPcbStylerLink?.()
+        this.#analytics.track('landing_view')
     }
 
     /**
@@ -363,25 +385,30 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadStartupSource() {
-        if (!this.#startupSource) {
-            return
+        const startupSource = this.#startupSource
+        if (!startupSource) return
+
+        if (startupSource.type === 'demo') {
+            await this.#loadDemo(String(startupSource.id || ''))
         }
 
-        if (this.#startupSource.type === 'demo') {
-            await this.#loadDemo(String(this.#startupSource.id || ''))
-            return
+        if (startupSource.type === 'url') {
+            await this.#loadGitHubUrl(String(startupSource.url || ''))
         }
 
-        if (this.#startupSource.type === 'url') {
-            await this.#loadGitHubUrl(String(this.#startupSource.url || ''))
-            return
-        }
-
-        if (this.#startupSource.type === 'github') {
+        if (startupSource.type === 'github') {
             await this.#loadGitHubPath(
-                String(this.#startupSource.path || ''),
-                String(this.#startupSource.ref || 'main')
+                String(startupSource.path || ''),
+                String(startupSource.ref || 'main')
             )
+        }
+
+        if (startupSource.view) {
+            const patch = this.#buildCompatibleViewPatch(
+                String(startupSource.view),
+                this.#state.getSnapshot()
+            )
+            this.#state.patch(patch)
         }
     }
 
@@ -576,7 +603,7 @@ export class AppController {
         const preferredDocumentId = appendedDocuments.at(-1)?.id || ''
         const patch = {
             documents: nextDocuments,
-            activeDocumentId: AppController.#resolveCompatibleDocumentId(
+            activeDocumentId: DocumentViewCompatibility.resolveDocumentId(
                 nextDocuments,
                 nextActiveView,
                 preferredDocumentId
@@ -590,9 +617,7 @@ export class AppController {
             patch.activeView = nextActiveView
         }
 
-        return this.#state.patch({
-            ...patch
-        })
+        return this.#state.patch(patch)
     }
 
     /**
@@ -703,7 +728,7 @@ export class AppController {
         const patch = {
             activeView: viewName
         }
-        const compatibleDocumentId = AppController.#resolveCompatibleDocumentId(
+        const compatibleDocumentId = DocumentViewCompatibility.resolveDocumentId(
             snapshot.documents,
             viewName,
             snapshot.activeDocumentId
@@ -722,60 +747,8 @@ export class AppController {
      * @returns {string}
      */
     #translate(key) {
-        if (!this.#i18n) return AppController.#fallbackMessage(key)
+        if (!this.#i18n) return AppControllerMessages.fallback(key)
         return this.#i18n.translate(key)
-    }
-
-    /**
-     * Fallback status texts when i18n is disabled.
-     * @param {string} key
-     * @returns {string}
-     */
-    static #fallbackMessage(key) {
-        const fallbackMap = {
-            'status.ready':
-                'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.',
-            'status.loading': 'Parsing native ECAD files in the browser...',
-            'status.loaded':
-                'Design loaded locally. Use the tabs to inspect PCB, schematic, 3D view, BOM and diagnostics.',
-            'status.invalidFile':
-                'This file type is not supported yet. ECAD Forge currently supports selected Altium and KiCad design files. Try a sample project or open a supported board/schematic file.',
-            'status.assetsAdded':
-                'Companion 3D assets added to the current session.',
-            'status.localeChanged': 'Language updated.'
-        }
-        return fallbackMap[key] || key
-    }
-
-    /**
-     * Normalizes an error message.
-     * @param {unknown} error
-     * @returns {string}
-     */
-    static #getErrorMessage(error) {
-        if (error instanceof Error && error.message) {
-            return error.message
-        }
-        return 'Unknown parser error.'
-    }
-
-    /**
-     * Resolves a coarse analytics error bucket.
-     * @param {unknown} error Error value.
-     * @returns {string}
-     */
-    static #resolveErrorBucket(error) {
-        const message = AppController.#getErrorMessage(error).toLowerCase()
-        if (message.includes('not supported')) {
-            return 'unsupported_file'
-        }
-        if (message.includes('http')) {
-            return 'http'
-        }
-        if (message.includes('cors') || message.includes('network')) {
-            return 'network_or_cors'
-        }
-        return 'parse'
     }
 
     /**
@@ -901,75 +874,6 @@ export class AppController {
                 : [],
             project: result?.project || null
         }
-    }
-
-    /**
-     * Returns true when a session document can render the requested top-level
-     * view.
-     * @param {object | null | undefined} documentModel
-     * @param {string} viewName
-     * @returns {boolean}
-     */
-    static #supportsView(documentModel, viewName) {
-        if (!documentModel || typeof documentModel !== 'object') {
-            return false
-        }
-
-        if (viewName === 'schematic') {
-            return Boolean(documentModel.schematic)
-        }
-
-        if (viewName === 'pcb' || viewName === '3d') {
-            return Boolean(documentModel.pcb)
-        }
-
-        if (viewName === 'bom') {
-            return Array.isArray(documentModel.bom)
-        }
-
-        if (viewName === 'diagnostics') {
-            return Array.isArray(documentModel.diagnostics)
-        }
-
-        return false
-    }
-
-    /**
-     * Resolves the session document id that best matches the requested view.
-     * Prefers the requested id when it is compatible, otherwise falls back to
-     * the first compatible document, or the requested id when no compatible
-     * document exists.
-     * @param {{ id: string, documentModel: object }[]} documents
-     * @param {string} viewName
-     * @param {string} preferredDocumentId
-     * @returns {string}
-     */
-    static #resolveCompatibleDocumentId(
-        documents,
-        viewName,
-        preferredDocumentId
-    ) {
-        const preferredDocument = documents.find(
-            (entry) => entry.id === preferredDocumentId
-        )
-        if (
-            preferredDocument &&
-            AppController.#supportsView(
-                preferredDocument.documentModel,
-                viewName
-            )
-        ) {
-            return preferredDocument.id
-        }
-
-        const compatibleDocument = documents.find((entry) =>
-            AppController.#supportsView(entry.documentModel, viewName)
-        )
-        if (compatibleDocument) {
-            return compatibleDocument.id
-        }
-
-        return preferredDocumentId || documents[0]?.id || ''
     }
 
     /**

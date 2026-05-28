@@ -77,7 +77,7 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
     assert.match(css, /\.scene-3d\s*\{[\s\S]*max-width:\s*100%;/)
     assert.match(
         css,
-        /\.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(320px, 1fr\) auto auto;/
+        /\.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto\s+auto\s+minmax\(\s*clamp\(520px,\s*62vh,\s*760px\),\s*1fr\s*\)\s+auto\s+auto;/
     )
     assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*height:\s*100%;/)
     assert.match(css, /\.scene-3d__stage\s*\{[\s\S]*min-height:\s*0;/)
@@ -94,10 +94,7 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
     assert.match(css, /\.scene-3d__diagnostics\s*\{/)
     assert.match(css, /\.scene-3d__canvas\s*\{/)
     assert.match(css, /\.scene-3d__loading\s*\{[\s\S]*display:\s*flex;/)
-    assert.match(
-        css,
-        /\.scene-3d__loading\s*\{[\s\S]*align-items:\s*center;/
-    )
+    assert.match(css, /\.scene-3d__loading\s*\{[\s\S]*align-items:\s*center;/)
     assert.match(
         css,
         /\.scene-3d__loading\s*\{[\s\S]*justify-content:\s*center;/
@@ -105,6 +102,10 @@ test('scene3d stylesheet defines viewport, controls, and canvas layout', async (
     assert.match(
         css,
         /\.scene-3d__loading-content\s*\{[\s\S]*justify-items:\s*center;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto auto auto auto;/
     )
     assert.match(
         css,

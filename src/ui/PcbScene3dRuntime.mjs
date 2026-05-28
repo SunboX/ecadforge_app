@@ -8,6 +8,7 @@ import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
+import { PcbScene3dTrueTypeTextFactory } from './PcbScene3dTrueTypeTextFactory.mjs'
 import { PcbScene3dSelectionStyler } from './PcbScene3dSelectionStyler.mjs'
 import { PcbScene3dViaFactory } from './PcbScene3dViaFactory.mjs'
 import { PcbScene3dViewScale } from './PcbScene3dViewScale.mjs'
@@ -35,54 +36,38 @@ export class PcbScene3dRuntime {
     #scene
     /** @type {any} */
     #camera
-
     /** @type {any} */
     #orbitControlsClass
-
     /** @type {any} */
     #controls
-
     /** @type {any} */
     #rootGroup
-
     /** @type {any} */
     #viewOrientationGroup
-
     /** @type {any} */
     #raycaster
-
     /** @type {any} */
     #pointer
-
     /** @type {{ x: number, y: number } | null} */
     #pointerDownPosition
-
     /** @type {Map<string, Set<any>>} */
     #selectionRoots
-
     /** @type {Map<string, Set<any>>} */
     #fallbackBodyRoots
-
     /** @type {Set<string>} */
     #loadedExternalModelDesignators
-
     /** @type {string} */
     #selectedDesignator
-
     /** @type {number} */
     #initialRadius
-
     /** @type {PcbScene3dPresetState} */
     #presetState
     /** @type {boolean} */
     #isDisposed
-
     /** @type {Promise<void>} */
     #readyPromise
-
     /** @type {(() => void) | null} */
     #resolveReadyPromise
-
     /** @type {boolean} */
     #hasSettledReady
 
@@ -349,6 +334,7 @@ export class PcbScene3dRuntime {
             this.#sceneDescription
         )
         this.#viewOrientationGroup.scale.set(scale.x, scale.y, scale.z)
+        PcbScene3dExternalModels.applyViewCompensation(this.#rootGroup, scale)
     }
 
     /**
@@ -363,7 +349,7 @@ export class PcbScene3dRuntime {
                 return
             }
 
-            this.#loadDeferredSilkscreen()
+            await this.#loadDeferredSilkscreen()
             this.#render()
 
             await PcbScene3dRuntime.#yieldToNextFrame()
@@ -401,13 +387,17 @@ export class PcbScene3dRuntime {
 
     /**
      * Builds and attaches silkscreen detail once after the first frame.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    #loadDeferredSilkscreen() {
+    async #loadDeferredSilkscreen() {
         const silkscreenGroup = this.#groups.get('silkscreen')
         if (!silkscreenGroup || silkscreenGroup.children.length) {
             return
         }
+
+        await PcbScene3dTrueTypeTextFactory.prepareEmbeddedFonts(
+            this.#sceneDescription.detail.embeddedFonts || []
+        )
 
         const detailGroup = PcbScene3dSilkscreenFactory.buildGroup(
             this.#three,
@@ -419,6 +409,7 @@ export class PcbScene3dRuntime {
 
         if (detailGroup.children.length) {
             silkscreenGroup.add(detailGroup)
+            this.#applyViewScale(this.#presetState.get())
         }
     }
 
@@ -448,6 +439,7 @@ export class PcbScene3dRuntime {
 
         if (detailGroup.children.length) {
             copperGroup.add(detailGroup)
+            this.#applyViewScale(this.#presetState.get())
         }
         if (viaGroup.children.length) {
             copperGroup.add(viaGroup)
@@ -472,15 +464,20 @@ export class PcbScene3dRuntime {
             bevelEnabled: false,
             curveSegments: 20
         })
-
         geometry.translate(0, 0, -board.thicknessMil / 2)
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x2f6a2c,
-            roughness: 0.68,
-            metalness: 0.08
-        })
-
-        return new THREE.Mesh(geometry, material)
+        const materialOptions = { roughness: 0.68, metalness: 0.08 }
+        const surfaceColor = Number(board.surfaceColor)
+        const edgeColor = Number(board.edgeColor)
+        return new THREE.Mesh(geometry, [
+            new THREE.MeshStandardMaterial({
+                ...materialOptions,
+                color: Number.isInteger(surfaceColor) ? surfaceColor : 0x2f6a2c
+            }),
+            new THREE.MeshStandardMaterial({
+                ...materialOptions,
+                color: Number.isInteger(edgeColor) ? edgeColor : 0xc9ca78
+            })
+        ])
     }
 
     /**
@@ -511,7 +508,7 @@ export class PcbScene3dRuntime {
 
         return new THREE.LineLoop(
             geometry,
-            new THREE.LineBasicMaterial({ color: 0xe6ebdd, transparent: true })
+            new THREE.LineBasicMaterial({ color: 0xc9ca78, transparent: true })
         )
     }
 
@@ -588,6 +585,10 @@ export class PcbScene3dRuntime {
             three: this.#three,
             sceneDescription: this.#sceneDescription,
             externalModelsGroup,
+            modelViewScale: PcbScene3dRuntime.resolveViewScale(
+                this.#presetState.get(),
+                this.#sceneDescription
+            ),
             isDisposed: () => this.#isDisposed,
             onPlacementGroup: (placement, placementGroup) => {
                 this.#registerSelectionRoot(

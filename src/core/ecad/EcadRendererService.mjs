@@ -1,5 +1,6 @@
 import {
     BomTableRenderer as AltiumBomTableRenderer,
+    preparePcbSideResolvedRenderModel as prepareAltiumPcbSideResolvedRenderModel,
     PcbSvgRenderer as AltiumPcbSvgRenderer,
     SchematicSvgRenderer as AltiumSchematicSvgRenderer
 } from 'altium-toolkit/renderers'
@@ -28,12 +29,14 @@ export class EcadRendererService {
     /**
      * Renders a PCB document.
      * @param {object} documentModel Document model.
+     * @param {{ side?: 'top' | 'bottom' }} [options] PCB render options.
      * @returns {string}
      */
-    static renderPcb(documentModel) {
+    static renderPcb(documentModel, options = {}) {
+        const side = EcadRendererService.#normalizePcbSide(options.side)
         return EcadRendererService.#isKiCad(documentModel)
-            ? EcadRendererService.#renderKicadPcb(documentModel)
-            : AltiumPcbSvgRenderer.render(documentModel)
+            ? EcadRendererService.#renderKicadPcb(documentModel, side)
+            : EcadRendererService.#renderAltiumPcb(documentModel, side)
     }
 
     /**
@@ -63,11 +66,46 @@ export class EcadRendererService {
     /**
      * Renders KiCad PCB SVG with an app-scoped marker class for palette fixes.
      * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side PCB side.
      * @returns {string}
      */
-    static #renderKicadPcb(documentModel) {
+    static #renderKicadPcb(documentModel, side) {
         return KicadPcbSvgRenderer.render(documentModel, {
-            includeOppositeCopper: true
+            includeOppositeCopper: true,
+            side: side === 'bottom' ? 'back' : 'front'
         }).replace('class="pcb-svg"', 'class="pcb-svg pcb-svg--kicad"')
+    }
+
+    /**
+     * Renders Altium PCB SVG for the requested side through the side-resolved
+     * model adapter exported by the toolkit.
+     * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side PCB side.
+     * @returns {string}
+     */
+    static #renderAltiumPcb(documentModel, side) {
+        const renderModel = prepareAltiumPcbSideResolvedRenderModel(
+            documentModel,
+            { side: side === 'bottom' ? 'back' : 'front' }
+        )
+        const markup = AltiumPcbSvgRenderer.render(renderModel)
+
+        if (side !== 'bottom') {
+            return markup
+        }
+
+        return markup.replace(
+            'Top-facing composite view',
+            'Bottom-facing composite view'
+        )
+    }
+
+    /**
+     * Normalizes the app-level PCB side option.
+     * @param {unknown} side Requested side.
+     * @returns {'top' | 'bottom'}
+     */
+    static #normalizePcbSide(side) {
+        return side === 'bottom' ? 'bottom' : 'top'
     }
 }

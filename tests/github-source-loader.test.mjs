@@ -142,8 +142,8 @@ test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () 
                 (at 1 2 90)
                 (layer "F.Cu")
                 (model "\${KIPRJMOD}/parts/body.step"
-                    (offset (xyz 0 0 1.5))
-                    (scale (xyz 1 1 1))
+                    (offset (xyz 1.25 -2 1.5))
+                    (scale (xyz 2 3 4))
                     (rotate (xyz 0 0 90))
                 )
             )
@@ -201,6 +201,14 @@ test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () 
             relativePath: 'parts/body.step',
             modelTransform: {
                 rotationDeg: { x: 0, y: 0, z: 90 },
+                offsetMil: {
+                    x: 49.21259842519685,
+                    y: -78.74015748031496,
+                    z: 59.05511811023622
+                },
+                dxMil: 49.21259842519685,
+                dyMil: -78.74015748031496,
+                scale: { x: 2, y: 3, z: 4 },
                 dzMil: 59.05511811023622
             }
         }

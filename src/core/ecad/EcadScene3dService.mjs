@@ -187,6 +187,11 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static #buildKicadExternalPlacement(component) {
+        const modelTransform =
+            EcadScene3dService.#buildKicadModelPlacementTransform(
+                component?.modelTransform
+            )
+
         return {
             designator: String(component?.designator || ''),
             mountSide: String(component?.mountSide || 'top'),
@@ -198,15 +203,75 @@ export class EcadScene3dService {
             },
             bodyPositionMil: { x: 0, y: 0 },
             bodyRotationDeg: 0,
-            modelTransform: {
-                rotationDeg: {
-                    x: Number(component?.modelTransform?.rotationDeg?.x || 0),
-                    y: Number(component?.modelTransform?.rotationDeg?.y || 0),
-                    z: Number(component?.modelTransform?.rotationDeg?.z || 0)
-                },
-                dzMil: Number(component?.modelTransform?.dzMil || 0)
-            },
+            modelTransform,
             externalModel: component.externalModel
+        }
+    }
+
+    /**
+     * Preserves KiCad footprint model metadata for the runtime placement
+     * transform. KiCad composes model matrices at render time as
+     * translate(offset), rotate(-z), rotate(-y), rotate(-x), scale, so the
+     * renderer receives the source angles and applies the sign conversion once.
+     * @param {object | null | undefined} modelTransform Raw KiCad model transform.
+     * @returns {{ rotationDeg: { x: number, y: number, z: number }, offsetMil: { x: number, y: number, z: number }, dxMil: number, dyMil: number, dzMil: number, scale: { x: number, y: number, z: number } }}
+     */
+    static #buildKicadModelPlacementTransform(modelTransform) {
+        const offsetMil =
+            EcadScene3dService.#resolveModelOffsetMil(modelTransform)
+        const rotationDeg = modelTransform?.rotationDeg || {}
+
+        return {
+            rotationDeg: {
+                x: EcadScene3dService.#normalizeModelAngle(rotationDeg.x),
+                y: EcadScene3dService.#normalizeModelAngle(rotationDeg.y),
+                z: EcadScene3dService.#normalizeModelAngle(rotationDeg.z)
+            },
+            offsetMil,
+            dxMil: offsetMil.x,
+            dyMil: offsetMil.y,
+            dzMil: offsetMil.z,
+            scale: EcadScene3dService.#resolveModelScale(modelTransform)
+        }
+    }
+
+    /**
+     * Normalizes one KiCad model angle without leaking JavaScript negative zero.
+     * @param {number | string | undefined} value Raw angle.
+     * @returns {number}
+     */
+    static #normalizeModelAngle(value) {
+        const angle = Number(value || 0)
+        return Object.is(angle, -0) ? 0 : angle
+    }
+
+    /**
+     * Resolves model offset components from current and legacy metadata shapes.
+     * @param {object | null | undefined} modelTransform Raw model transform.
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static #resolveModelOffsetMil(modelTransform) {
+        const offset = modelTransform?.offsetMil || {}
+
+        return {
+            x: Number(offset.x ?? modelTransform?.dxMil ?? 0),
+            y: Number(offset.y ?? modelTransform?.dyMil ?? 0),
+            z: Number(offset.z ?? modelTransform?.dzMil ?? 0)
+        }
+    }
+
+    /**
+     * Resolves model scale from KiCad metadata.
+     * @param {object | null | undefined} modelTransform Raw model transform.
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static #resolveModelScale(modelTransform) {
+        const scale = modelTransform?.scale || {}
+
+        return {
+            x: Number(scale.x ?? 1) || 1,
+            y: Number(scale.y ?? 1) || 1,
+            z: Number(scale.z ?? 1) || 1
         }
     }
 

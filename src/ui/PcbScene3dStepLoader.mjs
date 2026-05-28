@@ -123,7 +123,10 @@ export class PcbScene3dStepLoader {
 
             return {
                 meshPayloads:
-                    PcbScene3dStepLoader.#normalizeModelOrigin(meshPayloads)
+                    PcbScene3dStepLoader.#normalizeModelOrigin(
+                        meshPayloads,
+                        model
+                    )
             }
         } catch (error) {
             throw new Error(
@@ -394,9 +397,14 @@ export class PcbScene3dStepLoader {
      * away from the local origin, which happens for some embedded Altium
      * models that retain absolute CAD world offsets.
      * @param {{ name: string, color: number[] | null, positions: number[], normals: number[], indices: number[], faceColors: { first: number, last: number, color: number[] | null }[] }[]} meshPayloads
+     * @param {{ origin?: string }} model
      * @returns {{ name: string, color: number[] | null, positions: number[], normals: number[], indices: number[], faceColors: { first: number, last: number, color: number[] | null }[] }[]}
      */
-    static #normalizeModelOrigin(meshPayloads) {
+    static #normalizeModelOrigin(meshPayloads, model) {
+        if (!PcbScene3dStepLoader.#shouldNormalizeModelOrigin(model)) {
+            return meshPayloads
+        }
+
         const bounds = PcbScene3dStepLoader.#measureModelBounds(meshPayloads)
         if (!bounds) {
             return meshPayloads
@@ -432,6 +440,17 @@ export class PcbScene3dStepLoader {
                 return value
             })
         }))
+    }
+
+    /**
+     * Checks whether imported STEP coordinates should be recentered.
+     * Project-local KiCad models keep their authored origin because KiCad
+     * applies model offsets and rotations against that raw model frame.
+     * @param {{ origin?: string }} model
+     * @returns {boolean}
+     */
+    static #shouldNormalizeModelOrigin(model) {
+        return String(model?.origin || '').toLowerCase() === 'embedded'
     }
 
     /**

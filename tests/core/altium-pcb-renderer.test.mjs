@@ -147,6 +147,81 @@ test('Altium PCB renderer keeps unowned overlay text visible', () => {
 })
 
 /**
+ * Verifies native Altium 3D appearance metadata is preserved for the 3D scene
+ * instead of falling back to fixed app colors.
+ */
+test('Altium PCB parser preserves authored 3D appearance colors', () => {
+    const boardRecord = createBoardRecord()
+    boardRecord.fields['3DCONFIGURATION'] = [
+        'CFG3D.USESYSCOLORSFOR3D=FALSE',
+        'CFG3D.BOARDCORECOLOR=13761015',
+        'CFG3D.TOPSOLDERMASKCOLOR=7026967',
+        'CFG3D.BOTSOLDERMASKCOLOR=7026967',
+        'CFG3D.COPPERCOLOR=3323360',
+        'CFG3D.TOPSILKSCREENCOLOR=15461355',
+        'CFG3D.BOTSILKSCREENCOLOR=15461355'
+    ].join('`')
+
+    const documentModel = PcbModelParser.parse('sample.PcbDoc', [boardRecord])
+
+    assert.deepEqual(documentModel.pcb.appearance3d, {
+        boardCoreColor: 0xf7f9d1,
+        solderMaskTopColor: 0x17396b,
+        solderMaskBottomColor: 0x17396b,
+        copperColor: 0xe0b532,
+        silkscreenTopColor: 0xebebeb,
+        silkscreenBottomColor: 0xebebeb
+    })
+})
+
+/**
+ * Verifies the app can request a bottom-facing Altium PCB composite instead
+ * of always receiving the default top-facing SVG.
+ */
+test('Altium PCB renderer switches overlay text for bottom-side views', () => {
+    const documentModel = createPcbDocument({
+        primitiveLayers: [
+            { name: 'Top Layer', layerId: 1 },
+            { name: 'Bottom Layer', layerId: 32 },
+            { name: 'Top Overlay', layerId: 33 },
+            { name: 'Bottom Overlay', layerId: 34 }
+        ],
+        texts: [
+            {
+                text: 'TOP_SIDE_MARK',
+                x: 20,
+                y: 20,
+                height: 8,
+                layerId: 33,
+                visible: true
+            },
+            {
+                text: 'BOTTOM_SIDE_MARK',
+                x: 40,
+                y: 40,
+                height: 8,
+                layerId: 34,
+                visible: true
+            }
+        ]
+    })
+
+    const topMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'top'
+    })
+    const bottomMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'bottom'
+    })
+
+    assert.match(topMarkup, /Top-facing composite view/)
+    assert.match(topMarkup, />TOP_SIDE_MARK<\/text>/)
+    assert.doesNotMatch(topMarkup, />BOTTOM_SIDE_MARK<\/text>/)
+    assert.match(bottomMarkup, /Bottom-facing composite view/)
+    assert.match(bottomMarkup, />BOTTOM_SIDE_MARK<\/text>/)
+    assert.doesNotMatch(bottomMarkup, />TOP_SIDE_MARK<\/text>/)
+})
+
+/**
  * Creates the standard synthetic rectangular board record for parser-backed
  * renderer tests.
  * @returns {{ sourceStream: string, fields: Record<string, string> }}

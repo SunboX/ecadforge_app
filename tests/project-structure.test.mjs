@@ -1,15 +1,10 @@
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { access, readFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
-import { promisify } from 'node:util'
 
 const root = new URL('../', import.meta.url)
-const rootPath = fileURLToPath(root)
-const execFileAsync = promisify(execFile)
 
 /**
  * Checks whether a project-relative file exists.
@@ -150,28 +145,9 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.20')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.28')
-})
-
-/**
- * Verifies the KiCad postinstall patcher tolerates current toolkit releases.
- */
-test('KiCad toolkit postinstall patcher is idempotent', async () => {
-    const rendererUrl = new URL(
-        'node_modules/kicad-toolkit/src/ui/SchematicSvgRenderer.mjs',
-        root
-    )
-    const rendererBefore = await readFile(rendererUrl, 'utf8')
-    const result = await execFileAsync(
-        process.execPath,
-        ['scripts/patch-kicad-toolkit-pcb-renderer.mjs'],
-        { cwd: rootPath, timeout: 15000 }
-    )
-    const rendererAfter = await readFile(rendererUrl, 'utf8')
-
-    assert.equal(result.stderr, '')
-    assert.equal(rendererAfter, rendererBefore)
+    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.21')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.32')
+    assert.equal(pkg.scripts?.postinstall, undefined)
 })
 
 /**

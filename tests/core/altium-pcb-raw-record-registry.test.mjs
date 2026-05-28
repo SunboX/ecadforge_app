@@ -110,7 +110,7 @@ test('PcbRawRecordRegistry collects large PcbDoc raw stream batches iteratively'
     )
 })
 
-test('Altium dependency patch decodes compact via streams', () => {
+test('Altium toolkit decodes compact via streams', () => {
     const viaStream = createCompactViaStream()
     const extracted = PcbStreamExtractor.extractFromStreams(
         new Map([

@@ -489,7 +489,7 @@ export class GitHubSourceLoader {
      * Extracts project-local KiCad footprint model references from parser
      * entries.
      * @param {{ name: string, buffer: ArrayBuffer }[]} entries Parser entries.
-     * @returns {{ designator: string, modelName: string, modelPath: string, relativePath: string, modelTransform: { rotationDeg: { x: number, y: number, z: number }, dzMil: number } }[]}
+     * @returns {{ designator: string, modelName: string, modelPath: string, relativePath: string, modelTransform: { rotationDeg: { x: number, y: number, z: number }, offsetMil: { x: number, y: number, z: number }, dxMil: number, dyMil: number, dzMil: number, scale: { x: number, y: number, z: number } } }[]}
      */
     static #extractKicadModelReferences(entries) {
         const decoder = new TextDecoder()
@@ -528,7 +528,7 @@ export class GitHubSourceLoader {
     /**
      * Extracts model references from one KiCad footprint S-expression.
      * @param {any[]} footprint Footprint expression.
-     * @returns {{ designator: string, modelName: string, modelPath: string, relativePath: string, modelTransform: { rotationDeg: { x: number, y: number, z: number }, dzMil: number } }[]}
+     * @returns {{ designator: string, modelName: string, modelPath: string, relativePath: string, modelTransform: { rotationDeg: { x: number, y: number, z: number }, offsetMil: { x: number, y: number, z: number }, dxMil: number, dyMil: number, dzMil: number, scale: { x: number, y: number, z: number } } }[]}
      */
     static #extractFootprintModelReferences(footprint) {
         const designator =
@@ -589,7 +589,7 @@ export class GitHubSourceLoader {
     /**
      * Extracts model offset and rotation metadata from one model expression.
      * @param {any[]} modelExpression Model expression.
-     * @returns {{ rotationDeg: { x: number, y: number, z: number }, dzMil: number }}
+     * @returns {{ rotationDeg: { x: number, y: number, z: number }, offsetMil: { x: number, y: number, z: number }, dxMil: number, dyMil: number, dzMil: number, scale: { x: number, y: number, z: number } }}
      */
     static #extractModelTransform(modelExpression) {
         const offset = GitHubSourceLoader.#readNestedXyz(
@@ -600,6 +600,16 @@ export class GitHubSourceLoader {
             modelExpression,
             'rotate'
         )
+        const scale = GitHubSourceLoader.#readNestedXyz(
+            modelExpression,
+            'scale',
+            1
+        )
+        const offsetMil = {
+            x: offset.x * GitHubSourceLoader.#MILS_PER_MM,
+            y: offset.y * GitHubSourceLoader.#MILS_PER_MM,
+            z: offset.z * GitHubSourceLoader.#MILS_PER_MM
+        }
 
         return {
             rotationDeg: {
@@ -607,7 +617,11 @@ export class GitHubSourceLoader {
                 y: rotate.y,
                 z: rotate.z
             },
-            dzMil: offset.z * GitHubSourceLoader.#MILS_PER_MM
+            offsetMil,
+            dxMil: offsetMil.x,
+            dyMil: offsetMil.y,
+            dzMil: offsetMil.z,
+            scale
         }
     }
 
@@ -615,9 +629,10 @@ export class GitHubSourceLoader {
      * Reads an `(offset (xyz ...))` or `(rotate (xyz ...))` expression.
      * @param {any[]} expression Parent expression.
      * @param {string} childName Child expression name.
+     * @param {number} [defaultValue] Default value for missing coordinates.
      * @returns {{ x: number, y: number, z: number }}
      */
-    static #readNestedXyz(expression, childName) {
+    static #readNestedXyz(expression, childName, defaultValue = 0) {
         const childExpression = GitHubSourceLoader.#getChildExpressions(
             expression,
             childName
@@ -628,9 +643,9 @@ export class GitHubSourceLoader {
         )[0]
 
         return {
-            x: Number(xyzExpression?.[1] || 0),
-            y: Number(xyzExpression?.[2] || 0),
-            z: Number(xyzExpression?.[3] || 0)
+            x: Number(xyzExpression?.[1] ?? defaultValue),
+            y: Number(xyzExpression?.[2] ?? defaultValue),
+            z: Number(xyzExpression?.[3] ?? defaultValue)
         }
     }
 
