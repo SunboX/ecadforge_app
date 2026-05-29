@@ -145,8 +145,8 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.21')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.32')
+    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.22')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.33')
     assert.equal(pkg.scripts?.postinstall, undefined)
 })
 

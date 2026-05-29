@@ -404,6 +404,12 @@ body.is-viewer-mode.is-viewer-pcb .app-shell {
         justify-content: flex-start;
     }
 
+    body.is-viewer-mode.is-viewer-schematic .app-shell,
+    body.is-viewer-mode.is-viewer-pcb .app-shell {
+        height: auto;
+        min-height: calc(100vh - 1.55rem);
+    }
+
     .footer-inline {
         grid-template-columns: 1fr;
     }

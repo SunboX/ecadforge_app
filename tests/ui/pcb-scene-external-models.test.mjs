@@ -697,10 +697,11 @@ test('PcbScene3dExternalModels compensates embedded model source-Z origins after
 })
 
 /**
- * Verifies one-sided embedded Altium STEP models keep their center while their
- * source-local pin-one orientation is flipped into the board plane.
+ * Verifies one-sided embedded Altium STEP models keep their authored body
+ * origin offset while their source-local pin-one orientation is flipped into
+ * the board plane.
  */
-test('PcbScene3dExternalModels flips asymmetric source-Z origins around package centers', async () => {
+test('PcbScene3dExternalModels flips asymmetric source-Z origins without canceling body-origin offsets', async () => {
     const externalModelsGroup = new FakeGroup()
     const diagnostics = await PcbScene3dExternalModels.loadIntoScene({
         three: {
@@ -764,7 +765,7 @@ test('PcbScene3dExternalModels flips asymmetric source-Z origins around package 
     const faceGroup = sideGroup.children[0]
     const modelGroup = faceGroup.children[0]
 
-    assert.equal(modelGroup.position.x, 240)
+    assert.equal(modelGroup.position.x, 0)
     assert.equal(modelGroup.position.y, 0)
     assert.equal(modelGroup.position.z, 0)
     assert.equal(modelGroup.rotation.x, Math.PI / 2)

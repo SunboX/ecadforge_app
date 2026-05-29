@@ -153,13 +153,15 @@ function withFakeCanvas(callback) {
                                 height
                             })
                         },
-                        fillText(text) {
+                        fillText(text, x, y) {
                             this.canvas.__drawOps.push({
                                 type: 'fillText',
                                 composite: this.globalCompositeOperation,
                                 style: this.fillStyle,
                                 font: this.font,
-                                text
+                                text,
+                                x,
+                                y
                             })
                         }
                     }
@@ -369,7 +371,7 @@ test('PcbScene3dSilkscreenFactory uses the layer fill as the inverted TrueType b
     })
 })
 
-test('PcbScene3dSilkscreenFactory keeps single-line inverted backgrounds to glyph height', () => {
+test('PcbScene3dSilkscreenFactory keeps single-line inverted backgrounds to measured glyph height', () => {
     withFakeCanvas(() => {
         const group = PcbScene3dSilkscreenFactory.buildGroup(
             createFakeThree(),
@@ -403,12 +405,12 @@ test('PcbScene3dSilkscreenFactory keeps single-line inverted backgrounds to glyp
             findTrueTypeGroup(group).children[0].material.options.map.image
 
         assert.equal(canvas.__drawOps[0].type, 'fillRect')
-        assert.equal(canvas.__drawOps[0].height, 128)
+        assert.equal(canvas.__drawOps[0].height, 68)
         assert.equal(canvas.__drawOps[1].composite, 'destination-out')
     })
 })
 
-test('PcbScene3dSilkscreenFactory ignores rectangle margin for tight inverted text', () => {
+test('PcbScene3dSilkscreenFactory honors margin border width for tight inverted text', () => {
     withFakeCanvas(() => {
         const group = PcbScene3dSilkscreenFactory.buildGroup(
             createFakeThree(),
@@ -444,8 +446,248 @@ test('PcbScene3dSilkscreenFactory ignores rectangle margin for tight inverted te
             findTrueTypeGroup(group).children[0].material.options.map.image
 
         assert.equal(canvas.__drawOps[0].type, 'fillRect')
-        assert.equal(canvas.__drawOps[0].height, 128)
+        assert.equal(canvas.__drawOps[0].height, 80)
         assert.equal(canvas.__drawOps[1].composite, 'destination-out')
+        assert.equal(canvas.__drawOps[1].x, 20)
+    })
+})
+
+test('PcbScene3dSilkscreenFactory uses authored inverted rectangle dimensions when requested', () => {
+    withFakeCanvas(() => {
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            createFakeThree(),
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0xebebeb,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'LABEL',
+                            x: 20,
+                            y: 30,
+                            height: 60,
+                            isInverted: true,
+                            marginBorderWidth: 10,
+                            useInvertedRectangle: true,
+                            textboxRectWidth: 240,
+                            textboxRectHeight: 70,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas',
+                            trueTypeFontScale: 1
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+        const mesh = findTrueTypeGroup(group).children[0]
+        const canvas = mesh.material.options.map.image
+
+        assert.equal(canvas.__drawOps[0].type, 'fillRect')
+        assert.equal(canvas.__drawOps[0].width, 240)
+        assert.equal(canvas.__drawOps[0].height, 70)
+        assert.equal(mesh.geometry.bounds.maxX - mesh.geometry.bounds.minX, 240)
+        assert.equal(mesh.geometry.bounds.maxY - mesh.geometry.bounds.minY, 70)
+    })
+})
+
+test('PcbScene3dSilkscreenFactory applies margin around compact implicit inverted boxes', () => {
+    withFakeCanvas(() => {
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            createFakeThree(),
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0xebebeb,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'Q',
+                            x: 20,
+                            y: 30,
+                            height: 60,
+                            isInverted: true,
+                            marginBorderWidth: 7,
+                            useInvertedRectangle: false,
+                            textboxRectWidth: 110.331,
+                            textboxRectHeight: 42.705,
+                            textboxRectJustification: 5,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas',
+                            trueTypeFontScale: 1
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+        const mesh = findTrueTypeGroup(group).children[0]
+        const canvas = mesh.material.options.map.image
+        const bounds = mesh.geometry.bounds
+
+        assert.equal(canvas.__drawOps[0].type, 'fillRect')
+        assert.equal(canvas.__drawOps[0].width, 124.331)
+        assert.equal(canvas.__drawOps[0].height, 56.705)
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 50.1655)
+        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(3)), 124.331)
+        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(3)), 56.705)
+        assert.equal(Number(bounds.minX.toFixed(3)), -7)
+        assert.equal(Number(bounds.maxX.toFixed(3)), 117.331)
+        assert.equal(Number(bounds.minY.toFixed(4)), -16.3525)
+        assert.equal(Number(bounds.maxY.toFixed(4)), 40.3525)
+    })
+})
+
+test('PcbScene3dSilkscreenFactory keeps oversized implicit inverted boxes to natural text bounds', () => {
+    withFakeCanvas(() => {
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            createFakeThree(),
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0xebebeb,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'NODEMCU',
+                            x: 20,
+                            y: 30,
+                            height: 200,
+                            isInverted: true,
+                            marginBorderWidth: 20,
+                            useInvertedRectangle: false,
+                            textboxRectWidth: 6639.5997,
+                            textboxRectHeight: 1017.6846,
+                            textboxRectJustification: 5,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas',
+                            trueTypeFontScale: 1
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+        const mesh = findTrueTypeGroup(group).children[0]
+        const canvas = mesh.material.options.map.image
+
+        assert.equal(canvas.__drawOps[0].type, 'fillRect')
+        assert.equal(canvas.__drawOps[0].width, 208)
+        assert.equal(canvas.__drawOps[0].height, 80)
+        assert.equal(mesh.geometry.bounds.maxX - mesh.geometry.bounds.minX, 208)
+        assert.equal(mesh.geometry.bounds.maxY - mesh.geometry.bounds.minY, 80)
+    })
+})
+
+test('PcbScene3dSilkscreenFactory keeps wide implicit authored boxes baseline anchored', () => {
+    withFakeCanvas(() => {
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            createFakeThree(),
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0xebebeb,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'NODEMCU',
+                            height: 90,
+                            isInverted: true,
+                            marginBorderWidth: 20,
+                            useInvertedRectangle: false,
+                            textboxRectWidth: 385.259,
+                            textboxRectHeight: 67.6838,
+                            textboxRectJustification: 5,
+                            fontTypeName: 'TrueType',
+                            trueTypeFontScale: 1
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+        const mesh = findTrueTypeGroup(group).children[0]
+        const canvas = mesh.material.options.map.image
+
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 108.6295)
+        assert.equal(Number(mesh.geometry.bounds.minX.toFixed(4)), -108.6295)
+        assert.equal(Number(mesh.geometry.bounds.maxX.toFixed(4)), 276.6295)
+        assert.equal(Number(mesh.geometry.bounds.minY.toFixed(4)), -21.8419)
+        assert.equal(Number(mesh.geometry.bounds.maxY.toFixed(4)), 45.8419)
+    })
+})
+
+test('PcbScene3dSilkscreenFactory rotates authored implicit text boxes with their label', () => {
+    withFakeCanvas(() => {
+        const group = PcbScene3dSilkscreenFactory.buildGroup(
+            createFakeThree(),
+            {
+                top: {
+                    fillColor: 0xebebeb,
+                    strokeColor: 0xebebeb,
+                    fills: [],
+                    tracks: [],
+                    arcs: [],
+                    texts: [
+                        {
+                            text: 'SPI',
+                            x: 20,
+                            y: 30,
+                            height: 60,
+                            rotation: 90,
+                            isInverted: true,
+                            marginBorderWidth: 7,
+                            useInvertedRectangle: false,
+                            textboxRectWidth: 109.2195,
+                            textboxRectHeight: 33.813,
+                            textboxRectJustification: 5,
+                            fontTypeName: 'TrueType',
+                            fontFamily: 'Consolas',
+                            trueTypeFontScale: 1
+                        }
+                    ]
+                },
+                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
+            },
+            18,
+            -18,
+            (x, y) => ({ x, y })
+        )
+        const mesh = findTrueTypeGroup(group).children[0]
+        const canvas = mesh.material.options.map.image
+        const bounds = mesh.geometry.bounds
+
+        assert.equal(canvas.__drawOps[0].width, 123.2195)
+        assert.equal(canvas.__drawOps[0].height, 47.813)
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 25.6097)
+        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(4)), 123.2195)
+        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(4)), 47.813)
+        assert.equal(Number(bounds.minX.toFixed(4)), -7)
+        assert.equal(Number(bounds.maxX.toFixed(4)), 116.2195)
+        assert.equal(Number(bounds.minY.toFixed(4)), -8.813)
+        assert.equal(Number(bounds.maxY.toFixed(4)), 39)
+        assert.equal(mesh.rotation.z, Math.PI / 2)
     })
 })
 

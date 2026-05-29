@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.4.99",
+    "version": "1.4.126",
     "description": "Browser-based viewer for native Altium and KiCad schematics, PCB files, and KiCad projects",
     "private": true,
     "license": "AGPL-3.0-or-later",
@@ -13,10 +13,10 @@
         "check:format": "prettier --check ."
     },
     "dependencies": {
-        "altium-toolkit": "^0.1.21",
+        "altium-toolkit": "^0.1.22",
         "express": "^5.1.0",
         "fflate": "^0.8.2",
-        "kicad-toolkit": "^0.2.32",
+        "kicad-toolkit": "^0.2.33",
         "occt-import-js": "^0.0.23",
         "three": "^0.183.2"
     },

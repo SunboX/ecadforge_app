@@ -390,7 +390,8 @@ export class PcbScene3dExternalModels {
      * Adjusts embedded Altium models whose source geometry is authored with a
      * strong Z-origin bias. A signed X tilt lays those models flat correctly,
      * but source Z becomes lateral board Y. Strongly asymmetric source centers
-     * also need an in-plane flip so package markers keep their authored end.
+     * also need an in-plane flip while preserving the body-origin offset
+     * already encoded by the source geometry.
      * @param {{ externalModel?: { origin?: string } }} placement Placement metadata.
      * @param {{ userData?: { scene3dSourceBoundsMil?: { centerX?: number, centerZ?: number, sizeX?: number, sizeY?: number, sizeZ?: number } } }} modelGroup Loaded model group.
      * @param {{ x?: number }} modelRotation Model-local rotation.
@@ -426,7 +427,7 @@ export class PcbScene3dExternalModels {
 
         if (Math.abs(centerX) > maxDimension * 0.2) {
             return {
-                offset: { x: centerX * 2, y: 0, z: 0 },
+                offset: { x: 0, y: 0, z: 0 },
                 rotationDeg: { x: 0, y: 0, z: 180 }
             }
         }

@@ -115,8 +115,8 @@ export class PcbScene3dTrueTypeTextFactory {
             THREE,
             textureInfo.width,
             textureInfo.height,
-            textureInfo.baselineX,
-            textureInfo.baselineY,
+            textureInfo.anchorX,
+            textureInfo.anchorY,
             Boolean(text?.mirrored)
         )
         const mesh = new THREE.Mesh(
@@ -149,8 +149,8 @@ export class PcbScene3dTrueTypeTextFactory {
      * @param {any} THREE
      * @param {number} width
      * @param {number} height
-     * @param {number} baselineX
-     * @param {number} baselineY
+     * @param {number} anchorX
+     * @param {number} anchorY
      * @param {boolean} mirrored
      * @returns {any}
      */
@@ -158,13 +158,13 @@ export class PcbScene3dTrueTypeTextFactory {
         THREE,
         width,
         height,
-        baselineX,
-        baselineY,
+        anchorX,
+        anchorY,
         mirrored
     ) {
         const geometry = new THREE.PlaneGeometry(width, height)
 
-        geometry.translate?.(width / 2 - baselineX, baselineY - height / 2, 0)
+        geometry.translate?.(width / 2 - anchorX, anchorY - height / 2, 0)
         if (mirrored) {
             geometry.scale?.(-1, 1, 1)
         }
@@ -177,7 +177,7 @@ export class PcbScene3dTrueTypeTextFactory {
      * @param {any} THREE
      * @param {object} text
      * @param {{ color: number, textColor: number, knockout: boolean }} paint
-     * @returns {{ texture: any, width: number, height: number, baselineX: number, baselineY: number } | null}
+     * @returns {{ texture: any, width: number, height: number, baselineX: number, baselineY: number, anchorX: number, anchorY: number } | null}
      */
     static #buildTextureInfo(THREE, text, paint) {
         const canvas = PcbScene3dTrueTypeTextFactory.#createCanvas()
@@ -204,14 +204,17 @@ export class PcbScene3dTrueTypeTextFactory {
             fontSize,
             paint.knockout
         )
-        const width = Math.max(metrics.width, 1)
-        const height = Math.max(metrics.height, 1)
+        const layout = PcbScene3dTrueTypeTextFactory.#resolveTextureLayout(
+            text,
+            metrics,
+            padding,
+            paint.knockout
+        )
 
         PcbScene3dTrueTypeTextFactory.#sizeCanvas(
             canvas,
-            width,
-            height,
-            padding
+            layout.width,
+            layout.height
         )
         PcbScene3dTrueTypeTextFactory.#drawText(
             canvas,
@@ -219,7 +222,10 @@ export class PcbScene3dTrueTypeTextFactory {
             font,
             paint,
             metrics,
-            padding
+            layout.baselineX,
+            layout.baselineY,
+            layout.width,
+            layout.height
         )
 
         const texture = new THREE.CanvasTexture(canvas)
@@ -230,10 +236,12 @@ export class PcbScene3dTrueTypeTextFactory {
 
         return {
             texture,
-            width: width + padding * 2,
-            height: height + padding * 2,
-            baselineX: padding,
-            baselineY: padding + metrics.ascent
+            width: layout.width,
+            height: layout.height,
+            baselineX: layout.baselineX,
+            baselineY: layout.baselineY,
+            anchorX: layout.anchorX,
+            anchorY: layout.anchorY
         }
     }
 
@@ -443,11 +451,15 @@ export class PcbScene3dTrueTypeTextFactory {
             PcbScene3dTrueTypeTextFactory.#MIN_CANVAS_PADDING
         )
 
-        if (!knockout || !text?.useInvertedRectangle) {
+        if (!knockout) {
             return basePadding
         }
 
-        return Math.max(basePadding, Number(text?.marginBorderWidth || 0))
+        const marginBorderWidth = Number(text?.marginBorderWidth)
+
+        return Number.isFinite(marginBorderWidth) && marginBorderWidth >= 0
+            ? marginBorderWidth
+            : basePadding
     }
 
     /**
@@ -534,34 +546,271 @@ export class PcbScene3dTrueTypeTextFactory {
      * @param {string[]} lines
      * @param {string} font
      * @param {number} fontSize
-     * @returns {{ width: number, height: number, ascent: number, lineHeight: number }}
+     * @returns {{ width: number, height: number, ascent: number, descent: number, lineHeight: number }}
      */
     static #measureLines(context, lines, font, fontSize) {
         context.font = font
 
         const measured = lines.map((line) => context.measureText(line || ' '))
-        const ascent = Math.max(
-            ...measured.map((metric) => Number(metric.actualBoundingBoxAscent)),
+        const ascent = PcbScene3dTrueTypeTextFactory.#resolveMeasuredExtent(
+            measured,
+            'actualBoundingBoxAscent',
             fontSize * 0.82
         )
-        const descent = Math.max(
-            ...measured.map((metric) =>
-                Number(metric.actualBoundingBoxDescent)
-            ),
+        const descent = PcbScene3dTrueTypeTextFactory.#resolveMeasuredExtent(
+            measured,
+            'actualBoundingBoxDescent',
             fontSize * 0.18
         )
+        const glyphHeight = Math.max(ascent + descent, 1)
         const lineHeight = Math.max(
-            (ascent + descent) *
-                PcbScene3dTrueTypeTextFactory.#LINE_HEIGHT_RATIO,
-            fontSize
+            glyphHeight * PcbScene3dTrueTypeTextFactory.#LINE_HEIGHT_RATIO,
+            glyphHeight
         )
 
         return {
             width: Math.max(...measured.map((metric) => Number(metric.width))),
-            height: ascent + descent + lineHeight * (lines.length - 1),
+            height: glyphHeight + lineHeight * (lines.length - 1),
             ascent,
+            descent,
             lineHeight
         }
+    }
+
+    /** @param {TextMetrics[]} measured @param {'actualBoundingBoxAscent' | 'actualBoundingBoxDescent'} field @param {number} fallback @returns {number} */
+    static #resolveMeasuredExtent(measured, field, fallback) {
+        const values = measured
+            .map((metric) => Number(metric?.[field]))
+            .filter((value) => Number.isFinite(value) && value > 0)
+
+        return values.length ? Math.max(...values) : fallback
+    }
+
+    /** @param {object} text @param {{ width: number, height: number, ascent: number }} metrics @param {number} padding @param {boolean} knockout @returns {{ width: number, height: number, baselineX: number, baselineY: number, anchorX: number, anchorY: number }} */
+    static #resolveTextureLayout(text, metrics, padding, knockout) {
+        const authoredRectangle =
+            PcbScene3dTrueTypeTextFactory.#resolveAuthoredRectangle(
+                text,
+                metrics,
+                knockout
+            )
+        const expandsCompactBox =
+            authoredRectangle &&
+            PcbScene3dTrueTypeTextFactory.#usesCompactImplicitRectangle(
+                text,
+                authoredRectangle.width
+            )
+        const authoredPadding = expandsCompactBox ? padding : 0
+        const width =
+            authoredRectangle?.width + authoredPadding * 2 ||
+            Math.max(metrics.width, 1) + padding * 2
+        const height =
+            authoredRectangle?.height + authoredPadding * 2 ||
+            Math.max(metrics.height, 1) + padding * 2
+
+        if (!authoredRectangle) {
+            return {
+                width,
+                height,
+                baselineX: padding,
+                baselineY: padding + Number(metrics.ascent || 0),
+                anchorX: padding,
+                anchorY: padding + Number(metrics.ascent || 0)
+            }
+        }
+        const authoredBaselineX =
+            PcbScene3dTrueTypeTextFactory.#authoredBaselineX(
+                text,
+                metrics,
+                authoredRectangle.width,
+                padding
+            )
+        const authoredBaselineY =
+            PcbScene3dTrueTypeTextFactory.#authoredBaselineY(
+                text,
+                metrics,
+                authoredRectangle.height,
+                padding
+            )
+        const baselineX = authoredPadding + authoredBaselineX
+        const baselineY = authoredPadding + authoredBaselineY
+
+        return {
+            width,
+            height,
+            baselineX,
+            baselineY,
+            anchorX:
+                authoredPadding +
+                PcbScene3dTrueTypeTextFactory.#authoredAnchorX(
+                    text,
+                    authoredRectangle.width,
+                    authoredBaselineX
+                ),
+            anchorY: baselineY
+        }
+    }
+
+    /**
+     * Resolves explicit inverted rectangle dimensions from source metadata.
+     * @param {object} text
+     * @param {{ width: number, height: number }} metrics
+     * @param {boolean} knockout
+     * @returns {{ width: number, height: number } | null}
+     */
+    static #resolveAuthoredRectangle(text, metrics, knockout) {
+        const width = Number(text?.textboxRectWidth)
+        const height = Number(text?.textboxRectHeight)
+
+        if (
+            !knockout ||
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            width <= 0 ||
+            height <= 0
+        ) {
+            return null
+        }
+
+        if (
+            PcbScene3dTrueTypeTextFactory.#hasOversizedImplicitRectangle(
+                text,
+                metrics,
+                width,
+                height
+            )
+        ) {
+            return null
+        }
+
+        return { width, height }
+    }
+
+    /**
+     * Checks whether an implicit text box is broad default metadata, not a local label box.
+     * @param {object} text
+     * @param {{ width: number, height: number }} metrics
+     * @param {number} width
+     * @param {number} height
+     * @returns {boolean}
+     */
+    static #hasOversizedImplicitRectangle(text, metrics, width, height) {
+        if (Boolean(text?.useInvertedRectangle)) {
+            return false
+        }
+
+        const textHeight = PcbScene3dTrueTypeTextFactory.#textHeight(text)
+        const naturalWidth = Math.max(
+            PcbScene3dTrueTypeTextFactory.#widestLineLength(text) * textHeight,
+            Number(metrics?.width || 0),
+            textHeight
+        )
+        const naturalHeight = Math.max(Number(metrics?.height || 0), textHeight)
+
+        return width > naturalWidth * 3 || height > naturalHeight * 3
+    }
+
+    /**
+     * Resolves the widest source line length for coarse box sanity checks.
+     * @param {object} text
+     * @returns {number}
+     */
+    static #widestLineLength(text) {
+        return Math.max(
+            ...PcbScene3dTrueTypeTextFactory.#textLines(text).map((line) =>
+                Math.max(line.length, 1)
+            )
+        )
+    }
+
+    /**
+     * Resolves horizontal baseline inside an authored rectangle.
+     * @param {object} text
+     * @param {{ width: number }} metrics
+     * @param {number} width
+     * @param {number} padding
+     * @returns {number}
+     */
+    static #authoredBaselineX(text, metrics, width, padding) {
+        const column = PcbScene3dTrueTypeTextFactory.#justificationColumn(text)
+        const remainingWidth = Math.max(width - Number(metrics.width || 0), 0)
+
+        if (column === 1) {
+            return remainingWidth / 2
+        }
+
+        if (column === 2) {
+            return remainingWidth
+        }
+
+        return Math.min(padding, remainingWidth)
+    }
+
+    /**
+     * Resolves vertical baseline inside an authored rectangle.
+     * @param {object} text
+     * @param {{ height: number, ascent: number }} metrics
+     * @param {number} height
+     * @param {number} padding
+     * @returns {number}
+     */
+    static #authoredBaselineY(text, metrics, height, padding) {
+        const row = PcbScene3dTrueTypeTextFactory.#justificationRow(text)
+        const remainingHeight = Math.max(
+            height - Number(metrics.height || 0),
+            0
+        )
+
+        if (row === 1) {
+            return remainingHeight / 2 + Number(metrics.ascent || 0)
+        }
+
+        if (row === 2) {
+            return remainingHeight + Number(metrics.ascent || 0)
+        }
+
+        return Math.min(padding, remainingHeight) + Number(metrics.ascent || 0)
+    }
+
+    /** @param {object} text @param {number} width @param {number} fallback @returns {number} */
+    static #authoredAnchorX(text, width, fallback) {
+        if (
+            PcbScene3dTrueTypeTextFactory.#usesCompactImplicitRectangle(
+                text,
+                width
+            )
+        ) {
+            return 0
+        }
+
+        return fallback
+    }
+
+    /** @param {object} text @param {number} width @returns {boolean} */
+    static #usesCompactImplicitRectangle(text, width) {
+        return (
+            !Boolean(text?.useInvertedRectangle) &&
+            PcbScene3dTrueTypeTextFactory.#justificationColumn(text) !== null &&
+            width <= PcbScene3dTrueTypeTextFactory.#textHeight(text) * 2.25
+        )
+    }
+
+    /** @param {object} text @returns {0 | 1 | 2 | null} */
+    static #justificationColumn(text) {
+        const justification = Number(text?.textboxRectJustification)
+
+        return Number.isInteger(justification) && justification > 0
+            ? Math.max(0, Math.min(2, Math.floor((justification - 1) / 3)))
+            : null
+    }
+
+    /** @param {object} text @returns {0 | 1 | 2 | null} */
+    static #justificationRow(text) {
+        const justification = Number(text?.textboxRectJustification)
+
+        return Number.isInteger(justification) && justification > 0
+            ? ((justification - 1) % 3)
+            : null
     }
 
     /**
@@ -569,14 +818,13 @@ export class PcbScene3dTrueTypeTextFactory {
      * @param {HTMLCanvasElement} canvas
      * @param {number} width
      * @param {number} height
-     * @param {number} padding
      * @returns {void}
      */
-    static #sizeCanvas(canvas, width, height, padding) {
+    static #sizeCanvas(canvas, width, height) {
         const scale = PcbScene3dTrueTypeTextFactory.#CANVAS_SCALE
 
-        canvas.width = Math.ceil((width + padding * 2) * scale)
-        canvas.height = Math.ceil((height + padding * 2) * scale)
+        canvas.width = Math.ceil(width * scale)
+        canvas.height = Math.ceil(height * scale)
     }
 
     /**
@@ -586,10 +834,23 @@ export class PcbScene3dTrueTypeTextFactory {
      * @param {string} font
      * @param {{ color: number, textColor: number, knockout: boolean }} paint
      * @param {{ ascent: number, lineHeight: number }} metrics
-     * @param {number} padding
+     * @param {number} baselineX
+     * @param {number} baselineY
+     * @param {number} width
+     * @param {number} height
      * @returns {void}
      */
-    static #drawText(canvas, lines, font, paint, metrics, padding) {
+    static #drawText(
+        canvas,
+        lines,
+        font,
+        paint,
+        metrics,
+        baselineX,
+        baselineY,
+        width,
+        height
+    ) {
         const context = canvas.getContext('2d')
         const scale = PcbScene3dTrueTypeTextFactory.#CANVAS_SCALE
 
@@ -603,12 +864,7 @@ export class PcbScene3dTrueTypeTextFactory {
             context.fillStyle = PcbScene3dTrueTypeTextFactory.#colorToCss(
                 paint.color
             )
-            context.fillRect?.(
-                0,
-                0,
-                canvas.width / scale,
-                canvas.height / scale
-            )
+            context.fillRect?.(0, 0, width, height)
             context.globalCompositeOperation = 'destination-out'
             context.fillStyle = '#000000'
         } else {
@@ -620,8 +876,8 @@ export class PcbScene3dTrueTypeTextFactory {
         lines.forEach((line, index) => {
             context.fillText(
                 line,
-                padding,
-                padding + metrics.ascent + metrics.lineHeight * index
+                baselineX,
+                baselineY + metrics.lineHeight * index
             )
         })
         context.globalCompositeOperation = 'source-over'
