@@ -20,7 +20,7 @@ export class PcbScene3dRuntime {
     #viewportNode
     /** @type {any} */
     #sceneDescription
-    /** @type {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }> }} */
+    /** @type {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }>, translate?: ((key: string) => string) | null }} */
     #hooks
     /** @type {{ 'external-models': boolean, 'fallback-bodies': boolean, copper: boolean }} */
     #toggles
@@ -74,7 +74,7 @@ export class PcbScene3dRuntime {
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} sceneDescription
-     * @param {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }> }} [hooks]
+     * @param {{ setDiagnostics?: (messages: string[]) => void, setSelection?: (selection: any | null) => void, loadRuntimeModules?: () => Promise<{ THREE: any, OrbitControls: any }>, translate?: ((key: string) => string) | null }} [hooks]
      */
     constructor(viewportNode, sceneDescription, hooks = {}) {
         this.#viewportNode = viewportNode
@@ -113,7 +113,10 @@ export class PcbScene3dRuntime {
         })
 
         this.#hooks.setDiagnostics?.([
-            PcbScene3dInteractionHints.resolveDefaultMessage()
+            PcbScene3dInteractionHints.resolveDefaultMessage(
+                globalThis.window,
+                this.#hooks.translate || null
+            )
         ])
         this.#initialize()
     }
@@ -978,15 +981,12 @@ export class PcbScene3dRuntime {
         if (family === 'radial-capacitor') {
             return 0xa60f10
         }
-
         if (family === 'connector-block') {
             return 0xd5d6da
         }
-
         if (family === 'test-point') {
             return 0x0ea5a8
         }
-
         if (family === 'chip') {
             return 0xf5f5ef
         }

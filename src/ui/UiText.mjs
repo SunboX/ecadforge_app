@@ -1,0 +1,155 @@
+const FALLBACK_MESSAGES = {
+    'action.tryAltium': 'Try Altium sample',
+    'action.tryKicad': 'Try KiCad sample',
+    'app.brandAria': 'Return to ECAD Forge landing page',
+    'app.open': 'Open local files',
+    'chip.localParsing': 'Local parsing',
+    'chip.noAccount': 'No account',
+    'chip.noServerUpload': 'No server upload',
+    'diagnostics.messagesSuffix': 'messages',
+    'diagnostics.none': 'No diagnostics were emitted for this file.',
+    'diagnostics.title': 'Parser diagnostics',
+    'empty.copy':
+        'Supports .SchDoc, .PcbDoc, .PrjPcb, .kicad_pro and .kicad_pcb. Your files stay on your device.',
+    'empty.title': 'Drop a design file here or start with a sample project',
+    'github.open': 'Open GitHub URL',
+    'link.localParsing': 'How local parsing works',
+    'link.pcbStyler': 'Need clean assembly images? Try PCB Styler',
+    'link.privacy': 'Privacy & security',
+    'link.supportedFormats': 'Supported formats',
+    'pcbStyler.export': 'Export or reopen in PCB Styler',
+    'pcbStyler.open': 'Open this board in PCB Styler',
+    'pcbStyler.prompt': 'Need clean assembly images for documentation?',
+    'pcbView.boardSideAria': 'PCB board side',
+    'preview.demoNoDiagnostics':
+        'The demo file did not emit parser diagnostics.',
+    'preview.groupedRows': 'grouped rows',
+    'preview.label': 'Preview',
+    'preview.markupUnavailable': 'Preview markup could not be extracted.',
+    'preview.noCompatibleDemo': 'No compatible demo document was found.',
+    'preview.noDiagnostics': 'No diagnostics',
+    'preview.noDiagnosticsEmitted': 'No diagnostics emitted.',
+    'preview.parserFindings': 'Parser findings available.',
+    'preview.placementsSuffix': 'placements',
+    'preview.recoveredFromBoard': 'Recovered from the current board.',
+    'preview.recoveredFromSheet': 'Recovered from the current sheet.',
+    'preview.unavailable': 'Unavailable',
+    'scene3d.boardEnvelopeSuffix': 'mil board envelope',
+    'scene3d.boardPosition': 'Board position',
+    'scene3d.bodyPosition': 'Body position',
+    'scene3d.bodyRotation': 'Body rotation',
+    'scene3d.bomGroups': 'BOM groups',
+    'scene3d.bottom': 'Bottom',
+    'scene3d.companionModelsHint':
+        'Companion models will be used when matching WRL or STEP files are loaded in the session.',
+    'scene3d.componentInspector': 'Component inspector',
+    'scene3d.componentsSuffix': 'components',
+    'scene3d.controlsAria': '3D detail toggles',
+    'scene3d.copperDetail': 'Copper detail',
+    'scene3d.designator': 'Designator',
+    'scene3d.downloadModelsZip': 'Download Models ZIP',
+    'scene3d.downloaded': 'Downloaded',
+    'scene3d.entries': 'entries',
+    'scene3d.entry': 'entry',
+    'scene3d.exportFailed': 'Model ZIP export failed:',
+    'scene3d.externalModel': 'External model',
+    'scene3d.externalModels': 'External models',
+    'scene3d.fallbackBody': 'Fallback body',
+    'scene3d.fallbackBodies': 'Fallback bodies',
+    'scene3d.footprint': 'Footprint',
+    'scene3d.inspectPrompt': 'Click a component to inspect it.',
+    'scene3d.interactiveViewAria': 'Interactive 3D PCB view',
+    'scene3d.isometric': 'Isometric',
+    'scene3d.loading': 'Preparing 3D scene...',
+    'scene3d.model': 'Model',
+    'scene3d.modelFile': 'model file',
+    'scene3d.modelFiles': 'model files',
+    'scene3d.modelRotation': 'Model rotation',
+    'scene3d.mountSide': 'Mount side',
+    'scene3d.noMetadataFor': 'No metadata is available for',
+    'scene3d.noModelsForExport':
+        'No STEP or WRL models were resolved for export.',
+    'scene3d.noPcb': '3D preview is available after loading a PCB document.',
+    'scene3d.pattern': 'Pattern',
+    'scene3d.picked': 'Picked',
+    'scene3d.placements': 'Placements',
+    'scene3d.pointerHint':
+        'Drag to orbit, right-drag to pan, and use the wheel to zoom.',
+    'scene3d.rotation': 'Rotation',
+    'scene3d.skipped': 'Skipped',
+    'scene3d.source': 'Source',
+    'scene3d.startFailed': '3D preview could not start:',
+    'scene3d.stillPreparing': '3D scene is still preparing.',
+    'scene3d.title': '3D preview',
+    'scene3d.to': 'to',
+    'scene3d.toolbarAria': '3D camera presets',
+    'scene3d.top': 'Top',
+    'scene3d.touchHint':
+        'Drag with one finger to orbit, pinch to zoom, and drag with two fingers to pan.',
+    'scene3d.unresolved': 'unresolved',
+    'summary.activeFileAria': 'Current file summary',
+    'summary.boardEnvelope': 'Board envelope',
+    'summary.bomGroups': 'BOM groups',
+    'summary.clientSideJs': 'Client-side JS',
+    'summary.components': 'Components',
+    'summary.document': 'Document',
+    'summary.formats': 'Formats',
+    'summary.graphics': 'Graphics',
+    'summary.layers': 'Layers',
+    'summary.noFile': 'No file loaded',
+    'summary.outlineSegments': 'Outline segments',
+    'summary.parser': 'Parser',
+    'summary.placements': 'Placements',
+    'summary.records': 'records',
+    'summary.status': 'Status',
+    'summary.tabsReady': '5 tabs ready',
+    'summary.texts': 'Texts',
+    'summary.views': 'Views',
+    'summary.waitingForFile': 'Waiting for file',
+    'view.diagnostics': 'Diagnostics',
+    'view.threeD': '3D',
+    'view.threeDBoard': '3D board',
+    'viewStatus.ready': 'Ready for a local file, folder, sample, or GitHub URL'
+}
+
+/**
+ * Shared fallback-aware translation helpers for renderer-owned UI text.
+ */
+export class UiText {
+    /**
+     * Translates one key with English fallback copy.
+     * @param {((key: string) => string) | null | undefined} translate
+     * @param {string} key Message key.
+     * @returns {string}
+     */
+    static translate(translate, key) {
+        if (typeof translate !== 'function') {
+            return UiText.fallback(key)
+        }
+
+        const value = translate(key)
+        if (!value || value === key) {
+            return UiText.fallback(key)
+        }
+
+        return value
+    }
+
+    /**
+     * Creates a stable translator function with English fallback copy.
+     * @param {((key: string) => string) | null | undefined} translate
+     * @returns {(key: string) => string}
+     */
+    static createTranslator(translate) {
+        return (key) => UiText.translate(translate, key)
+    }
+
+    /**
+     * Returns fallback copy for one key.
+     * @param {string} key Message key.
+     * @returns {string}
+     */
+    static fallback(key) {
+        return FALLBACK_MESSAGES[key] || key
+    }
+}

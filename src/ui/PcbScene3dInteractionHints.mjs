@@ -32,13 +32,25 @@ export class PcbScene3dInteractionHints {
     /**
      * Resolves the default interaction copy for the current pointer type.
      * @param {{ matchMedia?: (query: string) => { matches?: boolean } }} [environment]
+     * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
-    static resolveDefaultMessage(environment = globalThis.window) {
+    static resolveDefaultMessage(
+        environment = globalThis.window,
+        translate = null
+    ) {
         if (environment?.matchMedia?.('(pointer: coarse)')?.matches) {
+            if (typeof translate === 'function') {
+                const value = translate('scene3d.touchHint')
+                if (value && value !== 'scene3d.touchHint') return value
+            }
             return 'Drag with one finger to orbit, pinch to zoom, and drag with two fingers to pan.'
         }
 
+        if (typeof translate === 'function') {
+            const value = translate('scene3d.pointerHint')
+            if (value && value !== 'scene3d.pointerHint') return value
+        }
         return 'Drag to orbit, right-drag to pan, and use the wheel to zoom.'
     }
 }

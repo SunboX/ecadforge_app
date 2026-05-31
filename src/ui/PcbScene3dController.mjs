@@ -2,6 +2,7 @@ import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
 import { PcbModelArchiveExporter } from './PcbModelArchiveExporter.mjs'
 import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dRuntime } from './PcbScene3dRuntime.mjs'
+import { UiText } from './UiText.mjs'
 
 /**
  * Wires the 3D scene shell to a runtime implementation.
@@ -46,13 +47,16 @@ export class PcbScene3dController {
     /** @type {(visible: boolean) => void} */
     #setLoadingVisible
 
+    /** @type {(key: string) => string} */
+    #translate
+
     /** @type {boolean} */
     #isDisposed
 
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} documentModel
-     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void }} [options]
+     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void, translate?: ((key: string) => string) | null }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }} [options]
      */
     constructor(viewportNode, documentModel, options = {}) {
         this.#viewportNode = viewportNode
@@ -83,6 +87,7 @@ export class PcbScene3dController {
                     archiveBytes
                 ))
         this.#setLoadingVisible = options.setLoadingVisible || (() => {})
+        this.#translate = UiText.createTranslator(options.translate || null)
         this.#isDisposed = false
         this.#runtime = null
         this.#selectionIndex = new Map()
@@ -166,7 +171,8 @@ export class PcbScene3dController {
             }
 
             this.#setDiagnostics([
-                '3D preview could not start: ' +
+                this.#translate('scene3d.startFailed') +
+                    ' ' +
                     String(error?.message || error || 'Unknown error.')
             ])
             this.#setLoadingVisible(false)
@@ -192,7 +198,8 @@ export class PcbScene3dController {
             })
         } catch (error) {
             this.#setDiagnostics([
-                '3D preview could not start: ' +
+                this.#translate('scene3d.startFailed') +
+                    ' ' +
                     String(error?.message || error || 'Unknown error.')
             ])
             this.#setLoadingVisible(false)
@@ -244,7 +251,7 @@ export class PcbScene3dController {
     /**
      * Mounts the runtime for one prepared scene description.
      * @param {any} sceneDescription
-     * @param {{ createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
+     * @param {{ createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void, translate?: ((key: string) => string) | null }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void } }} options
      * @returns {void}
      */
     #mountScene(sceneDescription, options) {
@@ -262,7 +269,8 @@ export class PcbScene3dController {
 
         this.#runtime = createRuntime(this.#viewportNode, sceneDescription, {
             setDiagnostics: (messages) => this.#setDiagnostics(messages),
-            setSelection: (selection) => this.#setSelection(selection)
+            setSelection: (selection) => this.#setSelection(selection),
+            translate: this.#translate
         })
     }
 
@@ -376,7 +384,7 @@ export class PcbScene3dController {
      */
     async #handleExportAction() {
         if (!this.#sceneDescription) {
-            this.#setDiagnostics(['3D scene is still preparing.'])
+            this.#setDiagnostics([this.#translate('scene3d.stillPreparing')])
             return
         }
 
@@ -401,7 +409,7 @@ export class PcbScene3dController {
 
             if (!exportedCount) {
                 this.#setDiagnostics([
-                    'No STEP or WRL models were resolved for export.'
+                    this.#translate('scene3d.noModelsForExport')
                 ])
                 return
             }
@@ -417,20 +425,33 @@ export class PcbScene3dController {
                 return
             }
 
-            const noun = exportedCount === 1 ? 'model file' : 'model files'
+            const noun =
+                exportedCount === 1
+                    ? this.#translate('scene3d.modelFile')
+                    : this.#translate('scene3d.modelFiles')
             const skippedSummary =
                 skippedCount > 0
-                    ? ' Skipped ' +
+                    ? ' ' +
+                      this.#translate('scene3d.skipped') +
+                      ' ' +
                       skippedCount +
-                      ' unresolved ' +
-                      (skippedCount === 1 ? 'entry.' : 'entries.')
+                      ' ' +
+                      this.#translate('scene3d.unresolved') +
+                      ' ' +
+                      (skippedCount === 1
+                          ? this.#translate('scene3d.entry')
+                          : this.#translate('scene3d.entries')) +
+                      '.'
                     : ''
             this.#setDiagnostics([
-                'Downloaded ' +
+                this.#translate('scene3d.downloaded') +
+                    ' ' +
                     exportedCount +
                     ' ' +
                     noun +
-                    ' to ' +
+                    ' ' +
+                    this.#translate('scene3d.to') +
+                    ' ' +
                     String(archiveResult.archiveName || 'model archive') +
                     '.' +
                     skippedSummary
@@ -441,7 +462,8 @@ export class PcbScene3dController {
             }
 
             this.#setDiagnostics([
-                'Model ZIP export failed: ' +
+                this.#translate('scene3d.exportFailed') +
+                    ' ' +
                     String(error?.message || error || 'Unknown error.')
             ])
         }
@@ -460,7 +482,10 @@ export class PcbScene3dController {
         const list = Array.isArray(messages) ? messages.filter(Boolean) : []
         this.#diagnosticsNode.textContent = list.length
             ? list.join(' ')
-            : PcbScene3dInteractionHints.resolveDefaultMessage()
+            : PcbScene3dInteractionHints.resolveDefaultMessage(
+                  globalThis.window,
+                  this.#translate
+              )
     }
 
     /**
@@ -476,14 +501,30 @@ export class PcbScene3dController {
         const designator = String(selection?.designator || '').trim()
         if (!designator) {
             this.#selectionNode.innerHTML =
-                '<h4 class="scene-3d__selection-title">Component inspector</h4><p class="scene-3d__selection-empty">Click a component to inspect it.</p>'
+                '<h4 class="scene-3d__selection-title">' +
+                PcbScene3dController.#escapeHtml(
+                    this.#translate('scene3d.componentInspector')
+                ) +
+                '</h4><p class="scene-3d__selection-empty">' +
+                PcbScene3dController.#escapeHtml(
+                    this.#translate('scene3d.inspectPrompt')
+                ) +
+                '</p>'
             return
         }
 
         const selectionEntry = this.#selectionIndex.get(designator)
         if (!selectionEntry) {
             this.#selectionNode.innerHTML =
-                '<h4 class="scene-3d__selection-title">Component inspector</h4><p class="scene-3d__selection-empty">No metadata is available for ' +
+                '<h4 class="scene-3d__selection-title">' +
+                PcbScene3dController.#escapeHtml(
+                    this.#translate('scene3d.componentInspector')
+                ) +
+                '</h4><p class="scene-3d__selection-empty">' +
+                PcbScene3dController.#escapeHtml(
+                    this.#translate('scene3d.noMetadataFor')
+                ) +
+                ' ' +
                 PcbScene3dController.#escapeHtml(designator) +
                 '.</p>'
             return
@@ -492,26 +533,26 @@ export class PcbScene3dController {
         const component = selectionEntry.component
         const externalPlacement = selectionEntry.externalPlacement
         const fields = [
-            ['Designator', designator],
+            [this.#translate('scene3d.designator'), designator],
             [
-                'Picked',
+                this.#translate('scene3d.picked'),
                 selection?.sourceType === 'external-model'
-                    ? 'External model'
-                    : 'Fallback body'
+                    ? this.#translate('scene3d.externalModel')
+                    : this.#translate('scene3d.fallbackBody')
             ],
             [
-                'Mount side',
+                this.#translate('scene3d.mountSide'),
                 externalPlacement?.mountSide || component?.mountSide || ''
             ],
             [
-                'Rotation',
+                this.#translate('scene3d.rotation'),
                 PcbScene3dController.#formatMilValue(
                     component?.rotationDeg ?? externalPlacement?.rotationDeg,
                     'deg'
                 )
             ],
             [
-                'Board position',
+                this.#translate('scene3d.boardPosition'),
                 component?.boardPositionMil
                     ? PcbScene3dController.#formatPoint(
                           component.boardPositionMil,
@@ -519,10 +560,16 @@ export class PcbScene3dController {
                       )
                     : ''
             ],
-            ['Pattern', String(component?.pattern || '')],
-            ['Source', String(component?.source || '')],
             [
-                'Model',
+                this.#translate('scene3d.pattern'),
+                String(component?.pattern || '')
+            ],
+            [
+                this.#translate('scene3d.source'),
+                String(component?.source || '')
+            ],
+            [
+                this.#translate('scene3d.model'),
                 externalPlacement?.externalModel
                     ? String(externalPlacement.externalModel.name || '') +
                       ' (' +
@@ -536,7 +583,7 @@ export class PcbScene3dController {
                       : ''
             ],
             [
-                'Body position',
+                this.#translate('scene3d.bodyPosition'),
                 externalPlacement?.bodyPositionMil
                     ? PcbScene3dController.#formatPoint(
                           externalPlacement.bodyPositionMil,
@@ -545,14 +592,14 @@ export class PcbScene3dController {
                     : ''
             ],
             [
-                'Body rotation',
+                this.#translate('scene3d.bodyRotation'),
                 PcbScene3dController.#formatMilValue(
                     externalPlacement?.bodyRotationDeg,
                     'deg'
                 )
             ],
             [
-                'Model rotation',
+                this.#translate('scene3d.modelRotation'),
                 externalPlacement?.modelTransform?.rotationDeg
                     ? 'X ' +
                       PcbScene3dController.#formatNumber(
@@ -578,7 +625,11 @@ export class PcbScene3dController {
         ].filter(([, value]) => String(value || '').trim())
 
         this.#selectionNode.innerHTML =
-            '<h4 class="scene-3d__selection-title">Component inspector</h4><dl class="scene-3d__selection-list">' +
+            '<h4 class="scene-3d__selection-title">' +
+            PcbScene3dController.#escapeHtml(
+                this.#translate('scene3d.componentInspector')
+            ) +
+            '</h4><dl class="scene-3d__selection-list">' +
             fields
                 .map(
                     ([label, value]) =>

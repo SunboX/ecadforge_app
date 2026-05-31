@@ -101,6 +101,7 @@ export class PcbScene3dTrueTypeTextFactory {
             return null
         }
 
+        const mirrorY = Boolean(options?.mirrorY)
         const textureInfo = PcbScene3dTrueTypeTextFactory.#buildTextureInfo(
             THREE,
             text,
@@ -127,7 +128,7 @@ export class PcbScene3dTrueTypeTextFactory {
             normalizeBoardPoint,
             Number(text?.x || 0),
             Number(text?.y || 0),
-            Boolean(options?.mirrorY)
+            mirrorY
         )
 
         mesh.name = 'true-type-text'
@@ -135,8 +136,13 @@ export class PcbScene3dTrueTypeTextFactory {
         mesh.userData.scene3dViewCompensation = true
         mesh.userData.scene3dViewCompensationAxes = {
             x: false,
-            y: true,
+            y: !mirrorY,
             z: false
+        }
+        if (!mirrorY) {
+            mesh.userData.scene3dViewCompensationAxisSources = {
+                y: 'board-mirror'
+            }
         }
         mesh.position.set(position.x, position.y, z)
         mesh.rotation.z = (Number(text?.rotation || 0) * Math.PI) / 180
@@ -591,21 +597,13 @@ export class PcbScene3dTrueTypeTextFactory {
         const authoredRectangle =
             PcbScene3dTrueTypeTextFactory.#resolveAuthoredRectangle(
                 text,
-                metrics,
                 knockout
             )
-        const expandsCompactBox =
-            authoredRectangle &&
-            PcbScene3dTrueTypeTextFactory.#usesCompactImplicitRectangle(
-                text,
-                authoredRectangle.width
-            )
-        const authoredPadding = expandsCompactBox ? padding : 0
         const width =
-            authoredRectangle?.width + authoredPadding * 2 ||
+            authoredRectangle?.width ||
             Math.max(metrics.width, 1) + padding * 2
         const height =
-            authoredRectangle?.height + authoredPadding * 2 ||
+            authoredRectangle?.height ||
             Math.max(metrics.height, 1) + padding * 2
 
         if (!authoredRectangle) {
@@ -618,52 +616,42 @@ export class PcbScene3dTrueTypeTextFactory {
                 anchorY: padding + Number(metrics.ascent || 0)
             }
         }
-        const authoredBaselineX =
-            PcbScene3dTrueTypeTextFactory.#authoredBaselineX(
-                text,
-                metrics,
-                authoredRectangle.width,
-                padding
-            )
-        const authoredBaselineY =
-            PcbScene3dTrueTypeTextFactory.#authoredBaselineY(
-                text,
-                metrics,
-                authoredRectangle.height,
-                padding
-            )
-        const baselineX = authoredPadding + authoredBaselineX
-        const baselineY = authoredPadding + authoredBaselineY
+        const baselineX = PcbScene3dTrueTypeTextFactory.#authoredBaselineX(
+            text,
+            metrics,
+            authoredRectangle.width,
+            padding
+        )
+        const baselineY = PcbScene3dTrueTypeTextFactory.#authoredBaselineY(
+            text,
+            metrics,
+            authoredRectangle.height,
+            padding
+        )
 
         return {
             width,
             height,
             baselineX,
             baselineY,
-            anchorX:
-                authoredPadding +
-                PcbScene3dTrueTypeTextFactory.#authoredAnchorX(
-                    text,
-                    authoredRectangle.width,
-                    authoredBaselineX
-                ),
+            anchorX: baselineX,
             anchorY: baselineY
         }
     }
 
     /**
-     * Resolves explicit inverted rectangle dimensions from source metadata.
+     * Resolves authored inverted rectangle dimensions from source metadata.
      * @param {object} text
-     * @param {{ width: number, height: number }} metrics
      * @param {boolean} knockout
      * @returns {{ width: number, height: number } | null}
      */
-    static #resolveAuthoredRectangle(text, metrics, knockout) {
+    static #resolveAuthoredRectangle(text, knockout) {
         const width = Number(text?.textboxRectWidth)
         const height = Number(text?.textboxRectHeight)
 
         if (
             !knockout ||
+            !Boolean(text?.useInvertedRectangle) ||
             !Number.isFinite(width) ||
             !Number.isFinite(height) ||
             width <= 0 ||
@@ -672,55 +660,7 @@ export class PcbScene3dTrueTypeTextFactory {
             return null
         }
 
-        if (
-            PcbScene3dTrueTypeTextFactory.#hasOversizedImplicitRectangle(
-                text,
-                metrics,
-                width,
-                height
-            )
-        ) {
-            return null
-        }
-
         return { width, height }
-    }
-
-    /**
-     * Checks whether an implicit text box is broad default metadata, not a local label box.
-     * @param {object} text
-     * @param {{ width: number, height: number }} metrics
-     * @param {number} width
-     * @param {number} height
-     * @returns {boolean}
-     */
-    static #hasOversizedImplicitRectangle(text, metrics, width, height) {
-        if (Boolean(text?.useInvertedRectangle)) {
-            return false
-        }
-
-        const textHeight = PcbScene3dTrueTypeTextFactory.#textHeight(text)
-        const naturalWidth = Math.max(
-            PcbScene3dTrueTypeTextFactory.#widestLineLength(text) * textHeight,
-            Number(metrics?.width || 0),
-            textHeight
-        )
-        const naturalHeight = Math.max(Number(metrics?.height || 0), textHeight)
-
-        return width > naturalWidth * 3 || height > naturalHeight * 3
-    }
-
-    /**
-     * Resolves the widest source line length for coarse box sanity checks.
-     * @param {object} text
-     * @returns {number}
-     */
-    static #widestLineLength(text) {
-        return Math.max(
-            ...PcbScene3dTrueTypeTextFactory.#textLines(text).map((line) =>
-                Math.max(line.length, 1)
-            )
-        )
     }
 
     /**
@@ -770,29 +710,6 @@ export class PcbScene3dTrueTypeTextFactory {
         }
 
         return Math.min(padding, remainingHeight) + Number(metrics.ascent || 0)
-    }
-
-    /** @param {object} text @param {number} width @param {number} fallback @returns {number} */
-    static #authoredAnchorX(text, width, fallback) {
-        if (
-            PcbScene3dTrueTypeTextFactory.#usesCompactImplicitRectangle(
-                text,
-                width
-            )
-        ) {
-            return 0
-        }
-
-        return fallback
-    }
-
-    /** @param {object} text @param {number} width @returns {boolean} */
-    static #usesCompactImplicitRectangle(text, width) {
-        return (
-            !Boolean(text?.useInvertedRectangle) &&
-            PcbScene3dTrueTypeTextFactory.#justificationColumn(text) !== null &&
-            width <= PcbScene3dTrueTypeTextFactory.#textHeight(text) * 2.25
-        )
     }
 
     /** @param {object} text @returns {0 | 1 | 2 | null} */

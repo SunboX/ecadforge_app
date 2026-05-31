@@ -9,6 +9,8 @@ import {
     PcbScene3dScenePreparator as KicadScene3dScenePreparator
 } from 'kicad-toolkit/scene3d'
 import { KicadArcGeometry } from 'kicad-toolkit/parser'
+import { EcadScene3dBoardOutlineRefiner } from './EcadScene3dBoardOutlineRefiner.mjs'
+import { EcadScene3dDrillCutoutBuilder } from './EcadScene3dDrillCutoutBuilder.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
@@ -27,7 +29,10 @@ export class EcadScene3dService {
                   KicadScene3dBuilder.build(documentModel, options),
                   documentModel
               )
-            : AltiumScene3dBuilder.build(documentModel, options)
+            : EcadScene3dService.#augmentAltiumSceneDescription(
+                  AltiumScene3dBuilder.build(documentModel, options),
+                  documentModel
+              )
     }
 
     /**
@@ -47,7 +52,10 @@ export class EcadScene3dService {
             )
         }
 
-        return AltiumScene3dScenePreparator.prepare(documentModel, options)
+        return EcadScene3dService.#augmentAltiumSceneDescription(
+            await AltiumScene3dScenePreparator.prepare(documentModel, options),
+            documentModel
+        )
     }
 
     /**
@@ -67,6 +75,42 @@ export class EcadScene3dService {
                 ? documentModel.pcb.embeddedModels
                 : []
         )
+    }
+
+    /**
+     * Adds app-level Altium scene details needed by the interactive renderer.
+     * @param {object} sceneDescription Base scene description.
+     * @param {object} documentModel Source document model.
+     * @returns {object}
+     */
+    static #augmentAltiumSceneDescription(sceneDescription, documentModel) {
+        const refinedSceneDescription = EcadScene3dBoardOutlineRefiner.refine(
+            sceneDescription,
+            documentModel
+        )
+        const detail = refinedSceneDescription?.detail || {}
+        const pads = Array.isArray(detail.pads)
+            ? detail.pads
+            : Array.isArray(documentModel?.pcb?.pads)
+              ? documentModel.pcb.pads
+              : []
+        const vias = Array.isArray(detail.vias)
+            ? detail.vias
+            : Array.isArray(documentModel?.pcb?.vias)
+              ? documentModel.pcb.vias
+              : []
+
+        return {
+            ...refinedSceneDescription,
+            detail: {
+                ...detail,
+                silkscreen: EcadScene3dDrillCutoutBuilder.augmentSilkscreen(
+                    detail.silkscreen,
+                    pads,
+                    vias
+                )
+            }
+        }
     }
 
     /**

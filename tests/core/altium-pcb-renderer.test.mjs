@@ -147,6 +147,19 @@ test('Altium PCB renderer keeps unowned overlay text visible', () => {
 })
 
 /**
+ * Verifies Altium PCB output opts into the same app-level PCB palette used by
+ * the KiCad renderer.
+ */
+test('Altium PCB renderer uses shared app PCB palette classes', () => {
+    const markup = EcadRendererService.renderPcb(createPcbDocument())
+
+    assert.match(
+        markup,
+        /class="pcb-svg pcb-svg--app-palette pcb-svg--altium"/
+    )
+})
+
+/**
  * Verifies native Altium 3D appearance metadata is preserved for the 3D scene
  * instead of falling back to fixed app colors.
  */

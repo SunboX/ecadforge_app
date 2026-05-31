@@ -70,10 +70,16 @@ export class EcadRendererService {
      * @returns {string}
      */
     static #renderKicadPcb(documentModel, side) {
-        return KicadPcbSvgRenderer.render(documentModel, {
+        const markup = KicadPcbSvgRenderer.render(documentModel, {
             includeOppositeCopper: true,
             side: side === 'bottom' ? 'back' : 'front'
-        }).replace('class="pcb-svg"', 'class="pcb-svg pcb-svg--kicad"')
+        })
+
+        return EcadRendererService.#withPcbSvgClasses(
+            markup,
+            'pcb-svg--app-palette',
+            'pcb-svg--kicad'
+        )
     }
 
     /**
@@ -88,7 +94,11 @@ export class EcadRendererService {
             documentModel,
             { side: side === 'bottom' ? 'back' : 'front' }
         )
-        const markup = AltiumPcbSvgRenderer.render(renderModel)
+        const markup = EcadRendererService.#withPcbSvgClasses(
+            AltiumPcbSvgRenderer.render(renderModel),
+            'pcb-svg--app-palette',
+            'pcb-svg--altium'
+        )
 
         if (side !== 'bottom') {
             return markup
@@ -97,6 +107,22 @@ export class EcadRendererService {
         return markup.replace(
             'Top-facing composite view',
             'Bottom-facing composite view'
+        )
+    }
+
+    /**
+     * Adds app-level PCB SVG modifier classes without changing renderer markup
+     * internals.
+     * @param {string} markup Renderer output markup.
+     * @param {...string} classNames SVG class names to append.
+     * @returns {string}
+     */
+    static #withPcbSvgClasses(markup, ...classNames) {
+        const classes = classNames.filter(Boolean).join(' ')
+
+        return String(markup).replace(
+            'class="pcb-svg"',
+            'class="pcb-svg ' + classes + '"'
         )
     }
 

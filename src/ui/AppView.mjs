@@ -1,11 +1,13 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
+import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { PcbViewController } from './PcbViewController.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SummaryCardRenderer } from './SummaryCardRenderer.mjs'
+import { UiText } from './UiText.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 
 /**
@@ -69,6 +71,9 @@ export class AppView {
     /** @type {HTMLAnchorElement | null} */
     #pcbStylerLinkNode
 
+    /** @type {(key: string) => string} */
+    #translate
+
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
@@ -80,12 +85,12 @@ export class AppView {
 
     #heroPreviewController
 
-    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void }) => PcbScene3dController} */
+    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController} */
     #createScene3dController
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void }) => PcbScene3dController }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -110,6 +115,7 @@ export class AppView {
         this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
         this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
         this.#pcbStylerLinkNode = this.#document.querySelector('#pcbStylerLink')
+        this.#translate = UiText.createTranslator(options.translate || null)
         this.#svgViewportController = null
         this.#pcbViewController = null
         this.#scene3dController = null
@@ -118,12 +124,14 @@ export class AppView {
             ((viewportNode, documentModel, sceneOptions = {}) =>
                 new PcbScene3dController(viewportNode, documentModel, {
                     sessionAssets: sceneOptions.sessionAssets || [],
-                    setLoadingVisible: sceneOptions.setLoadingVisible
+                    setLoadingVisible: sceneOptions.setLoadingVisible,
+                    translate: sceneOptions.translate || this.#translate
                 }))
         this.#heroPreviewController = new HeroPreviewController(
             this.#document,
             {
-                createScene3dController: this.#createScene3dController
+                createScene3dController: this.#createScene3dController,
+                translate: this.#translate
             }
         )
     }
@@ -139,11 +147,23 @@ export class AppView {
         if (bodyClassList) {
             const isViewerMode = Boolean(snapshot.documentModel)
             bodyClassList[isViewerMode ? 'add' : 'remove']('is-viewer-mode')
-            bodyClassList.remove('is-viewer-visual', 'is-viewer-schematic', 'is-viewer-pcb', 'is-viewer-3d')
-            if (isViewerMode && ['schematic', 'pcb', '3d'].includes(snapshot.activeView)) bodyClassList.add('is-viewer-visual')
-            if (isViewerMode && snapshot.activeView === 'schematic') bodyClassList.add('is-viewer-schematic')
-            if (isViewerMode && snapshot.activeView === 'pcb') bodyClassList.add('is-viewer-pcb')
-            if (isViewerMode && snapshot.activeView === '3d') bodyClassList.add('is-viewer-3d')
+            bodyClassList.remove(
+                'is-viewer-visual',
+                'is-viewer-schematic',
+                'is-viewer-pcb',
+                'is-viewer-3d'
+            )
+            if (
+                isViewerMode &&
+                ['schematic', 'pcb', '3d'].includes(snapshot.activeView)
+            )
+                bodyClassList.add('is-viewer-visual')
+            if (isViewerMode && snapshot.activeView === 'schematic')
+                bodyClassList.add('is-viewer-schematic')
+            if (isViewerMode && snapshot.activeView === 'pcb')
+                bodyClassList.add('is-viewer-pcb')
+            if (isViewerMode && snapshot.activeView === '3d')
+                bodyClassList.add('is-viewer-3d')
         }
         this.#renderActiveFile(snapshot.activeFileName)
         this.#renderTabs(snapshot.activeView)
@@ -366,8 +386,8 @@ export class AppView {
         this.#pcbStylerLinkNode.href = url || 'https://pcb-styler.app/'
         this.#pcbStylerLinkNode.textContent =
             mode === 'github'
-                ? 'Open this board in PCB Styler'
-                : 'Export or reopen in PCB Styler'
+                ? this.#translate('pcbStyler.open')
+                : this.#translate('pcbStyler.export')
         this.#pcbStylerCtaNode.removeAttribute('hidden')
     }
 
@@ -381,7 +401,7 @@ export class AppView {
         }
 
         this.#pcbStylerLinkNode.href = 'https://pcb-styler.app/'
-        this.#pcbStylerLinkNode.textContent = 'Open this board in PCB Styler'
+        this.#pcbStylerLinkNode.textContent = this.#translate('pcbStyler.open')
         this.#pcbStylerCtaNode.setAttribute('hidden', 'hidden')
     }
 
@@ -410,7 +430,8 @@ export class AppView {
      */
     #renderActiveFile(fileName) {
         if (!this.#activeFileNode) return
-        this.#activeFileNode.textContent = fileName || 'No file loaded'
+        this.#activeFileNode.textContent =
+            fileName || this.#translate('summary.noFile')
     }
 
     /**
@@ -457,7 +478,10 @@ export class AppView {
     #renderSummary(documentModel) {
         if (!this.#summaryNode) return
 
-        this.#summaryNode.innerHTML = SummaryCardRenderer.render(documentModel)
+        this.#summaryNode.innerHTML = SummaryCardRenderer.render(
+            documentModel,
+            this.#translate
+        )
     }
 
     /**
@@ -480,7 +504,7 @@ export class AppView {
     #renderDocumentRail(snapshot) {
         if (!this.#documentRailNode) return
 
-        const documents = AppView.#filterDocumentsForView(
+        const documents = DocumentRailRenderer.filterDocumentsForView(
             AppView.#resolveSessionDocuments(snapshot),
             snapshot.activeView
         )
@@ -498,10 +522,11 @@ export class AppView {
         this.#viewerStageNode?.classList.add('is-multi-document')
         this.#documentRailNode.innerHTML = documents
             .map((entry) =>
-                AppView.#renderDocumentRailCard(
+                DocumentRailRenderer.renderCard(
                     entry,
                     activeDocumentId,
-                    snapshot.activeView
+                    snapshot.activeView,
+                    this.#translate
                 )
             )
             .join('')
@@ -520,12 +545,16 @@ export class AppView {
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
             this.#contentNode.innerHTML =
-                '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>Parsing native ECAD records in the browser...</p></section>'
+                '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>' +
+                AppView.#escapeHtml(this.#translate('status.loading')) +
+                '</p></section>'
             return
         }
 
         if (!snapshot.documentModel) {
-            this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render()
+            this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render(
+                this.#translate
+            )
             return
         }
 
@@ -540,14 +569,18 @@ export class AppView {
         if (snapshot.activeView === 'pcb') {
             this.#pcbViewController = new PcbViewController(
                 this.#contentNode,
-                snapshot.documentModel
+                snapshot.documentModel,
+                {
+                    translate: this.#translate
+                }
             )
             return
         }
 
         if (snapshot.activeView === '3d') {
             this.#contentNode.innerHTML = Scene3dRenderer.render(
-                snapshot.documentModel
+                snapshot.documentModel,
+                this.#translate
             )
             this.#attachScene3dController(
                 snapshot.documentModel,
@@ -563,8 +596,9 @@ export class AppView {
             return
         }
 
-        this.#contentNode.innerHTML = AppView.#renderDiagnostics(
-            snapshot.documentModel.diagnostics || []
+        this.#contentNode.innerHTML = DocumentRailRenderer.renderDiagnostics(
+            snapshot.documentModel.diagnostics || [],
+            this.#translate
         )
     }
 
@@ -644,7 +678,8 @@ export class AppView {
             documentModel,
             {
                 sessionAssets,
-                setLoadingVisible
+                setLoadingVisible,
+                translate: this.#translate
             }
         )
     }
@@ -657,36 +692,6 @@ export class AppView {
     #disposeScene3dController() {
         this.#scene3dController?.dispose()
         this.#scene3dController = null
-    }
-
-    /**
-     * Renders the diagnostics tab.
-     * @param {{ severity: string, message: string }[]} diagnostics
-     * @returns {string}
-     */
-    static #renderDiagnostics(diagnostics) {
-        if (!diagnostics.length) {
-            return '<section class="viewer-empty">No diagnostics were emitted for this file.</section>'
-        }
-
-        return (
-            '<section class="diagnostics-panel"><header class="svg-panel__header"><h3>Parser diagnostics</h3><p>' +
-            diagnostics.length +
-            ' messages</p></header><ul class="diagnostics-list">' +
-            diagnostics
-                .map(
-                    (diagnostic) =>
-                        '<li class="diagnostic diagnostic--' +
-                        AppView.#escapeHtml(diagnostic.severity) +
-                        '"><span class="diagnostic__severity">' +
-                        AppView.#escapeHtml(diagnostic.severity) +
-                        '</span><p>' +
-                        AppView.#escapeHtml(diagnostic.message) +
-                        '</p></li>'
-                )
-                .join('') +
-            '</ul></section>'
-        )
     }
 
     /**
@@ -709,251 +714,6 @@ export class AppView {
                 documentModel: snapshot.documentModel
             }
         ]
-    }
-
-    /**
-     * Filters the session document list to the files that can render the
-     * current active view.
-     * @param {{ id: string, documentModel: any }[]} documents
-     * @param {string} activeView
-     * @returns {{ id: string, documentModel: any }[]}
-     */
-    static #filterDocumentsForView(documents, activeView) {
-        return documents.filter((entry) =>
-            AppView.#supportsView(entry.documentModel, activeView)
-        )
-    }
-
-    /**
-     * Renders one preview-rail card for a loaded document.
-     * @param {{ id: string, documentModel: any }} entry
-     * @param {string} activeDocumentId
-     * @param {string} activeView
-     * @returns {string}
-     */
-    static #renderDocumentRailCard(entry, activeDocumentId, activeView) {
-        const isActive = entry.id === activeDocumentId
-        const documentModel = entry.documentModel
-        const previewMarkup = AppView.#renderDocumentPreview(
-            entry.id,
-            documentModel,
-            activeView
-        )
-
-        return (
-            '<button class="document-rail__item' +
-            (isActive ? ' is-active' : '') +
-            '" type="button" data-document-id="' +
-            AppView.#escapeHtml(entry.id) +
-            '" aria-pressed="' +
-            (isActive ? 'true' : 'false') +
-            '">' +
-            '<span class="document-rail__preview">' +
-            previewMarkup +
-            '</span>' +
-            '<span class="document-rail__name">' +
-            AppView.#escapeHtml(
-                documentModel?.fileName ||
-                    documentModel?.summary?.title ||
-                    'Document'
-            ) +
-            '</span>' +
-            '</button>'
-        )
-    }
-
-    /**
-     * Renders one compact preview for the preview rail.
-     * @param {string} documentId
-     * @param {any} documentModel
-     * @param {string} activeView
-     * @returns {string}
-     */
-    static #renderDocumentPreview(documentId, documentModel, activeView) {
-        if (activeView === 'schematic') {
-            return AppView.#extractPreviewSvgMarkup(
-                EcadRendererService.renderSchematic(documentModel),
-                'schematic-svg',
-                'document-preview__svg document-preview__svg--schematic',
-                documentId
-            )
-        }
-
-        if (activeView === 'pcb') {
-            return AppView.#extractPreviewSvgMarkup(
-                EcadRendererService.renderPcb(documentModel),
-                'pcb-svg',
-                'document-preview__svg document-preview__svg--pcb',
-                documentId
-            )
-        }
-
-        if (activeView === 'bom') {
-            return AppView.#renderPreviewSummary(
-                'BOM',
-                String(documentModel?.bom?.length || 0) + ' grouped rows',
-                documentModel?.kind === 'schematic'
-                    ? 'Recovered from the current sheet.'
-                    : 'Recovered from the current board.'
-            )
-        }
-
-        if (activeView === '3d') {
-            return AppView.#renderPreviewSummary(
-                '3D',
-                String(documentModel?.summary?.boardWidthMil || 0) +
-                    ' x ' +
-                    String(documentModel?.summary?.boardHeightMil || 0) +
-                    ' mil',
-                String(documentModel?.summary?.componentCount || 0) +
-                    ' placements'
-            )
-        }
-
-        return AppView.#renderPreviewSummary(
-            'Diagnostics',
-            String(documentModel?.diagnostics?.length || 0) + ' messages',
-            documentModel?.diagnostics?.length
-                ? 'Parser findings available.'
-                : 'No diagnostics emitted.'
-        )
-    }
-
-    /**
-     * Extracts the rendered SVG from a full renderer panel and rewrites its
-     * ids and root class for safe use inside the preview rail.
-     * @param {string} markup
-     * @param {string} sourceClassName
-     * @param {string} previewClassName
-     * @param {string} documentId
-     * @returns {string}
-     */
-    static #extractPreviewSvgMarkup(
-        markup,
-        sourceClassName,
-        previewClassName,
-        documentId
-    ) {
-        const escapedClassName = sourceClassName.replace(
-            /[.*+?^${}()|[\]\\]/g,
-            '\\$&'
-        )
-        const svgMatch = markup.match(
-            new RegExp(
-                '<svg\\b(?=[^>]*\\bclass="([^"]*\\b' +
-                    escapedClassName +
-                    '\\b[^"]*)")[^>]*>[\\s\\S]*?<\\/svg>'
-            )
-        )
-
-        if (!svgMatch) {
-            return AppView.#renderPreviewSummary(
-                'Preview',
-                'Unavailable',
-                'Preview markup could not be extracted.'
-            )
-        }
-
-        const previewSvgMarkup = svgMatch[0].replace(
-            /class="[^"]*"/,
-            'class="' +
-                AppView.#previewSvgClassName(svgMatch[1], previewClassName) +
-                '"'
-        )
-
-        return AppView.#prefixSvgMarkupIds(
-            previewSvgMarkup,
-            'preview-' + documentId
-        )
-    }
-
-    /**
-     * Preserves source renderer modifier classes on preview SVGs.
-     * @param {string} sourceClassList Original SVG class attribute.
-     * @param {string} previewClassName Preview class replacement.
-     * @returns {string}
-     */
-    static #previewSvgClassName(sourceClassList, previewClassName) {
-        const retainedModifiers = String(sourceClassList)
-            .split(/\s+/)
-            .filter((className) => /--[a-z0-9-]+$/i.test(className))
-
-        return [previewClassName, ...retainedModifiers].join(' ')
-    }
-
-    /**
-     * Prefixes in-markup ids and matching `url(#...)` references so repeated
-     * preview SVGs do not collide inside the same document.
-     * @param {string} markup
-     * @param {string} prefix
-     * @returns {string}
-     */
-    static #prefixSvgMarkupIds(markup, prefix) {
-        const idMap = new Map()
-        let updatedMarkup = markup.replace(/\sid="([^"]+)"/g, (_match, id) => {
-            const nextId = prefix + '-' + id
-            idMap.set(id, nextId)
-            return ' id="' + nextId + '"'
-        })
-
-        idMap.forEach((nextId, id) => {
-            updatedMarkup = updatedMarkup.replaceAll(
-                'url(#' + id + ')',
-                'url(#' + nextId + ')'
-            )
-        })
-
-        return updatedMarkup
-    }
-
-    /**
-     * Renders one summary-style preview card body.
-     * @param {string} label
-     * @param {string} value
-     * @param {string} detail
-     * @returns {string}
-     */
-    static #renderPreviewSummary(label, value, detail) {
-        return (
-            '<span class="document-preview__summary">' +
-            '<span class="document-preview__label">' +
-            AppView.#escapeHtml(label) +
-            '</span>' +
-            '<strong>' +
-            AppView.#escapeHtml(value) +
-            '</strong>' +
-            '<small>' +
-            AppView.#escapeHtml(detail) +
-            '</small>' +
-            '</span>'
-        )
-    }
-
-    /**
-     * Returns true when the document model supports the requested top-level
-     * view.
-     * @param {any} documentModel
-     * @param {string} activeView
-     * @returns {boolean}
-     */
-    static #supportsView(documentModel, activeView) {
-        if (activeView === 'schematic') {
-            return Boolean(documentModel?.schematic)
-        }
-
-        if (activeView === 'pcb' || activeView === '3d') {
-            return Boolean(documentModel?.pcb)
-        }
-
-        if (activeView === 'bom') {
-            return Array.isArray(documentModel?.bom)
-        }
-
-        if (activeView === 'diagnostics') {
-            return Array.isArray(documentModel?.diagnostics)
-        }
-
-        return false
     }
 
     /**

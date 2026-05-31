@@ -1,5 +1,6 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
+import { UiText } from './UiText.mjs'
 
 /**
  * Renders the landing-page preview from the same document renderers used by
@@ -10,18 +11,20 @@ export class HeroPreviewRenderer {
      * Renders one hero preview view.
      * @param {any[]} documentModels Parsed document models.
      * @param {string} activeView Selected preview view.
+     * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
-    static render(documentModels, activeView) {
+    static render(documentModels, activeView, translate = null) {
+        const t = UiText.createTranslator(translate)
         const documentModel = HeroPreviewRenderer.resolveDocument(
             documentModels,
             activeView
         )
         if (!documentModel) {
             return HeroPreviewRenderer.#renderPreviewSummary(
-                'Preview',
-                'Unavailable',
-                'No compatible demo document was found.'
+                t('preview.label'),
+                t('preview.unavailable'),
+                t('preview.noCompatibleDemo')
             )
         }
 
@@ -34,14 +37,14 @@ export class HeroPreviewRenderer {
         }
 
         if (activeView === '3d') {
-            return HeroPreviewRenderer.#renderScene3d(documentModel)
+            return HeroPreviewRenderer.#renderScene3d(documentModel, t)
         }
 
         if (activeView === 'bom') {
             return HeroPreviewRenderer.#renderBom(documentModel)
         }
 
-        return HeroPreviewRenderer.#renderDiagnostics(documentModel)
+        return HeroPreviewRenderer.#renderDiagnostics(documentModel, t)
     }
 
     /**
@@ -90,12 +93,13 @@ export class HeroPreviewRenderer {
     /**
      * Renders the compact 3D shell with the real 3D scene renderer.
      * @param {any} documentModel Parsed document model.
+     * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderScene3d(documentModel) {
+    static #renderScene3d(documentModel, translate) {
         return (
             '<div class="hero-proof__scene" data-hero-preview-view="3d">' +
-            Scene3dRenderer.render(documentModel) +
+            Scene3dRenderer.render(documentModel, translate) +
             '</div>'
         )
     }
@@ -116,20 +120,35 @@ export class HeroPreviewRenderer {
     /**
      * Renders parser diagnostics for the landing preview.
      * @param {any} documentModel Parsed document model.
+     * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderDiagnostics(documentModel) {
+    static #renderDiagnostics(documentModel, translate) {
         const diagnostics = Array.isArray(documentModel?.diagnostics)
             ? documentModel.diagnostics
             : []
         if (!diagnostics.length) {
-            return '<section class="hero-proof__diagnostics" data-hero-preview-view="diagnostics"><strong>No diagnostics</strong><p>The demo file did not emit parser diagnostics.</p></section>'
+            return (
+                '<section class="hero-proof__diagnostics" data-hero-preview-view="diagnostics"><strong>' +
+                HeroPreviewRenderer.#escapeHtml(
+                    translate('preview.noDiagnostics')
+                ) +
+                '</strong><p>' +
+                HeroPreviewRenderer.#escapeHtml(
+                    translate('preview.demoNoDiagnostics')
+                ) +
+                '</p></section>'
+            )
         }
 
         return (
             '<section class="hero-proof__diagnostics" data-hero-preview-view="diagnostics"><strong>' +
             String(diagnostics.length) +
-            ' diagnostics</strong><ul>' +
+            ' ' +
+            HeroPreviewRenderer.#escapeHtml(
+                translate('diagnostics.messagesSuffix')
+            ) +
+            '</strong><ul>' +
             diagnostics
                 .map(
                     (diagnostic) =>
@@ -177,9 +196,9 @@ export class HeroPreviewRenderer {
 
         if (!svgMatch) {
             return HeroPreviewRenderer.#renderPreviewSummary(
-                'Preview',
-                'Unavailable',
-                'Preview markup could not be extracted.'
+                UiText.fallback('preview.label'),
+                UiText.fallback('preview.unavailable'),
+                UiText.fallback('preview.markupUnavailable')
             )
         }
 

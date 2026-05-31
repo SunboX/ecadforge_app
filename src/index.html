@@ -6,15 +6,18 @@
         <meta
             name="description"
             content="Open Altium and KiCad designs locally in your browser. View schematics, PCB layouts, 3D boards, BOMs and diagnostics without uploading your files."
+            data-i18n-attr="content:app.metaDescription"
         />
         <meta name="robots" content="index,follow" />
         <meta
             property="og:title"
             content="ECAD Forge – Altium & KiCad Viewer in Your Browser"
+            data-i18n-attr="content:app.ogTitle"
         />
         <meta
             property="og:description"
             content="View native Altium and KiCad designs locally in your browser — no upload, no account, no installation."
+            data-i18n-attr="content:app.ogDescription"
         />
         <meta
             property="og:image"
@@ -22,7 +25,7 @@
         />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ecadforge.app/" />
-        <title>ECAD Forge – Altium & KiCad Viewer in Your Browser</title>
+        <title>ECAD Forge - Altium & KiCad Viewer in Your Browser</title>
         <link rel="canonical" href="https://ecadforge.app/" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script type="application/ld+json">
@@ -68,6 +71,7 @@
                     class="brand-lockup"
                     href="/"
                     aria-label="Return to ECAD Forge landing page"
+                    data-i18n-attr="aria-label:app.brandAria"
                 >
                     <p class="eyebrow" data-i18n="app.kicker">
                         Local Browser Viewer
@@ -89,7 +93,9 @@
                         >
                             <path d="M12 3v12" />
                             <path d="m7 8 5-5 5 5" />
-                            <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+                            <path
+                                d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
+                            />
                         </svg>
                         <span data-i18n="app.open">Open local files</span>
                     </label>
@@ -110,7 +116,9 @@
                             viewBox="0 0 24 24"
                             aria-hidden="true"
                         >
-                            <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <path
+                                d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                            />
                         </svg>
                         <span data-i18n="app.openFolder">Open folder</span>
                     </label>
@@ -142,6 +150,18 @@
                             <option value="de" data-i18n="locale.de">
                                 Deutsch
                             </option>
+                            <option value="zh-CN" data-i18n="locale.zh-CN">
+                                简体中文
+                            </option>
+                            <option value="vi" data-i18n="locale.vi">
+                                Tiếng Việt
+                            </option>
+                            <option value="fr" data-i18n="locale.fr">
+                                Français
+                            </option>
+                            <option value="es" data-i18n="locale.es">
+                                Español
+                            </option>
                         </select>
                     </label>
                 </div>
@@ -163,21 +183,32 @@
                     <aside
                         class="hero-proof"
                         aria-label="ECAD Forge output preview"
+                        data-i18n-attr="aria-label:preview.aria"
                     >
-                        <p class="hero-proof__eyebrow">
+                        <p
+                            class="hero-proof__eyebrow"
+                            data-i18n="preview.eyebrow"
+                        >
                             Preview of supported views
                         </p>
-                        <strong>Schematic, PCB, 3D, BOM and diagnostics</strong>
-                        <figure class="hero-proof__screen" id="heroPreviewScreen">
+                        <strong data-i18n="preview.supportedViews"
+                            >Schematic, PCB, 3D, BOM and diagnostics</strong
+                        >
+                        <figure
+                            class="hero-proof__screen"
+                            id="heroPreviewScreen"
+                        >
                             <img
                                 src="/og/ecadforge-product-preview.png"
                                 alt="RP2040 KiCad sample board shown inside ECAD Forge"
+                                data-i18n-attr="alt:preview.imageAlt"
                             />
                         </figure>
                         <ul
                             class="hero-proof__views"
                             id="heroViewChips"
                             aria-label="Preview view selector"
+                            data-i18n-attr="aria-label:preview.viewSelectorAria"
                         >
                             <li>
                                 <button
@@ -185,7 +216,9 @@
                                     data-view-chip="schematic"
                                     aria-pressed="false"
                                 >
-                                    Schematic
+                                    <span data-i18n="view.schematic"
+                                        >Schematic</span
+                                    >
                                 </button>
                             </li>
                             <li>
@@ -194,7 +227,9 @@
                                     data-view-chip="pcb"
                                     aria-pressed="true"
                                 >
-                                    PCB layout
+                                    <span data-i18n="view.pcbLayout"
+                                        >PCB layout</span
+                                    >
                                 </button>
                             </li>
                             <li>
@@ -203,7 +238,9 @@
                                     data-view-chip="3d"
                                     aria-pressed="false"
                                 >
-                                    3D board
+                                    <span data-i18n="view.threeDBoard"
+                                        >3D board</span
+                                    >
                                 </button>
                             </li>
                             <li>
@@ -212,7 +249,7 @@
                                     data-view-chip="bom"
                                     aria-pressed="false"
                                 >
-                                    BOM
+                                    <span data-i18n="view.bom">BOM</span>
                                 </button>
                             </li>
                             <li>
@@ -221,12 +258,18 @@
                                     data-view-chip="diagnostics"
                                     aria-pressed="false"
                                 >
-                                    Diagnostics
+                                    <span data-i18n="view.diagnostics"
+                                        >Diagnostics</span
+                                    >
                                 </button>
                             </li>
                         </ul>
                     </aside>
-                    <div class="hero-actions" aria-label="Demo actions">
+                    <div
+                        class="hero-actions"
+                        aria-label="Demo actions"
+                        data-i18n-attr="aria-label:action.demoAria"
+                    >
                         <button
                             type="button"
                             class="file-pill file-pill--kicad"
@@ -244,8 +287,16 @@
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
                                 >
-                                    <path d="M3.75 7.5a2 2 0 0 1 2-2h4.55l1.9 2.05h6.05a2 2 0 0 1 2 2v8.75a2 2 0 0 1-2 2H5.75a2 2 0 0 1-2-2V7.5Z" />
-                                    <rect x="7.35" y="10.2" width="9.3" height="6.35" rx="1.25" />
+                                    <path
+                                        d="M3.75 7.5a2 2 0 0 1 2-2h4.55l1.9 2.05h6.05a2 2 0 0 1 2 2v8.75a2 2 0 0 1-2 2H5.75a2 2 0 0 1-2-2V7.5Z"
+                                    />
+                                    <rect
+                                        x="7.35"
+                                        y="10.2"
+                                        width="9.3"
+                                        height="6.35"
+                                        rx="1.25"
+                                    />
                                     <path d="M9.3 12.2h2.55" />
                                     <path d="M13.95 12.2h1.1" />
                                     <circle cx="12.8" cy="12.2" r="0.8" />
@@ -253,7 +304,9 @@
                                     <circle cx="15.05" cy="13.4" r="0.65" />
                                 </g>
                             </svg>
-                            Try KiCad sample
+                            <span data-i18n="action.tryKicad"
+                                >Try KiCad sample</span
+                            >
                         </button>
                         <button
                             type="button"
@@ -272,7 +325,9 @@
                                     stroke-linecap="round"
                                     stroke-linejoin="round"
                                 >
-                                    <path d="M7.25 3.75h6.25l4.75 4.85v11.15a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2Z" />
+                                    <path
+                                        d="M7.25 3.75h6.25l4.75 4.85v11.15a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-14a2 2 0 0 1 2-2Z"
+                                    />
                                     <path d="M13.35 3.95v4.8h4.65" />
                                     <path d="M8.7 11.8h3.25" />
                                     <path d="M14.4 11.8h1.95" />
@@ -282,7 +337,9 @@
                                     <circle cx="17.2" cy="14.15" r="0.75" />
                                 </g>
                             </svg>
-                            Try Altium sample
+                            <span data-i18n="action.tryAltium"
+                                >Try Altium sample</span
+                            >
                         </button>
                         <label
                             class="file-pill file-pill--ghost"
@@ -296,17 +353,20 @@
                             >
                                 <path d="M12 3v12" />
                                 <path d="m7 8 5-5 5 5" />
-                                <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+                                <path
+                                    d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
+                                />
                             </svg>
-                            Open local files
+                            <span data-i18n="app.open">Open local files</span>
                         </label>
                     </div>
                     <form
                         id="githubOpenForm"
                         class="github-open"
                         aria-label="Open from GitHub"
+                        data-i18n-attr="aria-label:github.openAria"
                     >
-                        <label for="githubUrlInput"
+                        <label for="githubUrlInput" data-i18n="github.label"
                             >Paste a GitHub blob/raw URL or project folder
                             URL</label
                         >
@@ -328,7 +388,9 @@
                                     placeholder="https://github.com/owner/repo/tree/main/hardware/project"
                                 />
                             </div>
-                            <button type="submit">Open GitHub URL</button>
+                            <button type="submit" data-i18n="github.open">
+                                Open GitHub URL
+                            </button>
                         </div>
                     </form>
                     <div class="dropzone__chips">
@@ -349,7 +411,13 @@
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
                             >
-                                <rect x="5" y="5" width="14" height="14" rx="2" />
+                                <rect
+                                    x="5"
+                                    y="5"
+                                    width="14"
+                                    height="14"
+                                    rx="2"
+                                />
                                 <path d="M9 5v14M5 10h14M12 14h3" />
                             </svg>
                             PcbDoc
@@ -371,10 +439,12 @@
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
                             >
-                                <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z" />
+                                <path
+                                    d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z"
+                                />
                                 <path d="m9 12 2 2 4-5" />
                             </svg>
-                            No account
+                            <span data-i18n="chip.noAccount">No account</span>
                         </span>
                         <span>
                             <svg
@@ -382,10 +452,14 @@
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
                             >
-                                <path d="M6 18h11a4 4 0 0 0 .8-7.92A6 6 0 0 0 6.4 8.2 4.5 4.5 0 0 0 6 18z" />
+                                <path
+                                    d="M6 18h11a4 4 0 0 0 .8-7.92A6 6 0 0 0 6.4 8.2 4.5 4.5 0 0 0 6 18z"
+                                />
                                 <path d="m6 6 12 12" />
                             </svg>
-                            No server upload
+                            <span data-i18n="chip.noServerUpload"
+                                >No server upload</span
+                            >
                         </span>
                         <span>
                             <svg
@@ -393,25 +467,52 @@
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
                             >
-                                <rect x="4" y="5" width="16" height="14" rx="2" />
+                                <rect
+                                    x="4"
+                                    y="5"
+                                    width="16"
+                                    height="14"
+                                    rx="2"
+                                />
                                 <path d="M8 9h8M8 13h5" />
                             </svg>
-                            Local parsing
+                            <span data-i18n="chip.localParsing"
+                                >Local parsing</span
+                            >
                         </span>
                     </div>
                     <p class="trust-line">
-                        Local browser parsing · No account · No server upload ·
-                        Built and hosted in Germany
+                        <span data-i18n="trust.localParsing"
+                            >Local browser parsing</span
+                        >
+                        · <span data-i18n="chip.noAccount">No account</span> ·
+                        <span data-i18n="chip.noServerUpload"
+                            >No server upload</span
+                        >
+                        ·
+                        <span data-i18n="footer.slogan"
+                            >Built and hosted in Germany</span
+                        >
                     </p>
                     <nav class="secondary-links" aria-label="Viewer resources">
-                        <a href="/kicad-project-viewer">Supported formats</a>
-                        <a href="/ecad-viewer-no-upload"
+                        <a
+                            href="/kicad-project-viewer"
+                            data-i18n="link.supportedFormats"
+                            >Supported formats</a
+                        >
+                        <a
+                            href="/ecad-viewer-no-upload"
+                            data-i18n="link.localParsing"
                             >How local parsing works</a
                         >
-                        <a href="/ecad-viewer-no-upload"
+                        <a
+                            href="/ecad-viewer-no-upload"
+                            data-i18n="link.privacy"
                             >Privacy & security</a
                         >
-                        <a href="https://pcb-styler.app/"
+                        <a
+                            href="https://pcb-styler.app/"
+                            data-i18n="link.pcbStyler"
                             >Need clean assembly images? Try PCB Styler</a
                         >
                     </nav>
@@ -420,13 +521,18 @@
                         id="statusMessage"
                         data-i18n="status.ready"
                     >
-                        Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project
-                        files here. Files are processed locally in your browser.
+                        Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files
+                        here. Files are processed locally in your browser.
                     </p>
                 </div>
             </section>
 
-            <nav class="panel view-tabs" id="viewTabs" aria-label="Viewer tabs">
+            <nav
+                class="panel view-tabs"
+                id="viewTabs"
+                aria-label="Viewer tabs"
+                data-i18n-attr="aria-label:view.tabsAria"
+            >
                 <a
                     class="view-tab"
                     href="/schematic"
@@ -445,7 +551,7 @@
                         <path d="M16 10v4" />
                         <path d="M11 17v4" />
                     </svg>
-                    Schematic
+                    <span data-i18n="view.schematic">Schematic</span>
                 </a>
                 <a
                     class="view-tab"
@@ -463,7 +569,7 @@
                         <path d="M5 10h14" />
                         <path d="M12 14h3" />
                     </svg>
-                    PCB
+                    <span data-i18n="view.pcb">PCB</span>
                 </a>
                 <a
                     class="view-tab"
@@ -480,7 +586,7 @@
                         <path d="m4 12 8 4.5 8-4.5" />
                         <path d="m4 16.5 8 4.5 8-4.5" />
                     </svg>
-                    3D
+                    <span data-i18n="view.threeD">3D</span>
                 </a>
                 <a
                     class="view-tab"
@@ -498,7 +604,7 @@
                         <path d="M9 12h6" />
                         <path d="M9 16h4" />
                     </svg>
-                    BOM
+                    <span data-i18n="view.bom">BOM</span>
                 </a>
                 <a
                     class="view-tab"
@@ -511,12 +617,14 @@
                         viewBox="0 0 24 24"
                         aria-hidden="true"
                     >
-                        <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z" />
+                        <path
+                            d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z"
+                        />
                         <path d="m9 12 2 2 4-5" />
                     </svg>
-                    Diagnostics
+                    <span data-i18n="view.diagnostics">Diagnostics</span>
                 </a>
-                <span class="view-tabs__status">
+                <span class="view-tabs__status" data-i18n="viewStatus.ready">
                     Ready for a local file, folder, sample, or GitHub URL
                 </span>
             </nav>
@@ -526,6 +634,7 @@
                     class="document-rail"
                     id="documentRail"
                     aria-label="Open documents"
+                    data-i18n-attr="aria-label:view.openDocumentsAria"
                     hidden
                 ></aside>
                 <div
@@ -535,12 +644,15 @@
                 ></div>
                 <aside class="pcb-styler-cta" id="pcbStylerCta" hidden>
                     <p>
-                        Need clean assembly images for documentation?
+                        <span data-i18n="pcbStyler.prompt"
+                            >Need clean assembly images for documentation?</span
+                        >
                         <a
                             id="pcbStylerLink"
                             href="https://pcb-styler.app/"
                             target="_blank"
                             rel="noreferrer"
+                            data-i18n="pcbStyler.open"
                         >
                             Open this board in PCB Styler
                         </a>
@@ -548,7 +660,11 @@
                 </aside>
             </section>
 
-            <section class="panel meta-column" aria-label="Current file summary">
+            <section
+                class="panel meta-column"
+                aria-label="Current file summary"
+                data-i18n-attr="aria-label:summary.activeFileAria"
+            >
                 <article class="meta-card">
                     <span class="meta-card__icon" aria-hidden="true">
                         <svg class="icon" viewBox="0 0 24 24">
@@ -559,10 +675,16 @@
                         </svg>
                     </span>
                     <span>
-                        <span class="meta-card__label" data-i18n="app.activeFile"
+                        <span
+                            class="meta-card__label"
+                            data-i18n="app.activeFile"
                             >Active file</span
                         >
-                        <strong id="activeDocumentName">No file loaded</strong>
+                        <strong
+                            id="activeDocumentName"
+                            data-i18n="summary.noFile"
+                            >No file loaded</strong
+                        >
                     </span>
                 </article>
                 <article class="meta-card">
@@ -572,11 +694,16 @@
                         </svg>
                     </span>
                     <span>
-                        <span class="meta-card__label" data-i18n="app.diagnostics"
+                        <span
+                            class="meta-card__label"
+                            data-i18n="app.diagnostics"
                             >Diagnostics</span
                         >
                         <strong
-                            ><span id="diagnosticsCount">0</span> records</strong
+                            ><span id="diagnosticsCount">0</span>
+                            <span data-i18n="summary.records"
+                                >records</span
+                            ></strong
                         >
                     </span>
                 </article>
@@ -592,7 +719,11 @@
                     <span data-i18n="footer.slogan"
                         >Built and hosted in Germany</span
                     >
-                    <span class="germany-flag" aria-label="Germany"></span>
+                    <span
+                        class="germany-flag"
+                        aria-label="Germany"
+                        data-i18n-attr="aria-label:footer.germany"
+                    ></span>
                 </span>
                 <span class="footer-inline__meta">
                     <span class="footer-inline__item">
@@ -620,9 +751,11 @@
                         class="footer-inline__separator"
                         aria-hidden="true"
                     ></span>
-                    <span class="footer-inline__item footer-inline__responsible">
+                    <span
+                        class="footer-inline__item footer-inline__responsible"
+                    >
                         <span data-i18n="footer.responsible">Responsible</span>:
-                        <span
+                        <span data-i18n="footer.address"
                             >André Fiedler, Rödelstraße 7, 08523 Plauen,
                             Germany</span
                         >
@@ -638,7 +771,11 @@
                         title="GitHub"
                         data-i18n-attr="aria-label:footer.githubAria,title:footer.githubTitle"
                     >
-                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <svg
+                            class="icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
                             <path
                                 d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.49.5.09.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.6-3.37-1.34-3.37-1.34-.45-1.15-1.11-1.46-1.11-1.46-.91-.62.07-.61.07-.61 1.01.07 1.54 1.03 1.54 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.5 9.5 0 0 1 12 6.8c.85 0 1.71.12 2.51.34 1.9-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85 0 1.34-.01 2.41-.01 2.74 0 .26.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"
                             />
@@ -653,7 +790,11 @@
                         title="Mastodon"
                         data-i18n-attr="aria-label:footer.mastodonAria,title:footer.mastodonTitle"
                     >
-                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <svg
+                            class="icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
                             <path
                                 d="M23.268 5.313c-.35-2.578-2.617-4.61-5.304-5.004C17.51.242 15.792 0 11.813 0h-.03c-3.98 0-4.835.242-5.288.309C3.882.692 1.496 2.518.917 5.127.64 6.412.61 7.837.661 9.143c.074 1.874.088 3.745.26 5.611.118 1.24.325 2.47.62 3.68.55 2.237 2.777 4.098 4.96 4.857 2.336.792 4.849.923 7.256.38.265-.061.527-.132.786-.213.585-.184 1.27-.39 1.774-.753a.057.057 0 0 0 .023-.043v-1.809a.052.052 0 0 0-.02-.041.053.053 0 0 0-.046-.01 20.282 20.282 0 0 1-4.709.545c-2.73 0-3.463-1.284-3.674-1.818a5.593 5.593 0 0 1-.319-1.433.053.053 0 0 1 .066-.054c1.517.363 3.072.546 4.632.546.376 0 .75 0 1.125-.01 1.57-.044 3.224-.124 4.768-.422.038-.008.077-.015.11-.024 2.435-.464 4.753-1.92 4.989-5.604.008-.145.03-1.52.03-1.67.002-.512.167-3.63-.024-5.545zm-3.748 9.195h-2.561V8.29c0-1.309-.55-1.976-1.67-1.976-1.23 0-1.846.79-1.846 2.35v3.403h-2.546V8.663c0-1.56-.617-2.35-1.848-2.35-1.112 0-1.668.668-1.67 1.977v6.218H4.822V8.102c0-1.31.337-2.35 1.011-3.12.696-.77 1.608-1.164 2.74-1.164 1.311 0 2.302.5 2.962 1.498l.638 1.06.638-1.06c.66-.999 1.65-1.498 2.96-1.498 1.13 0 2.043.395 2.74 1.164.675.77 1.012 1.81 1.012 3.12z"
                             />

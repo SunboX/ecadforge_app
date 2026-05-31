@@ -1,15 +1,16 @@
 /**
  * Runtime translation service backed by JSON bundles.
+ * @typedef {'en' | 'de' | 'zh-CN' | 'vi' | 'fr' | 'es'} AppLocale
  */
 export class I18nService {
-    /** @type {'en' | 'de'} */
+    /** @type {AppLocale} */
     #locale
 
     /** @type {Record<string, string>} */
     #dictionary
 
     /**
-     * @param {'en' | 'de'} locale
+     * @param {AppLocale} locale
      * @param {Record<string, string>} dictionary
      */
     constructor(locale, dictionary) {
@@ -19,18 +20,18 @@ export class I18nService {
 
     /**
      * Creates a service with fetched dictionaries.
-     * @param {'en' | 'de'} preferredLocale
+     * @param {string} preferredLocale
      * @returns {Promise<I18nService>}
      */
     static async create(preferredLocale = 'en') {
-        const locale = preferredLocale === 'de' ? 'de' : 'en'
+        const locale = I18nService.#normalizeLocale(preferredLocale)
         const dictionary = await I18nService.#fetchDictionary(locale)
         return new I18nService(locale, dictionary)
     }
 
     /**
      * Returns active locale.
-     * @returns {'en' | 'de'}
+     * @returns {AppLocale}
      */
     getLocale() {
         return this.#locale
@@ -41,7 +42,7 @@ export class I18nService {
      * @param {string} nextLocale
      */
     async setLocale(nextLocale) {
-        const locale = nextLocale === 'de' ? 'de' : 'en'
+        const locale = I18nService.#normalizeLocale(nextLocale)
         this.#locale = locale
         this.#dictionary = await I18nService.#fetchDictionary(locale)
         this.applyToDom(document)
@@ -64,6 +65,7 @@ export class I18nService {
         if (!documentRef) return
 
         documentRef.documentElement.lang = this.#locale
+        documentRef.title = this.translate('app.pageTitle')
         this.#applyTextTranslations(documentRef)
         this.#applyAttributeTranslations(documentRef)
     }
@@ -114,7 +116,7 @@ export class I18nService {
 
     /**
      * Fetches one locale dictionary file.
-     * @param {'en' | 'de'} locale
+     * @param {AppLocale} locale
      * @returns {Promise<Record<string, string>>}
      */
     static async #fetchDictionary(locale) {
@@ -133,5 +135,34 @@ export class I18nService {
         } catch (_error) {
             return {}
         }
+    }
+
+    /**
+     * Normalizes user-facing locale identifiers to supported bundles.
+     * @param {string} locale
+     * @returns {AppLocale}
+     */
+    static #normalizeLocale(locale) {
+        if (locale === 'de') {
+            return 'de'
+        }
+
+        if (locale === 'zh-CN') {
+            return 'zh-CN'
+        }
+
+        if (locale === 'vi') {
+            return 'vi'
+        }
+
+        if (locale === 'fr') {
+            return 'fr'
+        }
+
+        if (locale === 'es') {
+            return 'es'
+        }
+
+        return 'en'
     }
 }

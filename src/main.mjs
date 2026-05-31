@@ -40,7 +40,8 @@ async function bootstrap() {
                 scenePrepClient: new PcbScene3dWorkerClient(
                     () => new Worker(scene3dWorkerUrl, { type: 'module' })
                 )
-            })
+            }),
+        translate: (key) => i18n.translate(key)
     })
     view.setVersion(loadedVersion)
     const startupSource = StartupSourceResolver.resolve(window.location.href)
@@ -57,17 +58,18 @@ async function bootstrap() {
         void HeroPreviewDemoLoader.load(view)
     }
 
-    await loadVersion(view, loadedVersion)
-    startVersionRefreshLoop(view, loadedVersion)
+    await loadVersion(view, loadedVersion, i18n)
+    startVersionRefreshLoop(view, loadedVersion, i18n)
 }
 
 /**
  * Loads the app version and updates the header.
  * @param {import('./ui/AppView.mjs').AppView} view
  * @param {string} loadedVersion
+ * @param {{ translate: (key: string) => string }} i18n Translation service.
  * @returns {Promise<boolean>}
  */
-async function loadVersion(view, loadedVersion) {
+async function loadVersion(view, loadedVersion, i18n) {
     try {
         const serverVersion = await AppMetaLoader.loadVersion()
 
@@ -84,7 +86,7 @@ async function loadVersion(view, loadedVersion) {
                 serverVersion
             )
         ) {
-            view.setStatus('Refreshing viewer to load the latest renderer...')
+            view.setStatus(i18n.translate('status.refreshing'))
 
             if (typeof window !== 'undefined') {
                 window.location.replace(
@@ -111,9 +113,10 @@ async function loadVersion(view, loadedVersion) {
  * cannot keep stale renderer modules after local edits or deploys.
  * @param {import('./ui/AppView.mjs').AppView} view
  * @param {string} loadedVersion
+ * @param {{ translate: (key: string) => string }} i18n Translation service.
  * @returns {void}
  */
-const startVersionRefreshLoop = (view, loadedVersion) => {
+const startVersionRefreshLoop = (view, loadedVersion, i18n) => {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
         return
     }
@@ -127,7 +130,7 @@ const startVersionRefreshLoop = (view, loadedVersion) => {
 
         isChecking = true
         try {
-            reloadRequested = await loadVersion(view, loadedVersion)
+            reloadRequested = await loadVersion(view, loadedVersion, i18n)
         } finally {
             isChecking = false
         }

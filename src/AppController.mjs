@@ -140,7 +140,6 @@ export class AppController {
             this.#view.bindLocaleChange(async (nextLocale) => {
                 await this.#i18n.setLocale(nextLocale)
                 this.#state.setValue('locale', nextLocale)
-                this.#i18n.applyToDom(document)
                 this.#view.setStatus(
                     this.#i18n.translate('status.localeChanged')
                 )
@@ -224,8 +223,7 @@ export class AppController {
             const parseResult = await this.#parseEntries(entries)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: shouldAdoptPreferredView,
-                statusMessage:
-                    'Design loaded locally. Use the tabs to inspect PCB, schematic, 3D view, BOM and diagnostics.'
+                statusMessage: this.#translate('status.loaded')
             })
             shouldAdoptPreferredView = sessionWasEmpty
             this.#analytics.track('local_file_loaded_success', {
@@ -251,7 +249,7 @@ export class AppController {
     async #loadDemo(demoId) {
         const demo = DemoProjectRegistry.get(demoId)
         if (!demo) {
-            this.#handleParseError('Unknown sample project.')
+            this.#handleParseError(this.#translate('status.unknownSample'))
             return
         }
 
@@ -261,7 +259,7 @@ export class AppController {
         })
         this.#state.patch({
             parseStatus: 'loading',
-            statusMessage: 'Loading sample project locally in your browser...'
+            statusMessage: this.#translate('status.loadingSample')
         })
 
         try {
@@ -273,8 +271,7 @@ export class AppController {
             const parseResult = await this.#parseEntries(entries)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
-                statusMessage:
-                    'This sample project is parsed locally in your browser. Try switching between schematic, PCB, 3D, BOM and diagnostics.'
+                statusMessage: this.#translate('status.loadedSample')
             })
 
             this.#analytics.track('sample_loaded_success', {
@@ -333,8 +330,7 @@ export class AppController {
         })
         this.#state.patch({
             parseStatus: 'loading',
-            statusMessage:
-                'Loading the GitHub source. Parsing still happens locally in your browser...'
+            statusMessage: this.#translate('status.loadingGithub')
         })
 
         try {
@@ -343,8 +339,7 @@ export class AppController {
             GitHubSourceModelLinker.apply(parseResult, source)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
-                statusMessage:
-                    'Design loaded locally. The external file was fetched from GitHub, then parsed in your browser.'
+                statusMessage: this.#translate('status.loadedGithub')
             })
 
             this.#analytics.track('github_url_loaded_success', {
@@ -420,13 +415,14 @@ export class AppController {
      */
     async #fetchParserEntry(url, fileName) {
         if (typeof this.#fetcher !== 'function') {
-            throw new Error('Browser fetch is unavailable.')
+            throw new Error(this.#translate('status.browserFetchUnavailable'))
         }
 
         const response = await this.#fetcher(url)
         if (!response?.ok) {
             throw new Error(
-                'Could not load sample file. HTTP ' +
+                this.#translate('status.sampleLoadHttp') +
+                    ' ' +
                     String(response?.status || 0)
             )
         }
@@ -585,7 +581,7 @@ export class AppController {
     #handleParsedDocuments(documentModels, options = {}) {
         const parsedDocuments = (documentModels || []).filter(Boolean)
         if (!parsedDocuments.length) {
-            throw new Error('Parser did not return any documents.')
+            throw new Error(this.#translate('status.noDocuments'))
         }
 
         const snapshot = this.#state.getSnapshot()
@@ -728,11 +724,12 @@ export class AppController {
         const patch = {
             activeView: viewName
         }
-        const compatibleDocumentId = DocumentViewCompatibility.resolveDocumentId(
-            snapshot.documents,
-            viewName,
-            snapshot.activeDocumentId
-        )
+        const compatibleDocumentId =
+            DocumentViewCompatibility.resolveDocumentId(
+                snapshot.documents,
+                viewName,
+                snapshot.activeDocumentId
+            )
 
         if (compatibleDocumentId) {
             patch.activeDocumentId = compatibleDocumentId

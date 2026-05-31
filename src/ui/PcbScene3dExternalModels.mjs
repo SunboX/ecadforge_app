@@ -1,5 +1,6 @@
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dStepLoader } from './PcbScene3dStepLoader.mjs'
+import { PcbScene3dViewCompensation } from './PcbScene3dViewCompensation.mjs'
 
 /**
  * Loads external 3D models into the Three.js PCB scene.
@@ -75,25 +76,7 @@ export class PcbScene3dExternalModels {
      * @returns {void}
      */
     static applyViewCompensation(externalModelsGroup, viewScale) {
-        const pendingGroups = [externalModelsGroup]
-
-        while (pendingGroups.length) {
-            const group = pendingGroups.pop()
-            if (!group) {
-                continue
-            }
-
-            if (group.userData?.scene3dViewCompensation) {
-                PcbScene3dExternalModels.#applyViewScaleCompensation(
-                    group,
-                    viewScale
-                )
-            }
-
-            if (Array.isArray(group.children)) {
-                group.children.forEach((child) => pendingGroups.push(child))
-            }
-        }
+        PcbScene3dViewCompensation.apply(externalModelsGroup, viewScale)
     }
 
     /**
@@ -271,7 +254,11 @@ export class PcbScene3dExternalModels {
             sourceType: 'external-model'
         }
         viewCompensationGroup.userData.scene3dViewCompensation = true
-        PcbScene3dExternalModels.#applyViewScaleCompensation(
+        viewCompensationGroup.userData.scene3dSourceFrameScale =
+            PcbScene3dExternalModels.#resolveSourceFrameScale(placement)
+        viewCompensationGroup.userData.scene3dViewCompensationAxes =
+            PcbScene3dExternalModels.#resolveViewCompensationAxes(placement)
+        PcbScene3dViewCompensation.applyToGroup(
             viewCompensationGroup,
             modelViewScale
         )
@@ -356,34 +343,41 @@ export class PcbScene3dExternalModels {
     }
 
     /**
-     * Mirrors model geometry back against a preset-level scene mirror.
-     * @param {any} group View compensation group.
-     * @param {{ x?: number, y?: number, z?: number } | null | undefined} viewScale Active scene view scale.
-     * @returns {void}
+     * Resolves the model source-frame scale applied before footprint rotation.
+     * @param {{ externalModel?: { origin?: string } }} placement Placement metadata.
+     * @returns {{ x: number, y: number, z: number }}
      */
-    static #applyViewScaleCompensation(group, viewScale) {
-        const axes = group?.userData?.scene3dViewCompensationAxes || {}
+    static #resolveSourceFrameScale(placement) {
+        if (!PcbScene3dExternalModels.#isEmbeddedExternalModel(placement)) {
+            return { x: 1, y: 1, z: 1 }
+        }
 
-        group?.scale?.set?.(
-            axes.x === false
-                ? 1
-                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.x),
-            axes.y === false
-                ? 1
-                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.y),
-            axes.z === false
-                ? 1
-                : PcbScene3dExternalModels.#resolveViewScaleSign(viewScale?.z)
-        )
+        return { x: 1, y: -1, z: 1 }
     }
 
     /**
-     * Converts one view scale axis into the matching mirror compensation sign.
-     * @param {number | string | undefined} value View scale axis.
-     * @returns {1 | -1}
+     * Resolves view compensation axes for one placement wrapper.
+     * @param {{ externalModel?: { origin?: string } }} placement Placement metadata.
+     * @returns {{ x?: boolean, y?: boolean, z?: boolean }}
      */
-    static #resolveViewScaleSign(value) {
-        return Number(value) < 0 ? -1 : 1
+    static #resolveViewCompensationAxes(placement) {
+        if (!PcbScene3dExternalModels.#isEmbeddedExternalModel(placement)) {
+            return {}
+        }
+
+        return { x: false, y: false, z: false }
+    }
+
+    /**
+     * Checks whether a placement uses an embedded Altium model source frame.
+     * @param {{ externalModel?: { origin?: string } }} placement Placement metadata.
+     * @returns {boolean}
+     */
+    static #isEmbeddedExternalModel(placement) {
+        return (
+            String(placement?.externalModel?.origin || '').toLowerCase() ===
+            'embedded'
+        )
     }
 
     /**

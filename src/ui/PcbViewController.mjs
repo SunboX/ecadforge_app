@@ -14,6 +14,9 @@ export class PcbViewController {
     /** @type {'top' | 'bottom'} */
     #side
 
+    /** @type {((key: string) => string) | null} */
+    #translate
+
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
@@ -23,12 +26,13 @@ export class PcbViewController {
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
      * @param {object} documentModel Document model.
-     * @param {{ side?: 'top' | 'bottom' }} [options] Initial options.
+     * @param {{ side?: 'top' | 'bottom', translate?: ((key: string) => string) | null }} [options] Initial options.
      */
     constructor(contentNode, documentModel, options = {}) {
         this.#contentNode = contentNode
         this.#documentModel = documentModel
         this.#side = PcbViewController.#normalizeSide(options.side)
+        this.#translate = options.translate || null
         this.#svgViewportController = null
         this.#handleClick = (event) => this.#handleSideSelection(event)
 
@@ -84,7 +88,8 @@ export class PcbViewController {
         this.#disposeSvgViewportController()
         this.#contentNode.innerHTML = PcbViewRenderer.render(
             this.#documentModel,
-            this.#side
+            this.#side,
+            this.#translate
         )
         this.#attachSvgViewportController()
     }

@@ -1,12 +1,16 @@
+import { UiText } from './UiText.mjs'
+
 /**
  * Renders the landing-state prompt shown inside the inactive viewer panel.
  */
 export class ViewerEmptyStateRenderer {
     /**
      * Renders the empty viewer markup.
+     * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
-    static render() {
+    static render(translate = null) {
+        const t = UiText.createTranslator(translate)
         return `
             <section class="viewer-empty">
                 <figure class="viewer-empty__mark" aria-hidden="true">
@@ -29,10 +33,9 @@ export class ViewerEmptyStateRenderer {
                     </span>
                     <span class="viewer-empty__plus" aria-hidden="true"></span>
                 </figure>
-                <h3>Drop a design file here or start with a sample project</h3>
+                <h3>${ViewerEmptyStateRenderer.#escapeHtml(t('empty.title'))}</h3>
                 <p>
-                    Supports .SchDoc, .PcbDoc, .PrjPcb, .kicad_pro and
-                    .kicad_pcb. Your files stay on your device.
+                    ${ViewerEmptyStateRenderer.#escapeHtml(t('empty.copy'))}
                 </p>
                 <div class="viewer-empty__actions">
                     <button
@@ -61,7 +64,7 @@ export class ViewerEmptyStateRenderer {
                                 <circle cx="15.05" cy="13.4" r="0.65" />
                             </g>
                         </svg>
-                        Try KiCad sample
+                        ${ViewerEmptyStateRenderer.#escapeHtml(t('action.tryKicad'))}
                     </button>
                     <button
                         type="button"
@@ -90,17 +93,30 @@ export class ViewerEmptyStateRenderer {
                                 <circle cx="17.2" cy="14.15" r="0.75" />
                             </g>
                         </svg>
-                        Try Altium sample
+                        ${ViewerEmptyStateRenderer.#escapeHtml(t('action.tryAltium'))}
                     </button>
                     <label
                         class="file-pill file-pill--ghost"
                         for="fileInput"
                         data-local-open
                     >
-                        Open local files
+                        ${ViewerEmptyStateRenderer.#escapeHtml(t('app.open'))}
                     </label>
                 </div>
             </section>
         `
+    }
+
+    /**
+     * Escapes markup text.
+     * @param {string} value Raw text.
+     * @returns {string}
+     */
+    static #escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
     }
 }

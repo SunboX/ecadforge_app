@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbScene3dExternalModels } from '../../src/ui/PcbScene3dExternalModels.mjs'
 import { PcbScene3dSilkscreenFactory } from '../../src/ui/PcbScene3dSilkscreenFactory.mjs'
 import { PcbScene3dTrueTypeTextFactory } from '../../src/ui/PcbScene3dTrueTypeTextFactory.mjs'
 
@@ -497,7 +496,7 @@ test('PcbScene3dSilkscreenFactory uses authored inverted rectangle dimensions wh
     })
 })
 
-test('PcbScene3dSilkscreenFactory applies margin around compact implicit inverted boxes', () => {
+test('PcbScene3dSilkscreenFactory keeps compact implicit inverted boxes near glyph bounds', () => {
     withFakeCanvas(() => {
         const group = PcbScene3dSilkscreenFactory.buildGroup(
             createFakeThree(),
@@ -535,17 +534,16 @@ test('PcbScene3dSilkscreenFactory applies margin around compact implicit inverte
         const mesh = findTrueTypeGroup(group).children[0]
         const canvas = mesh.material.options.map.image
         const bounds = mesh.geometry.bounds
-
         assert.equal(canvas.__drawOps[0].type, 'fillRect')
-        assert.equal(canvas.__drawOps[0].width, 124.331)
-        assert.equal(canvas.__drawOps[0].height, 56.705)
-        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 50.1655)
-        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(3)), 124.331)
-        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(3)), 56.705)
+        assert.equal(canvas.__drawOps[0].width, 38)
+        assert.equal(canvas.__drawOps[0].height, 54)
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 7)
+        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(3)), 38)
+        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(3)), 54)
         assert.equal(Number(bounds.minX.toFixed(3)), -7)
-        assert.equal(Number(bounds.maxX.toFixed(3)), 117.331)
-        assert.equal(Number(bounds.minY.toFixed(4)), -16.3525)
-        assert.equal(Number(bounds.maxY.toFixed(4)), 40.3525)
+        assert.equal(Number(bounds.maxX.toFixed(3)), 31)
+        assert.equal(Number(bounds.minY.toFixed(4)), -15)
+        assert.equal(Number(bounds.maxY.toFixed(4)), 39)
     })
 })
 
@@ -595,7 +593,7 @@ test('PcbScene3dSilkscreenFactory keeps oversized implicit inverted boxes to nat
     })
 })
 
-test('PcbScene3dSilkscreenFactory keeps wide implicit authored boxes baseline anchored', () => {
+test('PcbScene3dSilkscreenFactory ignores wide implicit box metadata for knockout bounds', () => {
     withFakeCanvas(() => {
         const group = PcbScene3dSilkscreenFactory.buildGroup(
             createFakeThree(),
@@ -629,16 +627,17 @@ test('PcbScene3dSilkscreenFactory keeps wide implicit authored boxes baseline an
         )
         const mesh = findTrueTypeGroup(group).children[0]
         const canvas = mesh.material.options.map.image
-
-        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 108.6295)
-        assert.equal(Number(mesh.geometry.bounds.minX.toFixed(4)), -108.6295)
-        assert.equal(Number(mesh.geometry.bounds.maxX.toFixed(4)), 276.6295)
-        assert.equal(Number(mesh.geometry.bounds.minY.toFixed(4)), -21.8419)
-        assert.equal(Number(mesh.geometry.bounds.maxY.toFixed(4)), 45.8419)
+        assert.equal(canvas.__drawOps[0].width, 208)
+        assert.equal(canvas.__drawOps[0].height, 80)
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 20)
+        assert.equal(Number(mesh.geometry.bounds.minX.toFixed(4)), -20)
+        assert.equal(Number(mesh.geometry.bounds.maxX.toFixed(4)), 188)
+        assert.equal(Number(mesh.geometry.bounds.minY.toFixed(4)), -28)
+        assert.equal(Number(mesh.geometry.bounds.maxY.toFixed(4)), 52)
     })
 })
 
-test('PcbScene3dSilkscreenFactory rotates authored implicit text boxes with their label', () => {
+test('PcbScene3dSilkscreenFactory rotates implicit knockout text with its label', () => {
     withFakeCanvas(() => {
         const group = PcbScene3dSilkscreenFactory.buildGroup(
             createFakeThree(),
@@ -678,14 +677,14 @@ test('PcbScene3dSilkscreenFactory rotates authored implicit text boxes with thei
         const canvas = mesh.material.options.map.image
         const bounds = mesh.geometry.bounds
 
-        assert.equal(canvas.__drawOps[0].width, 123.2195)
-        assert.equal(canvas.__drawOps[0].height, 47.813)
-        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 25.6097)
-        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(4)), 123.2195)
-        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(4)), 47.813)
+        assert.equal(canvas.__drawOps[0].width, 86)
+        assert.equal(canvas.__drawOps[0].height, 54)
+        assert.equal(Number(canvas.__drawOps[1].x.toFixed(4)), 7)
+        assert.equal(Number((bounds.maxX - bounds.minX).toFixed(4)), 86)
+        assert.equal(Number((bounds.maxY - bounds.minY).toFixed(4)), 54)
         assert.equal(Number(bounds.minX.toFixed(4)), -7)
-        assert.equal(Number(bounds.maxX.toFixed(4)), 116.2195)
-        assert.equal(Number(bounds.minY.toFixed(4)), -8.813)
+        assert.equal(Number(bounds.maxX.toFixed(4)), 79)
+        assert.equal(Number(bounds.minY.toFixed(4)), -15)
         assert.equal(Number(bounds.maxY.toFixed(4)), 39)
         assert.equal(mesh.rotation.z, Math.PI / 2)
     })
@@ -915,84 +914,5 @@ test('PcbScene3dSilkscreenFactory skips inverted TrueType duplicates when native
                 .map((op) => op.text),
             ['VISIBLE']
         )
-    })
-})
-
-test('PcbScene3dSilkscreenFactory compensates TrueType labels for mirrored top views', () => {
-    withFakeCanvas(() => {
-        const group = PcbScene3dSilkscreenFactory.buildGroup(
-            createFakeThree(),
-            {
-                top: {
-                    fills: [],
-                    tracks: [],
-                    arcs: [],
-                    texts: [
-                        {
-                            text: 'LABEL',
-                            x: 20,
-                            y: 30,
-                            height: 60,
-                            fontTypeName: 'TrueType'
-                        }
-                    ]
-                },
-                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
-            },
-            18,
-            -18,
-            (x, y) => ({ x, y })
-        )
-        const textMesh = findTrueTypeGroup(group).children[0]
-
-        PcbScene3dExternalModels.applyViewCompensation(group, {
-            x: 1,
-            y: -1,
-            z: 1
-        })
-
-        assert.equal(textMesh.position.y, 30)
-        assert.equal(textMesh.scale.x, 1)
-        assert.equal(textMesh.scale.y, -1)
-        assert.equal(textMesh.scale.z, 1)
-    })
-})
-
-test('PcbScene3dSilkscreenFactory leaves TrueType labels unflipped in bottom views', () => {
-    withFakeCanvas(() => {
-        const group = PcbScene3dSilkscreenFactory.buildGroup(
-            createFakeThree(),
-            {
-                top: {
-                    fills: [],
-                    tracks: [],
-                    arcs: [],
-                    texts: [
-                        {
-                            text: 'LABEL',
-                            x: 20,
-                            y: 30,
-                            height: 60,
-                            fontTypeName: 'TrueType'
-                        }
-                    ]
-                },
-                bottom: { fills: [], tracks: [], arcs: [], texts: [] }
-            },
-            18,
-            -18,
-            (x, y) => ({ x, y })
-        )
-        const textMesh = findTrueTypeGroup(group).children[0]
-
-        PcbScene3dExternalModels.applyViewCompensation(group, {
-            x: -1,
-            y: 1,
-            z: 1
-        })
-
-        assert.equal(textMesh.scale.x, 1)
-        assert.equal(textMesh.scale.y, 1)
-        assert.equal(textMesh.scale.z, 1)
     })
 })

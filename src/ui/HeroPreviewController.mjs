@@ -10,10 +10,11 @@ export class HeroPreviewController {
     #activeView
     #createScene3dController
     #scene3dController
+    #translate
 
     /**
      * @param {Document} documentRef Browser document.
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void }) => { dispose?: () => void } }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => { dispose?: () => void }, translate?: ((key: string) => string) | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#previewNode = documentRef.querySelector('#heroPreviewScreen')
@@ -23,6 +24,7 @@ export class HeroPreviewController {
         this.#createScene3dController =
             options.createScene3dController || (() => ({ dispose() {} }))
         this.#scene3dController = null
+        this.#translate = options.translate || null
         this.#bindSelection()
     }
 
@@ -69,7 +71,8 @@ export class HeroPreviewController {
 
         this.#previewNode.innerHTML = HeroPreviewRenderer.render(
             this.#documentModels,
-            this.#activeView
+            this.#activeView,
+            this.#translate
         )
 
         if (this.#activeView === '3d') {
@@ -123,7 +126,8 @@ export class HeroPreviewController {
             documentModel,
             {
                 sessionAssets: [],
-                setLoadingVisible
+                setLoadingVisible,
+                translate: this.#translate
             }
         )
     }

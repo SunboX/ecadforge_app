@@ -145,8 +145,8 @@ test('package depends on npm Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.22')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.33')
+    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.23')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.34')
     assert.equal(pkg.scripts?.postinstall, undefined)
 })
 
@@ -267,7 +267,10 @@ test('app shell includes localized footer metadata and footer-only version UI', 
         englishMessages['footer.slogan'],
         'Built and hosted in Germany'
     )
-    assert.equal(germanMessages['footer.slogan'], 'Built and hosted in Germany')
+    assert.equal(
+        germanMessages['footer.slogan'],
+        'In Deutschland entwickelt und gehostet'
+    )
 })
 
 /**
@@ -337,7 +340,7 @@ test('app shell implements the marketing landingpage design shell', async () => 
         'utf8'
     )
     const heroRaw = indexRaw.slice(
-        indexRaw.indexOf('<div class="hero-actions"'),
+        indexRaw.indexOf('class="hero-actions"'),
         indexRaw.indexOf('<form')
     )
 
@@ -393,22 +396,22 @@ test('app shell implements the marketing landingpage design shell', async () => 
         heroRaw.indexOf('Try Altium sample') <
             heroRaw.indexOf('Open local files')
     )
-    assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(\)/)
+    assert.match(appViewRaw, /ViewerEmptyStateRenderer\.render\(/)
     assert.match(
         emptyStateRaw,
-        /file-pill file-pill--kicad[\s\S]+Try KiCad sample/
+        /file-pill file-pill--kicad[\s\S]+action\.tryKicad/
     )
     assert.match(
         emptyStateRaw,
-        /file-pill file-pill--altium[\s\S]+Try Altium sample/
+        /file-pill file-pill--altium[\s\S]+action\.tryAltium/
     )
     assert.match(
         emptyStateRaw,
-        /class="icon icon--sample-kicad"[\s\S]+Try KiCad sample/
+        /class="icon icon--sample-kicad"[\s\S]+action\.tryKicad/
     )
     assert.match(
         emptyStateRaw,
-        /class="icon icon--sample-altium"[\s\S]+Try Altium sample/
+        /class="icon icon--sample-altium"[\s\S]+action\.tryAltium/
     )
 })
 

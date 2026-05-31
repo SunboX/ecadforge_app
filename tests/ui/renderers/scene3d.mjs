@@ -192,6 +192,40 @@ test('viewer stylesheet colors Altium PCB silkscreen regions and text', async ()
 })
 
 /**
+ * Verifies Altium and KiCad PCB renderers can share the same app palette
+ * tokens while keeping KiCad-specific selector overrides for presentation
+ * attributes.
+ */
+test('app stylesheet exposes a shared PCB renderer palette', async () => {
+    const css = await readAppStylesheet()
+
+    assert.match(
+        css,
+        /\.pcb-svg--app-palette\s*\{[\s\S]*--pcb-surface-fill:\s*rgba\(199,\s*109,\s*61,\s*0\.24\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--app-palette\s*\{[\s\S]*--pcb-surface-track-color:\s*rgba\(199,\s*82,\s*45,\s*0\.92\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--app-palette\s*\{[\s\S]*--pcb-subsurface-fill:\s*rgba\(15,\s*116,\s*108,\s*0\.07\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--app-palette\s*\{[\s\S]*--pcb-subsurface-track-color:\s*rgba\(15,\s*116,\s*108,\s*0\.56\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--app-palette\s*\{[\s\S]*--pcb-footprint-track-color:\s*rgba\(66,\s*93,\s*112,\s*0\.72\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad\s+\.pcb-drawing--silk\s*\{[\s\S]*stroke:\s*rgba\(66,\s*93,\s*112,\s*0\.72\);/
+    )
+})
+
+/**
  * Verifies KiCad PCB renderer output is recolored from the toolkit's
  * black/gray presentation attributes into the ECAD Forge viewer palette.
  */

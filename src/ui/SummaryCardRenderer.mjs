@@ -1,3 +1,5 @@
+import { UiText } from './UiText.mjs'
+
 /**
  * Renders the compact summary cards below the viewer.
  */
@@ -6,10 +8,12 @@ export class SummaryCardRenderer {
      * Renders summary cards for the current document, or the default cards when
      * no document is loaded.
      * @param {any} documentModel
+     * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
-    static render(documentModel) {
-        return SummaryCardRenderer.#buildCards(documentModel)
+    static render(documentModel, translate = null) {
+        const t = UiText.createTranslator(translate)
+        return SummaryCardRenderer.#buildCards(documentModel, t)
             .map((card) => SummaryCardRenderer.#renderCard(card))
             .join('')
     }
@@ -17,30 +21,31 @@ export class SummaryCardRenderer {
     /**
      * Builds summary card definitions.
      * @param {any} documentModel
+     * @param {(key: string) => string} translate Translation lookup.
      * @returns {{ icon: string, label: string, value: string }[]}
      */
-    static #buildCards(documentModel) {
+    static #buildCards(documentModel, translate) {
         if (!documentModel) {
             return [
                 {
                     icon: 'status',
-                    label: 'Status',
-                    value: 'Waiting for file'
+                    label: translate('summary.status'),
+                    value: translate('summary.waitingForFile')
                 },
                 {
                     icon: 'formats',
-                    label: 'Formats',
+                    label: translate('summary.formats'),
                     value: 'Altium, KiCad'
                 },
                 {
                     icon: 'parser',
-                    label: 'Parser',
-                    value: 'Client-side JS'
+                    label: translate('summary.parser'),
+                    value: translate('summary.clientSideJs')
                 },
                 {
                     icon: 'views',
-                    label: 'Views',
-                    value: '5 tabs ready'
+                    label: translate('summary.views'),
+                    value: translate('summary.tabsReady')
                 }
             ]
         }
@@ -49,22 +54,22 @@ export class SummaryCardRenderer {
             return [
                 {
                     icon: 'components',
-                    label: 'Components',
+                    label: translate('summary.components'),
                     value: String(documentModel.summary.componentCount || 0)
                 },
                 {
                     icon: 'graphics',
-                    label: 'Graphics',
+                    label: translate('summary.graphics'),
                     value: String(documentModel.summary.lineCount || 0)
                 },
                 {
                     icon: 'texts',
-                    label: 'Texts',
+                    label: translate('summary.texts'),
                     value: String(documentModel.summary.textCount || 0)
                 },
                 {
                     icon: 'bom',
-                    label: 'BOM groups',
+                    label: translate('summary.bomGroups'),
                     value: String(documentModel.summary.bomRowCount || 0)
                 }
             ]
@@ -73,22 +78,22 @@ export class SummaryCardRenderer {
         return [
             {
                 icon: 'placements',
-                label: 'Placements',
+                label: translate('summary.placements'),
                 value: String(documentModel.summary.componentCount || 0)
             },
             {
                 icon: 'layers',
-                label: 'Layers',
+                label: translate('summary.layers'),
                 value: String(documentModel.summary.layerCount || 0)
             },
             {
                 icon: 'outline',
-                label: 'Outline segments',
+                label: translate('summary.outlineSegments'),
                 value: String(documentModel.summary.outlineSegmentCount || 0)
             },
             {
                 icon: 'envelope',
-                label: 'Board envelope',
+                label: translate('summary.boardEnvelope'),
                 value:
                     String(documentModel.summary.boardWidthMil || 0) +
                     ' x ' +
@@ -141,14 +146,12 @@ export class SummaryCardRenderer {
             views: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" /><circle cx="12" cy="12" r="3" />',
             components:
                 '<rect x="7" y="7" width="10" height="10" rx="1.5" /><path d="M4 10h3" /><path d="M4 14h3" /><path d="M17 10h3" /><path d="M17 14h3" /><path d="M10 4v3" /><path d="M14 4v3" /><path d="M10 17v3" /><path d="M14 17v3" />',
-            graphics:
-                '<path d="M4 18 9 6l4 8 2-4 5 8" /><path d="M4 18h16" />',
+            graphics: '<path d="M4 18 9 6l4 8 2-4 5 8" /><path d="M4 18h16" />',
             texts: '<path d="M4 6h16" /><path d="M9 6v12" /><path d="M15 6v12" /><path d="M7 18h10" />',
             bom: '<path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h.01" /><path d="M3 12h.01" /><path d="M3 18h.01" />',
             placements:
                 '<circle cx="12" cy="12" r="7" /><path d="M12 3v4" /><path d="M12 17v4" /><path d="M3 12h4" /><path d="M17 12h4" /><circle cx="12" cy="12" r="1.5" />',
-            layers:
-                '<path d="m12 3 8 4.5-8 4.5-8-4.5L12 3z" /><path d="m4 12 8 4.5 8-4.5" /><path d="m4 16.5 8 4.5 8-4.5" />',
+            layers: '<path d="m12 3 8 4.5-8 4.5-8-4.5L12 3z" /><path d="m4 12 8 4.5 8-4.5" /><path d="m4 16.5 8 4.5 8-4.5" />',
             outline:
                 '<rect x="5" y="5" width="14" height="14" rx="3" /><path d="M9 5V3" /><path d="M15 19v2" /><path d="M19 9h2" /><path d="M3 15h2" />',
             envelope:

@@ -385,7 +385,7 @@ test('PcbScene3dExternalModels renders STEP face colors as grouped materials', a
     assert.equal(sideGroup.rotation.z, 0)
     assert.equal(faceGroup.position.z, 30)
     assert.equal(faceGroup.rotation.z, 0)
-    assert.equal(compensationGroup.scale.y, 1)
+    assert.equal(compensationGroup.scale.y, -1)
     assert.equal(modelGroup.position.x, 4)
     assert.equal(modelGroup.position.y, -5)
     assert.equal(modelGroup.position.z, 12)
@@ -403,10 +403,10 @@ test('PcbScene3dExternalModels renders STEP face colors as grouped materials', a
 })
 
 /**
- * Verifies preset-level Altium view mirrors move the placement anchor without
- * mirroring the imported model geometry around that anchor.
+ * Verifies embedded Altium source frames stay normalized while bottom-view X
+ * mirrors still carry model offsets with the board.
  */
-test('PcbScene3dExternalModels compensates model geometry for mirrored view scales', async () => {
+test('PcbScene3dExternalModels normalizes embedded source frames before view mirrors', async () => {
     const externalModelsGroup = new FakeGroup()
     const diagnostics = await PcbScene3dExternalModels.loadIntoScene({
         three: {
@@ -474,6 +474,7 @@ test('PcbScene3dExternalModels compensates model geometry for mirrored view scal
     assert.equal(compensationGroup.scale.z, 1)
     assert.equal(modelGroup.position.x, 2)
     assert.equal(modelGroup.position.y, 5)
+    assert.equal(modelGroup.scale.y, 1000)
 
     PcbScene3dExternalModels.applyViewCompensation(externalModelsGroup, {
         x: -1,
@@ -481,16 +482,16 @@ test('PcbScene3dExternalModels compensates model geometry for mirrored view scal
         z: 1
     })
 
-    assert.equal(compensationGroup.scale.x, -1)
-    assert.equal(compensationGroup.scale.y, 1)
+    assert.equal(compensationGroup.scale.x, 1)
+    assert.equal(compensationGroup.scale.y, -1)
     assert.equal(compensationGroup.scale.z, 1)
 })
 
 /**
- * Verifies view mirrors are cancelled before placement rotation so rotated
- * Altium STEP models keep their authored top-view orientation.
+ * Verifies embedded source-frame normalization happens before placement
+ * rotation so rotated Altium STEP models keep their authored orientation.
  */
-test('PcbScene3dExternalModels compensates mirrored views before placement rotation', async () => {
+test('PcbScene3dExternalModels normalizes embedded source frames before placement rotation', async () => {
     const viewGroup = new THREE.Group()
     const externalModelsGroup = new THREE.Group()
     viewGroup.scale.set(1, -1, 1)
@@ -548,7 +549,9 @@ test('PcbScene3dExternalModels compensates mirrored views before placement rotat
     const faceGroup = sideGroup.children[0]
     const modelGroup = faceGroup.children[0]
     const expected = new THREE.Matrix4()
-        .makeTranslation(40, -70, 30)
+        .makeScale(1, -1, 1)
+        .multiply(new THREE.Matrix4().makeTranslation(40, 70, 30))
+        .multiply(new THREE.Matrix4().makeScale(1, -1, 1))
         .multiply(new THREE.Matrix4().makeRotationZ(Math.PI / 2))
         .multiply(new THREE.Matrix4().makeScale(1000, 1000, 1000))
 
@@ -580,7 +583,7 @@ test('PcbScene3dExternalModels composes KiCad model rotations in z-y-x order', a
                         scale: { x: 1, y: 1, z: 1 }
                     },
                     externalModel: {
-                        origin: 'embedded',
+                        origin: 'session',
                         name: 'matrix.step',
                         format: 'step',
                         payloadText: 'ISO-10303-21;',
@@ -848,7 +851,7 @@ test('PcbScene3dExternalModels keeps bottom-side dz offsets below the board face
     assert.equal(sideGroup.rotation.z, Math.PI)
     assert.equal(faceGroup.position.z, 31.5)
     assert.equal(faceGroup.rotation.z, 0)
-    assert.equal(compensationGroup.scale.y, 1)
+    assert.equal(compensationGroup.scale.y, -1)
     assert.equal(modelGroup.position.z, 12)
     assert.equal(modelGroup.rotation.x, Math.PI / 2)
     assert.equal(modelGroup.rotation.z, -Math.PI / 2)

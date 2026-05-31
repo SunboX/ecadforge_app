@@ -19,6 +19,6 @@ export class PcbScene3dViewScale {
             ? { x: 1, y: -1, z: 1 }
             : normalizedPreset === 'bottom'
               ? { x: -1, y: 1, z: 1 }
-              : { x: 1, y: 1, z: 1 }
+              : { x: 1, y: -1, z: 1 }
     }
 }

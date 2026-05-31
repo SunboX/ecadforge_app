@@ -751,10 +751,10 @@ test('PcbScene3dRuntime mirrors the bottom preset into Altium bottom orientation
     assert.ok(bottomScreenPoint.y > 0)
 })
 
-test('PcbScene3dRuntime keeps the isometric preset unmirrored', () => {
+test('PcbScene3dRuntime mirrors Altium isometric top face like the top preset', () => {
     assert.deepEqual(PcbScene3dRuntime.resolveViewScale('isometric'), {
         x: 1,
-        y: 1,
+        y: -1,
         z: 1
     })
 })
