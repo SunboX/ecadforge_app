@@ -175,10 +175,9 @@ function createSnapshot(activeView) {
 }
 
 /**
- * Verifies viewport-height visual layout is scoped to schematic, PCB, and 3D
- * views.
+ * Verifies viewport-height layout is scoped to resizable viewer views.
  */
-test('AppView scopes viewport-height visual layout to drawing views', () => {
+test('AppView scopes viewport-height layout to resizable views', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument, {
         createScene3dController: () => ({ dispose: () => {} })
@@ -187,7 +186,7 @@ test('AppView scopes viewport-height visual layout to drawing views', () => {
     view.render(createSnapshot('diagnostics'))
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), false)
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
@@ -215,10 +214,17 @@ test('AppView scopes viewport-height visual layout to drawing views', () => {
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), true)
 
+    view.render(createSnapshot('bom'))
+
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
+
     view.render(createSnapshot('diagnostics'))
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), false)
+    assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)

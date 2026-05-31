@@ -155,7 +155,9 @@ export class AppView {
             )
             if (
                 isViewerMode &&
-                ['schematic', 'pcb', '3d'].includes(snapshot.activeView)
+                ['schematic', 'pcb', '3d', 'bom', 'diagnostics'].includes(
+                    snapshot.activeView
+                )
             )
                 bodyClassList.add('is-viewer-visual')
             if (isViewerMode && snapshot.activeView === 'schematic')
