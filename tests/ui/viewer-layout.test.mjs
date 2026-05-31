@@ -53,7 +53,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         layoutCss,
-        /body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell\s*\{[\s\S]*height:\s*calc\(100vh - 1\.55rem\);/
+        /body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.app-shell\s*\{[\s\S]*height:\s*calc\(100vh - 1\.55rem\);/
     )
     assert.doesNotMatch(
         layoutCss,
@@ -75,6 +75,12 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
         css,
         /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*min-height:\s*360px;/
     )
+    assert.match(
+        css,
+        /\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/
+    )
+    assert.doesNotMatch(css, /\.bom-panel\s*\{[^}]*overflow(?:-x)?:/)
+    assert.match(css, /\.bom-panel\s*\{[\s\S]*max-width:\s*100%;/)
     assert.match(
         css,
         /body\.is-viewer-mode\.is-viewer-schematic \.viewer-main,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.viewer-main,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.pcb-view,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.pcb-view__content\s*\{[\s\S]*overflow:\s*hidden;/

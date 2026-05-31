@@ -151,7 +151,8 @@ export class AppView {
                 'is-viewer-visual',
                 'is-viewer-schematic',
                 'is-viewer-pcb',
-                'is-viewer-3d'
+                'is-viewer-3d',
+                'is-viewer-report'
             )
             if (
                 isViewerMode &&
@@ -166,6 +167,11 @@ export class AppView {
                 bodyClassList.add('is-viewer-pcb')
             if (isViewerMode && snapshot.activeView === '3d')
                 bodyClassList.add('is-viewer-3d')
+            if (
+                isViewerMode &&
+                ['bom', 'diagnostics'].includes(snapshot.activeView)
+            )
+                bodyClassList.add('is-viewer-report')
         }
         this.#renderActiveFile(snapshot.activeFileName)
         this.#renderTabs(snapshot.activeView)
@@ -592,9 +598,12 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'bom') {
-            this.#contentNode.innerHTML = EcadRendererService.renderBom(
+            const bomMarkup = EcadRendererService.renderBom(
                 snapshot.documentModel
             )
+            this.#contentNode.innerHTML = bomMarkup.includes('class="bom-panel"')
+                ? bomMarkup
+                : '<div class="bom-panel">' + bomMarkup + '</div>'
             return
         }
 

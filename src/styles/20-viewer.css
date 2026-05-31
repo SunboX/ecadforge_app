@@ -825,6 +825,9 @@ body.is-viewer-mode.is-viewer-pcb .pcb-svg {
 .bom-panel {
     display: grid;
     gap: 1rem;
+    max-width: 100%;
+    min-width: 0;
+    padding-bottom: 0.2rem;
 }
 
 @media (max-width: 860px) {

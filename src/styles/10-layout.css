@@ -16,7 +16,8 @@ body.is-viewer-mode.is-viewer-visual .app-shell {
 }
 
 body.is-viewer-mode.is-viewer-schematic .app-shell,
-body.is-viewer-mode.is-viewer-pcb .app-shell {
+body.is-viewer-mode.is-viewer-pcb .app-shell,
+body.is-viewer-mode.is-viewer-report .app-shell {
     height: calc(100vh - 1.55rem);
 }
 
