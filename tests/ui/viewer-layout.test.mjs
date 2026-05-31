@@ -101,20 +101,20 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
 })
 
 /**
- * Verifies narrow drawing views can scroll vertically instead of letting the
- * fixed desktop workbench height collapse the SVG viewport behind summaries.
+ * Verifies narrow detail views can scroll vertically instead of letting the
+ * fixed desktop workbench height collapse content behind summaries.
  */
-test('mobile drawing views keep the app shell scrollable with visible SVG space', async () => {
+test('mobile detail views keep the app shell scrollable with visible content space', async () => {
     const css = await readViewerStylesheet()
     const layoutCss = await readStylesheet('10-layout.css')
 
     assert.match(
         layoutCss,
-        /@media \(max-width: 720px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*calc\(100vh - 1\.55rem\);/
+        /@media \(max-width: 720px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.app-shell\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*calc\(100vh - 1\.55rem\);/
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.viewer-stage\s*\{[\s\S]*min-height:\s*clamp\(420px,\s*60vh,\s*620px\);/
+        /@media \(max-width: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.viewer-stage\s*\{[\s\S]*min-height:\s*clamp\(420px,\s*60vh,\s*620px\);/
     )
 })
 

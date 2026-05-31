@@ -955,7 +955,8 @@ body.is-viewer-mode.is-viewer-pcb .pcb-svg {
     }
 
     body.is-viewer-mode.is-viewer-schematic .viewer-stage,
-    body.is-viewer-mode.is-viewer-pcb .viewer-stage {
+    body.is-viewer-mode.is-viewer-pcb .viewer-stage,
+    body.is-viewer-mode.is-viewer-report .viewer-stage {
         min-height: clamp(420px, 60vh, 620px);
     }
 
