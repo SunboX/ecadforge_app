@@ -36,6 +36,17 @@ jobs:
                   node-version: 20
                   cache: npm
 
+            - name: Checkout local toolkit dependencies
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              run: |
+                  rm -rf ../altium-toolkit ../kicad-toolkit
+                  git clone --depth 1 https://github.com/SunboX/altium-toolkit.git ../altium-toolkit
+                  git clone --depth 1 https://github.com/SunboX/kicad-toolkit.git ../kicad-toolkit
+
+            - name: Install frontend build dependencies
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              run: npm ci
+
             - name: Build static frontend deployment
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               run: npm run build:static
@@ -54,7 +65,6 @@ jobs:
                   server-dir: ./
                   timeout: 60000
                   exclude: |
-                      **/node_modules/**
                       **/.DS_Store
                       **/.env
                       **/.env.*
@@ -75,7 +85,6 @@ jobs:
                   server-dir: ./
                   timeout: 60000
                   exclude: |
-                      **/node_modules/**
                       **/.DS_Store
                       **/.env
                       **/.env.*

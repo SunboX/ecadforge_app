@@ -70,6 +70,58 @@ test('ftp workflow deploys the static frontend build artifact', async () => {
 })
 
 /**
+ * Verifies the FTP workflow prepares local file dependencies before the static
+ * deploy builder copies browser toolkit modules out of node_modules.
+ */
+test('ftp workflow installs browser build dependencies before static build', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+    const toolkitCheckoutIndex = workflow.indexOf(
+        'name: Checkout local toolkit dependencies'
+    )
+    const installIndex = workflow.indexOf(
+        'name: Install frontend build dependencies'
+    )
+    const buildIndex = workflow.indexOf(
+        'name: Build static frontend deployment'
+    )
+
+    assert.ok(toolkitCheckoutIndex > -1)
+    assert.ok(installIndex > toolkitCheckoutIndex)
+    assert.ok(buildIndex > installIndex)
+    assert.match(
+        workflow,
+        /git clone --depth 1 https:\/\/github\.com\/SunboX\/altium-toolkit\.git \.\.\/altium-toolkit/
+    )
+    assert.match(
+        workflow,
+        /git clone --depth 1 https:\/\/github\.com\/SunboX\/kicad-toolkit\.git \.\.\/kicad-toolkit/
+    )
+    assert.match(
+        workflow,
+        /name: Install frontend build dependencies[\s\S]*?run: npm ci/
+    )
+})
+
+/**
+ * Verifies the static artifact upload includes the curated browser dependency
+ * files emitted under `.deploy-src/node_modules`.
+ */
+test('ftp workflow includes static browser node_modules in frontend deploy', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+    const deployBlock = workflow.match(
+        /name: Deploy static frontend to \.\/[\s\S]*?state-name: \.ftp-deploy-src-state\.json/
+    )?.[0]
+    const retryBlock = workflow.match(
+        /name: Retry deploy static frontend to \.\/[\s\S]*?state-name: \.ftp-deploy-src-state\.json/
+    )?.[0]
+
+    assert.ok(deployBlock)
+    assert.ok(retryBlock)
+    assert.doesNotMatch(deployBlock, /\*\*\/node_modules\/\*\*/)
+    assert.doesNotMatch(retryBlock, /\*\*\/node_modules\/\*\*/)
+})
+
+/**
  * Verifies production dependency installs can use the committed lockfile in
  * the FTP deployment workflow.
  */
