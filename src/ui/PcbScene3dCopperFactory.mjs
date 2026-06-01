@@ -18,9 +18,17 @@ export class PcbScene3dCopperFactory {
      * @param {number} topZ
      * @param {number} bottomZ
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @param {{ coordinateSystem?: string }} [options]
      * @returns {any}
      */
-    static buildGroup(THREE, detail, topZ, bottomZ, normalizeBoardPoint) {
+    static buildGroup(
+        THREE,
+        detail,
+        topZ,
+        bottomZ,
+        normalizeBoardPoint,
+        options = {}
+    ) {
         const group = new THREE.Group()
         const topGroup = PcbScene3dCopperFactory.#buildSideGroup(
             THREE,
@@ -36,7 +44,8 @@ export class PcbScene3dCopperFactory {
             },
             Math.abs(Number(topZ || 0)),
             normalizeBoardPoint,
-            false
+            false,
+            options
         )
         const bottomGroup = PcbScene3dCopperFactory.#buildSideGroup(
             THREE,
@@ -55,7 +64,8 @@ export class PcbScene3dCopperFactory {
             },
             Math.abs(Number(bottomZ || 0)),
             normalizeBoardPoint,
-            true
+            true,
+            options
         )
 
         if (topGroup.children.length) {
@@ -75,9 +85,17 @@ export class PcbScene3dCopperFactory {
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
+     * @param {{ coordinateSystem?: string }} [options]
      * @returns {any}
      */
-    static #buildSideGroup(THREE, detail, z, normalizeBoardPoint, mirrorY) {
+    static #buildSideGroup(
+        THREE,
+        detail,
+        z,
+        normalizeBoardPoint,
+        mirrorY,
+        options = {}
+    ) {
         const group = new THREE.Group()
         const trackMesh = PcbScene3dCopperFactory.#buildTrackMesh(
             THREE,
@@ -109,6 +127,7 @@ export class PcbScene3dCopperFactory {
             z + 0.25,
             normalizeBoardPoint,
             {
+                glyphYUp: PcbScene3dCopperFactory.#usesYUpGlyphs(options),
                 side: mirrorY ? 'bottom' : 'top',
                 mirrorY
             }
@@ -131,6 +150,15 @@ export class PcbScene3dCopperFactory {
         }
 
         return group
+    }
+
+    /**
+     * Checks whether copper text glyph strokes are already in y-up scene space.
+     * @param {{ coordinateSystem?: string } | undefined} options
+     * @returns {boolean}
+     */
+    static #usesYUpGlyphs(options) {
+        return String(options?.coordinateSystem || '') === 'kicad-3d-y-up'
     }
 
     /**

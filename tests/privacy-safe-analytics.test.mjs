@@ -47,3 +47,26 @@ test('PrivacySafeAnalytics ignores unsupported event names and missing trackers'
         })
     })
 })
+
+test('PrivacySafeAnalytics resolves window tracker at track time', () => {
+    const calls = []
+    let tracker = null
+    const analytics = new PrivacySafeAnalytics({
+        trackerProvider: () => tracker
+    })
+
+    analytics.track('landing_view')
+    tracker = {
+        trackEvent(name, properties) {
+            calls.push({ name, properties })
+        }
+    }
+    analytics.track('landing_view')
+
+    assert.deepEqual(calls, [
+        {
+            name: 'landing_view',
+            properties: {}
+        }
+    ])
+})

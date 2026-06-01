@@ -18,6 +18,11 @@ export class PcbScene3dCopperDetailFilter {
             return detail
         }
 
+        const copperTextMaskMatcher =
+            PcbScene3dCopperDetailFilter.#buildCopperTextMaskMatcher(
+                sceneDescription
+            )
+
         return {
             ...detail,
             tracks: PcbScene3dCopperDetailFilter.#filterMaskOpenPrimitives(
@@ -27,7 +32,8 @@ export class PcbScene3dCopperDetailFilter {
                 detail.arcs
             ),
             copperTexts: PcbScene3dCopperDetailFilter.#filterMaskOpenPrimitives(
-                detail.copperTexts
+                detail.copperTexts,
+                copperTextMaskMatcher
             ),
             vias: PcbScene3dCopperDetailFilter.#filterExposedVias(detail.vias)
         }
@@ -89,11 +95,15 @@ export class PcbScene3dCopperDetailFilter {
     /**
      * Keeps copper primitives only when the source declares a mask opening.
      * @param {any[] | undefined} primitives Copper primitive list.
+     * @param {((primitive: object) => boolean) | null} [maskMatcher]
      * @returns {any[]}
      */
-    static #filterMaskOpenPrimitives(primitives) {
+    static #filterMaskOpenPrimitives(primitives, maskMatcher = null) {
         return (primitives || []).filter((primitive) =>
-            PcbScene3dCopperDetailFilter.#hasMaskOpening(primitive)
+            PcbScene3dCopperDetailFilter.#hasMaskOpening(
+                primitive,
+                maskMatcher
+            )
         )
     }
 
@@ -111,9 +121,10 @@ export class PcbScene3dCopperDetailFilter {
     /**
      * Checks whether a copper primitive should break through solder mask.
      * @param {object} primitive Copper primitive.
+     * @param {((primitive: object) => boolean) | null} [maskMatcher]
      * @returns {boolean}
      */
-    static #hasMaskOpening(primitive) {
+    static #hasMaskOpening(primitive, maskMatcher = null) {
         if (primitive?.hasSolderMask === true) {
             return true
         }
@@ -122,10 +133,16 @@ export class PcbScene3dCopperDetailFilter {
             return true
         }
 
-        return (
+        if (
             Number.isFinite(Number(primitive?.solderMaskExpansion)) &&
             Number(primitive?.solderMaskExpansion) !== 0
-        )
+        ) {
+            return true
+        }
+
+        return typeof maskMatcher === 'function'
+            ? maskMatcher(primitive)
+            : false
     }
 
     /**
@@ -145,5 +162,205 @@ export class PcbScene3dCopperDetailFilter {
         ].some((fieldName) =>
             Object.prototype.hasOwnProperty.call(primitive || {}, fieldName)
         )
+    }
+
+    /**
+     * Builds a same-position lookup for KiCad mask-layer text openings.
+     * @param {object} sceneDescription Scene description.
+     * @returns {((primitive: object) => boolean) | null}
+     */
+    static #buildCopperTextMaskMatcher(sceneDescription) {
+        if (
+            !PcbScene3dCopperDetailFilter.#isKiCadScene(sceneDescription) ||
+            !Array.isArray(sceneDescription?.texts)
+        ) {
+            return null
+        }
+
+        const maskTextKeys = new Set()
+        sceneDescription.texts
+            .filter((text) =>
+                PcbScene3dCopperDetailFilter.#isMaskLayerText(text)
+            )
+            .forEach((text) => {
+                PcbScene3dCopperDetailFilter.#textMatchKeys(
+                    text,
+                    sceneDescription
+                ).forEach((key) => maskTextKeys.add(key))
+            })
+
+        if (!maskTextKeys.size) {
+            return null
+        }
+
+        return (primitive) =>
+            maskTextKeys.has(
+                PcbScene3dCopperDetailFilter.#textMatchKey(
+                    primitive,
+                    primitive?.y
+                )
+            )
+    }
+
+    /**
+     * Checks whether one scene uses KiCad scene coordinate conventions.
+     * @param {object} sceneDescription Scene description.
+     * @returns {boolean}
+     */
+    static #isKiCadScene(sceneDescription) {
+        return (
+            String(sceneDescription?.sourceFormat || '')
+                .trim()
+                .toLowerCase() === 'kicad' ||
+            sceneDescription?.coordinateSystem === 'kicad-3d-y-up'
+        )
+    }
+
+    /**
+     * Checks whether one text primitive belongs to a solder-mask layer.
+     * @param {object} text Text primitive.
+     * @returns {boolean}
+     */
+    static #isMaskLayerText(text) {
+        const layer = String(text?.layer || '').trim().toUpperCase()
+        return layer === 'F.MASK' || layer === 'B.MASK'
+    }
+
+    /**
+     * Converts scene text Y back to source board Y for KiCad y-up scenes.
+     * @param {object} text Scene text primitive.
+     * @param {object} sceneDescription Scene description.
+     * @returns {number}
+     */
+    static #sourceYForSceneText(text, sceneDescription) {
+        const y = Number(text?.y || 0)
+        const centerY = Number(sceneDescription?.board?.centerY)
+
+        if (
+            sceneDescription?.coordinateSystem === 'kicad-3d-y-up' &&
+            Number.isFinite(centerY)
+        ) {
+            return centerY * 2 - y
+        }
+
+        return y
+    }
+
+    /**
+     * Builds tolerant keys for matching paired KiCad copper and mask text.
+     * @param {object} text Text primitive.
+     * @param {object} sceneDescription Scene description.
+     * @returns {string[]}
+     */
+    static #textMatchKeys(text, sceneDescription) {
+        return PcbScene3dCopperDetailFilter.#uniqueValues([
+            text?.y,
+            PcbScene3dCopperDetailFilter.#sourceYForSceneText(
+                text,
+                sceneDescription
+            )
+        ]).flatMap((y) =>
+            PcbScene3dCopperDetailFilter.#uniqueValues([
+                text?.rotation,
+                PcbScene3dCopperDetailFilter.#sourceRotationForSceneText(
+                    text,
+                    sceneDescription
+                )
+            ]).map((rotation) =>
+                PcbScene3dCopperDetailFilter.#textMatchKey(text, y, rotation)
+            )
+        )
+    }
+
+    /**
+     * Builds a tolerant key for matching paired KiCad copper and mask text.
+     * @param {object} text Text primitive.
+     * @param {number | string | undefined} y Candidate Y coordinate.
+     * @param {number | string | undefined} rotation Candidate rotation.
+     * @returns {string}
+     */
+    static #textMatchKey(text, y, rotation = text?.rotation) {
+        return [
+            PcbScene3dCopperDetailFilter.#textSide(text),
+            PcbScene3dCopperDetailFilter.#roundCoordinate(text?.x),
+            PcbScene3dCopperDetailFilter.#roundCoordinate(y),
+            PcbScene3dCopperDetailFilter.#roundCoordinate(rotation),
+            text?.mirrored ? 'mirrored' : 'normal',
+            String(text?.value ?? text?.text ?? '').trim()
+        ].join('|')
+    }
+
+    /**
+     * Converts scene text rotation back to source board rotation.
+     * @param {object} text Scene text primitive.
+     * @param {object} sceneDescription Scene description.
+     * @returns {number}
+     */
+    static #sourceRotationForSceneText(text, sceneDescription) {
+        const rotation = Number(text?.rotation || 0)
+
+        if (sceneDescription?.coordinateSystem === 'kicad-3d-y-up') {
+            return ((-rotation % 360) + 360) % 360
+        }
+
+        return rotation
+    }
+
+    /**
+     * Returns unique candidates after coordinate rounding.
+     * @param {Array<number | string | undefined>} values Candidate values.
+     * @returns {Array<number | string | undefined>}
+     */
+    static #uniqueValues(values) {
+        const seen = new Set()
+        const output = []
+
+        values.forEach((value) => {
+            const key = PcbScene3dCopperDetailFilter.#roundCoordinate(value)
+            if (seen.has(key)) {
+                return
+            }
+
+            seen.add(key)
+            output.push(value)
+        })
+
+        return output
+    }
+
+    /**
+     * Resolves one text primitive to the app's top/bottom side names.
+     * @param {object} text Text primitive.
+     * @returns {'top' | 'bottom' | ''}
+     */
+    static #textSide(text) {
+        const layer = String(text?.layer || '').trim().toUpperCase()
+        if (layer.startsWith('B.')) {
+            return 'bottom'
+        }
+
+        if (layer.startsWith('F.')) {
+            return 'top'
+        }
+
+        const side = String(text?.side || '').trim().toLowerCase()
+        if (side === 'back' || side === 'bottom') {
+            return 'bottom'
+        }
+
+        if (side === 'front' || side === 'top') {
+            return 'top'
+        }
+
+        return ''
+    }
+
+    /**
+     * Rounds coordinates to avoid float noise in KiCad mm-to-mil conversion.
+     * @param {number | string | undefined} value Coordinate value.
+     * @returns {number}
+     */
+    static #roundCoordinate(value) {
+        return Math.round(Number(value || 0) * 1000) / 1000
     }
 }

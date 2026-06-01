@@ -5,14 +5,21 @@ export class PrivacySafeAnalytics {
     /** @type {{ trackEvent?: (eventName: string, properties?: object) => void } | null} */
     #tracker
 
+    /** @type {() => ({ trackEvent?: (eventName: string, properties?: object) => void } | null)} */
+    #trackerProvider
+
     /**
-     * @param {{ tracker?: { trackEvent?: (eventName: string, properties?: object) => void } | null }} [dependencies]
+     * @param {{ tracker?: { trackEvent?: (eventName: string, properties?: object) => void } | null, trackerProvider?: () => ({ trackEvent?: (eventName: string, properties?: object) => void } | null) }} [dependencies]
      */
     constructor(dependencies = {}) {
-        this.#tracker =
-            dependencies.tracker === undefined
-                ? globalThis.window?.AnalyticsTracker || null
-                : dependencies.tracker
+        const hasStaticTracker = Object.hasOwn(dependencies, 'tracker')
+        this.#tracker = hasStaticTracker ? dependencies.tracker : null
+        this.#trackerProvider =
+            typeof dependencies.trackerProvider === 'function'
+                ? dependencies.trackerProvider
+                : hasStaticTracker
+                  ? () => null
+                  : () => globalThis.window?.AnalyticsTracker || null
     }
 
     /**
@@ -26,11 +33,12 @@ export class PrivacySafeAnalytics {
             return
         }
 
-        if (typeof this.#tracker?.trackEvent !== 'function') {
+        const tracker = this.#resolveTracker()
+        if (typeof tracker?.trackEvent !== 'function') {
             return
         }
 
-        this.#tracker.trackEvent(
+        tracker.trackEvent(
             eventName,
             PrivacySafeAnalytics.#buildSafeProperties(properties)
         )
@@ -74,6 +82,15 @@ export class PrivacySafeAnalytics {
             .toLowerCase()
             .replace(/[^a-z0-9_-]/g, '_')
             .slice(0, 48)
+    }
+
+    /**
+     * Resolves the current tracker, including trackers installed after app
+     * bootstrap.
+     * @returns {{ trackEvent?: (eventName: string, properties?: object) => void } | null}
+     */
+    #resolveTracker() {
+        return this.#tracker || this.#trackerProvider()
     }
 
     /** @type {Set<string>} */

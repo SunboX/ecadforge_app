@@ -20,3 +20,28 @@ test('rewriteHtmlDocument versions favicon link and brand image assets', () => {
     assert.match(rewritten, /href="\/style\.css\?v=1\.4\.39"/)
     assert.match(rewritten, /src="\/main\.mjs\?v=1\.4\.39"/)
 })
+
+/**
+ * Verifies WebMCP toolkit query services are resolvable in served browser
+ * modules, including static builds that cannot rely on Node package exports.
+ */
+test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
+    const source = [
+        "import { LoadedDesignNetlistService } from 'altium-toolkit/netlist-query'",
+        "import('kicad-toolkit/netlist-query')"
+    ].join('\n')
+
+    const rewritten = ServerAssetVersioner.rewriteJavaScriptModule(
+        source,
+        '1.4.153'
+    )
+
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/altium-toolkit\/src\/netlist-query\.mjs\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /import\('\/node_modules\/kicad-toolkit\/src\/netlist-query\.mjs\?v=1\.4\.153'\)/
+    )
+})

@@ -51,6 +51,102 @@ test('PcbScene3dCopperDetailFilter hides KiCad copper covered by solder mask', (
     )
 })
 
+test('PcbScene3dCopperDetailFilter keeps KiCad copper text with matching mask text', () => {
+    const filtered = PcbScene3dCopperDetailFilter.resolve({
+        sourceFormat: 'kicad',
+        coordinateSystem: 'kicad-3d-y-up',
+        board: { centerY: 200 },
+        texts: [
+            {
+                value: 'OPEN_LABEL',
+                layer: 'F.Mask',
+                side: 'front',
+                x: 100,
+                y: 275,
+                rotation: 0,
+                mirrored: false
+            }
+        ],
+        detail: {
+            copperTexts: [
+                {
+                    id: 'open-label',
+                    value: 'OPEN_LABEL',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    x: 100,
+                    y: 125,
+                    rotation: 0,
+                    mirrored: false
+                },
+                {
+                    id: 'covered-label',
+                    value: 'COVERED_LABEL',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    x: 140,
+                    y: 125,
+                    rotation: 0,
+                    mirrored: false
+                }
+            ]
+        }
+    })
+
+    assert.deepEqual(
+        filtered.copperTexts.map((text) => text.id),
+        ['open-label']
+    )
+})
+
+test('PcbScene3dCopperDetailFilter keeps KiCad scene-space copper text with matching mask text', () => {
+    const filtered = PcbScene3dCopperDetailFilter.resolve({
+        sourceFormat: 'kicad',
+        coordinateSystem: 'kicad-3d-y-up',
+        board: { centerY: 200 },
+        texts: [
+            {
+                value: 'OPEN_LABEL',
+                layer: 'F.Mask',
+                side: 'front',
+                x: 100,
+                y: 275,
+                rotation: 0,
+                mirrored: false
+            }
+        ],
+        detail: {
+            copperTexts: [
+                {
+                    id: 'open-label',
+                    value: 'OPEN_LABEL',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    x: 100,
+                    y: 275,
+                    rotation: 0,
+                    mirrored: false
+                },
+                {
+                    id: 'covered-label',
+                    value: 'COVERED_LABEL',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    x: 140,
+                    y: 275,
+                    rotation: 0,
+                    mirrored: false
+                }
+            ]
+        }
+    })
+
+    assert.deepEqual(
+        filtered.copperTexts.map((text) => text.id),
+        ['open-label']
+    )
+})
+
 test('PcbScene3dCopperDetailFilter hides Altium copper covered by solder mask', () => {
     const filtered = PcbScene3dCopperDetailFilter.resolve({
         sourceFormat: 'altium',

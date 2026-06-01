@@ -138,15 +138,15 @@ test('project licensing metadata uses AGPL dual licensing', async () => {
 })
 
 /**
- * Verifies the reusable Altium and KiCad parsers and non-interactive render
- * cores resolve from published npm package releases.
+ * Verifies the reusable Altium and KiCad parser, renderer, and scene-data
+ * cores resolve from the sibling toolkit repositories during local app work.
  */
-test('package depends on npm Altium and KiCad toolkits', async () => {
+test('package depends on local Altium and KiCad toolkits', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], '^0.1.23')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], '^0.2.34')
+    assert.equal(pkg.dependencies?.['altium-toolkit'], 'file:../altium-toolkit')
+    assert.equal(pkg.dependencies?.['kicad-toolkit'], 'file:../kicad-toolkit')
     assert.equal(pkg.scripts?.postinstall, undefined)
 })
 
@@ -505,6 +505,10 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     )
     assert.match(
         indexRaw,
+        /"altium-toolkit\/netlist-query"\s*:\s*"\/node_modules\/altium-toolkit\/src\/netlist-query\.mjs"/
+    )
+    assert.match(
+        indexRaw,
         /"altium-toolkit\/renderers"\s*:\s*"\/node_modules\/altium-toolkit\/src\/renderers\.mjs"/
     )
     assert.match(
@@ -518,6 +522,10 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"kicad-toolkit\/parser"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/parser\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"kicad-toolkit\/netlist-query"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/netlist-query\.mjs"/
     )
     assert.match(
         indexRaw,

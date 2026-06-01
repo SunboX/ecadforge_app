@@ -634,12 +634,12 @@ test('ECAD 3D service exposes KiCad copper text detail', () => {
     assert.deepEqual(scene.detail.copperTexts, [
         {
             x: 78.74015748031496,
-            y: 118.11023622047244,
+            y: 381.8897637795276,
             value: 'COPPER',
             layer: 'F.Cu',
             side: 'front',
             layerId: 1,
-            rotation: 15,
+            rotation: 345,
             mirrored: false,
             hAlign: 'left',
             vAlign: 'bottom',

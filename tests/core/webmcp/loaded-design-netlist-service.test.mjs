@@ -23,10 +23,12 @@ function createService(documents, activeDocumentId = 'doc-1') {
 /**
  * Builds one fake schematic document with component metadata and nets.
  * @param {string} fileName Loaded file name.
+ * @param {string} [sourceFormat] Source format override.
  * @returns {object}
  */
-function createSchematicDocument(fileName = 'logic.SchDoc') {
+function createSchematicDocument(fileName = 'logic.SchDoc', sourceFormat) {
     return {
+        sourceFormat,
         fileName,
         kind: 'schematic',
         summary: { title: 'Logic Sheet', componentCount: 3 },
@@ -324,4 +326,18 @@ test('LoadedDesignNetlistService handles PCB-only documents without connectivity
     ])
 
     assert.match(service.listNets().error, /No schematic connectivity/)
+})
+
+/**
+ * Verifies app-level dispatch rejects unsupported loaded document formats.
+ */
+test('LoadedDesignNetlistService rejects unsupported source formats', () => {
+    const service = createService([
+        {
+            id: 'doc-1',
+            documentModel: createSchematicDocument('logic.fake', 'unknown')
+        }
+    ])
+
+    assert.match(service.listNets().error, /Unsupported ECAD source format/)
 })

@@ -248,3 +248,41 @@ test('PcbScene3dCopperFactory renders KiCad front copper text as stroke copper',
     assert.ok(bounds.minY < 60)
     assert.ok(bounds.maxZ > 6.99)
 })
+
+test('PcbScene3dCopperFactory orients KiCad y-up copper text glyphs', () => {
+    const group = PcbScene3dCopperFactory.buildGroup(
+        THREE,
+        {
+            tracks: [],
+            arcs: [],
+            pads: [],
+            vias: [],
+            copperTexts: [
+                {
+                    x: 100,
+                    y: 120,
+                    value: 'UP\nDN',
+                    layer: 'F.Cu',
+                    side: 'front',
+                    sizeX: 30,
+                    sizeY: 30,
+                    thickness: 6,
+                    hAlign: 'left',
+                    vAlign: 'bottom',
+                    rotation: 0
+                }
+            ]
+        },
+        7,
+        -7,
+        (x, y) => ({ x: x - 50, y: y - 60 }),
+        { coordinateSystem: 'kicad-3d-y-up' }
+    )
+    const textMesh = findObjectByName(group, 'copper-text')
+
+    assert.ok(textMesh)
+    const bounds = resolveBounds(textMesh.geometry.attributes.position.array)
+
+    assert.ok(bounds.minY > 60)
+    assert.ok(bounds.maxY > 140)
+})

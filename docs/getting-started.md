@@ -33,7 +33,7 @@ indexing after deployment.
 
 ## Analytics
 
-- The app loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js`.
+- The browser entrypoint loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js` only on deployed HTTP(S) origins. Localhost, file URLs, and private-network dev origins do not load the production tracker.
 - The public site key is `ecadforge_app`.
 - Register each deployed browser origin in the Analytics `analytics_sites` table or dashboard before expecting events. The production row should use the deployed app origin and public key `ecadforge_app`.
 - Activation events are privacy-safe and only send coarse properties such as source type, format family, active view, and error bucket.
@@ -60,10 +60,10 @@ npm test
 
 ## Sample Corpus
 
-Parser and deterministic renderer tests are validated in the shared
+Parser, deterministic renderer, and non-interactive scene-data tests are validated in the shared
 `altium-toolkit` and `kicad-toolkit` repositories against
 repo-owned fake fixture pieces. Update those packages when parser fixture
-shards or expectations change.
+shards or scene-data expectations change.
 
 The public bundled demos in `src/demo/` are separate from parser test fixtures.
 They retain upstream license/source notices and are used only for product

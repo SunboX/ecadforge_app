@@ -17,16 +17,16 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
 - Browser-native WebMCP tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback
-- Shared parser and non-interactive renderer cores from `altium-toolkit` and `kicad-toolkit`
+- Shared parser, renderer, and non-interactive 3D scene-data cores from `altium-toolkit` and `kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
 
 ## Project Structure
 
-- `altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and non-interactive 3D scene-description utilities
-- `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
+- `altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and complete non-interactive 3D scene-description utilities
+- `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and complete data-only 3D scene helpers
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
-- `src/core/webmcp/`: read-only loaded-session WebMCP adapter, tool registry, netlist query service, grouping, regex, and traversal helpers
+- `src/core/webmcp/`: read-only loaded-session WebMCP adapter, tool registry, and toolkit-backed netlist query dispatcher
 - `src/demo/`: bundled demo project files plus source and license notices
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
@@ -63,6 +63,8 @@ When the browser provides native WebMCP support, ECAD Forge registers read-only
 tools for the designs already loaded in the current session. Agents can list
 loaded designs, components, nets, search metadata, query component pins, and
 trace extended connectivity without uploading files or scanning local paths.
+Netlist extraction, search validation, component grouping, and traversal rules
+are delegated to the Altium and KiCad toolkit query APIs.
 
 See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
 constraints, and unsupported browser-only operations.
@@ -81,7 +83,7 @@ The static build writes `.deploy-src/` with versioned browser module URLs and an
 npm test
 ```
 
-Parser and deterministic renderer tests live in the shared `altium-toolkit` and `kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
+Parser, deterministic renderer, and non-interactive scene-data tests live in the shared `altium-toolkit` and `kicad-toolkit` repositories. This app test suite covers app state, server behavior, interaction controllers, and ECAD Forge integration.
 
 Privacy-safe activation events are emitted through the optional centralized tracker when present. Event properties intentionally exclude file names, raw URLs, file contents, and other personal data.
 

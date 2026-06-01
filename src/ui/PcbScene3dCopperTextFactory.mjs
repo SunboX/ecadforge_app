@@ -15,7 +15,7 @@ export class PcbScene3dCopperTextFactory {
      * @param {any[]} texts
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
-     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean, materialColor?: number, filterSide?: boolean }} [options]
+     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean, materialColor?: number, filterSide?: boolean, glyphYUp?: boolean }} [options]
      * @returns {any}
      */
     static buildGroup(THREE, texts, z, normalizeBoardPoint, options = {}) {
@@ -23,6 +23,7 @@ export class PcbScene3dCopperTextFactory {
         const positions = []
         const side = PcbScene3dCopperTextFactory.#normalizeSide(options?.side)
         const mirrorY = Boolean(options?.mirrorY)
+        const glyphYUp = Boolean(options?.glyphYUp)
         const shouldFilterSide = options?.filterSide !== false
         group.name = 'copper-texts'
         ;(texts || [])
@@ -37,7 +38,8 @@ export class PcbScene3dCopperTextFactory {
                     text,
                     z,
                     normalizeBoardPoint,
-                    mirrorY
+                    mirrorY,
+                    glyphYUp
                 )
             })
 
@@ -73,6 +75,7 @@ export class PcbScene3dCopperTextFactory {
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
+     * @param {boolean} glyphYUp
      * @returns {void}
      */
     static #appendTextTriangles(
@@ -80,40 +83,44 @@ export class PcbScene3dCopperTextFactory {
         text,
         z,
         normalizeBoardPoint,
-        mirrorY
+        mirrorY,
+        glyphYUp
     ) {
         const width = PcbScene3dCopperTextFactory.#textStrokeWidth(text)
 
-        PcbScene3dCopperTextFactory.#textStrokes(text).forEach((stroke) => {
-            for (let index = 1; index < stroke.length; index += 1) {
-                const start = PcbScene3dCopperTextFactory.#normalizePoint(
-                    normalizeBoardPoint,
-                    stroke[index - 1],
-                    mirrorY
-                )
-                const end = PcbScene3dCopperTextFactory.#normalizePoint(
-                    normalizeBoardPoint,
-                    stroke[index],
-                    mirrorY
-                )
+        PcbScene3dCopperTextFactory.#textStrokes(text, glyphYUp).forEach(
+            (stroke) => {
+                for (let index = 1; index < stroke.length; index += 1) {
+                    const start = PcbScene3dCopperTextFactory.#normalizePoint(
+                        normalizeBoardPoint,
+                        stroke[index - 1],
+                        mirrorY
+                    )
+                    const end = PcbScene3dCopperTextFactory.#normalizePoint(
+                        normalizeBoardPoint,
+                        stroke[index],
+                        mirrorY
+                    )
 
-                PcbScene3dCopperTextFactory.#appendTrackTriangles(
-                    positions,
-                    start,
-                    end,
-                    width,
-                    z
-                )
+                    PcbScene3dCopperTextFactory.#appendTrackTriangles(
+                        positions,
+                        start,
+                        end,
+                        width,
+                        z
+                    )
+                }
             }
-        })
+        )
     }
 
     /**
      * Builds all KiCad stroke-font point lists for one text primitive.
      * @param {object} text
+     * @param {boolean} glyphYUp
      * @returns {{ x: number, y: number }[][]}
      */
-    static #textStrokes(text) {
+    static #textStrokes(text, glyphYUp) {
         const lines = String(text?.value ?? text?.text ?? '').split('\n')
         const lineSpacing = PcbScene3dCopperTextFactory.#textLineSpacing(text)
 
@@ -123,7 +130,8 @@ export class PcbScene3dCopperTextFactory {
                 line,
                 index,
                 lines.length,
-                lineSpacing
+                lineSpacing,
+                glyphYUp
             )
         )
     }
@@ -135,9 +143,17 @@ export class PcbScene3dCopperTextFactory {
      * @param {number} index
      * @param {number} lineCount
      * @param {number} lineSpacing
+     * @param {boolean} glyphYUp
      * @returns {{ x: number, y: number }[][]}
      */
-    static #textLineStrokes(text, line, index, lineCount, lineSpacing) {
+    static #textLineStrokes(
+        text,
+        line,
+        index,
+        lineCount,
+        lineSpacing,
+        glyphYUp
+    ) {
         const sizeX = PcbScene3dCopperTextFactory.#textWidth(text)
         const sizeY = PcbScene3dCopperTextFactory.#textHeight(text)
         const lineWidth = KicadStrokeFont.measureLine(line, sizeX)
@@ -152,7 +168,11 @@ export class PcbScene3dCopperTextFactory {
         return KicadStrokeFont.strokeLine(line, { x, y, sizeX, sizeY }).map(
             (stroke) =>
                 stroke.map((point) =>
-                    PcbScene3dCopperTextFactory.#transformTextPoint(text, point)
+                    PcbScene3dCopperTextFactory.#transformTextPoint(
+                        text,
+                        point,
+                        glyphYUp
+                    )
                 )
         )
     }
@@ -299,17 +319,21 @@ export class PcbScene3dCopperTextFactory {
      * Applies KiCad text rotation and mirrored text transforms.
      * @param {object} text
      * @param {{ x: number, y: number }} point
+     * @param {boolean} glyphYUp
      * @returns {{ x: number, y: number }}
      */
-    static #transformTextPoint(text, point) {
+    static #transformTextPoint(text, point, glyphYUp) {
         const origin = {
             x: Number(text?.x || 0),
             y: Number(text?.y || 0)
         }
+        const sourcePoint = glyphYUp
+            ? PcbScene3dCopperTextFactory.#mirrorPointY(point, origin)
+            : point
 
         if (text?.mirrored) {
             const rotated = PcbScene3dCopperTextFactory.#rotatePoint(
-                point,
+                sourcePoint,
                 origin,
                 Number(text?.rotation || 0)
             )
@@ -320,10 +344,23 @@ export class PcbScene3dCopperTextFactory {
         }
 
         return PcbScene3dCopperTextFactory.#rotatePoint(
-            point,
+            sourcePoint,
             origin,
             -Number(text?.rotation || 0)
         )
+    }
+
+    /**
+     * Mirrors one stroke-font point across the text anchor's local X axis.
+     * @param {{ x: number, y: number }} point
+     * @param {{ x: number, y: number }} origin
+     * @returns {{ x: number, y: number }}
+     */
+    static #mirrorPointY(point, origin) {
+        return {
+            x: Number(point?.x || 0),
+            y: origin.y - (Number(point?.y || 0) - origin.y)
+        }
     }
 
     /**

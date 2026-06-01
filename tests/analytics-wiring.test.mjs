@@ -8,16 +8,15 @@ import { readFile } from 'node:fs/promises'
 
 const root = new URL('../', import.meta.url)
 
-test('index html embeds centralized analytics tracker', async () => {
+test('index html leaves tracker loading to the browser entrypoint', async () => {
     const html = await readFile(new URL('src/index.html', root), 'utf8')
+    const main = await readFile(new URL('src/main.mjs', root), 'utf8')
 
-    assert.match(
+    assert.doesNotMatch(
         html,
         /src="https:\/\/analytics\.andrefiedler\.de\/tracker\.js"/
     )
-    assert.match(html, /data-site="ecadforge_app"/)
-    assert.match(html, /defer/)
-    assert.doesNotMatch(html, /data-auto="false"/)
+    assert.match(main, /AnalyticsTrackerLoader/)
 })
 
 test('getting started docs include analytics site registration values', async () => {

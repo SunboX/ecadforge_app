@@ -431,7 +431,8 @@ export class PcbScene3dRuntime {
             PcbScene3dCopperDetailFilter.resolve(this.#sceneDescription),
             this.#sceneDescription.board.thicknessMil / 2 + 0.9,
             -(this.#sceneDescription.board.thicknessMil / 2 + 0.9),
-            (x, y) => this.#normalizeBoardPoint(x, y)
+            (x, y) => this.#normalizeBoardPoint(x, y),
+            { coordinateSystem: this.#sceneDescription.coordinateSystem }
         )
         const viaGroup =
             PcbScene3dCopperDetailFilter.shouldRenderStandaloneVias(

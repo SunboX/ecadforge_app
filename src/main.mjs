@@ -1,4 +1,5 @@
 import { AppController } from './AppController.mjs'
+import { AnalyticsTrackerLoader } from './AnalyticsTrackerLoader.mjs'
 import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
@@ -15,6 +16,8 @@ import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
  * App bootstrap.
  */
 async function bootstrap() {
+    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location)
+
     const loadedVersion = AppRuntimeVersion.readLoadedVersion(import.meta.url)
     const i18n = await I18nService.createFromBrowserStorage()
     const state = new AppState({

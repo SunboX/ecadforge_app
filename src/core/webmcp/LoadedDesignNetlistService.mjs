@@ -1,22 +1,30 @@
-import { ComponentGrouping, MPN_MISSING_NOTE } from './ComponentGrouping.mjs'
-import { CircuitTraversal } from './CircuitTraversal.mjs'
-import { RegexPattern } from './RegexPattern.mjs'
+import { LoadedDesignNetlistService as AltiumLoadedDesignNetlistService } from 'altium-toolkit/netlist-query'
+import { LoadedDesignNetlistService as KicadLoadedDesignNetlistService } from 'kicad-toolkit/netlist-query'
+import { EcadFormatRegistry } from '../ecad/EcadFormatRegistry.mjs'
 
 /**
- * Builds WebMCP query responses from currently loaded app documents.
+ * Dispatches loaded-session WebMCP queries to toolkit-owned netlist services.
  */
 export class LoadedDesignNetlistService {
     /** @type {() => object} */
     #getSnapshot
 
+    /** @type {Record<string, typeof AltiumLoadedDesignNetlistService>} */
+    #serviceFactories
+
     /**
-     * @param {{ getSnapshot: () => object }} dependencies Dependencies.
+     * @param {{ getSnapshot: () => object, serviceFactories?: object }} dependencies Dependencies.
      */
-    constructor(dependencies) {
+    constructor(dependencies = {}) {
         this.#getSnapshot =
-            typeof dependencies?.getSnapshot === 'function'
+            typeof dependencies.getSnapshot === 'function'
                 ? dependencies.getSnapshot
                 : () => ({ documents: [] })
+        this.#serviceFactories = {
+            altium: AltiumLoadedDesignNetlistService,
+            kicad: KicadLoadedDesignNetlistService,
+            ...(dependencies.serviceFactories || {})
+        }
     }
 
     /**
@@ -25,65 +33,32 @@ export class LoadedDesignNetlistService {
      * @returns {object[] | { error: string }}
      */
     listDesigns(args = {}) {
-        const loaded = this.#loadedEntries()
-        const pattern = String(args.pattern || '.*')
-        const parsed = RegexPattern.parse(pattern)
-        if (parsed.error) {
-            return parsed
+        const entriesByFormat = this.#supportedEntriesByFormat()
+        const results = []
+
+        for (const [sourceFormat, entries] of entriesByFormat.entries()) {
+            const service = this.#createService(sourceFormat, entries)
+            const serviceResult = service.listDesigns(args)
+            if (Array.isArray(serviceResult)) {
+                results.push(...serviceResult)
+            }
         }
 
-        return loaded
-            .filter((entry) => parsed.regex.test(entry.name))
-            .slice(0, LoadedDesignNetlistService.#maxResults(args.max_results))
-            .map((entry) => ({
-                id: entry.id,
-                name: entry.name,
-                fileName: entry.fileName,
-                kind: entry.kind,
-                active: entry.active,
-                hasConnectivity: entry.hasConnectivity
-            }))
+        return results.slice(
+            0,
+            LoadedDesignNetlistService.#maxResults(args.max_results)
+        )
     }
 
     /**
      * Lists components matching one reference-designator prefix.
-     * @param {{ design?: string, type?: string, include_dns?: boolean }} [args]
+     * @param {{ design?: string, type?: string, include_dns?: boolean }} [args] Tool args.
      * @returns {{ components: object[] } | { error: string }}
      */
     listComponents(args = {}) {
-        const resolved = this.#resolveDesign(args.design)
-        if (resolved.error) return resolved
-
-        const prefix = String(args.type || '')
-            .trim()
-            .toUpperCase()
-        if (!prefix) {
-            return { error: 'Component type prefix is required.' }
-        }
-
-        const entries = Object.entries(resolved.netlist.components).filter(
-            ([refdes]) =>
-                LoadedDesignNetlistService.#refdesPrefix(refdes) === prefix
+        return this.#dispatch(args.design, (service) =>
+            service.listComponents({ ...args, design: 'active' })
         )
-        if (!entries.length) {
-            return {
-                error:
-                    "No components with prefix '" +
-                    prefix +
-                    "' found in design '" +
-                    resolved.entry.name +
-                    "'. Available prefixes: [" +
-                    this.#availablePrefixes(resolved.netlist).join(', ') +
-                    ']'
-            }
-        }
-
-        return {
-            components: ComponentGrouping.groupComponentsByMpn(
-                entries,
-                args.include_dns === true
-            )
-        }
     }
 
     /**
@@ -92,14 +67,9 @@ export class LoadedDesignNetlistService {
      * @returns {{ nets: string[] } | { error: string }}
      */
     listNets(args = {}) {
-        const resolved = this.#resolveDesignWithConnectivity(args.design)
-        if (resolved.error) return resolved
-
-        return {
-            nets: Object.keys(resolved.netlist.nets).sort((left, right) =>
-                left.localeCompare(right)
-            )
-        }
+        return this.#dispatch(args.design, (service) =>
+            service.listNets({ ...args, design: 'active' })
+        )
     }
 
     /**
@@ -108,62 +78,45 @@ export class LoadedDesignNetlistService {
      * @returns {{ results: Record<string, string[]>, notes?: string[] } | { error: string }}
      */
     searchNets(args = {}) {
-        const resolved = this.#resolveDesignWithConnectivity(args.design)
-        if (resolved.error) return resolved
-
-        const parsed = RegexPattern.parse(args.pattern)
-        if (parsed.error) return parsed
-
-        const allNets = Object.keys(resolved.netlist.nets)
-        if (RegexPattern.rejectsBroadMatch(args.pattern, allNets)) {
-            return {
-                error: 'Pattern matches every net. Use list_nets for full net lists.'
-            }
-        }
-
-        const matches = allNets
-            .filter((net) => parsed.regex.test(net))
-            .sort((left, right) => left.localeCompare(right))
-        const response = {
-            results: {
-                [resolved.entry.name]: matches
-            }
-        }
-
-        if (!matches.length) {
-            response.notes = [
-                "No nets matched pattern '" + String(args.pattern || '') + "'"
-            ]
-        }
-
-        return response
+        return this.#dispatch(args.design, (service) =>
+            service.searchNets({ ...args, design: 'active' })
+        )
     }
 
     /**
      * Searches components by reference designator.
-     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args]
+     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
     searchComponentsByRefdes(args = {}) {
-        return this.#searchComponents(args, 'refdes')
+        return this.#dispatch(args.design, (service) =>
+            service.searchComponentsByRefdes({ ...args, design: 'active' })
+        )
     }
 
     /**
      * Searches components by MPN.
-     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args]
+     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
     searchComponentsByMpn(args = {}) {
-        return this.#searchComponents(args, 'mpn')
+        return this.#dispatch(args.design, (service) =>
+            service.searchComponentsByMpn({ ...args, design: 'active' })
+        )
     }
 
     /**
      * Searches components by description.
-     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args]
+     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
     searchComponentsByDescription(args = {}) {
-        return this.#searchComponents(args, 'description')
+        return this.#dispatch(args.design, (service) =>
+            service.searchComponentsByDescription({
+                ...args,
+                design: 'active'
+            })
+        )
     }
 
     /**
@@ -172,293 +125,100 @@ export class LoadedDesignNetlistService {
      * @returns {object | { error: string }}
      */
     queryComponent(args = {}) {
-        const resolved = this.#resolveDesign(args.design)
-        if (resolved.error) return resolved
-
-        const refdes = String(args.refdes || '').trim()
-        const entry = Object.entries(resolved.netlist.components).find(
-            ([candidate]) => candidate.toLowerCase() === refdes.toLowerCase()
+        return this.#dispatch(args.design, (service) =>
+            service.queryComponent({ ...args, design: 'active' })
         )
-        if (!entry) {
-            return {
-                error:
-                    "Component '" +
-                    refdes +
-                    "' not found in design '" +
-                    resolved.entry.name +
-                    "'. Use list_components or search_components_by_refdes."
-            }
-        }
-
-        return LoadedDesignNetlistService.#componentDetails(entry)
     }
 
     /**
      * Queries extended connectivity starting from a net name.
-     * @param {{ design?: string, net_name?: string, skip_types?: string[], include_dns?: boolean }} [args]
+     * @param {{ design?: string, net_name?: string, skip_types?: string[], include_dns?: boolean }} [args] Tool args.
      * @returns {object | { error: string }}
      */
     queryXnetByNetName(args = {}) {
-        const resolved = this.#resolveDesignWithConnectivity(args.design)
-        if (resolved.error) return resolved
-
-        const netName = this.#resolveNetName(resolved.netlist, args.net_name)
-        if (!netName) {
-            return {
-                error:
-                    "Net '" +
-                    String(args.net_name || '') +
-                    "' not found in design '" +
-                    resolved.entry.name +
-                    "'. Use search_nets to find available nets."
-            }
-        }
-        if (CircuitTraversal.isStopNet(netName)) {
-            return {
-                error:
-                    netName + ' is a power or ground net and cannot be queried.'
-            }
-        }
-
-        return this.#buildTraversalResponse(
-            netName,
-            netName,
-            '',
-            resolved.netlist,
-            args
+        return this.#dispatch(args.design, (service) =>
+            service.queryXnetByNetName({ ...args, design: 'active' })
         )
     }
 
     /**
      * Queries extended connectivity starting from a component pin.
-     * @param {{ design?: string, pin_name?: string, skip_types?: string[], include_dns?: boolean }} [args]
+     * @param {{ design?: string, pin_name?: string, skip_types?: string[], include_dns?: boolean }} [args] Tool args.
      * @returns {object | { error: string }}
      */
     queryXnetByPinName(args = {}) {
-        const resolved = this.#resolveDesignWithConnectivity(args.design)
-        if (resolved.error) return resolved
-
-        const pinSpec = LoadedDesignNetlistService.#parsePinSpec(args.pin_name)
-        if (pinSpec.error) return pinSpec
-
-        const componentEntry = Object.entries(resolved.netlist.components).find(
-            ([refdes]) => {
-                return refdes.toLowerCase() === pinSpec.refdes.toLowerCase()
-            }
-        )
-        if (!componentEntry) {
-            return {
-                error:
-                    "Component '" +
-                    pinSpec.refdes +
-                    "' not found in design '" +
-                    resolved.entry.name +
-                    "'. Use list_components or search_components_by_refdes."
-            }
-        }
-
-        const [resolvedRefdes, component] = componentEntry
-        const pinKey = Object.keys(component.pins || {}).find((candidate) => {
-            return candidate.toLowerCase() === pinSpec.pin.toLowerCase()
-        })
-        if (!pinKey) {
-            return {
-                error:
-                    "Pin '" +
-                    resolvedRefdes +
-                    '.' +
-                    pinSpec.pin +
-                    "' not found. Component " +
-                    resolvedRefdes +
-                    ' has pins: [' +
-                    Object.keys(component.pins || {})
-                        .sort(ComponentGrouping.naturalSort)
-                        .join(', ') +
-                    ']'
-            }
-        }
-
-        const netName = LoadedDesignNetlistService.#pinNet(
-            component.pins[pinKey]
-        )
-        if (netName === 'NC') {
-            const startingPoint = resolvedRefdes + '.' + pinKey
-            return {
-                starting_point: startingPoint,
-                net: netName,
-                total_components: 0,
-                unique_configurations: 0,
-                components_by_mpn: [],
-                visited_nets: ['NC'],
-                circuit_hash: 'nc-' + startingPoint
-            }
-        }
-        if (CircuitTraversal.isStopNet(netName)) {
-            return {
-                error:
-                    'Pin ' +
-                    resolvedRefdes +
-                    '.' +
-                    pinKey +
-                    ' is connected to ' +
-                    netName +
-                    ' and cannot be queried.'
-            }
-        }
-
-        return this.#buildTraversalResponse(
-            resolvedRefdes + '.' + pinKey,
-            netName,
-            netName,
-            resolved.netlist,
-            args
+        return this.#dispatch(args.design, (service) =>
+            service.queryXnetByPinName({ ...args, design: 'active' })
         )
     }
 
     /**
-     * Searches components on one metadata field.
-     * @param {{ design?: string, pattern?: string, include_dns?: boolean }} args
-     * @param {'refdes' | 'mpn' | 'description'} field Search field.
-     * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
-     */
-    #searchComponents(args, field) {
-        const resolved = this.#resolveDesign(args.design)
-        if (resolved.error) return resolved
-
-        const parsed = RegexPattern.parse(args.pattern)
-        if (parsed.error) return parsed
-
-        const allEntries = Object.entries(resolved.netlist.components)
-        const searchableEntries = allEntries.filter(([refdes, component]) => {
-            return LoadedDesignNetlistService.#searchValue(
-                refdes,
-                component,
-                field
-            )
-        })
-        const matches = searchableEntries.filter(([refdes, component]) => {
-            parsed.regex.lastIndex = 0
-            return parsed.regex.test(
-                LoadedDesignNetlistService.#searchValue(
-                    refdes,
-                    component,
-                    field
-                )
-            )
-        })
-
-        if (
-            RegexPattern.rejectsBroadMatch(
-                args.pattern,
-                searchableEntries.map(([refdes, component]) =>
-                    LoadedDesignNetlistService.#searchValue(
-                        refdes,
-                        component,
-                        field
-                    )
-                )
-            )
-        ) {
-            return {
-                error: 'Pattern matches every component. Use list_components for prefix-based lists.'
-            }
-        }
-
-        const response = {
-            results: {
-                [resolved.entry.name]: ComponentGrouping.groupComponentsByMpn(
-                    matches,
-                    args.include_dns === true
-                )
-            }
-        }
-
-        if (!response.results[resolved.entry.name].length) {
-            response.notes = [
-                "No components matched pattern '" +
-                    String(args.pattern || '') +
-                    "'."
-            ]
-        }
-
-        return response
-    }
-
-    /**
-     * Resolves one design and requires schematic connectivity.
+     * Runs a query against the toolkit service for the selected document.
      * @param {string | undefined} design Design selector.
-     * @returns {object | { error: string }}
-     */
-    #resolveDesignWithConnectivity(design) {
-        const resolved = this.#resolveDesign(design)
-        if (resolved.error) return resolved
-        if (!Object.keys(resolved.netlist.nets).length) {
-            return {
-                error: 'No schematic connectivity is available for this loaded design.'
-            }
-        }
-
-        return resolved
-    }
-
-    /**
-     * Builds an aggregated traversal response.
-     * @param {string} startingPoint Response starting point.
-     * @param {string} netName Starting net.
-     * @param {string} responseNet Optional response net field.
-     * @param {{ nets: object, components: object }} netlist Loaded netlist.
-     * @param {{ skip_types?: string[], include_dns?: boolean }} args Tool args.
+     * @param {(service: object) => object} callback Query callback.
      * @returns {object}
      */
-    #buildTraversalResponse(
-        startingPoint,
-        netName,
-        responseNet,
-        netlist,
-        args
-    ) {
-        const traversal = CircuitTraversal.traverseCircuitFromNet(
-            netName,
-            netlist.nets,
-            netlist.components,
-            {
-                skipTypes: Array.isArray(args.skip_types)
-                    ? args.skip_types
-                    : [],
-                includeDns: args.include_dns === true
+    #dispatch(design, callback) {
+        const resolved = this.#resolveEntry(design)
+        if (resolved.error) return resolved
+
+        const sourceFormat = resolved.entry.sourceFormat
+        if (!this.#serviceFactories[sourceFormat]) {
+            return {
+                error:
+                    "Unsupported ECAD source format '" +
+                    sourceFormat +
+                    "' for loaded-session netlist queries."
             }
-        )
-        const componentsByMpn = ComponentGrouping.aggregateCircuitByMpn(
-            traversal.components
-        )
-        const response = {
-            starting_point: startingPoint,
-            net: responseNet || undefined,
-            total_components: traversal.components.length,
-            unique_configurations:
-                LoadedDesignNetlistService.#uniqueConfigurations(
-                    componentsByMpn
-                ),
-            components_by_mpn: componentsByMpn,
-            visited_nets: traversal.visited_nets,
-            circuit_hash: CircuitTraversal.computeCircuitHash(
-                traversal.components
-            )
         }
 
-        if (Object.keys(traversal.skipped || {}).length) {
-            response.skipped = traversal.skipped
-        }
-
-        return LoadedDesignNetlistService.#withoutUndefined(response)
+        return callback(
+            this.#createService(sourceFormat, [
+                {
+                    ...resolved.entry,
+                    active: true
+                }
+            ])
+        )
     }
 
     /**
-     * Resolves a loaded design selector.
-     * @param {string | undefined} design Design selector.
-     * @returns {object | { error: string }}
+     * Creates a toolkit service for document entries.
+     * @param {string} sourceFormat Source format.
+     * @param {object[]} entries Loaded entries.
+     * @returns {object}
      */
-    #resolveDesign(design) {
+    #createService(sourceFormat, entries) {
+        const ServiceFactory = this.#serviceFactories[sourceFormat]
+        return new ServiceFactory({
+            getDocuments: () => entries
+        })
+    }
+
+    /**
+     * Groups supported loaded entries by source format.
+     * @returns {Map<string, object[]>}
+     */
+    #supportedEntriesByFormat() {
+        const grouped = new Map()
+
+        for (const entry of this.#loadedEntries()) {
+            if (!this.#serviceFactories[entry.sourceFormat]) continue
+            if (!grouped.has(entry.sourceFormat)) {
+                grouped.set(entry.sourceFormat, [])
+            }
+            grouped.get(entry.sourceFormat).push(entry)
+        }
+
+        return grouped
+    }
+
+    /**
+     * Resolves one loaded entry from a design selector.
+     * @param {string | undefined} design Design selector.
+     * @returns {{ entry: object } | { error: string }}
+     */
+    #resolveEntry(design) {
         const entries = this.#loadedEntries()
         if (!entries.length) {
             return { error: 'No design is loaded in the current session.' }
@@ -466,11 +226,8 @@ export class LoadedDesignNetlistService {
 
         const selector = String(design || 'active').trim()
         if (!selector || selector.toLowerCase() === 'active') {
-            const activeEntry =
-                entries.find((entry) => entry.active) || entries[0]
             return {
-                entry: activeEntry,
-                netlist: this.#buildNetlist(activeEntry.documentModel)
+                entry: entries.find((entry) => entry.active) || entries[0]
             }
         }
 
@@ -494,14 +251,11 @@ export class LoadedDesignNetlistService {
             }
         }
 
-        return {
-            entry: matches[0],
-            netlist: this.#buildNetlist(matches[0].documentModel)
-        }
+        return { entry: matches[0] }
     }
 
     /**
-     * Returns loaded design entries with derived metadata.
+     * Returns loaded design entries with app-session metadata.
      * @returns {object[]}
      */
     #loadedEntries() {
@@ -511,222 +265,38 @@ export class LoadedDesignNetlistService {
         return (Array.isArray(snapshot.documents) ? snapshot.documents : [])
             .filter((entry) => entry?.id && entry?.documentModel)
             .map((entry) => {
-                const netlist = this.#buildNetlist(entry.documentModel)
+                const documentModel = entry.documentModel
                 return {
                     id: String(entry.id),
-                    documentModel: entry.documentModel,
-                    name:
-                        String(entry.documentModel?.summary?.title || '') ||
-                        LoadedDesignNetlistService.#baseName(
-                            entry.documentModel?.fileName
-                        ),
-                    fileName: String(entry.documentModel?.fileName || ''),
-                    baseName: LoadedDesignNetlistService.#baseName(
-                        entry.documentModel?.fileName
-                    ),
-                    kind: String(entry.documentModel?.kind || 'document'),
                     active: String(entry.id) === activeDocumentId,
-                    hasConnectivity: Boolean(Object.keys(netlist.nets).length)
+                    documentModel,
+                    sourceFormat:
+                        LoadedDesignNetlistService.#sourceFormatForDocument(
+                            documentModel
+                        ),
+                    fileName: String(documentModel?.fileName || ''),
+                    baseName: LoadedDesignNetlistService.#baseName(
+                        documentModel?.fileName
+                    )
                 }
             })
     }
 
     /**
-     * Builds the query netlist for one document.
-     * @param {object} documentModel Loaded document model.
-     * @returns {{ nets: object, components: object }}
-     */
-    #buildNetlist(documentModel) {
-        const components = this.#buildComponentDetails(documentModel)
-        const nets = {}
-
-        for (const net of documentModel?.schematic?.nets || []) {
-            const netName = String(net?.name || '').trim()
-            if (!netName) continue
-
-            for (const pin of net.pins || []) {
-                const refdes = this.#resolvePinRefdes(pin, components)
-                const pinNumber = this.#resolvePinNumber(pin)
-                if (!refdes || !pinNumber) continue
-
-                nets[netName] ||= {}
-                const existing = nets[netName][refdes]
-                nets[netName][refdes] = LoadedDesignNetlistService.#appendPin(
-                    existing,
-                    pinNumber
-                )
-                components[refdes] ||= { pins: {} }
-                components[refdes].pins[pinNumber] =
-                    LoadedDesignNetlistService.#pinEntry(
-                        pinNumber,
-                        pin?.name,
-                        netName
-                    )
-            }
-        }
-
-        return { nets, components }
-    }
-
-    /**
-     * Builds component metadata from schematic, PCB, and BOM records.
-     * @param {object} documentModel Loaded document model.
-     * @returns {object}
-     */
-    #buildComponentDetails(documentModel) {
-        const components = {}
-
-        for (const component of documentModel?.schematic?.components || []) {
-            const refdes = String(component?.designator || '').trim()
-            if (!refdes) continue
-            components[refdes] = {
-                ...components[refdes],
-                value: component.value || components[refdes]?.value,
-                description:
-                    component.description || components[refdes]?.description,
-                ownerIndex:
-                    component.ownerIndex || components[refdes]?.ownerIndex,
-                pins: components[refdes]?.pins || {}
-            }
-        }
-
-        for (const component of documentModel?.pcb?.components || []) {
-            const refdes = String(component?.designator || '').trim()
-            if (!refdes) continue
-            components[refdes] = {
-                ...components[refdes],
-                description:
-                    component.description ||
-                    component.pattern ||
-                    components[refdes]?.description,
-                value: component.value || components[refdes]?.value,
-                pins: components[refdes]?.pins || {}
-            }
-        }
-
-        for (const row of documentModel?.bom || []) {
-            for (const refdes of row.designators || []) {
-                const normalizedRefdes = String(refdes || '').trim()
-                if (!normalizedRefdes) continue
-                components[normalizedRefdes] = {
-                    ...components[normalizedRefdes],
-                    mpn: row.pattern || components[normalizedRefdes]?.mpn,
-                    description:
-                        row.source || components[normalizedRefdes]?.description,
-                    value: row.value || components[normalizedRefdes]?.value,
-                    pins: components[normalizedRefdes]?.pins || {}
-                }
-            }
-        }
-
-        return components
-    }
-
-    /**
-     * Resolves a pin's owning refdes.
-     * @param {object} pin Net pin.
-     * @param {object} components Component details.
+     * Resolves the source format for a loaded document.
+     * @param {object} documentModel Document model.
      * @returns {string}
      */
-    #resolvePinRefdes(pin, components) {
-        const direct = String(
-            pin?.refdes ||
-                pin?.componentRefdes ||
-                pin?.componentDesignator ||
-                pin?.ownerDesignator ||
-                ''
-        ).trim()
-        if (direct) return direct
-
-        const ownerIndex = String(pin?.ownerIndex || '').trim()
-        if (!ownerIndex) return ''
+    static #sourceFormatForDocument(documentModel) {
+        if (documentModel?.sourceFormat) {
+            return String(documentModel.sourceFormat)
+        }
 
         return (
-            Object.entries(components).find(([, component]) => {
-                return String(component.ownerIndex || '') === ownerIndex
-            })?.[0] || ''
+            EcadFormatRegistry.resolveNativeRole(documentModel?.fileName)
+                ?.sourceFormat ||
+            EcadFormatRegistry.sourceFormatForDocument(documentModel)
         )
-    }
-
-    /**
-     * Resolves a pin number.
-     * @param {object} pin Net pin.
-     * @returns {string}
-     */
-    #resolvePinNumber(pin) {
-        return String(
-            pin?.pinNumber || pin?.number || pin?.designator || ''
-        ).trim()
-    }
-
-    /**
-     * Resolves an exact net name case-insensitively.
-     * @param {{ nets: object }} netlist Loaded netlist.
-     * @param {string | undefined} netName Requested net.
-     * @returns {string}
-     */
-    #resolveNetName(netlist, netName) {
-        const requested = String(netName || '')
-            .trim()
-            .toLowerCase()
-        return (
-            Object.keys(netlist.nets).find((candidate) => {
-                return candidate.toLowerCase() === requested
-            }) || ''
-        )
-    }
-
-    /**
-     * Returns available reference-designator prefixes.
-     * @param {{ components: object }} netlist Loaded netlist.
-     * @returns {string[]}
-     */
-    #availablePrefixes(netlist) {
-        return [
-            ...new Set(
-                Object.keys(netlist.components)
-                    .map((refdes) =>
-                        LoadedDesignNetlistService.#refdesPrefix(refdes)
-                    )
-                    .filter(Boolean)
-            )
-        ].sort()
-    }
-
-    /**
-     * Returns one component query response from an entry.
-     * @param {[string, object]} entry Component entry.
-     * @returns {object}
-     */
-    static #componentDetails(entry) {
-        const [refdes, component] = entry
-        const dns = ComponentGrouping.isDnsComponent(component)
-        const result = {
-            refdes,
-            mpn: LoadedDesignNetlistService.#trim(component.mpn),
-            description: LoadedDesignNetlistService.#trim(
-                component.description
-            ),
-            comment: LoadedDesignNetlistService.#trim(component.comment),
-            value: LoadedDesignNetlistService.#trim(component.value),
-            dns: dns || undefined,
-            pins: component.pins || {},
-            notes: component.mpn ? undefined : [MPN_MISSING_NOTE]
-        }
-
-        return LoadedDesignNetlistService.#withoutUndefined(result)
-    }
-
-    /**
-     * Returns the searchable field value for a component.
-     * @param {string} refdes Component refdes.
-     * @param {object} component Component metadata.
-     * @param {'refdes' | 'mpn' | 'description'} field Search field.
-     * @returns {string}
-     */
-    static #searchValue(refdes, component, field) {
-        if (field === 'refdes') return String(refdes || '')
-        return String(component?.[field] || '')
     }
 
     /**
@@ -745,103 +315,12 @@ export class LoadedDesignNetlistService {
     }
 
     /**
-     * Appends a pin to a compact net connection value.
-     * @param {string | string[] | undefined} existing Existing pins.
-     * @param {string} pinNumber Pin number.
-     * @returns {string | string[]}
-     */
-    static #appendPin(existing, pinNumber) {
-        if (!existing) return pinNumber
-        const pins = Array.isArray(existing) ? existing : [existing]
-        if (!pins.includes(pinNumber)) {
-            pins.push(pinNumber)
-        }
-        return ComponentGrouping.compactArray(
-            pins.sort(ComponentGrouping.naturalSort)
-        )
-    }
-
-    /**
-     * Builds a compact pin entry.
-     * @param {string} pinNumber Pin number.
-     * @param {string | undefined} pinName Pin name.
-     * @param {string} netName Net name.
-     * @returns {string | { name: string, net: string }}
-     */
-    static #pinEntry(pinNumber, pinName, netName) {
-        const normalizedName = String(pinName || '').trim()
-        if (normalizedName && normalizedName !== pinNumber) {
-            return { name: normalizedName, net: netName }
-        }
-
-        return netName
-    }
-
-    /**
-     * Parses a `REFDES.PIN` pin spec.
-     * @param {string | undefined} value Pin spec.
-     * @returns {{ refdes: string, pin: string } | { error: string }}
-     */
-    static #parsePinSpec(value) {
-        const raw = String(value || '').trim()
-        const separator = raw.indexOf('.')
-        if (separator <= 0 || separator === raw.length - 1) {
-            return {
-                error: "Invalid pin name '" + raw + "'. Expected 'REFDES.PIN'."
-            }
-        }
-
-        return {
-            refdes: raw.slice(0, separator),
-            pin: raw.slice(separator + 1)
-        }
-    }
-
-    /**
-     * Extracts a net name from a pin entry.
-     * @param {string | { net?: string }} entry Pin entry.
-     * @returns {string}
-     */
-    static #pinNet(entry) {
-        return typeof entry === 'string' ? entry : String(entry?.net || '')
-    }
-
-    /**
-     * Counts unique component orientation configurations.
-     * @param {object[]} groups Aggregated groups.
-     * @returns {number}
-     */
-    static #uniqueConfigurations(groups) {
-        return (groups || []).reduce((count, group) => {
-            return (
-                count +
-                (Array.isArray(group.orientations)
-                    ? group.orientations.length
-                    : 1)
-            )
-        }, 0)
-    }
-
-    /**
      * Resolves a file base name.
      * @param {string | undefined} fileName File name.
      * @returns {string}
      */
     static #baseName(fileName) {
         return String(fileName || '').replace(/\.[^.]+$/, '')
-    }
-
-    /**
-     * Resolves a reference-designator prefix.
-     * @param {string} refdes Reference designator.
-     * @returns {string}
-     */
-    static #refdesPrefix(refdes) {
-        return (
-            String(refdes || '')
-                .match(/^[A-Za-z]+/)?.[0]
-                ?.toUpperCase() || ''
-        )
     }
 
     /**
@@ -852,28 +331,5 @@ export class LoadedDesignNetlistService {
     static #maxResults(value) {
         const parsed = Number.parseInt(String(value || ''), 10)
         return Number.isInteger(parsed) && parsed > 0 ? parsed : 50
-    }
-
-    /**
-     * Returns a trimmed string or undefined.
-     * @param {unknown} value Raw value.
-     * @returns {string | undefined}
-     */
-    static #trim(value) {
-        const trimmed = String(value || '').trim()
-        return trimmed || undefined
-    }
-
-    /**
-     * Removes undefined values from an object.
-     * @param {object} value Object value.
-     * @returns {object}
-     */
-    static #withoutUndefined(value) {
-        return Object.fromEntries(
-            Object.entries(value).filter(([, entryValue]) => {
-                return entryValue !== undefined
-            })
-        )
     }
 }

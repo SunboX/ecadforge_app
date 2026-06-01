@@ -17,6 +17,11 @@ Design selectors refer only to loaded documents. A selector can be omitted,
 `active`, a loaded document id, an exact loaded file name, or an unambiguous
 loaded file base name.
 
+ECAD Forge owns the native WebMCP registration, session snapshot lookup, and
+source-format dispatch. Netlist extraction, regex validation, component
+grouping, and connectivity traversal are delegated to the Altium and KiCad
+toolkit query APIs for the selected loaded document.
+
 ## Supported Tools
 
 | Tool                               | Purpose                                                |

@@ -63,6 +63,8 @@ export class ServerAssetVersioner {
             'altium-toolkit': '/node_modules/altium-toolkit/src/index.mjs',
             'altium-toolkit/parser':
                 '/node_modules/altium-toolkit/src/parser.mjs',
+            'altium-toolkit/netlist-query':
+                '/node_modules/altium-toolkit/src/netlist-query.mjs',
             'altium-toolkit/renderers':
                 '/node_modules/altium-toolkit/src/renderers.mjs',
             'altium-toolkit/scene3d':
@@ -72,6 +74,8 @@ export class ServerAssetVersioner {
             'kicad-toolkit': '/node_modules/kicad-toolkit/src/index.mjs',
             'kicad-toolkit/parser':
                 '/node_modules/kicad-toolkit/src/parser.mjs',
+            'kicad-toolkit/netlist-query':
+                '/node_modules/kicad-toolkit/src/netlist-query.mjs',
             'kicad-toolkit/renderers':
                 '/node_modules/kicad-toolkit/src/renderers.mjs',
             'kicad-toolkit/scene3d':
@@ -93,7 +97,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:altium-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?)|fflate)'
+            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?)|fflate)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

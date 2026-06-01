@@ -3,7 +3,7 @@
 ## Strategy
 
 - Unit-test normalized viewer state behavior
-- Verify integration with the shared `altium-toolkit` parser and non-interactive renderer package
+- Verify integration with the shared `altium-toolkit` and `kicad-toolkit` parser, renderer, and non-interactive scene-data packages
 - Validate required project structure and source/test file line limits
 
 ## Commands
@@ -26,5 +26,5 @@ npm test
 ## Rules
 
 - Add/update app tests for ECAD Forge interaction, server, state, and package integration behavior
-- Add parser and deterministic renderer tests in the `altium-toolkit` repository
+- Add parser, deterministic renderer, and non-interactive scene-data tests in the relevant toolkit repository
 - Keep fixture expectations in the toolkit repository and preserve the existing obfuscation rules
