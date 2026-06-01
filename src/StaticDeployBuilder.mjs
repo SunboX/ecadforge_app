@@ -3,6 +3,82 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { ServerAssetVersioner } from './ServerAssetVersioner.mjs'
 
 const noStoreCacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
+const browserDependencyAssets = [
+    {
+        sourceParts: ['node_modules', 'altium-toolkit', 'src'],
+        outputParts: ['node_modules', 'altium-toolkit', 'src']
+    },
+    {
+        sourceParts: ['node_modules', 'kicad-toolkit', 'src'],
+        outputParts: ['node_modules', 'kicad-toolkit', 'src']
+    },
+    {
+        sourceParts: ['node_modules', 'fflate', 'esm', 'browser.js'],
+        outputParts: ['node_modules', 'fflate', 'esm', 'browser.js']
+    },
+    {
+        sourceParts: ['node_modules', 'three', 'build', 'three.module.js'],
+        outputParts: ['node_modules', 'three', 'build', 'three.module.js']
+    },
+    {
+        sourceParts: ['node_modules', 'three', 'build', 'three.core.js'],
+        outputParts: ['node_modules', 'three', 'build', 'three.core.js']
+    },
+    {
+        sourceParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'controls',
+            'OrbitControls.js'
+        ],
+        outputParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'controls',
+            'OrbitControls.js'
+        ]
+    },
+    {
+        sourceParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'loaders',
+            'VRMLLoader.js'
+        ],
+        outputParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'loaders',
+            'VRMLLoader.js'
+        ]
+    },
+    {
+        sourceParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'libs',
+            'chevrotain.module.min.js'
+        ],
+        outputParts: [
+            'node_modules',
+            'three',
+            'examples',
+            'jsm',
+            'libs',
+            'chevrotain.module.min.js'
+        ]
+    }
+]
 
 /**
  * Builds an Apache/shared-hosting frontend artifact from the browser source
@@ -23,6 +99,10 @@ export class StaticDeployBuilder {
         StaticDeployBuilder.#assertSafeOutputPath(sourceRoot, outputRoot)
 
         await StaticDeployBuilder.copySourceTree(sourceRoot, outputRoot)
+        await StaticDeployBuilder.copyBrowserDependencyAssets(
+            projectRoot,
+            outputRoot
+        )
         await StaticDeployBuilder.rewriteStaticAssets(outputRoot, version)
         await StaticDeployBuilder.writeApacheCachePolicy(outputRoot)
 
@@ -57,6 +137,25 @@ export class StaticDeployBuilder {
             filter: (sourcePath) =>
                 !StaticDeployBuilder.#isIgnoredDeploySource(sourcePath)
         })
+    }
+
+    /**
+     * Copies browser dependency modules that static hosting must serve from
+     * the same `/node_modules/` paths used by the import map.
+     * @param {string} projectRoot
+     * @param {string} outputRoot
+     * @returns {Promise<void>}
+     */
+    static async copyBrowserDependencyAssets(projectRoot, outputRoot) {
+        await Promise.all(
+            browserDependencyAssets.map((asset) =>
+                StaticDeployBuilder.#copyBrowserDependencyAsset(
+                    projectRoot,
+                    outputRoot,
+                    asset
+                )
+            )
+        )
     }
 
     /**
@@ -115,6 +214,7 @@ export class StaticDeployBuilder {
             '    RewriteRule ^(.+)$ $1.html [L]\n' +
             '    RewriteCond %{REQUEST_FILENAME} !-f\n' +
             '    RewriteCond %{REQUEST_FILENAME} !-d\n' +
+            '    RewriteCond %{REQUEST_URI} !\\.[^/]+$\n' +
             '    RewriteRule ^ index.html [L]\n' +
             '</IfModule>\n' +
             '<IfModule mod_headers.c>\n' +
@@ -125,6 +225,21 @@ export class StaticDeployBuilder {
             '    </FilesMatch>\n' +
             '</IfModule>\n'
         )
+    }
+
+    /**
+     * Copies one browser dependency file or directory into the deploy tree.
+     * @param {string} projectRoot
+     * @param {string} outputRoot
+     * @param {{ sourceParts: string[], outputParts: string[] }} asset
+     * @returns {Promise<void>}
+     */
+    static async #copyBrowserDependencyAsset(projectRoot, outputRoot, asset) {
+        const sourcePath = path.join(projectRoot, ...asset.sourceParts)
+        const outputPath = path.join(outputRoot, ...asset.outputParts)
+
+        await mkdir(path.dirname(outputPath), { recursive: true })
+        await cp(sourcePath, outputPath, { recursive: true })
     }
 
     /**

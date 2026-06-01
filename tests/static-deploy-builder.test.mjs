@@ -25,6 +25,35 @@ async function exists(fileUrl) {
 }
 
 /**
+ * Asserts that a built static deploy file exists.
+ * @param {string} outputRoot
+ * @param {string} relativePath
+ * @returns {Promise<string>}
+ */
+async function readRequiredOutputFile(outputRoot, relativePath) {
+    const filePath = path.join(outputRoot, relativePath)
+    const source = await readFile(filePath, 'utf8')
+
+    assert.notEqual(source.trim(), '', relativePath + ' is empty')
+
+    return source
+}
+
+/**
+ * Asserts that a deployed asset did not receive the app HTML shell.
+ * @param {string} source
+ * @param {string} relativePath
+ * @returns {void}
+ */
+function assertNotHtmlShell(source, relativePath) {
+    assert.doesNotMatch(
+        source.trimStart().slice(0, 120),
+        /<!doctype html>/i,
+        relativePath + ' contains the app HTML shell'
+    )
+}
+
+/**
  * Imports a fresh copy of the static deploy builder.
  * @returns {Promise<typeof import('../src/StaticDeployBuilder.mjs')>}
  */
@@ -71,6 +100,42 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         path.join(outputRoot, 'workers', 'ecad-parser.worker.mjs'),
         'utf8'
     )
+    const altiumParserSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/altium-toolkit/src/parser.mjs'
+    )
+    const kicadParserSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/kicad-toolkit/src/parser.mjs'
+    )
+    const fflateSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/fflate/esm/browser.js'
+    )
+    const altiumFontSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/altium-toolkit/src/core/altium/PcbEmbeddedFontExtractor.mjs'
+    )
+    const threeRuntimeSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/three/build/three.module.js'
+    )
+    const threeCoreSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/three/build/three.core.js'
+    )
+    const orbitControlsSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/three/examples/jsm/controls/OrbitControls.js'
+    )
+    const vrmlLoaderSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/three/examples/jsm/loaders/VRMLLoader.js'
+    )
+    const chevrotainSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/three/examples/jsm/libs/chevrotain.module.min.js'
+    )
     const htaccessSource = await readFile(
         path.join(outputRoot, '.htaccess'),
         'utf8'
@@ -92,14 +157,56 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
             '\\.\\./core/ecad/EcadParserService\\.mjs\\?v=' + pkg.version
         )
     )
+    assertNotHtmlShell(
+        altiumParserSource,
+        'node_modules/altium-toolkit/src/parser.mjs'
+    )
+    assert.match(altiumParserSource, /AltiumParser/)
+    assertNotHtmlShell(
+        kicadParserSource,
+        'node_modules/kicad-toolkit/src/parser.mjs'
+    )
+    assert.match(kicadParserSource, /KicadParser/)
+    assertNotHtmlShell(fflateSource, 'node_modules/fflate/esm/browser.js')
+    assert.match(fflateSource, /unzlibSync/)
+    assert.match(
+        altiumFontSource,
+        new RegExp('/node_modules/fflate/esm/browser\\.js\\?v=' + pkg.version)
+    )
+    assertNotHtmlShell(
+        threeRuntimeSource,
+        'node_modules/three/build/three.module.js'
+    )
+    assert.match(threeRuntimeSource, /three\.core\.js/)
+    assertNotHtmlShell(
+        threeCoreSource,
+        'node_modules/three/build/three.core.js'
+    )
+    assert.match(threeCoreSource, /REVISION/)
+    assertNotHtmlShell(
+        orbitControlsSource,
+        'node_modules/three/examples/jsm/controls/OrbitControls.js'
+    )
+    assert.match(orbitControlsSource, /OrbitControls/)
+    assertNotHtmlShell(
+        vrmlLoaderSource,
+        'node_modules/three/examples/jsm/loaders/VRMLLoader.js'
+    )
+    assert.match(vrmlLoaderSource, /VRMLLoader/)
+    assertNotHtmlShell(
+        chevrotainSource,
+        'node_modules/three/examples/jsm/libs/chevrotain.module.min.js'
+    )
+    assert.match(chevrotainSource, /chevrotain/)
     assert.match(htaccessSource, /Cache-Control/)
     assert.match(htaccessSource, /no-store/)
     assert.match(htaccessSource, /RewriteEngine On/)
-    assert.match(
-        htaccessSource,
-        /RewriteRule \^\(\.\+\)\$ \$1\.html \[L\]/
-    )
+    assert.match(htaccessSource, /RewriteRule \^\(\.\+\)\$ \$1\.html \[L\]/)
     assert.match(htaccessSource, /RewriteRule \^ index\.html \[L\]/)
     assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-f/)
     assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-d/)
+    assert.match(
+        htaccessSource,
+        /RewriteCond %\{REQUEST_URI\} !\\\.\[\^\/\]\+\$/
+    )
 })
