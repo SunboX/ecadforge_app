@@ -11,6 +11,7 @@
 - `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation events without file names, raw URLs, or contents
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
+- `src/core/webmcp/*.mjs`: browser-native WebMCP adapter plus read-only loaded-session netlist query, grouping, regex, and traversal services
 - `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
 - `altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
 - `altium-toolkit/scene3d`: non-interactive PCB 3D scene-description builders and model registry logic
@@ -49,7 +50,26 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 5. `AppState` stores parse status, the recovered document models, and session companion assets
 6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
 7. The app uses `EcadScene3dService` to choose Altium or KiCad scene-description builders, add KiCad silkscreen detail where needed, then the local 3D runtime resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder
-8. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
+8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot and never read local paths directly
+9. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
+
+## WebMCP
+
+The WebMCP layer is loaded by `src/main.mjs` after the controller is created.
+It is dependency-free and feature-detects `navigator.modelContext`. If native
+support is unavailable, registration is skipped and the viewer continues
+normally.
+
+Registered tools operate only on loaded session documents. `design` arguments
+can target `active`, a loaded document id, an exact loaded file name, or an
+unambiguous loaded file base name. The tools return MCP-style JSON text content
+for design listing, component listing/search, net listing/search, component pin
+queries, and extended-net traversal.
+
+The query service derives a compact netlist from normalized schematic nets,
+schematic/PCB component records, and BOM rows. PCB-only documents can still
+provide component metadata when present, but connectivity tools return a clear
+error if schematic connectivity is unavailable.
 
 ## Styling
 

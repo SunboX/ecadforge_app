@@ -21,6 +21,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
 15. Shared-hosting deployment publishes an Apache-ready static frontend artifact with versioned browser module URLs and no-store cache headers.
+16. When native browser WebMCP support is available, the app registers read-only loaded-session tools for listing loaded designs, listing/searching components and nets, querying component pins, and tracing extended connectivity.
 
 ## 3. Non-Functional Requirements
 
@@ -30,6 +31,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 4. Include JSDoc for all public and private methods.
 5. Keep documentation in `docs/` and tests in `tests/`.
 6. Keep file parsing local-first and avoid outbound network calls.
+7. WebMCP tools must not upload files, scan local paths, fetch remote resources, mutate app state, or expose raw file contents.
 
 ## 4. Architecture
 
@@ -42,6 +44,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 7. `src/main.mjs`: browser entrypoint.
 8. `src/server.mjs`: local static/API server.
 9. `src/StaticDeployBuilder.mjs` and `scripts/build-static-deploy.mjs`: static FTP deployment artifact builder.
+10. `src/core/webmcp/`: native WebMCP adapter, tool registry, loaded-session netlist query service, regex validation, component grouping, and circuit traversal helpers.
 
 ## 5. Security / Privacy
 
@@ -66,3 +69,4 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 10. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
 11. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads, missing KiCad sheet files, or conflicting explicit net names.
 12. The FTP workflow uploads the static build artifact rather than raw browser source.
+13. In browsers with native WebMCP support, the registered tools answer from currently loaded documents only and return clear errors for missing designs, ambiguous selectors, broad regex searches, PCB-only connectivity, missing components, missing nets, and blocked power/ground traversal starts.

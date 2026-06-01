@@ -3,6 +3,7 @@ import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
+import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
 import { AppView } from './ui/AppView.mjs'
 import { PcbScene3dController } from './ui/PcbScene3dController.mjs'
 import { PcbScene3dWorkerClient } from './ui/PcbScene3dWorkerClient.mjs'
@@ -15,7 +16,7 @@ import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
  */
 async function bootstrap() {
     const loadedVersion = AppRuntimeVersion.readLoadedVersion(import.meta.url)
-    const i18n = await I18nService.create('en')
+    const i18n = await I18nService.createFromBrowserStorage()
     const state = new AppState({
         locale: i18n ? i18n.getLocale() : 'en',
         activeView: 'schematic',
@@ -52,8 +53,12 @@ async function bootstrap() {
         workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' }),
         startupSource
     })
+    const webMcpAdapter = new WebMcpAdapter({
+        getSnapshot: () => state.getSnapshot()
+    })
 
     await controller.init()
+    webMcpAdapter.initialize()
     if (!startupSource) {
         void HeroPreviewDemoLoader.load(view)
     }

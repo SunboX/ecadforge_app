@@ -1,6 +1,15 @@
 /**
- * Runtime translation service backed by JSON bundles.
  * @typedef {'en' | 'de' | 'zh-CN' | 'vi' | 'fr' | 'es'} AppLocale
+ */
+
+/**
+ * Browser storage key for the selected locale.
+ * @type {string}
+ */
+const BROWSER_LOCALE_STORAGE_KEY = 'ecadforge.locale'
+
+/**
+ * Runtime translation service backed by JSON bundles.
  */
 export class I18nService {
     /** @type {AppLocale} */
@@ -9,13 +18,22 @@ export class I18nService {
     /** @type {Record<string, string>} */
     #dictionary
 
+    /** @type {{ getItem?: (key: string) => string | null, setItem?: (key: string, value: string) => void } | null} */
+    #storage
+
     /**
      * @param {AppLocale} locale
      * @param {Record<string, string>} dictionary
+     * @param {{ getItem?: (key: string) => string | null, setItem?: (key: string, value: string) => void } | null} [storage]
      */
-    constructor(locale, dictionary) {
+    constructor(
+        locale,
+        dictionary,
+        storage = I18nService.#resolveBrowserStorage()
+    ) {
         this.#locale = locale
         this.#dictionary = dictionary
+        this.#storage = storage
     }
 
     /**
@@ -24,9 +42,34 @@ export class I18nService {
      * @returns {Promise<I18nService>}
      */
     static async create(preferredLocale = 'en') {
+        return I18nService.#createWithStorage(
+            preferredLocale,
+            I18nService.#resolveBrowserStorage()
+        )
+    }
+
+    /**
+     * Creates a service using the browser-stored locale when available.
+     * @param {{ getItem?: (key: string) => string | null, setItem?: (key: string, value: string) => void } | null} [storage]
+     * @returns {Promise<I18nService>}
+     */
+    static async createFromBrowserStorage(
+        storage = I18nService.#resolveBrowserStorage()
+    ) {
+        const preferredLocale = I18nService.#readStoredLocale(storage)
+        return I18nService.#createWithStorage(preferredLocale, storage)
+    }
+
+    /**
+     * Creates a service using an explicit storage backend.
+     * @param {string} preferredLocale
+     * @param {{ getItem?: (key: string) => string | null, setItem?: (key: string, value: string) => void } | null} storage
+     * @returns {Promise<I18nService>}
+     */
+    static async #createWithStorage(preferredLocale, storage) {
         const locale = I18nService.#normalizeLocale(preferredLocale)
         const dictionary = await I18nService.#fetchDictionary(locale)
-        return new I18nService(locale, dictionary)
+        return new I18nService(locale, dictionary, storage)
     }
 
     /**
@@ -45,7 +88,11 @@ export class I18nService {
         const locale = I18nService.#normalizeLocale(nextLocale)
         this.#locale = locale
         this.#dictionary = await I18nService.#fetchDictionary(locale)
-        this.applyToDom(document)
+        this.#writeStoredLocale(locale)
+
+        if (typeof document !== 'undefined') {
+            this.applyToDom(document)
+        }
     }
 
     /**
@@ -134,6 +181,58 @@ export class I18nService {
             return payload
         } catch (_error) {
             return {}
+        }
+    }
+
+    /**
+     * Resolves browser local storage when the runtime exposes it.
+     * @returns {{ getItem?: (key: string) => string | null, setItem?: (key: string, value: string) => void } | null}
+     */
+    static #resolveBrowserStorage() {
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.localStorage) {
+                return globalThis.localStorage
+            }
+        } catch (_error) {
+            return null
+        }
+
+        return null
+    }
+
+    /**
+     * Reads the stored locale from a browser storage-like object.
+     * @param {{ getItem?: (key: string) => string | null } | null} storage
+     * @returns {AppLocale}
+     */
+    static #readStoredLocale(storage) {
+        try {
+            if (!storage || typeof storage.getItem !== 'function') {
+                return 'en'
+            }
+
+            return I18nService.#normalizeLocale(
+                storage.getItem(BROWSER_LOCALE_STORAGE_KEY) || 'en'
+            )
+        } catch (_error) {
+            return 'en'
+        }
+    }
+
+    /**
+     * Writes the active locale to browser storage when available.
+     * @param {AppLocale} locale
+     * @returns {void}
+     */
+    #writeStoredLocale(locale) {
+        try {
+            if (!this.#storage || typeof this.#storage.setItem !== 'function') {
+                return
+            }
+
+            this.#storage.setItem(BROWSER_LOCALE_STORAGE_KEY, locale)
+        } catch (_error) {
+            // Some privacy modes expose storage but reject writes.
         }
     }
 

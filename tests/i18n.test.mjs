@@ -94,6 +94,37 @@ class FakeI18nDocument {
 }
 
 /**
+ * Minimal localStorage-compatible fake for locale persistence tests.
+ */
+class FakeLocaleStorage {
+    /** @type {Map<string, string>} */
+    #entries
+
+    constructor(entries = {}) {
+        this.#entries = new Map(Object.entries(entries))
+    }
+
+    /**
+     * Reads one stored value.
+     * @param {string} key
+     * @returns {string | null}
+     */
+    getItem(key) {
+        return this.#entries.get(key) || null
+    }
+
+    /**
+     * Stores one string value.
+     * @param {string} key
+     * @param {string} value
+     * @returns {void}
+     */
+    setItem(key, value) {
+        this.#entries.set(key, String(value))
+    }
+}
+
+/**
  * Verifies locale application updates text and translated attributes.
  */
 test('I18nService applies translated text and attributes to the DOM', () => {
@@ -181,6 +212,75 @@ test('I18nService creates requested non-default locale services', async () => {
         )
     } finally {
         globalThis.fetch = originalFetch
+    }
+})
+
+/**
+ * Verifies stored locale preference is used during service creation.
+ */
+test('I18nService restores the stored browser locale', async () => {
+    const storage = new FakeLocaleStorage({ 'ecadforge.locale': 'fr' })
+    const requestedUrls = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (url) => {
+        requestedUrls.push(String(url))
+        return {
+            ok: true,
+            async json() {
+                return {
+                    'app.open': 'Ouvrir des fichiers locaux'
+                }
+            }
+        }
+    }
+
+    try {
+        const service = await I18nService.createFromBrowserStorage(storage)
+
+        assert.equal(service.getLocale(), 'fr')
+        assert.equal(
+            service.translate('app.open'),
+            'Ouvrir des fichiers locaux'
+        )
+        assert.deepEqual(requestedUrls, ['/i18n/fr.json'])
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+})
+
+/**
+ * Verifies user-selected locale changes are written to browser storage.
+ */
+test('I18nService stores selected browser locale changes', async () => {
+    const storage = new FakeLocaleStorage()
+    const documentRef = new FakeI18nDocument()
+    const originalFetch = globalThis.fetch
+    const originalDocument = globalThis.document
+    globalThis.fetch = async () => ({
+        ok: true,
+        async json() {
+            return {
+                'footer.title': 'Impressum'
+            }
+        }
+    })
+    globalThis.document = documentRef
+
+    try {
+        const service = new I18nService('en', {}, storage)
+
+        await service.setLocale('de')
+
+        assert.equal(storage.getItem('ecadforge.locale'), 'de')
+        assert.equal(service.getLocale(), 'de')
+        assert.equal(documentRef.documentElement.lang, 'de')
+    } finally {
+        globalThis.fetch = originalFetch
+        if (originalDocument) {
+            globalThis.document = originalDocument
+        } else {
+            delete globalThis.document
+        }
     }
 })
 

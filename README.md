@@ -15,6 +15,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - PCB SVG view with recovered board outline, layer stack, and component placements
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
+- Browser-native WebMCP tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback
 - Shared parser and non-interactive renderer cores from `altium-toolkit` and `kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
@@ -25,6 +26,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and data-only 3D scene helpers
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
+- `src/core/webmcp/`: read-only loaded-session WebMCP adapter, tool registry, netlist query service, grouping, regex, and traversal helpers
 - `src/demo/`: bundled demo project files plus source and license notices
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
@@ -38,6 +40,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
 - [Security](docs/security.md)
+- [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Specification](spec/web-app-specification.md)
 
@@ -53,6 +56,16 @@ Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.Pcb
 Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching.
 
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
+
+## WebMCP
+
+When the browser provides native WebMCP support, ECAD Forge registers read-only
+tools for the designs already loaded in the current session. Agents can list
+loaded designs, components, nets, search metadata, query component pins, and
+trace extended connectivity without uploading files or scanning local paths.
+
+See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
+constraints, and unsupported browser-only operations.
 
 ## Deploy
 
