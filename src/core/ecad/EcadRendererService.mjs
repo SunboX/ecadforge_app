@@ -9,6 +9,7 @@ import {
     PcbSvgRenderer as KicadPcbSvgRenderer,
     SchematicSvgRenderer as KicadSchematicSvgRenderer
 } from 'kicad-toolkit/renderers'
+import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
@@ -90,14 +91,19 @@ export class EcadRendererService {
      * @returns {string}
      */
     static #renderAltiumPcb(documentModel, side) {
-        const renderModel = prepareAltiumPcbSideResolvedRenderModel(
+        const sideResolvedModel = prepareAltiumPcbSideResolvedRenderModel(
             documentModel,
             { side: side === 'bottom' ? 'back' : 'front' }
         )
+        const renderModel =
+            side === 'bottom'
+                ? AltiumPcbBottomViewMirror.apply(sideResolvedModel)
+                : sideResolvedModel
         const markup = EcadRendererService.#withPcbSvgClasses(
             AltiumPcbSvgRenderer.render(renderModel),
             'pcb-svg--app-palette',
-            'pcb-svg--altium'
+            'pcb-svg--altium',
+            side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
         )
 
         if (side !== 'bottom') {

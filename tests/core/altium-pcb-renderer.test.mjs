@@ -153,10 +153,8 @@ test('Altium PCB renderer keeps unowned overlay text visible', () => {
 test('Altium PCB renderer uses shared app PCB palette classes', () => {
     const markup = EcadRendererService.renderPcb(createPcbDocument())
 
-    assert.match(
-        markup,
-        /class="pcb-svg pcb-svg--app-palette pcb-svg--altium"/
-    )
+    assert.match(markup, /class="[^"]*\bpcb-svg--app-palette\b/)
+    assert.match(markup, /class="[^"]*\bpcb-svg--altium\b/)
 })
 
 /**
@@ -232,6 +230,105 @@ test('Altium PCB renderer switches overlay text for bottom-side views', () => {
     assert.match(bottomMarkup, /Bottom-facing composite view/)
     assert.match(bottomMarkup, />BOTTOM_SIDE_MARK<\/text>/)
     assert.doesNotMatch(bottomMarkup, />TOP_SIDE_MARK<\/text>/)
+})
+
+/**
+ * Verifies bottom-facing Altium PCB output mirrors board-space X coordinates
+ * like the 3D bottom preset instead of reusing the top-view placement frame.
+ */
+test('Altium PCB renderer mirrors bottom-side composite horizontally', () => {
+    const documentModel = createPcbDocument({
+        primitiveLayers: [
+            { name: 'Bottom Layer', layerId: 32 },
+            { name: 'Bottom Overlay', layerId: 34 }
+        ],
+        components: [
+            {
+                componentIndex: 2,
+                designator: 'B1',
+                x: 10,
+                y: 60,
+                layer: 'Bottom Layer',
+                pattern: 'SOT23',
+                rotation: 0
+            }
+        ],
+        pads: [
+            {
+                componentIndex: 2,
+                x: 30,
+                y: 40,
+                sizeBottomX: 20,
+                sizeBottomY: 10,
+                shapeBottom: 2,
+                layerId: 32,
+                rotation: 0
+            }
+        ],
+        tracks: [
+            {
+                x1: 10,
+                y1: 15,
+                x2: 40,
+                y2: 15,
+                width: 4,
+                layerCode: 32,
+                layerId: 32
+            }
+        ],
+        texts: [
+            {
+                text: 'BOTTOM_SIDE_MARK',
+                x: 20,
+                y: 30,
+                height: 8,
+                layerId: 34,
+                rotation: 270,
+                mirrored: true,
+                fontTypeName: 'TrueType',
+                fontFamily: 'Consolas',
+                isInverted: true,
+                marginBorderWidth: 2,
+                visible: true
+            },
+            {
+                text: 'LARGE_BOTTOM_SIDE_MARK',
+                x: 22,
+                y: 180,
+                height: 160,
+                layerId: 34,
+                rotation: 270,
+                mirrored: true,
+                fontTypeName: 'TrueType',
+                fontFamily: 'Consolas',
+                isInverted: true,
+                marginBorderWidth: 4,
+                visible: true
+            }
+        ]
+    })
+
+    const bottomMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'bottom'
+    })
+
+    assert.match(bottomMarkup, /x1="90" y1="15" x2="60" y2="15"/)
+    assert.match(bottomMarkup, /class="[^"]*\bpcb-svg--bottom\b/)
+    assert.match(bottomMarkup, /transform="translate\(70 40\) rotate\([^)]+\)"/)
+    assert.match(
+        bottomMarkup,
+        /<g class="pcb-texts"[^>]*transform="translate\(100 0\) scale\(-1 1\)"/
+    )
+    assert.match(
+        bottomMarkup,
+        /transform="translate\(20 30\) rotate\(270\) scale\(-1 1\)"/
+    )
+    assert.match(
+        bottomMarkup,
+        /transform="translate\(22 20\) rotate\(270\) scale\(-1 1\)"/
+    )
+    assert.match(bottomMarkup, /class="pcb-text__knockout-fill"/)
+    assert.match(bottomMarkup, /transform="translate\(90 60\) rotate\([^)]+\)"/)
 })
 
 /**

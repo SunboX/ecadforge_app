@@ -17,6 +17,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
 - Browser-native WebMCP tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback
+- Runtime language switching with browser detection and Brazilian Portuguese support
 - Shared parser, renderer, and non-interactive 3D scene-data cores from `altium-toolkit` and `kicad-toolkit`
 - Local Express dev server in `src/server.mjs`
 

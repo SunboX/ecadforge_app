@@ -146,23 +146,26 @@
                             >Language</span
                         >
                         <select id="localeSelect">
-                            <option value="en" data-i18n="locale.en">
-                                English
-                            </option>
                             <option value="de" data-i18n="locale.de">
                                 Deutsch
                             </option>
-                            <option value="zh-CN" data-i18n="locale.zh-CN">
-                                简体中文
+                            <option value="en" data-i18n="locale.en">
+                                English
                             </option>
-                            <option value="vi" data-i18n="locale.vi">
-                                Tiếng Việt
+                            <option value="es" data-i18n="locale.es">
+                                Español
                             </option>
                             <option value="fr" data-i18n="locale.fr">
                                 Français
                             </option>
-                            <option value="es" data-i18n="locale.es">
-                                Español
+                            <option value="pt-BR" data-i18n="locale.pt-BR">
+                                Português (Brasil)
+                            </option>
+                            <option value="vi" data-i18n="locale.vi">
+                                Tiếng Việt
+                            </option>
+                            <option value="zh-CN" data-i18n="locale.zh-CN">
+                                简体中文
                             </option>
                         </select>
                     </label>
@@ -659,6 +662,19 @@
                             Open this board in PCB Styler
                         </a>
                     </p>
+                    <button
+                        class="pcb-styler-cta__dismiss"
+                        id="pcbStylerDismiss"
+                        type="button"
+                        aria-label="Close PCB Styler tip"
+                        title="Close PCB Styler tip"
+                        data-i18n-attr="aria-label:pcbStyler.dismiss,title:pcbStyler.dismiss"
+                    >
+                        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg>
+                    </button>
                 </aside>
             </section>
 

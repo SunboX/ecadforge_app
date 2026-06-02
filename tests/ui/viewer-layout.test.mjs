@@ -119,6 +119,62 @@ test('mobile detail views keep the app shell scrollable with visible content spa
 })
 
 /**
+ * Verifies the multi-document selector switches to compact cards on mobile
+ * instead of keeping the full desktop preview tiles.
+ */
+test('mobile multi-document rail compacts oversized preview cards', async () => {
+    const css = await readViewerStylesheet()
+
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*grid-auto-columns:\s*minmax\(9\.75rem,\s*11\.5rem\);[\s\S]*gap:\s*0\.45rem;[\s\S]*padding:\s*0\.3rem;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail__item\s*\{[\s\S]*gap:\s*0\.45rem;[\s\S]*padding:\s*0\.48rem;[\s\S]*border-radius:\s*14px;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail__preview\s*\{[\s\S]*min-height:\s*4\.35rem;[\s\S]*padding:\s*0\.45rem;[\s\S]*border-radius:\s*10px;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.document-preview__summary strong\s*\{[\s\S]*font-size:\s*0\.88rem;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail__name\s*\{[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*white-space:\s*nowrap;/
+    )
+})
+
+/**
+ * Verifies short desktop browser windows get a larger active viewer surface
+ * without letting SVG views expand far beyond the visible browser window.
+ */
+test('compact desktop detail views use a taller bounded viewer height', async () => {
+    const css = await readViewerStylesheet()
+    const layoutCss = await readStylesheet('10-layout.css')
+    const sceneCss = await readStylesheet('30-scene3d.css')
+
+    assert.match(
+        layoutCss,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-visual \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto auto auto auto;/
+    )
+    assert.match(
+        layoutCss,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.app-shell\s*\{[\s\S]*height:\s*auto;/
+    )
+    assert.match(
+        css,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(580px,\s*68vh,\s*740px\);[\s\S]*min-height:\s*580px;/
+    )
+    assert.match(
+        sceneCss,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(460px,\s*50vh,\s*600px\),\s*auto\s*\) auto auto;/
+    )
+})
+
+/**
  * Verifies the landing page gives the empty drop area the remaining viewport
  * space instead of leaving it as a shallow fixed panel.
  */
@@ -167,6 +223,32 @@ test('viewer loading state centers the spinner in the stage', async () => {
 })
 
 /**
+ * Verifies the PCB Styler tip dismiss action stays anchored in the top-right
+ * corner instead of occupying the inline text row.
+ */
+test('PCB Styler tip close button is anchored to the top right', async () => {
+    const css = await readStylesheet('21-pcb-styler-tip.css')
+
+    assert.match(
+        css,
+        /\.pcb-styler-cta\s*\{[\s\S]*position:\s*relative;/
+    )
+    assert.match(
+        css,
+        /\.pcb-styler-cta__dismiss\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*0\.55rem;[\s\S]*right:\s*0\.55rem;/
+    )
+    assert.match(
+        css,
+        /\.pcb-styler-cta__dismiss:hover\s*\{[\s\S]*color:\s*var\(--brand-strong\);[\s\S]*background:\s*rgba\(184,\s*90,\s*37,\s*0\.12\);/
+    )
+    assert.match(
+        css,
+        /\.viewer-stage\.is-pcb-styler-cta-hidden\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);[\s\S]*gap:\s*0;/
+    )
+    assert.doesNotMatch(css, /#c3311d|rgba\(195,\s*49,\s*29,/)
+})
+
+/**
  * Verifies demo CTA colors are tied to the ECAD format, not button order.
  */
 test('sample CTA styles use explicit Altium and KiCad color classes', async () => {
@@ -196,6 +278,19 @@ test('sample CTA styles use explicit Altium and KiCad color classes', async () =
         viewerCss,
         /\.viewer-empty__actions \.file-pill:first-child/
     )
+})
+
+/**
+ * Verifies the app-level PCB board outline stroke stays rounded when the
+ * renderer supplies a refined multi-point board contour.
+ */
+test('viewer stylesheet rounds PCB board outline strokes', async () => {
+    const css = await readViewerStylesheet()
+    const boardOutlineBlock = css.match(/\.board-outline\s*\{[^}]*\}/)?.[0]
+
+    assert.ok(boardOutlineBlock)
+    assert.match(boardOutlineBlock, /stroke-linejoin:\s*round;/)
+    assert.match(boardOutlineBlock, /stroke-linecap:\s*round;/)
 })
 
 /**

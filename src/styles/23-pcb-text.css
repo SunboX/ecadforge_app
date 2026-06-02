@@ -1,0 +1,17 @@
+/*
+ * SPDX-FileCopyrightText: 2026 André Fiedler
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+.pcb-svg--altium {
+    --pcb-text-knockout-fill: var(--pcb-footprint-track-color);
+}
+
+.pcb-svg--altium .pcb-text__knockout-fill {
+    fill: var(--pcb-text-knockout-fill, var(--pcb-footprint-track-color));
+}
+
+.pcb-svg--altium .pcb-text__knockout-glyphs {
+    fill: #000;
+}

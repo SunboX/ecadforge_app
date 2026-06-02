@@ -1,5 +1,5 @@
 /**
- * @typedef {'en' | 'de' | 'zh-CN' | 'vi' | 'fr' | 'es'} AppLocale
+ * @typedef {'en' | 'de' | 'zh-CN' | 'vi' | 'fr' | 'es' | 'pt-BR'} AppLocale
  */
 
 /**
@@ -56,7 +56,9 @@ export class I18nService {
     static async createFromBrowserStorage(
         storage = I18nService.#resolveBrowserStorage()
     ) {
-        const preferredLocale = I18nService.#readStoredLocale(storage)
+        const preferredLocale =
+            I18nService.#readStoredLocale(storage) ||
+            I18nService.#readBrowserLocale()
         return I18nService.#createWithStorage(preferredLocale, storage)
     }
 
@@ -203,20 +205,44 @@ export class I18nService {
     /**
      * Reads the stored locale from a browser storage-like object.
      * @param {{ getItem?: (key: string) => string | null } | null} storage
-     * @returns {AppLocale}
+     * @returns {AppLocale | null}
      */
     static #readStoredLocale(storage) {
         try {
             if (!storage || typeof storage.getItem !== 'function') {
-                return 'en'
+                return null
             }
 
-            return I18nService.#normalizeLocale(
-                storage.getItem(BROWSER_LOCALE_STORAGE_KEY) || 'en'
+            return I18nService.#normalizeSupportedLocale(
+                storage.getItem(BROWSER_LOCALE_STORAGE_KEY)
             )
         } catch (_error) {
+            return null
+        }
+    }
+
+    /**
+     * Reads the best supported locale from browser language preferences.
+     * @returns {AppLocale}
+     */
+    static #readBrowserLocale() {
+        if (typeof globalThis === 'undefined' || !globalThis.navigator) {
             return 'en'
         }
+
+        const navigatorRef = globalThis.navigator
+        const languages = Array.isArray(navigatorRef.languages)
+            ? navigatorRef.languages
+            : []
+        const browserLocales = [...languages, navigatorRef.language]
+
+        for (const browserLocale of browserLocales) {
+            const locale =
+                I18nService.#normalizeSupportedLocale(browserLocale)
+            if (locale) return locale
+        }
+
+        return 'en'
     }
 
     /**
@@ -242,26 +268,48 @@ export class I18nService {
      * @returns {AppLocale}
      */
     static #normalizeLocale(locale) {
-        if (locale === 'de') {
+        return I18nService.#normalizeSupportedLocale(locale) || 'en'
+    }
+
+    /**
+     * Normalizes one locale identifier when a matching bundle exists.
+     * @param {string | null | undefined} locale
+     * @returns {AppLocale | null}
+     */
+    static #normalizeSupportedLocale(locale) {
+        const normalizedLocale = String(locale || '')
+            .trim()
+            .replace('_', '-')
+        const language = normalizedLocale.toLowerCase()
+
+        if (language === 'en' || language.startsWith('en-')) {
+            return 'en'
+        }
+
+        if (language === 'de' || language.startsWith('de-')) {
             return 'de'
         }
 
-        if (locale === 'zh-CN') {
+        if (language === 'zh' || language === 'zh-cn') {
             return 'zh-CN'
         }
 
-        if (locale === 'vi') {
+        if (language === 'vi' || language.startsWith('vi-')) {
             return 'vi'
         }
 
-        if (locale === 'fr') {
+        if (language === 'fr' || language.startsWith('fr-')) {
             return 'fr'
         }
 
-        if (locale === 'es') {
+        if (language === 'es' || language.startsWith('es-')) {
             return 'es'
         }
 
-        return 'en'
+        if (language === 'pt' || language.startsWith('pt-')) {
+            return 'pt-BR'
+        }
+
+        return null
     }
 }

@@ -179,7 +179,8 @@ test('I18nService creates requested non-default locale services', async () => {
         ['zh-CN', '打开本地文件'],
         ['vi', 'Mở tệp cục bộ'],
         ['fr', 'Ouvrir des fichiers locaux'],
-        ['es', 'Abrir archivos locales']
+        ['es', 'Abrir archivos locales'],
+        ['pt-BR', 'Abrir arquivos locais']
     ]
     const requestedUrls = []
     const originalFetch = globalThis.fetch
@@ -249,6 +250,144 @@ test('I18nService restores the stored browser locale', async () => {
 })
 
 /**
+ * Verifies browser language detection is used when no stored preference exists.
+ */
+test('I18nService detects the browser locale when no stored preference exists', async () => {
+    const storage = new FakeLocaleStorage()
+    const requestedUrls = []
+    const originalFetch = globalThis.fetch
+    const originalNavigator = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'navigator'
+    )
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: {
+            languages: ['pt-BR', 'de-DE'],
+            language: 'de-DE'
+        }
+    })
+    globalThis.fetch = async (url) => {
+        requestedUrls.push(String(url))
+        return {
+            ok: true,
+            async json() {
+                return {
+                    'app.open': 'Abrir arquivos locais'
+                }
+            }
+        }
+    }
+
+    try {
+        const service = await I18nService.createFromBrowserStorage(storage)
+
+        assert.equal(service.getLocale(), 'pt-BR')
+        assert.equal(service.translate('app.open'), 'Abrir arquivos locais')
+        assert.deepEqual(requestedUrls, ['/i18n/pt-BR.json'])
+    } finally {
+        globalThis.fetch = originalFetch
+        if (originalNavigator) {
+            Object.defineProperty(globalThis, 'navigator', originalNavigator)
+        } else {
+            delete globalThis.navigator
+        }
+    }
+})
+
+/**
+ * Verifies explicit user language selection wins over browser detection.
+ */
+test('I18nService prefers the stored locale over browser detection', async () => {
+    const storage = new FakeLocaleStorage({ 'ecadforge.locale': 'en' })
+    const requestedUrls = []
+    const originalFetch = globalThis.fetch
+    const originalNavigator = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'navigator'
+    )
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: {
+            languages: ['pt-BR'],
+            language: 'pt-BR'
+        }
+    })
+    globalThis.fetch = async (url) => {
+        requestedUrls.push(String(url))
+        return {
+            ok: true,
+            async json() {
+                return {
+                    'app.open': 'Open local files'
+                }
+            }
+        }
+    }
+
+    try {
+        const service = await I18nService.createFromBrowserStorage(storage)
+
+        assert.equal(service.getLocale(), 'en')
+        assert.equal(service.translate('app.open'), 'Open local files')
+        assert.deepEqual(requestedUrls, ['/i18n/en.json'])
+    } finally {
+        globalThis.fetch = originalFetch
+        if (originalNavigator) {
+            Object.defineProperty(globalThis, 'navigator', originalNavigator)
+        } else {
+            delete globalThis.navigator
+        }
+    }
+})
+
+/**
+ * Verifies unsupported browser languages fall back to English.
+ */
+test('I18nService falls back to English for unsupported browser locales', async () => {
+    const storage = new FakeLocaleStorage()
+    const requestedUrls = []
+    const originalFetch = globalThis.fetch
+    const originalNavigator = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'navigator'
+    )
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: {
+            languages: ['it-IT', 'nl-NL'],
+            language: 'it-IT'
+        }
+    })
+    globalThis.fetch = async (url) => {
+        requestedUrls.push(String(url))
+        return {
+            ok: true,
+            async json() {
+                return {
+                    'app.open': 'Open local files'
+                }
+            }
+        }
+    }
+
+    try {
+        const service = await I18nService.createFromBrowserStorage(storage)
+
+        assert.equal(service.getLocale(), 'en')
+        assert.equal(service.translate('app.open'), 'Open local files')
+        assert.deepEqual(requestedUrls, ['/i18n/en.json'])
+    } finally {
+        globalThis.fetch = originalFetch
+        if (originalNavigator) {
+            Object.defineProperty(globalThis, 'navigator', originalNavigator)
+        } else {
+            delete globalThis.navigator
+        }
+    }
+})
+
+/**
  * Verifies user-selected locale changes are written to browser storage.
  */
 test('I18nService stores selected browser locale changes', async () => {
@@ -289,8 +428,12 @@ test('I18nService stores selected browser locale changes', async () => {
  */
 test('index template exposes every localized locale option', async () => {
     const html = await readFile(new URL('src/index.html', root), 'utf8')
+    const optionLocales = Array.from(
+        html.matchAll(/<option value="([^"]+)" data-i18n="locale\.[^"]+">/g),
+        (match) => match[1]
+    )
 
-    ;['zh-CN', 'vi', 'fr', 'es'].forEach((locale) => {
+    ;['zh-CN', 'vi', 'fr', 'es', 'pt-BR'].forEach((locale) => {
         assert.match(
             html,
             new RegExp(
@@ -302,6 +445,15 @@ test('index template exposes every localized locale option', async () => {
             )
         )
     })
+    assert.deepEqual(optionLocales, [
+        'de',
+        'en',
+        'es',
+        'fr',
+        'pt-BR',
+        'vi',
+        'zh-CN'
+    ])
 })
 
 /**
@@ -325,7 +477,8 @@ test('index template localizes visible landing and viewer chrome', async () => {
         'data-i18n="summary.noFile"',
         'data-i18n="summary.records"',
         'data-i18n="pcbStyler.prompt"',
-        'data-i18n="pcbStyler.open"'
+        'data-i18n="pcbStyler.open"',
+        'data-i18n-attr="aria-label:pcbStyler.dismiss,title:pcbStyler.dismiss"'
     ]
 
     expectedMarkers.forEach((marker) => {
@@ -402,7 +555,8 @@ test('added locales mirror English translation keys', async () => {
         ['zh-CN', '简体中文', '打开本地文件'],
         ['vi', 'Tiếng Việt', 'Mở tệp cục bộ'],
         ['fr', 'Français', 'Ouvrir des fichiers locaux'],
-        ['es', 'Español', 'Abrir archivos locales']
+        ['es', 'Español', 'Abrir archivos locales'],
+        ['pt-BR', 'Português (Brasil)', 'Abrir arquivos locais']
     ]
 
     for (const [locale, localeLabel, localizedOpen] of localeCases) {

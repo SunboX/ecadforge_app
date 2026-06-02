@@ -17,7 +17,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 9. The `Diagnostics` tab exposes parser recovery, connectivity, and warning messages.
 10. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
 11. The app test suite validates app integration, interaction behavior, server behavior, and project structure; parser, deterministic renderer, and non-interactive scene-data behavior is validated in `altium-toolkit` and `kicad-toolkit`.
-12. Runtime language switching remains available for the shell UI.
+12. Runtime language switching detects supported browser locales on first load, persists manual user selection, falls back to English, and includes Brazilian Portuguese.
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
 15. Shared-hosting deployment publishes an Apache-ready static frontend artifact with versioned browser module URLs and no-store cache headers.

@@ -1,0 +1,53 @@
+.pcb-styler-cta {
+    position: relative;
+}
+
+.pcb-styler-cta p {
+    padding-right: 2.9rem;
+}
+
+.pcb-styler-cta__dismiss {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+}
+
+.pcb-styler-cta__dismiss:hover {
+    color: var(--brand-strong);
+    background: rgba(184, 90, 37, 0.12);
+}
+
+.pcb-styler-cta__dismiss:focus-visible {
+    outline: 3px solid rgba(184, 90, 37, 0.24);
+    outline-offset: 2px;
+    color: var(--brand-strong);
+}
+
+.pcb-styler-cta__dismiss .icon {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.pcb-styler-cta__dismiss .icon path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.viewer-stage.is-pcb-styler-cta-hidden {
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+}

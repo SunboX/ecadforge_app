@@ -18,6 +18,7 @@ const FALLBACK_MESSAGES = {
     'link.privacy': 'Privacy & security',
     'link.supportedFormats': 'Supported formats',
     'pcbStyler.export': 'Export or reopen in PCB Styler',
+    'pcbStyler.dismiss': 'Close PCB Styler tip',
     'pcbStyler.open': 'Open this board in PCB Styler',
     'pcbStyler.prompt': 'Need clean assembly images for documentation?',
     'pcbView.boardSideAria': 'PCB board side',

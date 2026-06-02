@@ -226,6 +226,31 @@ test('app stylesheet exposes a shared PCB renderer palette', async () => {
 })
 
 /**
+ * Verifies Altium bottom PCB output keeps the 2D PCB palette while inverted
+ * labels still paint their knockout background with the PCB silkscreen color.
+ */
+test('app stylesheet keeps Altium bottom PCB palette with knockout labels', async () => {
+    const css = await readAppStylesheet()
+
+    assert.match(
+        css,
+        /\.pcb-svg--altium\s*\{[\s\S]*--pcb-text-knockout-fill:\s*var\(--pcb-footprint-track-color\);/
+    )
+    assert.doesNotMatch(
+        css,
+        /\.pcb-svg--altium\.pcb-svg--bottom\s*\{[\s\S]*--pcb-board-fill:\s*#2f6a2c;/
+    )
+    assert.doesNotMatch(
+        css,
+        /\.pcb-svg--altium\.pcb-svg--bottom\s*\{[\s\S]*--pcb-footprint-track-color:\s*#ebebeb;/
+    )
+    assert.doesNotMatch(
+        css,
+        /\.pcb-svg--altium\.pcb-svg--bottom\s*\{[\s\S]*--pcb-footprint-region-fill:\s*rgba\(235,\s*235,\s*235,\s*0\.96\);/
+    )
+})
+
+/**
  * Verifies KiCad PCB renderer output is recolored from the toolkit's
  * black/gray presentation attributes into the ECAD Forge viewer palette.
  */

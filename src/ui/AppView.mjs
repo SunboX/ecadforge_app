@@ -10,6 +10,9 @@ import { SummaryCardRenderer } from './SummaryCardRenderer.mjs'
 import { UiText } from './UiText.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 
+const PCB_STYLER_TIP_DISMISSED_STORAGE_KEY =
+    'ecadforge.pcbStylerTipDismissed'
+
 /**
  * DOM rendering and event binding helper.
  */
@@ -71,6 +74,12 @@ export class AppView {
     /** @type {HTMLAnchorElement | null} */
     #pcbStylerLinkNode
 
+    /** @type {HTMLElement | null} */
+    #pcbStylerDismissNode
+
+    /** @type {Storage | null} */
+    #storage
+
     /** @type {(key: string) => string} */
     #translate
 
@@ -90,7 +99,7 @@ export class AppView {
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -115,6 +124,12 @@ export class AppView {
         this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
         this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
         this.#pcbStylerLinkNode = this.#document.querySelector('#pcbStylerLink')
+        this.#pcbStylerDismissNode =
+            this.#document.querySelector('#pcbStylerDismiss')
+        this.#storage =
+            options.storage === undefined
+                ? AppView.#resolveBrowserStorage(this.#document)
+                : options.storage
         this.#translate = UiText.createTranslator(options.translate || null)
         this.#svgViewportController = null
         this.#pcbViewController = null
@@ -134,6 +149,7 @@ export class AppView {
                 translate: this.#translate
             }
         )
+        this.#bindPcbStylerDismiss()
     }
 
     /**
@@ -396,7 +412,12 @@ export class AppView {
             mode === 'github'
                 ? this.#translate('pcbStyler.open')
                 : this.#translate('pcbStyler.export')
-        this.#pcbStylerCtaNode.removeAttribute('hidden')
+        if (this.#isPcbStylerTipDismissed()) {
+            this.#setPcbStylerCtaHidden(true)
+            return
+        }
+
+        this.#setPcbStylerCtaHidden(false)
     }
 
     /**
@@ -410,7 +431,72 @@ export class AppView {
 
         this.#pcbStylerLinkNode.href = 'https://pcb-styler.app/'
         this.#pcbStylerLinkNode.textContent = this.#translate('pcbStyler.open')
-        this.#pcbStylerCtaNode.setAttribute('hidden', 'hidden')
+        this.#setPcbStylerCtaHidden(true)
+    }
+
+    /**
+     * Binds the persistent PCB Styler tip dismissal button.
+     * @returns {void}
+     */
+    #bindPcbStylerDismiss() {
+        this.#pcbStylerDismissNode?.addEventListener('click', () => {
+            this.#dismissPcbStylerTip()
+        })
+    }
+
+    /**
+     * Hides the PCB Styler tip and stores the user preference.
+     * @returns {void}
+     */
+    #dismissPcbStylerTip() {
+        this.#storePcbStylerTipDismissed()
+        this.#setPcbStylerCtaHidden(true)
+    }
+
+    /**
+     * Toggles the PCB Styler CTA and collapses the unused grid row with it.
+     * @param {boolean} hidden Whether the CTA should be hidden.
+     * @returns {void}
+     */
+    #setPcbStylerCtaHidden(hidden) {
+        if (hidden) {
+            this.#pcbStylerCtaNode?.setAttribute('hidden', 'hidden')
+            this.#viewerStageNode?.classList.add('is-pcb-styler-cta-hidden')
+            return
+        }
+
+        this.#pcbStylerCtaNode?.removeAttribute('hidden')
+        this.#viewerStageNode?.classList.remove('is-pcb-styler-cta-hidden')
+    }
+
+    /**
+     * Returns true when the PCB Styler tip was dismissed in this browser.
+     * @returns {boolean}
+     */
+    #isPcbStylerTipDismissed() {
+        try {
+            return (
+                this.#storage?.getItem(PCB_STYLER_TIP_DISMISSED_STORAGE_KEY) ===
+                'true'
+            )
+        } catch (_error) {
+            return false
+        }
+    }
+
+    /**
+     * Persists the PCB Styler tip dismissal preference when storage is usable.
+     * @returns {void}
+     */
+    #storePcbStylerTipDismissed() {
+        try {
+            this.#storage?.setItem(
+                PCB_STYLER_TIP_DISMISSED_STORAGE_KEY,
+                'true'
+            )
+        } catch (_error) {
+            // The current click still hides the tip when browser storage fails.
+        }
     }
 
     /**
@@ -752,6 +838,19 @@ export class AppView {
      */
     static #isSceneViewportNode(node) {
         return Boolean(node && typeof node === 'object')
+    }
+
+    /**
+     * Resolves browser storage without throwing in restricted environments.
+     * @param {Document} documentRef Browser document.
+     * @returns {Storage | null}
+     */
+    static #resolveBrowserStorage(documentRef) {
+        try {
+            return documentRef.defaultView?.localStorage || null
+        } catch (_error) {
+            return null
+        }
     }
 
     /**
