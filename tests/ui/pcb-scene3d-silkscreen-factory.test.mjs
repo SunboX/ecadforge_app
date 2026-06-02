@@ -444,8 +444,8 @@ test('PcbScene3dSilkscreenFactory builds top and bottom overlay groups', () => {
     assert.equal(topTrackBounds.maxX, 24)
     assert.equal(topTrackBounds.minY, -59)
     assert.equal(topTrackBounds.maxY, -51)
-    assert.equal(topTrackBounds.minZ, 32.1)
-    assert.equal(topTrackBounds.maxZ, 32.1)
+    assert.equal(topTrackBounds.minZ, 32.14)
+    assert.equal(topTrackBounds.maxZ, 32.14)
     assert.ok(topArcBounds.maxX - topArcBounds.minX > 18)
     assert.ok(topArcBounds.maxY - topArcBounds.minY > 4)
     assert.equal(topFillMesh.geometry.type, 'BoxGeometry')
@@ -458,8 +458,8 @@ test('PcbScene3dSilkscreenFactory builds top and bottom overlay groups', () => {
     assert.ok(bottomTrackBounds.minY < -176)
     assert.ok(bottomTrackBounds.maxY <= -142)
     assert.ok(bottomTrackBounds.maxY > -144)
-    assert.equal(bottomTrackBounds.minZ, 32.1)
-    assert.equal(bottomTrackBounds.maxZ, 32.1)
+    assert.equal(bottomTrackBounds.minZ, 32.14)
+    assert.equal(bottomTrackBounds.maxZ, 32.14)
 })
 
 test('PcbScene3dSilkscreenFactory renders start-equals-end arcs as full circles', () => {
@@ -497,8 +497,8 @@ test('PcbScene3dSilkscreenFactory renders start-equals-end arcs as full circles'
 
     assert.ok(bounds.maxX - bounds.minX > 45)
     assert.ok(bounds.maxY - bounds.minY > 45)
-    assert.equal(bounds.minZ, 12)
-    assert.equal(bounds.maxZ, 12)
+    assert.equal(bounds.minZ, 12.04)
+    assert.equal(bounds.maxZ, 12.04)
 })
 
 test('PcbScene3dSilkscreenFactory preserves authored sub-mil track widths', () => {
@@ -708,47 +708,6 @@ test('PcbScene3dSilkscreenFactory cuts holes from rectangular fills', () => {
         { type: 'closePath' }
     ])
     assert.equal(fillMesh.geometry.shape.holes.length, 1)
-})
-
-test('PcbScene3dSilkscreenFactory masks stroke silkscreen at drill cutouts', () => {
-    const THREE = createFakeThree()
-    const group = PcbScene3dSilkscreenFactory.buildGroup(
-        THREE,
-        {
-            top: {
-                fills: [],
-                tracks: [{ x1: 10, y1: 20, x2: 80, y2: 20, width: 8 }],
-                arcs: [],
-                drillCutouts: [
-                    [
-                        { x: 35, y: 14 },
-                        { x: 47, y: 14 },
-                        { x: 47, y: 26 },
-                        { x: 35, y: 26 }
-                    ]
-                ]
-            },
-            bottom: { fills: [], tracks: [], arcs: [], drillCutouts: [] }
-        },
-        18,
-        -18,
-        (x, y) => ({ x: x - 5, y: y - 10 })
-    )
-
-    const topGroup = group.children[0]
-    const cutoutMesh = topGroup.children[1]
-
-    assert.equal(topGroup.children.length, 2)
-    assert.equal(cutoutMesh.geometry.type, 'ShapeGeometry')
-    assert.equal(cutoutMesh.material.options.color, 0xc9ca78)
-    assert.deepEqual(cutoutMesh.geometry.shape.commands, [
-        { type: 'moveTo', x: 30, y: 4 },
-        { type: 'lineTo', x: 42, y: 4 },
-        { type: 'lineTo', x: 42, y: 16 },
-        { type: 'lineTo', x: 30, y: 16 },
-        { type: 'closePath' }
-    ])
-    assert.ok(cutoutMesh.position.z > 18)
 })
 
 test('PcbScene3dSilkscreenFactory honors side-specific stroke and fill colors', () => {

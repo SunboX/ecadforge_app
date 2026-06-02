@@ -1,4 +1,6 @@
 import { KicadStrokeFont } from 'kicad-toolkit/renderers'
+import { PcbScene3dCutoutGeometryFilter } from './PcbScene3dCutoutGeometryFilter.mjs'
+import { PcbScene3dStrokeGeometryBuilder } from './PcbScene3dStrokeGeometryBuilder.mjs'
 
 /**
  * Builds KiCad copper text as widened stroke meshes for the 3D PCB scene.
@@ -15,7 +17,7 @@ export class PcbScene3dCopperTextFactory {
      * @param {any[]} texts
      * @param {number} z
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
-     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean, materialColor?: number, filterSide?: boolean, glyphYUp?: boolean }} [options]
+     * @param {{ side?: 'top' | 'bottom', mirrorY?: boolean, materialColor?: number, filterSide?: boolean, glyphYUp?: boolean, drillCutouts?: { x: number, y: number }[][] }} [options]
      * @returns {any}
      */
     static buildGroup(THREE, texts, z, normalizeBoardPoint, options = {}) {
@@ -53,9 +55,21 @@ export class PcbScene3dCopperTextFactory {
             new THREE.Float32BufferAttribute(positions, 3)
         )
         geometry.computeVertexNormals?.()
+        const filteredGeometry =
+            PcbScene3dCopperTextFactory.#filterDrillCutouts(
+                THREE,
+                geometry,
+                options?.drillCutouts
+            )
+
+        if (
+            !PcbScene3dCopperTextFactory.#hasGeometryPositions(filteredGeometry)
+        ) {
+            return group
+        }
 
         const mesh = new THREE.Mesh(
-            geometry,
+            filteredGeometry,
             PcbScene3dCopperTextFactory.#buildMaterial(
                 THREE,
                 PcbScene3dCopperTextFactory.#resolveMaterialColor(
@@ -66,6 +80,36 @@ export class PcbScene3dCopperTextFactory {
         mesh.name = 'copper-text'
         group.add(mesh)
         return group
+    }
+
+    /**
+     * Removes text stroke triangles that overlap drill cutouts.
+     * @param {any} THREE
+     * @param {any} geometry
+     * @param {{ x: number, y: number }[][] | undefined} drillCutouts
+     * @returns {any}
+     */
+    static #filterDrillCutouts(THREE, geometry, drillCutouts) {
+        return Array.isArray(drillCutouts) && drillCutouts.length
+            ? PcbScene3dCutoutGeometryFilter.filter(
+                  THREE,
+                  geometry,
+                  drillCutouts
+              )
+            : geometry
+    }
+
+    /**
+     * Returns true when a geometry still has triangle positions.
+     * @param {any} geometry
+     * @returns {boolean}
+     */
+    static #hasGeometryPositions(geometry) {
+        const position =
+            geometry?.getAttribute?.('position') ??
+            geometry?.attributes?.get?.('position')
+
+        return Boolean(position?.count || position?.array?.length)
     }
 
     /**
@@ -409,54 +453,14 @@ export class PcbScene3dCopperTextFactory {
      * @returns {void}
      */
     static #appendTrackTriangles(positions, start, end, width, z) {
-        const dx = end.x - start.x
-        const dy = end.y - start.y
-        const length = Math.hypot(dx, dy)
-        const halfWidth = Math.max(Number(width || 0), 1) / 2
-
-        if (length <= 0.001) {
-            return
-        }
-
-        const normalX = (-dy / length) * halfWidth
-        const normalY = (dx / length) * halfWidth
-
-        PcbScene3dCopperTextFactory.#appendQuadTriangles(
+        PcbScene3dStrokeGeometryBuilder.appendTrack(
             positions,
-            { x: start.x + normalX, y: start.y + normalY },
-            { x: end.x + normalX, y: end.y + normalY },
-            { x: end.x - normalX, y: end.y - normalY },
-            { x: start.x - normalX, y: start.y - normalY },
-            z
+            start,
+            end,
+            width,
+            z,
+            { minWidth: 1 }
         )
-    }
-
-    /**
-     * Appends one rectangle as two triangles.
-     * @param {number[]} positions
-     * @param {{ x: number, y: number }} a
-     * @param {{ x: number, y: number }} b
-     * @param {{ x: number, y: number }} c
-     * @param {{ x: number, y: number }} d
-     * @param {number} z
-     * @returns {void}
-     */
-    static #appendQuadTriangles(positions, a, b, c, d, z) {
-        PcbScene3dCopperTextFactory.#appendTriangle(positions, a, b, c, z)
-        PcbScene3dCopperTextFactory.#appendTriangle(positions, a, c, d, z)
-    }
-
-    /**
-     * Appends one triangle into the position buffer.
-     * @param {number[]} positions
-     * @param {{ x: number, y: number }} a
-     * @param {{ x: number, y: number }} b
-     * @param {{ x: number, y: number }} c
-     * @param {number} z
-     * @returns {void}
-     */
-    static #appendTriangle(positions, a, b, c, z) {
-        positions.push(a.x, a.y, z, b.x, b.y, z, c.x, c.y, z)
     }
 
     /**

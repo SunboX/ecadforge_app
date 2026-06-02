@@ -359,3 +359,132 @@ test('buildGroup extrudes drilled pads as annular rings', () => {
     assert.equal(mesh.position.z, 14.2)
     assert.equal(mesh.rotation.x, 0)
 })
+
+test('buildGroup keeps drilled pad barrels without filling the aperture', () => {
+    const group = PcbScene3dPadFactory.buildGroup(
+        THREE,
+        [
+            {
+                x: 110,
+                y: 210,
+                sizeTopX: 60,
+                sizeTopY: 60,
+                shapeTop: 1,
+                holeDiameter: 28
+            }
+        ],
+        14.2,
+        (x, y) => ({ x, y })
+    )
+    const mesh = group.children[0].children[0]
+
+    assert.equal(
+        countCircularDrillFaceCapTriangles(mesh.geometry, 14),
+        0,
+        'Expected pad hole center to stay uncapped'
+    )
+    assert.ok(
+        countCircularDrillWallTriangles(mesh.geometry, 14),
+        'Expected the drilled pad to keep a visible copper barrel'
+    )
+    assert.equal(
+        mesh.material.side,
+        THREE.DoubleSide,
+        'Expected the drilled pad barrel to render from the underside'
+    )
+})
+
+/**
+ * Counts side-wall triangles that lie on a circular drill contour.
+ * @param {any} geometry
+ * @param {number} radius
+ * @returns {number}
+ */
+function countCircularDrillWallTriangles(geometry, radius) {
+    const position = geometry.getAttribute('position')
+    let count = 0
+
+    for (const group of geometry.groups) {
+        if (Number(group.materialIndex) === 0) {
+            continue
+        }
+
+        const end = Number(group.start || 0) + Number(group.count || 0)
+        for (let index = Number(group.start || 0); index < end; index += 3) {
+            if (triangleMatchesCircularContour(position, index, radius)) {
+                count += 1
+            }
+        }
+    }
+
+    return count
+}
+
+/**
+ * Counts face triangles whose centroid sits inside a circular drill.
+ * @param {any} geometry
+ * @param {number} radius
+ * @returns {number}
+ */
+function countCircularDrillFaceCapTriangles(geometry, radius) {
+    const position = geometry.getAttribute('position')
+    let count = 0
+
+    for (const group of geometry.groups) {
+        if (Number(group.materialIndex) !== 0) {
+            continue
+        }
+
+        const end = Number(group.start || 0) + Number(group.count || 0)
+        for (let index = Number(group.start || 0); index < end; index += 3) {
+            if (triangleCentroidRadius(position, index) < radius - 0.01) {
+                count += 1
+            }
+        }
+    }
+
+    return count
+}
+
+/**
+ * Resolves the XY radius of one triangle centroid.
+ * @param {any} position
+ * @param {number} vertexIndex
+ * @returns {number}
+ */
+function triangleCentroidRadius(position, vertexIndex) {
+    let x = 0
+    let y = 0
+
+    for (let offset = 0; offset < 3; offset += 1) {
+        const index = vertexIndex + offset
+        x += position.getX(index)
+        y += position.getY(index)
+    }
+
+    return Math.hypot(x / 3, y / 3)
+}
+
+/**
+ * Checks whether one triangle is part of a circular drill wall.
+ * @param {any} position
+ * @param {number} vertexIndex
+ * @param {number} radius
+ * @returns {boolean}
+ */
+function triangleMatchesCircularContour(position, vertexIndex, radius) {
+    let matchedVertices = 0
+
+    for (let offset = 0; offset < 3; offset += 1) {
+        const index = vertexIndex + offset
+        const vertexRadius = Math.hypot(
+            position.getX(index),
+            position.getY(index)
+        )
+        if (Math.abs(vertexRadius - radius) < 0.01) {
+            matchedVertices += 1
+        }
+    }
+
+    return matchedVertices >= 2
+}

@@ -275,7 +275,6 @@ export class PcbScene3dRuntime {
         this.#rootGroup = new THREE.Group()
         this.#viewOrientationGroup.add(this.#rootGroup)
         this.#applyViewScale(this.#presetState.get())
-
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.8)
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.6)
         keyLight.position.set(0.8, 0.7, 1.3).multiplyScalar(this.#initialRadius)
@@ -284,21 +283,17 @@ export class PcbScene3dRuntime {
             .set(-0.9, -0.4, 0.8)
             .multiplyScalar(this.#initialRadius * 0.8)
         this.#scene.add(ambientLight, keyLight, fillLight)
-
         const boardGroup = new THREE.Group()
         boardGroup.add(this.#buildBoardMesh())
         boardGroup.add(this.#buildBoardOutline())
         this.#groups.set('board', boardGroup)
         this.#rootGroup.add(boardGroup)
-
         const silkscreenGroup = new THREE.Group()
         this.#groups.set('silkscreen', silkscreenGroup)
         this.#rootGroup.add(silkscreenGroup)
-
         const copperGroup = new THREE.Group()
         this.#groups.set('copper', copperGroup)
         this.#rootGroup.add(copperGroup)
-
         const fallbackBodiesGroup = new THREE.Group()
         const externalModelsGroup = new THREE.Group()
         this.#sceneDescription.components.forEach((component) => {
@@ -426,19 +421,31 @@ export class PcbScene3dRuntime {
             return
         }
 
+        const copperDetail = PcbScene3dCopperDetailFilter.resolve(
+            this.#sceneDescription
+        )
         const detailGroup = PcbScene3dCopperFactory.buildGroup(
             this.#three,
-            PcbScene3dCopperDetailFilter.resolve(this.#sceneDescription),
+            copperDetail,
             this.#sceneDescription.board.thicknessMil / 2 + 0.9,
             -(this.#sceneDescription.board.thicknessMil / 2 + 0.9),
             (x, y) => this.#normalizeBoardPoint(x, y),
             { coordinateSystem: this.#sceneDescription.coordinateSystem }
         )
+        const standaloneVias =
+            PcbScene3dCopperDetailFilter.resolveStandaloneVias(
+                this.#sceneDescription
+            )
         const viaGroup =
             PcbScene3dCopperDetailFilter.shouldRenderStandaloneVias(
                 this.#sceneDescription
             )
-                ? this.#buildViaMeshes()
+                ? PcbScene3dViaFactory.buildGroup(
+                      this.#three,
+                      standaloneVias,
+                      this.#sceneDescription.board.thicknessMil,
+                      (x, y) => this.#normalizeBoardPoint(x, y)
+                  )
                 : new this.#three.Group()
 
         if (detailGroup.children.length) {
@@ -457,29 +464,31 @@ export class PcbScene3dRuntime {
     #buildBoardMesh() {
         const THREE = this.#three
         const board = this.#sceneDescription.board
-        const shape = PcbScene3dBoardShapeFactory.buildShape(
+        const geometry = PcbScene3dBoardShapeFactory.buildGeometry(
             THREE,
             board,
             this.#sceneDescription.detail,
             (x, y) => this.#normalizeBoardPoint(x, y)
         )
-        const geometry = new THREE.ExtrudeGeometry(shape, {
-            depth: board.thicknessMil,
-            bevelEnabled: false,
-            curveSegments: 20
-        })
-        geometry.translate(0, 0, -board.thicknessMil / 2)
         const materialOptions = { roughness: 0.68, metalness: 0.08 }
         const surfaceColor = Number(board.surfaceColor)
         const edgeColor = Number(board.edgeColor)
         return new THREE.Mesh(geometry, [
             new THREE.MeshStandardMaterial({
                 ...materialOptions,
-                color: Number.isInteger(surfaceColor) ? surfaceColor : 0x2f6a2c
+                color: Number.isInteger(surfaceColor) ? surfaceColor : 0x2f6a2c,
+                side: THREE.DoubleSide
             }),
             new THREE.MeshStandardMaterial({
                 ...materialOptions,
-                color: Number.isInteger(edgeColor) ? edgeColor : 0xc9ca78
+                color: Number.isInteger(edgeColor) ? edgeColor : 0xc9ca78,
+                side: THREE.DoubleSide
+            }),
+            new THREE.MeshStandardMaterial({
+                color: 0xd9a61d,
+                roughness: 0.38,
+                metalness: 0.55,
+                side: THREE.DoubleSide
             })
         ])
     }
@@ -513,19 +522,6 @@ export class PcbScene3dRuntime {
         return new THREE.LineLoop(
             geometry,
             new THREE.LineBasicMaterial({ color: 0xc9ca78, transparent: true })
-        )
-    }
-
-    /**
-     * Builds simple through-board via meshes.
-     * @returns {any}
-     */
-    #buildViaMeshes() {
-        return PcbScene3dViaFactory.buildGroup(
-            this.#three,
-            this.#sceneDescription.detail.vias || [],
-            this.#sceneDescription.board.thicknessMil,
-            (x, y) => this.#normalizeBoardPoint(x, y)
         )
     }
 

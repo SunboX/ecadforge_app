@@ -17,7 +17,8 @@ export class PcbScene3dViaFactory {
         const material = new THREE.MeshStandardMaterial({
             color: 0xcaa24e,
             roughness: 0.48,
-            metalness: 0.42
+            metalness: 0.42,
+            side: THREE.DoubleSide
         })
         const geometryCache = new Map()
 

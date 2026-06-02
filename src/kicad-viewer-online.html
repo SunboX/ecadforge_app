@@ -8,11 +8,24 @@
             name="description"
             content="View KiCad schematics, PCB layouts, 3D boards, BOMs and diagnostics online with local browser parsing and no upload."
         />
-        <link rel="canonical" href="https://ecadforge.app/kicad-viewer-online" />
-        <meta property="og:image" content="https://ecadforge.app/og/ecadforge-viewer.png" />
+        <link
+            rel="canonical"
+            href="https://ecadforge.app/kicad-viewer-online"
+        />
+        <meta
+            property="og:image"
+            content="https://ecadforge.app/og/ecadforge-viewer-pcb.png"
+        />
         <link rel="stylesheet" href="/style.css" />
         <script type="application/ld+json">
-            {"@context":"https://schema.org","@type":"SoftwareApplication","name":"ECAD Forge","applicationCategory":"DesignApplication","operatingSystem":"Any","url":"https://ecadforge.app/"}
+            {
+                "@context": "https://schema.org",
+                "@type": "SoftwareApplication",
+                "name": "ECAD Forge",
+                "applicationCategory": "DesignApplication",
+                "operatingSystem": "Any",
+                "url": "https://ecadforge.app/"
+            }
         </script>
     </head>
     <body>
@@ -21,27 +34,58 @@
                 <p class="dropzone__eyebrow">KiCad browser viewer</p>
                 <h1>KiCad Viewer Online - No Upload Required</h1>
                 <p class="dropzone__copy">
-                    Open <code>.kicad_pro</code>, <code>.kicad_sch</code> and <code>.kicad_pcb</code> files in a browser. ECAD Forge uses local browser parsing so project files do not need to be uploaded.
+                    Open <code>.kicad_pro</code>, <code>.kicad_sch</code> and
+                    <code>.kicad_pcb</code> files in a browser. ECAD Forge uses
+                    local browser parsing so project files do not need to be
+                    uploaded.
                 </p>
                 <div class="hero-actions">
-                    <a class="file-pill file-pill--kicad" href="/demo/kicad">Try KiCad sample</a>
-                    <a class="file-pill file-pill--secondary" href="/">Open local KiCad files</a>
+                    <a class="file-pill file-pill--kicad" href="/demo/kicad"
+                        >Try KiCad sample</a
+                    >
+                    <a class="file-pill file-pill--secondary" href="/"
+                        >Open local KiCad files</a
+                    >
                 </div>
-                <img src="/og/ecadforge-viewer.png" alt="ECAD Forge KiCad viewer" />
-                <p class="trust-line">Local browser parsing · No account · No server upload</p>
+                <img
+                    src="/og/ecadforge-viewer-pcb.png"
+                    alt="ECAD Forge KiCad viewer"
+                />
+                <p class="trust-line">
+                    Local browser parsing · No account · No server upload
+                </p>
             </section>
             <section class="panel">
                 <h2>Use Cases</h2>
                 <ul>
                     <li>Preview open-hardware boards from GitHub links.</li>
-                    <li>Check PCB and schematic views without a local KiCad install.</li>
-                    <li>Share a browser-based review path with students or contributors.</li>
-                    <li>Inspect BOM and diagnostics during quick project triage.</li>
+                    <li>
+                        Check PCB and schematic views without a local KiCad
+                        install.
+                    </li>
+                    <li>
+                        Share a browser-based review path with students or
+                        contributors.
+                    </li>
+                    <li>
+                        Inspect BOM and diagnostics during quick project triage.
+                    </li>
                 </ul>
                 <h2>FAQ</h2>
-                <p><strong>Is it private?</strong> Local files stay in the browser session.</p>
-                <p><strong>Can GitHub files be opened?</strong> Yes, raw, blob, or project folder GitHub URLs can be fetched and then parsed locally.</p>
-                <p><strong>Need clean board images?</strong> Use <a href="https://pcb-styler.app/">PCB Styler</a> for documentation images.</p>
+                <p>
+                    <strong>Is it private?</strong> Local files stay in the
+                    browser session.
+                </p>
+                <p>
+                    <strong>Can GitHub files be opened?</strong> Yes, raw, blob,
+                    or project folder GitHub URLs can be fetched and then parsed
+                    locally.
+                </p>
+                <p>
+                    <strong>Need clean board images?</strong> Use
+                    <a href="https://pcb-styler.app/">PCB Styler</a> for
+                    documentation images.
+                </p>
                 <p><a href="/">Open ECAD Forge</a></p>
             </section>
         </main>

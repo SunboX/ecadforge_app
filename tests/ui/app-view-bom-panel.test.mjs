@@ -171,11 +171,14 @@ function createBomSnapshot(sourceFormat) {
 /**
  * Renders a BOM view and returns the content node markup.
  * @param {string} sourceFormat
+ * @param {{ translate?: (key: string) => string }} [options]
  * @returns {string}
  */
-function renderBomMarkup(sourceFormat) {
+function renderBomMarkup(sourceFormat, options = {}) {
     const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
+    const view = new AppView(fakeDocument, {
+        translate: options.translate || null
+    })
 
     view.render(createBomSnapshot(sourceFormat))
 
@@ -200,4 +203,27 @@ test('AppView keeps existing BOM report panels as the outer panel', () => {
 
     assert.match(markup, /^<section class="bom-panel">/)
     assert.equal(panelMatches.length, 1)
+})
+
+/**
+ * Verifies generated BOM table headings are translated by the app view.
+ */
+test('AppView translates BOM table headings', () => {
+    const translations = {
+        'bom.designators': 'Lokale Referenzen',
+        'bom.quantity': 'Lokale Menge',
+        'bom.value': 'Lokaler Wert',
+        'bom.pattern': 'Lokales Muster',
+        'bom.source': 'Lokale Quelle'
+    }
+    const translate = (key) => translations[key] || key
+    const markup = renderBomMarkup('kicad', { translate })
+
+    assert.match(markup, /<th>Lokale Referenzen<\/th>/)
+    assert.match(markup, /<th>Lokale Menge<\/th>/)
+    assert.match(markup, /<th>Lokaler Wert<\/th>/)
+    assert.match(markup, /<th>Lokales Muster<\/th>/)
+    assert.match(markup, /<th>Lokale Quelle<\/th>/)
+    assert.doesNotMatch(markup, /<th>Designators<\/th>/)
+    assert.doesNotMatch(markup, /<th>Qty<\/th>/)
 })

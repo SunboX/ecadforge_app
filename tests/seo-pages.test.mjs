@@ -37,7 +37,7 @@ test('SEO landing pages expose canonical metadata, app CTAs, and PCB Styler link
         assert.match(html, /no upload/i, route)
         assert.match(html, /href="\/"/, route)
         assert.match(html, /href="https:\/\/pcb-styler\.app\//, route)
-        assert.match(html, /src="\/og\/ecadforge-viewer\.png"/, route)
+        assert.match(html, /src="\/og\/ecadforge-viewer-pcb\.png"/, route)
     }
 })
 
@@ -47,9 +47,7 @@ test('sitemap includes every SEO landing page', async () => {
     for (const route of seoRoutes) {
         assert.match(
             sitemap,
-            new RegExp(
-                '<loc>https://ecadforge\\.app' + route + '</loc>'
-            ),
+            new RegExp('<loc>https://ecadforge\\.app' + route + '</loc>'),
             route
         )
     }

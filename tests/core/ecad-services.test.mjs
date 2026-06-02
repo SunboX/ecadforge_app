@@ -220,7 +220,7 @@ test('EcadRendererService scales sparse Altium custom sheets with hidden placeho
 
     assert.match(
         markup,
-        /<g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(20 930\) scale\(1\.27\) translate\(-20 -930\)">/
+        /<g class="schematic-content" clip-path="url\(#schematic-content-clip-[^"]+\)" transform="translate\(39\.55 37\.50\) scale\(1\.3036\) translate\(-30 -240\)">/
     )
 })
 

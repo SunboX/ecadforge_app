@@ -304,6 +304,111 @@ test('altium-toolkit skips junction dots on graphic table linework', () => {
 })
 
 /**
+ * Verifies Altium rail power ports keep the source T cap instead of rendering
+ * as a bare stem through the label area.
+ */
+test('altium-toolkit renders rail power ports with a cap', () => {
+    const markup = SchematicSvgRenderer.render({
+        summary: { title: 'Neutral rail schematic' },
+        schematic: {
+            sheet: { width: 200, height: 100 },
+            lines: [
+                {
+                    x1: 150,
+                    y1: 50,
+                    x2: 180,
+                    y2: 50,
+                    color: '#000080',
+                    width: 1
+                }
+            ],
+            texts: [
+                {
+                    x: 150,
+                    y: 50,
+                    text: 'RAIL_A',
+                    color: '#800000',
+                    hidden: false,
+                    recordType: '17',
+                    style: 2,
+                    fontSize: 10,
+                    fontFamily: 'Times New Roman',
+                    fontWeight: 400,
+                    rotation: 0,
+                    powerPortDirection: 'up',
+                    anchor: 'middle'
+                }
+            ],
+            components: [],
+            pins: []
+        }
+    })
+
+    assert.match(markup, /schematic-power-port--rail/)
+    assert.match(markup, /x1="150" y1="50" x2="150" y2="38"/)
+    assert.match(markup, /x1="144" y1="38" x2="156" y2="38"/)
+})
+
+/**
+ * Verifies rail label placement stays anchored just above the rail cap.
+ */
+test('altium-toolkit keeps rail labels anchored above their cap', () => {
+    const markup = SchematicSvgRenderer.render({
+        summary: { title: 'Neutral rail clearance schematic' },
+        schematic: {
+            sheet: { width: 200, height: 100 },
+            lines: [
+                {
+                    x1: 120,
+                    y1: 50,
+                    x2: 150,
+                    y2: 50,
+                    color: '#000080',
+                    width: 1
+                },
+                {
+                    x1: 100,
+                    y1: 70,
+                    x2: 190,
+                    y2: 70,
+                    color: '#000080',
+                    width: 1
+                }
+            ],
+            texts: [
+                {
+                    x: 150,
+                    y: 50,
+                    text: 'RAIL_A',
+                    color: '#800000',
+                    hidden: false,
+                    recordType: '17',
+                    style: 2,
+                    fontSize: 10,
+                    fontFamily: 'Times New Roman',
+                    fontWeight: 400,
+                    rotation: 0,
+                    powerPortDirection: 'up',
+                    anchor: 'middle'
+                }
+            ],
+            components: [],
+            pins: []
+        }
+    })
+
+    assert.match(markup, /x1="150" y1="50" x2="150" y2="38"/)
+    assert.match(markup, /x1="144" y1="38" x2="156" y2="38"/)
+    assert.match(
+        markup,
+        /<text class="schematic-power-port-label" x="150" y="36" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="9"/
+    )
+    assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="23\.75"/)
+    assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="34"/)
+    assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="43"/)
+})
+
+/**
  * Verifies explicit Altium 3D bodies use their authored 3D yaw once and
  * convert local X/Y tilt into the renderer's signed rotation convention.
  */

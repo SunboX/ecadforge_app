@@ -185,12 +185,14 @@ class FakeContentNode extends FakeEventTarget {
         this.#svg = null
         this.#buttonsBySide = new Map()
         this._innerHTML = ''
+        this.renderCount = 0
     }
 
     /**
      * @param {string} value Markup.
      */
     set innerHTML(value) {
+        this.renderCount += 1
         this._innerHTML = String(value)
         this.#svg = null
         this.#buttonsBySide = new Map()
@@ -345,4 +347,47 @@ test('PcbViewController switches PCB sides from the toolbar', () => {
     controller.dispose()
 
     assert.equal(bottomSvg?.getListenerCount('wheel'), 0)
+})
+
+/**
+ * Verifies the initial PCB side is refreshed after embedded browser fonts are
+ * ready so first paint converges to the same metrics as later side renders.
+ */
+test('PcbViewController refreshes the active PCB side after fonts settle', async () => {
+    const originalDocument = globalThis.document
+    globalThis.document = {
+        fonts: {
+            ready: Promise.resolve()
+        }
+    }
+
+    try {
+        const fakeDocument = new FakeDocument()
+        const content = new FakeContentNode(fakeDocument)
+        const documentModel = PcbViewControllerFixture.createAltiumPcbDocument()
+        documentModel.pcb.embeddedFonts = [
+            {
+                name: 'Synthetic Mono',
+                payloadBase64: 'AAEAAA=='
+            }
+        ]
+        const controller = new PcbViewController(content, documentModel)
+
+        assert.equal(content.renderCount, 1)
+        assert.match(content.innerHTML, /Top-facing composite view/)
+
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        assert.equal(content.renderCount, 2)
+        assert.match(content.innerHTML, /Top-facing composite view/)
+        assert.match(content.innerHTML, />TOP_SIDE_MARK<\/text>/)
+
+        controller.dispose()
+    } finally {
+        if (originalDocument) {
+            globalThis.document = originalDocument
+        } else {
+            delete globalThis.document
+        }
+    }
 })

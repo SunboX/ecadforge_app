@@ -14,18 +14,9 @@ export class PcbScene3dDrillPathFactory {
      * @returns {void}
      */
     static appendBoardDrills(THREE, shape, detail, normalizeBoardPoint) {
-        const seen = new Set()
-        const drillSpecs = [
-            ...PcbScene3dDrillPathFactory.#resolveViaDrillSpecs(detail?.vias || []),
-            ...PcbScene3dDrillPathFactory.#resolvePadDrillSpecs(detail?.pads || [])
-        ]
-
-        for (const drillSpec of drillSpecs) {
-            const key = PcbScene3dDrillPathFactory.#buildCacheKey(drillSpec)
-            if (seen.has(key)) {
-                continue
-            }
-
+        for (const drillSpec of PcbScene3dDrillPathFactory.resolveBoardDrillSpecs(
+            detail
+        )) {
             const point = normalizeBoardPoint(drillSpec.x, drillSpec.y)
             const holePath = PcbScene3dDrillPathFactory.buildDrillPath(THREE, {
                 ...drillSpec,
@@ -37,8 +28,37 @@ export class PcbScene3dDrillPathFactory {
             }
 
             shape.holes.push(holePath)
-            seen.add(key)
         }
+    }
+
+    /**
+     * Resolves deduped board-space drill specs from pads and vias.
+     * @param {{ pads?: any[], vias?: any[] }} detail
+     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
+     */
+    static resolveBoardDrillSpecs(detail) {
+        const seen = new Set()
+        const drillSpecs = [
+            ...PcbScene3dDrillPathFactory.#resolveViaDrillSpecs(
+                detail?.vias || []
+            ),
+            ...PcbScene3dDrillPathFactory.#resolvePadDrillSpecs(
+                detail?.pads || []
+            )
+        ]
+        const output = []
+
+        for (const drillSpec of drillSpecs) {
+            const key = PcbScene3dDrillPathFactory.#buildCacheKey(drillSpec)
+            if (seen.has(key)) {
+                continue
+            }
+
+            seen.add(key)
+            output.push(drillSpec)
+        }
+
+        return output
     }
 
     /**

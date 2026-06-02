@@ -45,9 +45,33 @@ export class PcbScene3dCopperDetailFilter {
      * @returns {boolean}
      */
     static shouldRenderStandaloneVias(sceneDescription) {
-        return !PcbScene3dCopperDetailFilter.#usesRealisticMasking(
+        if (
+            !PcbScene3dCopperDetailFilter.#usesRealisticMasking(
+                sceneDescription
+            )
+        ) {
+            return true
+        }
+
+        return (
+            PcbScene3dCopperDetailFilter.resolveStandaloneVias(sceneDescription)
+                .length > 0
+        )
+    }
+
+    /**
+     * Resolves through-board via barrels that should be visible in the scene.
+     * @param {object} sceneDescription 3D scene description.
+     * @returns {any[]}
+     */
+    static resolveStandaloneVias(sceneDescription) {
+        const detail = sceneDescription?.detail || {}
+
+        return PcbScene3dCopperDetailFilter.#usesRealisticMasking(
             sceneDescription
         )
+            ? PcbScene3dCopperDetailFilter.#filterExposedVias(detail.vias)
+            : detail.vias || []
     }
 
     /**
@@ -100,10 +124,7 @@ export class PcbScene3dCopperDetailFilter {
      */
     static #filterMaskOpenPrimitives(primitives, maskMatcher = null) {
         return (primitives || []).filter((primitive) =>
-            PcbScene3dCopperDetailFilter.#hasMaskOpening(
-                primitive,
-                maskMatcher
-            )
+            PcbScene3dCopperDetailFilter.#hasMaskOpening(primitive, maskMatcher)
         )
     }
 
@@ -222,7 +243,9 @@ export class PcbScene3dCopperDetailFilter {
      * @returns {boolean}
      */
     static #isMaskLayerText(text) {
-        const layer = String(text?.layer || '').trim().toUpperCase()
+        const layer = String(text?.layer || '')
+            .trim()
+            .toUpperCase()
         return layer === 'F.MASK' || layer === 'B.MASK'
     }
 
@@ -334,7 +357,9 @@ export class PcbScene3dCopperDetailFilter {
      * @returns {'top' | 'bottom' | ''}
      */
     static #textSide(text) {
-        const layer = String(text?.layer || '').trim().toUpperCase()
+        const layer = String(text?.layer || '')
+            .trim()
+            .toUpperCase()
         if (layer.startsWith('B.')) {
             return 'bottom'
         }
@@ -343,7 +368,9 @@ export class PcbScene3dCopperDetailFilter {
             return 'top'
         }
 
-        const side = String(text?.side || '').trim().toLowerCase()
+        const side = String(text?.side || '')
+            .trim()
+            .toLowerCase()
         if (side === 'back' || side === 'bottom') {
             return 'bottom'
         }

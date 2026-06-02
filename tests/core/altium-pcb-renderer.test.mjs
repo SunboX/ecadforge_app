@@ -296,6 +296,7 @@ test('Altium PCB renderer mirrors bottom-side composite horizontally', () => {
                 x: 22,
                 y: 180,
                 height: 160,
+                trueTypeFontScale: 0.75,
                 layerId: 34,
                 rotation: 270,
                 mirrored: true,
@@ -325,7 +326,7 @@ test('Altium PCB renderer mirrors bottom-side composite horizontally', () => {
     )
     assert.match(
         bottomMarkup,
-        /transform="translate\(22 20\) rotate\(270\) scale\(-1 1\)"/
+        /transform="translate\(22 180\) rotate\(270\) scale\(-1 1\)"/
     )
     assert.match(bottomMarkup, /class="pcb-text__knockout-fill"/)
     assert.match(bottomMarkup, /transform="translate\(90 60\) rotate\([^)]+\)"/)

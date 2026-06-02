@@ -49,6 +49,27 @@ test('PcbScene3dCopperDetailFilter hides KiCad copper covered by solder mask', (
         }),
         false
     )
+    assert.equal(
+        PcbScene3dCopperDetailFilter.shouldRenderStandaloneVias({
+            sourceFormat: 'kicad',
+            detail: {
+                vias: [{ id: 'open-via', isTentingBottom: false }]
+            }
+        }),
+        true
+    )
+    assert.deepEqual(
+        PcbScene3dCopperDetailFilter.resolveStandaloneVias({
+            sourceFormat: 'kicad',
+            detail: {
+                vias: [
+                    { id: 'tented-via' },
+                    { id: 'open-via', isTentingBottom: false }
+                ]
+            }
+        }).map((via) => via.id),
+        ['open-via']
+    )
 })
 
 test('PcbScene3dCopperDetailFilter keeps KiCad copper text with matching mask text', () => {
@@ -197,6 +218,27 @@ test('PcbScene3dCopperDetailFilter hides Altium copper covered by solder mask', 
         }),
         false
     )
+    assert.equal(
+        PcbScene3dCopperDetailFilter.shouldRenderStandaloneVias({
+            sourceFormat: 'altium',
+            detail: {
+                vias: [{ id: 'open-via', isTentingTop: false }]
+            }
+        }),
+        true
+    )
+    assert.deepEqual(
+        PcbScene3dCopperDetailFilter.resolveStandaloneVias({
+            sourceFormat: 'altium',
+            detail: {
+                vias: [
+                    { id: 'tented-via', isTentingTop: true },
+                    { id: 'open-via', isTentingTop: false }
+                ]
+            }
+        }).map((via) => via.id),
+        ['open-via']
+    )
 })
 
 test('PcbScene3dCopperDetailFilter keeps scenes without mask metadata unchanged', () => {
@@ -215,5 +257,12 @@ test('PcbScene3dCopperDetailFilter keeps scenes without mask metadata unchanged'
             sourceFormat: 'generic'
         }),
         true
+    )
+    assert.deepEqual(
+        PcbScene3dCopperDetailFilter.resolveStandaloneVias({
+            sourceFormat: 'generic',
+            detail
+        }),
+        [{ id: 'via-a' }]
     )
 })

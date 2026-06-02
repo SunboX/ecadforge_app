@@ -12,6 +12,17 @@ import {
 import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
+const BOM_TRANSLATION_FALLBACKS = {
+    'bom.designators': 'Designators',
+    'bom.empty': 'No BOM rows were recovered from this file.',
+    'bom.pattern': 'Pattern',
+    'bom.quantity': 'Qty',
+    'bom.source': 'Source',
+    'bom.value': 'Value',
+    'preview.groupedRows': 'grouped rows',
+    'view.bom': 'BOM'
+}
+
 /**
  * Chooses format-specific renderers for normalized document models.
  */
@@ -43,10 +54,20 @@ export class EcadRendererService {
     /**
      * Renders BOM rows.
      * @param {object} documentModel Document model.
+     * @param {{ translate?: ((key: string) => string) | null }} [options] BOM render options.
      * @returns {string}
      */
-    static renderBom(documentModel) {
+    static renderBom(documentModel, options = {}) {
         const rows = documentModel?.bom || []
+        const translate = options.translate || null
+        if (typeof translate === 'function') {
+            return EcadRendererService.#renderLocalizedBom(
+                documentModel,
+                rows,
+                translate
+            )
+        }
+
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadBomTableRenderer.render(rows)
             : AltiumBomTableRenderer.render(rows)
@@ -62,6 +83,191 @@ export class EcadRendererService {
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
         )
+    }
+
+    /**
+     * Renders BOM rows with app-localized table chrome.
+     * @param {object} documentModel Document model.
+     * @param {object[]} rows BOM rows.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLocalizedBom(documentModel, rows, translate) {
+        const normalizedRows = Array.isArray(rows) ? rows : []
+        const isKiCad = EcadRendererService.#isKiCad(documentModel)
+
+        if (!normalizedRows.length) {
+            return EcadRendererService.#renderLocalizedBomEmpty(
+                isKiCad,
+                translate
+            )
+        }
+
+        const tableMarkup = EcadRendererService.#renderLocalizedBomTable(
+            normalizedRows,
+            EcadRendererService.#resolveBomColumnKeys(isKiCad),
+            translate
+        )
+
+        if (isKiCad) {
+            return tableMarkup
+        }
+
+        return (
+            '<section class="bom-panel"><header class="bom-panel__header"><h3>' +
+            EcadRendererService.#escapeHtml(
+                EcadRendererService.#translateBom(translate, 'view.bom')
+            ) +
+            '</h3><p>' +
+            normalizedRows.length +
+            ' ' +
+            EcadRendererService.#escapeHtml(
+                EcadRendererService.#translateBom(
+                    translate,
+                    'preview.groupedRows'
+                )
+            ) +
+            '</p></header>' +
+            tableMarkup +
+            '</section>'
+        )
+    }
+
+    /**
+     * Renders an empty BOM message with the source-format wrapper class.
+     * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLocalizedBomEmpty(isKiCad, translate) {
+        const className = isKiCad ? 'bom-empty' : 'altium-renderer-empty'
+
+        return (
+            '<section class="' +
+            className +
+            '">' +
+            EcadRendererService.#escapeHtml(
+                EcadRendererService.#translateBom(translate, 'bom.empty')
+            ) +
+            '</section>'
+        )
+    }
+
+    /**
+     * Renders the localized BOM table element.
+     * @param {object[]} rows BOM rows.
+     * @param {string[]} columnKeys Ordered column keys.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLocalizedBomTable(rows, columnKeys, translate) {
+        let headerMarkup = ''
+        let bodyMarkup = ''
+
+        for (const columnKey of columnKeys) {
+            headerMarkup += EcadRendererService.#renderLocalizedBomHeaderCell(
+                columnKey,
+                translate
+            )
+        }
+
+        for (const row of rows) {
+            bodyMarkup += EcadRendererService.#renderLocalizedBomRow(
+                row,
+                columnKeys
+            )
+        }
+
+        return (
+            '<table class="bom-table"><thead><tr>' +
+            headerMarkup +
+            '</tr></thead><tbody>' +
+            bodyMarkup +
+            '</tbody></table>'
+        )
+    }
+
+    /**
+     * Renders one localized BOM header cell.
+     * @param {string} columnKey BOM column key.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLocalizedBomHeaderCell(columnKey, translate) {
+        return (
+            '<th>' +
+            EcadRendererService.#escapeHtml(
+                EcadRendererService.#translateBom(translate, 'bom.' + columnKey)
+            ) +
+            '</th>'
+        )
+    }
+
+    /**
+     * Renders one BOM row using the requested column order.
+     * @param {object} row BOM row.
+     * @param {string[]} columnKeys Ordered column keys.
+     * @returns {string}
+     */
+    static #renderLocalizedBomRow(row, columnKeys) {
+        let cellMarkup = ''
+
+        for (const columnKey of columnKeys) {
+            cellMarkup +=
+                '<td>' +
+                EcadRendererService.#escapeHtml(
+                    EcadRendererService.#readBomCellValue(row, columnKey)
+                ) +
+                '</td>'
+        }
+
+        return '<tr>' + cellMarkup + '</tr>'
+    }
+
+    /**
+     * Reads one BOM row cell value.
+     * @param {object} row BOM row.
+     * @param {string} columnKey BOM column key.
+     * @returns {string}
+     */
+    static #readBomCellValue(row, columnKey) {
+        if (columnKey === 'designators') {
+            return Array.isArray(row?.designators)
+                ? row.designators.join(', ')
+                : ''
+        }
+
+        if (columnKey === 'quantity') {
+            return String(row?.quantity || row?.designators?.length || 0)
+        }
+
+        return String(row?.[columnKey] || '')
+    }
+
+    /**
+     * Returns the renderer-compatible BOM column order.
+     * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
+     * @returns {string[]}
+     */
+    static #resolveBomColumnKeys(isKiCad) {
+        return isKiCad
+            ? ['designators', 'quantity', 'value', 'pattern', 'source']
+            : ['designators', 'quantity', 'pattern', 'value', 'source']
+    }
+
+    /**
+     * Translates one BOM UI key with an English fallback.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @param {string} key Message key.
+     * @returns {string}
+     */
+    static #translateBom(translate, key) {
+        const value = translate(key)
+        if (!value || value === key) {
+            return BOM_TRANSLATION_FALLBACKS[key] || key
+        }
+
+        return value
     }
 
     /**
@@ -130,6 +336,19 @@ export class EcadRendererService {
             'class="pcb-svg"',
             'class="pcb-svg ' + classes + '"'
         )
+    }
+
+    /**
+     * Escapes text for safe insertion into renderer-owned HTML.
+     * @param {unknown} value Raw value.
+     * @returns {string}
+     */
+    static #escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
     }
 
     /**

@@ -685,9 +685,14 @@ export class AppView {
 
         if (snapshot.activeView === 'bom') {
             const bomMarkup = EcadRendererService.renderBom(
-                snapshot.documentModel
+                snapshot.documentModel,
+                {
+                    translate: this.#translate
+                }
             )
-            this.#contentNode.innerHTML = bomMarkup.includes('class="bom-panel"')
+            this.#contentNode.innerHTML = bomMarkup.includes(
+                'class="bom-panel"'
+            )
                 ? bomMarkup
                 : '<div class="bom-panel">' + bomMarkup + '</div>'
             return

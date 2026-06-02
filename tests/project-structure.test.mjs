@@ -206,6 +206,31 @@ test('app shell exposes indexable search metadata', async () => {
 })
 
 /**
+ * Verifies the public social card uses the refreshed PCB-oriented render at
+ * the dimensions expected by Open Graph consumers.
+ */
+test('social preview image uses the refreshed PCB-oriented asset', async () => {
+    const preview = await readFile(
+        new URL('src/og/ecadforge-viewer-pcb.png', root)
+    )
+    const generatorRaw = await readFile(
+        new URL('scripts/SocialPreviewGenerator.mjs', root),
+        'utf8'
+    )
+    const staleChartPreviewDigest =
+        'd2da5449cde11f9c82034c779688bc800537f07555270c74e15cd1bf1bac92e9'
+    const digest = createHash('sha256').update(preview).digest('hex')
+
+    assert.equal(preview.subarray(1, 4).toString('ascii'), 'PNG')
+    assert.deepEqual(readPngDimensions(preview), {
+        width: 1200,
+        height: 630
+    })
+    assert.notEqual(digest, staleChartPreviewDigest)
+    assert.doesNotMatch(generatorRaw, /HorizontalScaleCanvas/)
+})
+
+/**
  * Verifies public view navigation uses crawlable internal links in addition
  * to JavaScript handling.
  */

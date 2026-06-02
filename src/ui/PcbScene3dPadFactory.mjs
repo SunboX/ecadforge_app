@@ -21,7 +21,8 @@ export class PcbScene3dPadFactory {
         const material = new THREE.MeshStandardMaterial({
             color: 0xd9a61d,
             roughness: 0.38,
-            metalness: 0.55
+            metalness: 0.55,
+            side: THREE.DoubleSide
         })
         const geometryCache = new Map()
         const side = PcbScene3dPadFactory.#normalizeSide(options?.side)

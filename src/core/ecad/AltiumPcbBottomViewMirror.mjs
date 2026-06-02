@@ -61,10 +61,7 @@ export class AltiumPcbBottomViewMirror {
                     pcb.pads,
                     mirrorX
                 ),
-                texts: AltiumPcbBottomViewMirror.#mirrorTexts(
-                    pcb.texts,
-                    outline
-                ),
+                texts: AltiumPcbBottomViewMirror.#mirrorTexts(pcb.texts),
                 textGroupTransform:
                     AltiumPcbBottomViewMirror.#buildTextGroupTransform(
                         outline
@@ -276,76 +273,14 @@ export class AltiumPcbBottomViewMirror {
     }
 
     /**
-     * Preserves PCB text rotations for the mirrored text layer while
-     * compensating large vertical mirrored text anchors.
+     * Preserves PCB text insertion points for the mirrored text layer.
      * @param {readonly object[] | undefined} texts Text primitives.
-     * @param {{ heightMil?: number }} outline Board outline.
      * @returns {object[]}
      */
-    static #mirrorTexts(texts, outline) {
+    static #mirrorTexts(texts) {
         return AltiumPcbBottomViewMirror.#array(texts).map((text) => ({
-            ...text,
-            y: AltiumPcbBottomViewMirror.#mirrorTextY(text, outline)
+            ...text
         }))
-    }
-
-    /**
-     * Aligns large mirrored vertical TrueType labels with the bottom 3D
-     * artwork frame without moving the smaller label stack.
-     * @param {object | null} text Text primitive.
-     * @param {{ heightMil?: number }} outline Board outline.
-     * @returns {number}
-     */
-    static #mirrorTextY(text, outline) {
-        const y = Number(text?.y || 0)
-        const height = Number(text?.height || 0)
-        const boardHeight = Number(outline?.heightMil || 0)
-        const isLargeLabel =
-            height >= 150 &&
-            (!Number.isFinite(boardHeight) ||
-                boardHeight <= 0 ||
-                height >= boardHeight * 0.08)
-
-        if (
-            !isLargeLabel ||
-            !AltiumPcbBottomViewMirror.#isMirroredVerticalTrueTypeText(text)
-        ) {
-            return y
-        }
-
-        return y - height
-    }
-
-    /**
-     * Checks for imported mirrored vertical TrueType text.
-     * @param {object | null} text Text primitive.
-     * @returns {boolean}
-     */
-    static #isMirroredVerticalTrueTypeText(text) {
-        return (
-            text?.mirrored === true &&
-            AltiumPcbBottomViewMirror.#isTrueTypeText(text) &&
-            Math.abs(
-                AltiumPcbBottomViewMirror.#normalizeAngle(
-                    Number(text?.rotation || 0)
-                ) - 270
-            ) < 0.001
-        )
-    }
-
-    /**
-     * Checks whether a text primitive uses imported TrueType glyphs.
-     * @param {{ fontType?: number | string, fontTypeName?: string, isTrueType?: boolean } | null} text Text primitive.
-     * @returns {boolean}
-     */
-    static #isTrueTypeText(text) {
-        const fontTypeName = String(text?.fontTypeName || '').toUpperCase()
-
-        return (
-            text?.isTrueType === true ||
-            Number(text?.fontType) === 1 ||
-            fontTypeName.includes('TRUETYPE')
-        )
     }
 
     /**

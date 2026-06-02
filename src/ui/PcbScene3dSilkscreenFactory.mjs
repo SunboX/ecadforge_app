@@ -1,5 +1,8 @@
 import { PcbScene3dCopperTextFactory } from './PcbScene3dCopperTextFactory.mjs'
+import { PcbScene3dCutoutGeometryFilter } from './PcbScene3dCutoutGeometryFilter.mjs'
+import { PcbScene3dDrillCutoutFilter } from './PcbScene3dDrillCutoutFilter.mjs'
 import { PcbScene3dShapePathFactory } from './PcbScene3dShapePathFactory.mjs'
+import { PcbScene3dSilkscreenStrokeWidthResolver } from './PcbScene3dSilkscreenStrokeWidthResolver.mjs'
 import { PcbScene3dStrokeGeometryBuilder } from './PcbScene3dStrokeGeometryBuilder.mjs'
 import { PcbScene3dTrueTypeTextFactory } from './PcbScene3dTrueTypeTextFactory.mjs'
 
@@ -8,8 +11,6 @@ import { PcbScene3dTrueTypeTextFactory } from './PcbScene3dTrueTypeTextFactory.m
  */
 export class PcbScene3dSilkscreenFactory {
     static #DEFAULT_SILKSCREEN_COLOR = 0xf8f6ef
-    static #DRILL_CUTOUT_COLOR = 0xc9ca78
-    static #DRILL_CUTOUT_Z_OFFSET = 0.06
     static #FILL_THICKNESS_MIL = 0.8
     static #GEOMETRY_EPSILON = 0.001
     static #FULL_CIRCLE_EPSILON = 0.001
@@ -80,10 +81,12 @@ export class PcbScene3dSilkscreenFactory {
             : hasExplicitFillColor
               ? fillColor
               : textMaterialColor
-        const strokeZ =
-            strokeColor === fillColor
-                ? z
-                : z + PcbScene3dSilkscreenFactory.#STROKE_Z_OFFSET
+        const strokeZ = z + PcbScene3dSilkscreenFactory.#STROKE_Z_OFFSET
+        const drillCutouts = PcbScene3dSilkscreenFactory.#normalizeDrillCutouts(
+            silkscreen?.drillCutouts,
+            normalizeBoardPoint,
+            mirrorY
+        )
         const strokeMaterial = PcbScene3dSilkscreenFactory.#buildMaterial(
             THREE,
             strokeColor
@@ -98,7 +101,8 @@ export class PcbScene3dSilkscreenFactory {
             strokeZ,
             normalizeBoardPoint,
             mirrorY,
-            strokeMaterial
+            strokeMaterial,
+            drillCutouts
         )
         const arcMesh = PcbScene3dSilkscreenFactory.#buildArcMesh(
             THREE,
@@ -106,7 +110,8 @@ export class PcbScene3dSilkscreenFactory {
             strokeZ,
             normalizeBoardPoint,
             mirrorY,
-            strokeMaterial
+            strokeMaterial,
+            drillCutouts
         )
         const fillMeshes = PcbScene3dSilkscreenFactory.#buildFillMeshes(
             THREE,
@@ -114,17 +119,26 @@ export class PcbScene3dSilkscreenFactory {
             z,
             normalizeBoardPoint,
             mirrorY,
-            fillMaterial
+            fillMaterial,
+            drillCutouts
         )
         const texts = Array.isArray(silkscreen?.texts) ? silkscreen.texts : []
+        const renderableTexts = texts.filter(
+            (text) =>
+                !PcbScene3dSilkscreenFactory.#shouldSkipSourceText(
+                    text,
+                    silkscreen
+                )
+        )
         const textGroup = PcbScene3dCopperTextFactory.buildGroup(
             THREE,
-            texts.filter(
+            renderableTexts.filter(
                 (text) => !PcbScene3dTrueTypeTextFactory.isTrueTypeText(text)
             ),
             strokeZ,
             normalizeBoardPoint,
             {
+                drillCutouts,
                 filterSide: false,
                 materialColor: strokeColor,
                 mirrorY,
@@ -133,13 +147,7 @@ export class PcbScene3dSilkscreenFactory {
         )
         const trueTypeTextGroup = PcbScene3dTrueTypeTextFactory.buildGroup(
             THREE,
-            texts.filter(
-                (text) =>
-                    !PcbScene3dSilkscreenFactory.#shouldSkipTrueTypeText(
-                        text,
-                        silkscreen
-                    )
-            ),
+            renderableTexts,
             strokeZ,
             normalizeBoardPoint,
             {
@@ -148,14 +156,6 @@ export class PcbScene3dSilkscreenFactory {
                 mirrorY
             }
         )
-        const drillCutoutMeshes =
-            PcbScene3dSilkscreenFactory.#buildDrillCutoutMeshes(
-                THREE,
-                silkscreen?.drillCutouts || [],
-                z,
-                normalizeBoardPoint,
-                mirrorY
-            )
 
         if (trackMesh) {
             group.add(trackMesh)
@@ -172,9 +172,6 @@ export class PcbScene3dSilkscreenFactory {
         if (trueTypeTextGroup.children.length) {
             group.add(trueTypeTextGroup)
         }
-        if (drillCutoutMeshes.length) {
-            group.add(...drillCutoutMeshes)
-        }
         if (mirrorY && group.children.length) {
             group.rotation.x = Math.PI
         }
@@ -183,17 +180,16 @@ export class PcbScene3dSilkscreenFactory {
     }
 
     /**
-     * Skips TrueType source text when recovered Altium fills already contain
+     * Skips source text when recovered Altium fills already contain
      * the corresponding inverted-text holes.
      * @param {object} text
      * @param {{ nativeTextKnockouts?: boolean } | undefined} silkscreen
      * @returns {boolean}
      */
-    static #shouldSkipTrueTypeText(text, silkscreen) {
+    static #shouldSkipSourceText(text, silkscreen) {
         return (
             Boolean(silkscreen?.nativeTextKnockouts) &&
-            Boolean(text?.isInverted) &&
-            PcbScene3dTrueTypeTextFactory.isTrueTypeText(text)
+            Boolean(text?.isInverted)
         )
     }
 
@@ -205,6 +201,7 @@ export class PcbScene3dSilkscreenFactory {
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
      * @param {any} material
+     * @param {{ x: number, y: number }[][]} drillCutouts
      * @returns {any | null}
      */
     static #buildTrackMesh(
@@ -213,9 +210,12 @@ export class PcbScene3dSilkscreenFactory {
         z,
         normalizeBoardPoint,
         mirrorY,
-        material
+        material,
+        drillCutouts
     ) {
         const positions = []
+        const denseHairline =
+            PcbScene3dSilkscreenStrokeWidthResolver.resolveDenseHairline(tracks)
 
         for (const track of tracks) {
             const start = PcbScene3dSilkscreenFactory.#normalizePoint(
@@ -234,11 +234,13 @@ export class PcbScene3dSilkscreenFactory {
                 positions,
                 start,
                 end,
-                Number(track.width || 0),
+                PcbScene3dSilkscreenStrokeWidthResolver.resolveTrackWidth(
+                    Number(track.width || 0),
+                    denseHairline
+                ),
                 z,
                 {
-                    minWidth: PcbScene3dSilkscreenFactory
-                        .#MIN_STROKE_WIDTH_MIL
+                    minWidth: PcbScene3dSilkscreenFactory.#MIN_STROKE_WIDTH_MIL
                 }
             )
         }
@@ -246,7 +248,8 @@ export class PcbScene3dSilkscreenFactory {
         return PcbScene3dSilkscreenFactory.#buildStrokeMesh(
             THREE,
             positions,
-            material
+            material,
+            drillCutouts
         )
     }
 
@@ -258,6 +261,7 @@ export class PcbScene3dSilkscreenFactory {
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
      * @param {any} material
+     * @param {{ x: number, y: number }[][]} drillCutouts
      * @returns {any | null}
      */
     static #buildArcMesh(
@@ -266,7 +270,8 @@ export class PcbScene3dSilkscreenFactory {
         z,
         normalizeBoardPoint,
         mirrorY,
-        material
+        material,
+        drillCutouts
     ) {
         const positions = []
 
@@ -286,8 +291,7 @@ export class PcbScene3dSilkscreenFactory {
                 {
                     fullCircleEpsilon:
                         PcbScene3dSilkscreenFactory.#FULL_CIRCLE_EPSILON,
-                    minWidth: PcbScene3dSilkscreenFactory
-                        .#MIN_STROKE_WIDTH_MIL
+                    minWidth: PcbScene3dSilkscreenFactory.#MIN_STROKE_WIDTH_MIL
                 }
             )
         }
@@ -295,7 +299,8 @@ export class PcbScene3dSilkscreenFactory {
         return PcbScene3dSilkscreenFactory.#buildStrokeMesh(
             THREE,
             positions,
-            material
+            material,
+            drillCutouts
         )
     }
 
@@ -307,6 +312,7 @@ export class PcbScene3dSilkscreenFactory {
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
      * @param {any} material
+     * @param {{ x: number, y: number }[][]} drillCutouts
      * @returns {any[]}
      */
     static #buildFillMeshes(
@@ -315,15 +321,17 @@ export class PcbScene3dSilkscreenFactory {
         z,
         normalizeBoardPoint,
         mirrorY,
-        material
+        material,
+        drillCutouts
     ) {
         return fills.map((fill) => {
             const points = PcbScene3dSilkscreenFactory.#normalizeFillPoints(
                 fill,
                 normalizeBoardPoint,
-                mirrorY
+                mirrorY,
+                Boolean(drillCutouts.length)
             )
-            const holes = PcbScene3dSilkscreenFactory.#normalizeFillHoles(
+            const fillHoles = PcbScene3dSilkscreenFactory.#normalizeFillHoles(
                 fill,
                 normalizeBoardPoint,
                 mirrorY
@@ -338,7 +346,8 @@ export class PcbScene3dSilkscreenFactory {
                 return PcbScene3dSilkscreenFactory.#buildShapeFillMesh(
                     THREE,
                     points,
-                    holes,
+                    fillHoles,
+                    drillCutouts,
                     z,
                     material
                 )
@@ -356,83 +365,83 @@ export class PcbScene3dSilkscreenFactory {
     }
 
     /**
-     * Builds board-colored masks for drill openings that cross stroke artwork.
-     * @param {any} THREE
-     * @param {{ x: number, y: number }[][]} drillCutouts
-     * @param {number} z
-     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
-     * @param {boolean} mirrorY
-     * @returns {any[]}
-     */
-    static #buildDrillCutoutMeshes(
-        THREE,
-        drillCutouts,
-        z,
-        normalizeBoardPoint,
-        mirrorY
-    ) {
-        if (!THREE.Shape || !THREE.ShapeGeometry) {
-            return []
-        }
-
-        const material =
-            PcbScene3dSilkscreenFactory.#buildDrillCutoutMaterial(THREE)
-
-        return (Array.isArray(drillCutouts) ? drillCutouts : [])
-            .map((cutout) =>
-                PcbScene3dSilkscreenFactory.#normalizePointList(
-                    cutout,
-                    normalizeBoardPoint,
-                    mirrorY
-                )
-            )
-            .filter((points) => points.length >= 3)
-            .map((points) =>
-                PcbScene3dSilkscreenFactory.#buildDrillCutoutMesh(
-                    THREE,
-                    points,
-                    z + PcbScene3dSilkscreenFactory.#DRILL_CUTOUT_Z_OFFSET,
-                    material
-                )
-            )
-    }
-
-    /**
-     * Builds one drill cutout mask mesh.
-     * @param {any} THREE
-     * @param {{ x: number, y: number }[]} points Normalized cutout points.
-     * @param {number} z
-     * @param {any} material
-     * @returns {any}
-     */
-    static #buildDrillCutoutMesh(THREE, points, z, material) {
-        const shape = PcbScene3dShapePathFactory.buildShape(THREE, points)
-        const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
-        mesh.position.set(0, 0, z)
-        return mesh
-    }
-
-    /**
      * Builds one polygon fill mesh from authored silkscreen points.
      * @param {any} THREE
      * @param {{ x: number, y: number }[]} points Normalized polygon points.
-     * @param {{ x: number, y: number }[][]} holes Normalized polygon holes.
+     * @param {{ x: number, y: number }[][]} fillHoles Normalized authored polygon holes.
+     * @param {{ x: number, y: number }[][]} drillCutouts Normalized drill cutouts.
      * @param {number} z
      * @param {any} material
      * @returns {any}
      */
-    static #buildShapeFillMesh(THREE, points, holes, z, material) {
+    static #buildShapeFillMesh(
+        THREE,
+        points,
+        fillHoles,
+        drillCutouts,
+        z,
+        material
+    ) {
         const shape = PcbScene3dShapePathFactory.buildShape(THREE, points)
+        const { authoredHoles, drillHoles, uncoveredCutouts } =
+            PcbScene3dDrillCutoutFilter.partitionFillHoles(
+                drillCutouts,
+                fillHoles
+            )
+        const { shapeHoles, clippingHoles } =
+            PcbScene3dSilkscreenFactory.#partitionDrillCutouts(
+                uncoveredCutouts,
+                points
+            )
         PcbScene3dSilkscreenFactory.#appendShapeHoles(
             THREE,
             shape,
-            holes,
+            authoredHoles,
+            points
+        )
+        PcbScene3dSilkscreenFactory.#appendShapeHoles(
+            THREE,
+            shape,
+            shapeHoles,
             points
         )
 
-        const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material)
+        const geometry = PcbScene3dCutoutGeometryFilter.filter(
+            THREE,
+            new THREE.ShapeGeometry(shape),
+            authoredHoles.concat(shapeHoles, drillHoles, clippingHoles),
+            { maxDepth: 12, maxEdgeLength: 2 }
+        )
+        const mesh = new THREE.Mesh(geometry, material)
         mesh.position.set(0, 0, z)
         return mesh
+    }
+
+    /**
+     * Splits drill cutouts into safe shape holes and fallback clip polygons.
+     * @param {{ x: number, y: number }[][]} drillCutouts
+     * @param {{ x: number, y: number }[]} contourPoints
+     * @returns {{ shapeHoles: { x: number, y: number }[][], clippingHoles: { x: number, y: number }[][] }}
+     */
+    static #partitionDrillCutouts(drillCutouts, contourPoints) {
+        const shapeHoles = []
+        const clippingHoles = []
+
+        for (const cutout of Array.isArray(drillCutouts) ? drillCutouts : []) {
+            if (
+                PcbScene3dSilkscreenFactory.#isHoleInsideContour(
+                    cutout,
+                    contourPoints
+                )
+            ) {
+                shapeHoles.push(cutout)
+                continue
+            }
+
+            clippingHoles.push(cutout)
+        }
+
+        return { shapeHoles, clippingHoles }
     }
 
     /**
@@ -616,14 +625,21 @@ export class PcbScene3dSilkscreenFactory {
 
     /**
      * Normalizes authored polygon fill points.
-     * @param {{ points?: { x: number, y: number }[] }} fill
+     * @param {{ points?: { x: number, y: number }[], holes?: { x: number, y: number }[][] }} fill
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
      * @param {boolean} mirrorY
+     * @param {boolean} forcePolygon
      * @returns {{ x: number, y: number }[]}
      */
-    static #normalizeFillPoints(fill, normalizeBoardPoint, mirrorY) {
+    static #normalizeFillPoints(
+        fill,
+        normalizeBoardPoint,
+        mirrorY,
+        forcePolygon
+    ) {
         if (!Array.isArray(fill?.points)) {
-            return Array.isArray(fill?.holes) && fill.holes.length
+            return (Array.isArray(fill?.holes) && fill.holes.length) ||
+                forcePolygon
                 ? PcbScene3dSilkscreenFactory.#normalizeRectangleFillPoints(
                       fill,
                       normalizeBoardPoint,
@@ -713,6 +729,29 @@ export class PcbScene3dSilkscreenFactory {
     }
 
     /**
+     * Normalizes side-level drill cutouts into local silkscreen polygons.
+     * @param {{ x?: number, y?: number }[][] | undefined} drillCutouts
+     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @param {boolean} mirrorY
+     * @returns {{ x: number, y: number }[][]}
+     */
+    static #normalizeDrillCutouts(drillCutouts, normalizeBoardPoint, mirrorY) {
+        if (!Array.isArray(drillCutouts)) {
+            return []
+        }
+
+        return drillCutouts
+            .map((cutout) =>
+                PcbScene3dSilkscreenFactory.#normalizePointList(
+                    cutout,
+                    normalizeBoardPoint,
+                    mirrorY
+                )
+            )
+            .filter((cutout) => cutout.length >= 3)
+    }
+
+    /**
      * Normalizes one authored point list.
      * @param {{ x?: number, y?: number }[]} points
      * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
@@ -739,9 +778,10 @@ export class PcbScene3dSilkscreenFactory {
      * @param {any} THREE
      * @param {number[]} positions
      * @param {any} material
+     * @param {{ x: number, y: number }[][]} [drillCutouts]
      * @returns {any | null}
      */
-    static #buildStrokeMesh(THREE, positions, material) {
+    static #buildStrokeMesh(THREE, positions, material, drillCutouts = []) {
         if (!positions.length) {
             return null
         }
@@ -752,7 +792,15 @@ export class PcbScene3dSilkscreenFactory {
             new THREE.Float32BufferAttribute(positions, 3)
         )
 
-        return new THREE.Mesh(geometry, material)
+        return new THREE.Mesh(
+            PcbScene3dCutoutGeometryFilter.filter(
+                THREE,
+                geometry,
+                drillCutouts,
+                { maxDepth: 12, maxEdgeLength: 2 }
+            ),
+            material
+        )
     }
 
     /**
@@ -788,22 +836,6 @@ export class PcbScene3dSilkscreenFactory {
             numericColor <= 0xffffff
             ? numericColor
             : PcbScene3dSilkscreenFactory.#DEFAULT_SILKSCREEN_COLOR
-    }
-
-    /**
-     * Builds the board-colored mask material for drill cutouts.
-     * @param {any} THREE
-     * @returns {any}
-     */
-    static #buildDrillCutoutMaterial(THREE) {
-        return new THREE.MeshBasicMaterial({
-            color: PcbScene3dSilkscreenFactory.#DRILL_CUTOUT_COLOR,
-            transparent: false,
-            opacity: 1,
-            toneMapped: false,
-            fog: false,
-            side: THREE.DoubleSide
-        })
     }
 
     /**

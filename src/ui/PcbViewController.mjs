@@ -20,6 +20,9 @@ export class PcbViewController {
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
+    /** @type {number} */
+    #renderGeneration
+
     /** @type {(event: Event) => void} */
     #handleClick
 
@@ -34,6 +37,7 @@ export class PcbViewController {
         this.#side = PcbViewController.#normalizeSide(options.side)
         this.#translate = options.translate || null
         this.#svgViewportController = null
+        this.#renderGeneration = 0
         this.#handleClick = (event) => this.#handleSideSelection(event)
 
         this.#contentNode.addEventListener('click', this.#handleClick)
@@ -46,6 +50,7 @@ export class PcbViewController {
      */
     dispose() {
         this.#contentNode.removeEventListener('click', this.#handleClick)
+        this.#renderGeneration += 1
         this.#disposeSvgViewportController()
     }
 
@@ -81,10 +86,13 @@ export class PcbViewController {
     /**
      * Replaces the PCB view with the selected board side.
      * @param {'top' | 'bottom'} side Requested side.
+     * @param {{ refreshFonts?: boolean }} [options] Render options.
      * @returns {void}
      */
-    #renderSide(side) {
+    #renderSide(side, options = {}) {
         this.#side = PcbViewController.#normalizeSide(side)
+        const generation = this.#renderGeneration + 1
+        this.#renderGeneration = generation
         this.#disposeSvgViewportController()
         this.#contentNode.innerHTML = PcbViewRenderer.render(
             this.#documentModel,
@@ -92,6 +100,54 @@ export class PcbViewController {
             this.#translate
         )
         this.#attachSvgViewportController()
+
+        if (options.refreshFonts !== false) {
+            this.#refreshAfterFontsReady(generation)
+        }
+    }
+
+    /**
+     * Refreshes the current side once embedded SVG fonts are measurable.
+     * @param {number} generation Render generation that scheduled the refresh.
+     * @returns {void}
+     */
+    #refreshAfterFontsReady(generation) {
+        if (!this.#hasEmbeddedPcbFonts()) {
+            return
+        }
+
+        this.#waitForFontsReady()
+            .then(() => {
+                if (generation !== this.#renderGeneration) {
+                    return
+                }
+
+                this.#renderSide(this.#side, { refreshFonts: false })
+            })
+            .catch(() => {})
+    }
+
+    /**
+     * Waits until the browser has had a chance to register inline SVG fonts.
+     * @returns {Promise<void>}
+     */
+    async #waitForFontsReady() {
+        await Promise.resolve()
+        const ready = globalThis.document?.fonts?.ready
+        if (ready && typeof ready.then === 'function') {
+            await ready
+        }
+    }
+
+    /**
+     * Checks whether the active PCB model has embedded font faces.
+     * @returns {boolean}
+     */
+    #hasEmbeddedPcbFonts() {
+        return Boolean(
+            Array.isArray(this.#documentModel?.pcb?.embeddedFonts) &&
+                this.#documentModel.pcb.embeddedFonts.length
+        )
     }
 
     /**
