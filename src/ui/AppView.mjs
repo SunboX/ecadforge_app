@@ -2,16 +2,18 @@ import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
+import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
 import { PcbViewController } from './PcbViewController.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
-import { SummaryCardRenderer } from './SummaryCardRenderer.mjs'
+import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
 import { UiText } from './UiText.mjs'
+import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
-
-const PCB_STYLER_TIP_DISMISSED_STORAGE_KEY =
-    'ecadforge.pcbStylerTipDismissed'
+import { ViewerSidebarEventBinder } from './ViewerSidebarEventBinder.mjs'
+import { ViewerSidebarRenderer } from './ViewerSidebarRenderer.mjs'
+const PCB_STYLER_TIP_DISMISSED_STORAGE_KEY = 'ecadforge.pcbStylerTipDismissed'
 
 /**
  * DOM rendering and event binding helper.
@@ -42,25 +44,22 @@ export class AppView {
     #localeSelect
 
     /** @type {HTMLElement | null} */
-    #summaryNode
-
-    /** @type {HTMLElement | null} */
     #viewerStageNode
 
     /** @type {HTMLElement | null} */
     #documentRailNode
 
+    /** @type {boolean} */
+    #sidebarCollapsed
+
+    /** @type {string} */
+    #expandedSidebarMarkup
+
     /** @type {HTMLElement | null} */
     #contentNode
 
     /** @type {HTMLElement | null} */
-    #activeFileNode
-
-    /** @type {HTMLElement | null} */
     #tabsNode
-
-    /** @type {HTMLElement | null} */
-    #diagnosticsCountNode
 
     /** @type {HTMLFormElement | null} */
     #githubOpenForm
@@ -89,6 +88,9 @@ export class AppView {
     /** @type {PcbViewController | null} */
     #pcbViewController
 
+    /** @type {((change: { documentId: string, componentKey: string }) => void) | null} */
+    #pcbComponentSelectionCallback
+
     /** @type {PcbScene3dController | null} */
     #scene3dController
 
@@ -110,16 +112,12 @@ export class AppView {
         this.#statusNode = this.#document.querySelector('#statusMessage')
         this.#versionNode = this.#document.querySelector('#appVersion')
         this.#localeSelect = this.#document.querySelector('#localeSelect')
-        this.#summaryNode = this.#document.querySelector('#summaryGrid')
         this.#viewerStageNode = this.#document.querySelector('#viewerStage')
         this.#documentRailNode = this.#document.querySelector('#documentRail')
+        this.#sidebarCollapsed = false
+        this.#expandedSidebarMarkup = ''
         this.#contentNode = this.#document.querySelector('#viewContent')
-        this.#activeFileNode = this.#document.querySelector(
-            '#activeDocumentName'
-        )
         this.#tabsNode = this.#document.querySelector('#viewTabs')
-        this.#diagnosticsCountNode =
-            this.#document.querySelector('#diagnosticsCount')
         this.#githubOpenForm = this.#document.querySelector('#githubOpenForm')
         this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
         this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
@@ -133,6 +131,7 @@ export class AppView {
         this.#translate = UiText.createTranslator(options.translate || null)
         this.#svgViewportController = null
         this.#pcbViewController = null
+        this.#pcbComponentSelectionCallback = null
         this.#scene3dController = null
         this.#createScene3dController =
             options.createScene3dController ||
@@ -150,49 +149,26 @@ export class AppView {
             }
         )
         this.#bindPcbStylerDismiss()
+        ViewerSidebarEventBinder.bindSidebarCollapseToggle(
+            this.#documentRailNode,
+            (collapsed) => this.#setSidebarCollapsed(collapsed)
+        )
+        ViewerSidebarEventBinder.bindComponentFilter(this.#documentRailNode)
     }
 
     /**
      * Renders one full state snapshot.
-     * @param {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
+     * @param {{ activeView: string, activeSidebarTab?: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
      */
     render(snapshot) {
         this.setStatus(snapshot.statusMessage)
+        LandingStatusRenderer.render(
+            this.#document.querySelector('#landingStatusMessage'),
+            snapshot
+        )
         this.setLocale(snapshot.locale)
-        const bodyClassList = this.#document.body?.classList
-        if (bodyClassList) {
-            const isViewerMode = Boolean(snapshot.documentModel)
-            bodyClassList[isViewerMode ? 'add' : 'remove']('is-viewer-mode')
-            bodyClassList.remove(
-                'is-viewer-visual',
-                'is-viewer-schematic',
-                'is-viewer-pcb',
-                'is-viewer-3d',
-                'is-viewer-report'
-            )
-            if (
-                isViewerMode &&
-                ['schematic', 'pcb', '3d', 'bom', 'diagnostics'].includes(
-                    snapshot.activeView
-                )
-            )
-                bodyClassList.add('is-viewer-visual')
-            if (isViewerMode && snapshot.activeView === 'schematic')
-                bodyClassList.add('is-viewer-schematic')
-            if (isViewerMode && snapshot.activeView === 'pcb')
-                bodyClassList.add('is-viewer-pcb')
-            if (isViewerMode && snapshot.activeView === '3d')
-                bodyClassList.add('is-viewer-3d')
-            if (
-                isViewerMode &&
-                ['bom', 'diagnostics'].includes(snapshot.activeView)
-            )
-                bodyClassList.add('is-viewer-report')
-        }
-        this.#renderActiveFile(snapshot.activeFileName)
+        ViewerModeClassRenderer.render(this.#document.body, snapshot)
         this.#renderTabs(snapshot.activeView)
-        this.#renderSummary(snapshot.documentModel)
-        this.#renderDiagnosticsCount(snapshot.documentModel)
         this.#renderDocumentRail(snapshot)
         this.#renderContent(snapshot)
     }
@@ -321,21 +297,72 @@ export class AppView {
      * @param {(documentId: string) => void} callback
      */
     bindDocumentSelection(callback) {
-        this.#documentRailNode?.addEventListener('click', (event) => {
-            const target = event.target
-            const button =
-                target &&
-                typeof target === 'object' &&
-                typeof target.closest === 'function'
-                    ? target.closest('[data-document-id]')
-                    : null
+        ViewerSidebarEventBinder.bindDocumentSelection(
+            this.#documentRailNode,
+            callback
+        )
+    }
 
-            if (!button || typeof button.getAttribute !== 'function') {
-                return
-            }
+    /**
+     * Binds sidebar tab selection changes.
+     * @param {(tabName: string) => void} callback
+     * @returns {void}
+     */
+    bindSidebarTabSelection(callback) {
+        ViewerSidebarEventBinder.bindSidebarTabSelection(
+            this.#documentRailNode,
+            callback
+        )
+    }
 
-            callback(button.getAttribute('data-document-id') || '')
-        })
+    /**
+     * Binds PCB layer visibility row clicks.
+     * @param {(change: { documentId: string, layerKey: string, visible: boolean }) => void} callback
+     * @returns {void}
+     */
+    bindPcbLayerVisibilityChange(callback) {
+        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(
+            this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
+     * Binds PCB object opacity slider changes.
+     * @param {(change: { documentId: string, objectKey: string, opacity: number }) => void} callback
+     * @returns {void}
+     */
+    bindPcbObjectOpacityChange(callback) {
+        ViewerSidebarEventBinder.bindPcbObjectOpacityChange(
+            this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
+     * Binds PCB component selection row clicks.
+     * @param {(change: { documentId: string, componentKey: string }) => void} callback
+     * @returns {void}
+     */
+    bindPcbComponentSelectionChange(callback) {
+        this.#pcbComponentSelectionCallback =
+            typeof callback === 'function' ? callback : null
+        ViewerSidebarEventBinder.bindPcbComponentSelectionChange(
+            this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
+     * Binds PCB layer preset buttons.
+     * @param {(change: { documentId: string, preset: string }) => void} callback
+     * @returns {void}
+     */
+    bindPcbLayerPresetSelection(callback) {
+        ViewerSidebarEventBinder.bindPcbLayerPresetSelection(
+            this.#documentRailNode,
+            callback
+        )
     }
 
     /**
@@ -490,10 +517,7 @@ export class AppView {
      */
     #storePcbStylerTipDismissed() {
         try {
-            this.#storage?.setItem(
-                PCB_STYLER_TIP_DISMISSED_STORAGE_KEY,
-                'true'
-            )
+            this.#storage?.setItem(PCB_STYLER_TIP_DISMISSED_STORAGE_KEY, 'true')
         } catch (_error) {
             // The current click still hides the tip when browser storage fails.
         }
@@ -516,16 +540,6 @@ export class AppView {
      */
     hasLocaleSelect() {
         return Boolean(this.#localeSelect)
-    }
-
-    /**
-     * Updates the visible file label.
-     * @param {string} fileName
-     */
-    #renderActiveFile(fileName) {
-        if (!this.#activeFileNode) return
-        this.#activeFileNode.textContent =
-            fileName || this.#translate('summary.noFile')
     }
 
     /**
@@ -566,73 +580,76 @@ export class AppView {
     }
 
     /**
-     * Updates the summary grid.
-     * @param {any} documentModel
-     */
-    #renderSummary(documentModel) {
-        if (!this.#summaryNode) return
-
-        this.#summaryNode.innerHTML = SummaryCardRenderer.render(
-            documentModel,
-            this.#translate
-        )
-    }
-
-    /**
-     * Updates the diagnostics badge.
-     * @param {any} documentModel
-     */
-    #renderDiagnosticsCount(documentModel) {
-        if (!this.#diagnosticsCountNode) return
-        const count = Array.isArray(documentModel?.diagnostics)
-            ? documentModel.diagnostics.length
-            : 0
-        this.#diagnosticsCountNode.textContent = String(count)
-    }
-
-    /**
-     * Updates the preview rail for multi-document sessions.
-     * @param {{ activeView: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
+     * Updates the viewer sidebar for loaded sessions.
+     * @param {{ activeSidebarTab?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, sessionAssets?: any[], documentModel: any }} snapshot
      * @returns {void}
      */
     #renderDocumentRail(snapshot) {
         if (!this.#documentRailNode) return
 
-        const documents = DocumentRailRenderer.filterDocumentsForView(
-            AppView.#resolveSessionDocuments(snapshot),
-            snapshot.activeView
-        )
-        if (documents.length < 2) {
+        if (!snapshot.documentModel) {
             this.#documentRailNode.innerHTML = ''
+            this.#expandedSidebarMarkup = ''
+            this.#sidebarCollapsed = false
             this.#documentRailNode.setAttribute('hidden', 'hidden')
-            this.#viewerStageNode?.classList.remove('is-multi-document')
+            this.#viewerStageNode?.classList.remove('is-sidebar-visible')
+            this.#applySidebarCollapsedClass()
             return
         }
 
-        const activeDocumentId =
-            String(snapshot.activeDocumentId || '') || documents[0].id
-
+        const scrollState = AppView.#captureSidebarScroll(
+            this.#documentRailNode
+        )
+        this.#expandedSidebarMarkup = ViewerSidebarRenderer.render(
+            {
+                ...snapshot,
+                documents: AppView.#resolveSessionDocuments(snapshot)
+            },
+            this.#translate
+        )
         this.#documentRailNode.removeAttribute('hidden')
-        this.#viewerStageNode?.classList.add('is-multi-document')
-        this.#documentRailNode.innerHTML = documents
-            .map((entry) =>
-                DocumentRailRenderer.renderCard(
-                    entry,
-                    activeDocumentId,
-                    snapshot.activeView,
-                    this.#translate
-                )
-            )
-            .join('')
+        this.#viewerStageNode?.classList.add('is-sidebar-visible')
+        this.#applySidebarCollapsedClass()
+        this.#documentRailNode.innerHTML = this.#sidebarCollapsed
+            ? ViewerSidebarRenderer.renderCollapsedToggle(this.#translate)
+            : this.#expandedSidebarMarkup
+        if (!this.#sidebarCollapsed) {
+            AppView.#restoreSidebarScroll(this.#documentRailNode, scrollState)
+        }
+    }
+
+    /**
+     * Applies the current sidebar collapsed state to the rail.
+     * @param {boolean} collapsed Whether the sidebar should be collapsed.
+     * @returns {void}
+     */
+    #setSidebarCollapsed(collapsed) {
+        this.#sidebarCollapsed = Boolean(collapsed)
+        this.#applySidebarCollapsedClass()
+        if (!this.#documentRailNode || !this.#expandedSidebarMarkup) return
+        this.#documentRailNode.innerHTML = this.#sidebarCollapsed
+            ? ViewerSidebarRenderer.renderCollapsedToggle(this.#translate)
+            : this.#expandedSidebarMarkup
+    }
+
+    /**
+     * Mirrors sidebar collapsed state onto layout nodes.
+     * @returns {void}
+     */
+    #applySidebarCollapsedClass() {
+        const action = this.#sidebarCollapsed ? 'add' : 'remove'
+        this.#documentRailNode?.classList[action]('is-sidebar-collapsed')
+        this.#viewerStageNode?.classList[action]('is-sidebar-collapsed')
     }
 
     /**
      * Updates the main tab panel content.
-     * @param {{ activeView: string, parseStatus: string, sessionAssets?: any[], documentModel: any }} snapshot
+     * @param {{ activeView: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, parseStatus: string, sessionAssets?: any[], documentModel: any }} snapshot
      */
     #renderContent(snapshot) {
         if (!this.#contentNode) return
 
+        const previousPcbSide = this.#pcbViewController?.side || 'top'
         this.#disposeSvgViewportController()
         this.#disposePcbViewController()
         this.#disposeScene3dController()
@@ -653,18 +670,37 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'schematic') {
-            this.#contentNode.innerHTML = EcadRendererService.renderSchematic(
-                snapshot.documentModel
+            const documentId = String(snapshot?.activeDocumentId || '')
+            this.#contentNode.innerHTML = SchematicViewRenderer.render(
+                snapshot.documentModel,
+                String(snapshot?.selectedPcbComponents?.[documentId] || '')
             )
             this.#attachSvgViewportController('.schematic-svg')
             return
         }
 
         if (snapshot.activeView === 'pcb') {
+            const documentId = String(snapshot?.activeDocumentId || '')
+            const objectOpacities = snapshot?.pcbObjectOpacities?.[documentId]
             this.#pcbViewController = new PcbViewController(
                 this.#contentNode,
                 snapshot.documentModel,
                 {
+                    documentId,
+                    side: previousPcbSide,
+                    hiddenLayers: AppView.#resolveHiddenPcbLayers(snapshot),
+                    hiddenObjects: AppView.#resolveHiddenPcbObjects(snapshot),
+                    objectOpacities:
+                        objectOpacities &&
+                        typeof objectOpacities === 'object' &&
+                        !Array.isArray(objectOpacities)
+                            ? { ...objectOpacities }
+                            : {},
+                    selectedComponentKey: String(
+                        snapshot?.selectedPcbComponents?.[documentId] || ''
+                    ),
+                    onComponentSelectionChange:
+                        this.#pcbComponentSelectionCallback,
                     translate: this.#translate
                 }
             )
@@ -816,6 +852,80 @@ export class AppView {
                 documentModel: snapshot.documentModel
             }
         ]
+    }
+
+    /**
+     * Resolves hidden PCB layer keys for the active document.
+     * @param {{ activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] } }} snapshot Viewer snapshot.
+     * @returns {string[]}
+     */
+    static #resolveHiddenPcbLayers(snapshot) {
+        const documentId = String(snapshot?.activeDocumentId || '')
+        const hiddenLayers = snapshot?.hiddenPcbLayers?.[documentId]
+        return Array.isArray(hiddenLayers) ? hiddenLayers : []
+    }
+
+    /**
+     * Resolves hidden PCB object keys for the active document.
+     * @param {{ activeDocumentId?: string, hiddenPcbObjects?: { [documentId: string]: string[] } }} snapshot Viewer snapshot.
+     * @returns {string[]}
+     */
+    static #resolveHiddenPcbObjects(snapshot) {
+        const documentId = String(snapshot?.activeDocumentId || '')
+        const hiddenObjects = snapshot?.hiddenPcbObjects?.[documentId]
+        return Array.isArray(hiddenObjects) ? hiddenObjects : []
+    }
+
+    /**
+     * Captures scroll state for the active sidebar panel before a re-render.
+     * @param {HTMLElement | null} sidebarMount Sidebar mount node.
+     * @returns {{ activeTab: string, activeDocumentId: string, scrollTop: number, scrollLeft: number } | null}
+     */
+    static #captureSidebarScroll(sidebarMount) {
+        const sidebar = sidebarMount?.querySelector?.('.viewer-sidebar')
+        const panel = sidebarMount?.querySelector?.('.viewer-sidebar__panel')
+        if (!sidebar || !panel) {
+            return null
+        }
+
+        return {
+            activeTab: sidebar.getAttribute('data-active-sidebar-tab') || '',
+            activeDocumentId:
+                sidebar.getAttribute('data-active-document-id') || '',
+            scrollTop: Number(panel.scrollTop || 0),
+            scrollLeft: Number(panel.scrollLeft || 0)
+        }
+    }
+
+    /**
+     * Restores sidebar panel scroll when the same panel was re-rendered.
+     * @param {HTMLElement | null} sidebarMount Sidebar mount node.
+     * @param {{ activeTab: string, activeDocumentId: string, scrollTop: number, scrollLeft: number } | null} scrollState Captured scroll state.
+     * @returns {void}
+     */
+    static #restoreSidebarScroll(sidebarMount, scrollState) {
+        if (!scrollState) {
+            return
+        }
+
+        const sidebar = sidebarMount?.querySelector?.('.viewer-sidebar')
+        const panel = sidebarMount?.querySelector?.('.viewer-sidebar__panel')
+        if (!sidebar || !panel) {
+            return
+        }
+
+        const activeTab = sidebar.getAttribute('data-active-sidebar-tab') || ''
+        const activeDocumentId =
+            sidebar.getAttribute('data-active-document-id') || ''
+        if (
+            activeTab !== scrollState.activeTab ||
+            activeDocumentId !== scrollState.activeDocumentId
+        ) {
+            return
+        }
+
+        panel.scrollTop = scrollState.scrollTop
+        panel.scrollLeft = scrollState.scrollLeft
     }
 
     /**

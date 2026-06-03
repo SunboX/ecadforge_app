@@ -252,15 +252,44 @@ class FakeDocumentRailButton extends FakeNode {
 }
 
 /**
- * Minimal rail node that exposes parsed document preview buttons.
+ * Minimal sidebar tab button node.
+ */
+class FakeSidebarTabButton extends FakeNode {
+    /**
+     * @param {string} tabName
+     * @param {string[]} classNames
+     * @param {string} selected
+     */
+    constructor(tabName, classNames, selected) {
+        super()
+        this.setAttribute('data-sidebar-tab', tabName)
+        this.setAttribute('aria-selected', selected)
+        this.classList = new FakeClassList(classNames)
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeSidebarTabButton | null}
+     */
+    closest(selector) {
+        return selector === '[data-sidebar-tab]' ? this : null
+    }
+}
+
+/**
+ * Minimal rail node that exposes parsed sidebar buttons.
  */
 class FakeDocumentRailNode extends FakeNode {
     /** @type {Map<string, FakeDocumentRailButton>} */
     #buttonsById
 
+    /** @type {Map<string, FakeSidebarTabButton>} */
+    #tabsByName
+
     constructor() {
         super()
         this.#buttonsById = new Map()
+        this.#tabsByName = new Map()
     }
 
     /**
@@ -269,9 +298,10 @@ class FakeDocumentRailNode extends FakeNode {
     set innerHTML(value) {
         this._innerHTML = String(value)
         this.#buttonsById = new Map()
+        this.#tabsByName = new Map()
 
         for (const match of this._innerHTML.matchAll(
-            /<button class="([^"]*document-rail__item[^"]*)"[^>]*data-document-id="([^"]+)"[^>]*aria-pressed="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g
+            /<button class="([^"]*viewer-sidebar__row--button[^"]*)"[^>]*data-document-id="([^"]+)"[^>]*aria-pressed="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g
         )) {
             const button = new FakeDocumentRailButton(
                 match[2],
@@ -280,6 +310,17 @@ class FakeDocumentRailNode extends FakeNode {
                 match[4]
             )
             this.#buttonsById.set(match[2], button)
+        }
+
+        for (const match of this._innerHTML.matchAll(
+            /<button class="([^"]*viewer-sidebar__tab[^"]*)"[^>]*data-sidebar-tab="([^"]+)"[^>]*aria-selected="([^"]+)"/g
+        )) {
+            const button = new FakeSidebarTabButton(
+                match[2],
+                match[1].split(/\s+/).filter(Boolean),
+                match[3]
+            )
+            this.#tabsByName.set(match[2], button)
         }
     }
 
@@ -300,6 +341,11 @@ class FakeDocumentRailNode extends FakeNode {
             return this.#buttonsById.get(idMatch[1]) || null
         }
 
+        const tabMatch = selector.match(/^\[data-sidebar-tab="([^"]+)"\]$/)
+        if (tabMatch) {
+            return this.#tabsByName.get(tabMatch[1]) || null
+        }
+
         return null
     }
 
@@ -310,9 +356,16 @@ class FakeDocumentRailNode extends FakeNode {
     querySelectorAll(selector) {
         if (
             selector === '[data-document-id]' ||
-            selector === '.document-rail__item'
+            selector === '.viewer-sidebar__row--button'
         ) {
             return [...this.#buttonsById.values()]
+        }
+
+        if (
+            selector === '[data-sidebar-tab]' ||
+            selector === '.viewer-sidebar__tab'
+        ) {
+            return [...this.#tabsByName.values()]
         }
 
         return []
@@ -325,6 +378,20 @@ class FakeDocumentRailNode extends FakeNode {
      */
     clickDocument(documentId) {
         const button = this.#buttonsById.get(documentId)
+        if (!button) {
+            return
+        }
+
+        this.dispatch('click', { target: button })
+    }
+
+    /**
+     * Dispatches a click event as if one sidebar tab was selected.
+     * @param {string} tabName
+     * @returns {void}
+     */
+    clickSidebarTab(tabName) {
+        const button = this.#tabsByName.get(tabName)
         if (!button) {
             return
         }
@@ -484,7 +551,10 @@ class FakeContentNode extends FakeNode {
 
         if (this._innerHTML.includes('data-scene-3d-viewport')) {
             const viewport = new FakeScene3dViewportNode()
-            this.#sceneViewportBySelector.set('[data-scene-3d-viewport]', viewport)
+            this.#sceneViewportBySelector.set(
+                '[data-scene-3d-viewport]',
+                viewport
+            )
         }
 
         if (this._innerHTML.includes('data-scene-3d-loading')) {
@@ -554,6 +624,7 @@ function createSchematicSnapshot() {
 
     return {
         activeView: 'schematic',
+        activeSidebarTab: 'info',
         locale: 'en',
         parseStatus: 'ready',
         statusMessage: 'File parsed successfully.',
@@ -664,6 +735,7 @@ function createPcbSnapshot() {
 
     return {
         activeView: 'pcb',
+        activeSidebarTab: 'info',
         locale: 'en',
         parseStatus: 'ready',
         statusMessage: 'File parsed successfully.',
@@ -694,11 +766,12 @@ function createMultiDocumentSnapshot(activeView = 'schematic') {
     ]
     const activeDocumentId = 'doc-2'
     const activeDocument =
-        documents.find((entry) => entry.id === activeDocumentId)?.documentModel ||
-        null
+        documents.find((entry) => entry.id === activeDocumentId)
+            ?.documentModel || null
 
     return {
         activeView,
+        activeSidebarTab: 'project',
         locale: 'en',
         parseStatus: 'ready',
         statusMessage: 'File parsed successfully.',
@@ -767,6 +840,21 @@ test('AppView wires mouse-wheel zoom onto the rendered schematic svg', () => {
     })
 
     assert.equal(svg.getAttribute('viewBox'), '1.5 0.75 194 97')
+})
+
+/**
+ * Verifies document metadata is no longer duplicated above the schematic SVG.
+ */
+test('AppView omits the rendered schematic metadata header', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createSchematicSnapshot())
+
+    const html = fakeDocument.querySelector('#viewContent').innerHTML
+
+    assert.doesNotMatch(html, /svg-panel__header/)
+    assert.match(html, /svg-panel--chrome-hidden/)
 })
 
 /**
@@ -841,111 +929,6 @@ test('AppView wires zoom and drag onto the rendered pcb svg', () => {
 })
 
 /**
- * Verifies AppView hides the document rail for a single open document.
- */
-test('AppView hides the document rail when only one document is open', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-
-    view.render(createSchematicSnapshot())
-
-    const rail = fakeDocument.querySelector('#documentRail')
-
-    assert.equal(rail.hidden, true)
-    assert.equal(rail.innerHTML, '')
-})
-
-/**
- * Verifies AppView renders multiple preview cards and marks the active one
- * when the current tab is supported by multiple open files.
- */
-test('AppView renders a multi-document rail with an active preview card', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-
-    view.render(createMultiDocumentSnapshot('diagnostics'))
-
-    const rail = fakeDocument.querySelector('#documentRail')
-    const activeButton = rail.querySelector('[data-document-id="doc-2"]')
-
-    assert.equal(rail.hidden, false)
-    assert.match(rail.innerHTML, /demo\.SchDoc/)
-    assert.match(rail.innerHTML, /demo\.PcbDoc/)
-    assert.equal(activeButton?.getAttribute('aria-pressed'), 'true')
-    assert.equal(activeButton?.classList.contains('is-active'), true)
-})
-
-/**
- * Verifies AppView emits the selected document id when a preview card is
- * clicked.
- */
-test('AppView binds document selection clicks from the preview rail', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-    const received = []
-
-    view.bindDocumentSelection((documentId) => {
-        received.push(documentId)
-    })
-    view.render(createMultiDocumentSnapshot('diagnostics'))
-
-    fakeDocument.querySelector('#documentRail').clickDocument('doc-1')
-
-    assert.deepEqual(received, ['doc-1'])
-})
-
-/**
- * Verifies AppView hides the rail when only one document supports schematic
- * view.
- */
-test('AppView hides the rail when only one document supports schematic view', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-
-    view.render(createMultiDocumentSnapshot('schematic'))
-
-    const rail = fakeDocument.querySelector('#documentRail')
-
-    assert.equal(rail.hidden, true)
-    assert.doesNotMatch(rail.innerHTML, /demo\.SchDoc/)
-    assert.doesNotMatch(rail.innerHTML, /demo\.PcbDoc/)
-})
-
-/**
- * Verifies AppView hides the rail when only one document supports the current
- * active tab.
- */
-test('AppView hides the rail when only one document supports the active tab', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-    const snapshot = createMultiDocumentSnapshot('pcb')
-
-    view.render(snapshot)
-
-    const rail = fakeDocument.querySelector('#documentRail')
-
-    assert.equal(rail.hidden, true)
-    assert.doesNotMatch(rail.innerHTML, /demo\.SchDoc/)
-    assert.doesNotMatch(rail.innerHTML, /demo\.PcbDoc/)
-})
-
-/**
- * Verifies the rail no longer renders unsupported fallback cards for filtered
- * views.
- */
-test('AppView omits unsupported documents instead of rendering fallback cards', () => {
-    const fakeDocument = new FakeDocument()
-    const view = new AppView(fakeDocument)
-
-    view.render(createMultiDocumentSnapshot('schematic'))
-
-    const rail = fakeDocument.querySelector('#documentRail')
-
-    assert.doesNotMatch(rail.innerHTML, /Not available for this file\./)
-    assert.doesNotMatch(rail.innerHTML, /document-preview__fallback/)
-})
-
-/**
  * Verifies AppView attaches and disposes the interactive 3D scene controller.
  */
 test('AppView attaches and disposes the 3D scene controller around 3D renders', () => {
@@ -988,7 +971,10 @@ test('AppView attaches and disposes the 3D scene controller around 3D renders', 
     assert.ok(viewport)
     assert.equal(createdControllers.length, 1)
     assert.equal(createdControllers[0].viewportNode, viewport)
-    assert.equal(createdControllers[0].documentModel, threeSnapshot.documentModel)
+    assert.equal(
+        createdControllers[0].documentModel,
+        threeSnapshot.documentModel
+    )
 
     view.render(createPcbSnapshot())
 

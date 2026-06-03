@@ -299,22 +299,24 @@ test('app shell includes localized footer metadata and footer-only version UI', 
 })
 
 /**
- * Verifies the active document summary stays out of the landing hero and near
- * the persistent footer.
+ * Verifies loaded document metrics live in the sidebar instead of a separate
+ * footer-adjacent info strip.
  */
-test('app shell places session summary above the footer', async () => {
+test('app shell omits the separate session summary strip', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
     const heroIndex = indexRaw.indexOf('<section class="panel hero-grid">')
     const viewerIndex = indexRaw.indexOf('id="viewerStage"')
-    const summaryIndex = indexRaw.indexOf('class="panel meta-column"')
     const footerIndex = indexRaw.indexOf(
         '<footer class="page-footer footer-inline">'
     )
 
     assert.ok(heroIndex >= 0)
     assert.ok(viewerIndex > heroIndex)
-    assert.ok(summaryIndex > viewerIndex)
-    assert.ok(footerIndex > summaryIndex)
+    assert.ok(footerIndex > viewerIndex)
+    assert.equal(indexRaw.includes('class="panel meta-column"'), false)
+    assert.equal(indexRaw.includes('id="summaryGrid"'), false)
+    assert.equal(indexRaw.includes('id="activeDocumentName"'), false)
+    assert.equal(indexRaw.includes('id="diagnosticsCount"'), false)
 })
 
 /**
@@ -400,7 +402,6 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(heroStyleRaw, /\.hero-proof__svg/)
     assert.doesNotMatch(heroStyleRaw, /\.hero-proof__views li:first-child/)
     assert.match(indexRaw, /class="github-open__input-wrap"/)
-    assert.match(indexRaw, /class="meta-card__icon"/)
     assert.match(indexRaw, /class="[^"]*footer-inline[^"]*"/)
     assert.doesNotMatch(indexRaw, /<div class="footer-card">/)
     assert.match(heroRaw, /class="file-pill file-pill--kicad"/)

@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { AppController } from '../src/AppController.mjs'
 import { AppState } from '../src/core/AppState.mjs'
-
 /**
  * Minimal view fake for controller integration tests.
  */

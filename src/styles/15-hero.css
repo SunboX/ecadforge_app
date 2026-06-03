@@ -192,8 +192,28 @@
     display: none;
 }
 
-.dropzone > .status {
+.dropzone__status {
+    grid-area: status;
+    max-width: 49rem;
+    margin: 0.1rem 0 0;
+    padding: 0.68rem 0.82rem;
+    border: 1px solid rgba(15, 116, 108, 0.24);
+    border-radius: 0.5rem;
+    background: rgba(239, 249, 247, 0.92);
+    color: #254e4b;
+    font-size: 0.91rem;
+    font-weight: 700;
+    line-height: 1.42;
+}
+
+.dropzone__status[hidden] {
     display: none;
+}
+
+.dropzone__status[data-status='error'] {
+    border-color: rgba(184, 90, 37, 0.35);
+    background: rgba(255, 244, 237, 0.94);
+    color: #8a3f19;
 }
 
 .hero-proof {

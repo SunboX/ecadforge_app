@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { I18nService } from '../src/I18n.mjs'
 import { Scene3dRenderer } from '../src/ui/Scene3dRenderer.mjs'
-import { SummaryCardRenderer } from '../src/ui/SummaryCardRenderer.mjs'
 import { ViewerEmptyStateRenderer } from '../src/ui/ViewerEmptyStateRenderer.mjs'
+import { ViewerSidebarRenderer } from '../src/ui/ViewerSidebarRenderer.mjs'
 
 const root = new URL('../', import.meta.url)
 
@@ -473,9 +473,9 @@ test('index template localizes visible landing and viewer chrome', async () => {
         'data-i18n="trust.localParsing"',
         'data-i18n="link.supportedFormats"',
         'data-i18n="view.schematic"',
+        'data-i18n="view.pcb"',
+        'data-i18n="view.bom"',
         'data-i18n="viewStatus.ready"',
-        'data-i18n="summary.noFile"',
-        'data-i18n="summary.records"',
         'data-i18n="pcbStyler.prompt"',
         'data-i18n="pcbStyler.open"',
         'data-i18n-attr="aria-label:pcbStyler.dismiss,title:pcbStyler.dismiss"'
@@ -520,11 +520,52 @@ test('dynamic viewer renderers use provided translations', () => {
             '加载匹配的 WRL 或 STEP 文件后，将使用配套模型。',
         'summary.placements': '贴装',
         'summary.bomGroups': 'BOM 分组',
-        'scene3d.componentsSuffix': '个元件'
+        'scene3d.componentsSuffix': '个元件',
+        'sidebar.boardOverview': '板概览',
+        'app.activeFile': '当前文件',
+        'app.diagnostics': '诊断',
+        'summary.records': '记录'
     }
     const translate = (key) => translations[key] || key
     const emptyHtml = ViewerEmptyStateRenderer.render(translate)
-    const summaryHtml = SummaryCardRenderer.render(null, translate)
+    const sidebarHtml = ViewerSidebarRenderer.render(
+        {
+            activeSidebarTab: 'project',
+            activeDocumentId: 'doc-1',
+            documents: [
+                {
+                    id: 'doc-1',
+                    documentModel: {
+                        fileName: 'board.kicad_pcb',
+                        kind: 'pcb',
+                        diagnostics: [],
+                        summary: {
+                            title: 'Board',
+                            componentCount: 2,
+                            layerCount: 4,
+                            boardWidthMil: 1200,
+                            boardHeightMil: 800
+                        },
+                        pcb: { boardOutline: { widthMil: 1200, heightMil: 800 } }
+                    }
+                }
+            ],
+            documentModel: {
+                fileName: 'board.kicad_pcb',
+                kind: 'pcb',
+                diagnostics: [],
+                summary: {
+                    title: 'Board',
+                    componentCount: 2,
+                    layerCount: 4,
+                    boardWidthMil: 1200,
+                    boardHeightMil: 800
+                },
+                pcb: { boardOutline: { widthMil: 1200, heightMil: 800 } }
+            }
+        },
+        translate
+    )
     const sceneHtml = Scene3dRenderer.render(
         {
             pcb: {
@@ -538,8 +579,9 @@ test('dynamic viewer renderers use provided translations', () => {
 
     assert.match(emptyHtml, /将设计文件拖到这里/)
     assert.doesNotMatch(emptyHtml, /Drop a design file here/)
-    assert.match(summaryHtml, /等待文件/)
-    assert.doesNotMatch(summaryHtml, /Waiting for file/)
+    assert.match(sidebarHtml, /板概览/)
+    assert.match(sidebarHtml, /当前文件/)
+    assert.doesNotMatch(sidebarHtml, /Board overview/)
     assert.match(sceneHtml, /正在准备 3D 场景/)
     assert.match(sceneHtml, /顶面/)
     assert.doesNotMatch(sceneHtml, /Preparing 3D scene/)

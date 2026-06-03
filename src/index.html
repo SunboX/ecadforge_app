@@ -398,6 +398,13 @@
                             </button>
                         </div>
                     </form>
+                    <p
+                        id="landingStatusMessage"
+                        class="status dropzone__status"
+                        role="status"
+                        aria-live="polite"
+                        hidden
+                    ></p>
                     <div class="dropzone__chips">
                         <span>
                             <svg
@@ -680,60 +687,6 @@
                         </svg>
                     </button>
                 </aside>
-            </section>
-
-            <section
-                class="panel meta-column"
-                aria-label="Current file summary"
-                data-i18n-attr="aria-label:summary.activeFileAria"
-            >
-                <article class="meta-card">
-                    <span class="meta-card__icon" aria-hidden="true">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M7 3h7l4 4v14H7z" />
-                            <path d="M14 3v5h5" />
-                            <path d="M9 13h6" />
-                            <path d="M9 17h4" />
-                        </svg>
-                    </span>
-                    <span>
-                        <span
-                            class="meta-card__label"
-                            data-i18n="app.activeFile"
-                            >Active file</span
-                        >
-                        <strong
-                            id="activeDocumentName"
-                            data-i18n="summary.noFile"
-                            >No file loaded</strong
-                        >
-                    </span>
-                </article>
-                <article class="meta-card">
-                    <span class="meta-card__icon" aria-hidden="true">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M4 12h4l2-6 4 12 2-6h4" />
-                        </svg>
-                    </span>
-                    <span>
-                        <span
-                            class="meta-card__label"
-                            data-i18n="app.diagnostics"
-                            >Diagnostics</span
-                        >
-                        <strong
-                            ><span id="diagnosticsCount">0</span>
-                            <span data-i18n="summary.records"
-                                >records</span
-                            ></strong
-                        >
-                    </span>
-                </article>
-                <div
-                    id="summaryGrid"
-                    class="summary-grid"
-                    aria-live="polite"
-                ></div>
             </section>
 
             <footer class="page-footer footer-inline">

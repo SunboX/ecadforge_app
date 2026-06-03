@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { GitHubSourceLoader } from '../src/GitHubSourceLoader.mjs'
 
+const GITHUB_RATE_LIMIT_URL = 'https://api.github.com/rate_limit'
+
 /**
  * Builds a fetch double from URL-to-body mappings.
  * @param {Record<string, string | { status: number, body?: string }>} bodies
@@ -103,6 +105,9 @@ test('GitHubSourceLoader discovers a KiCad project from GitHub tree folders', as
                 download_url: baseUrl + '.kicad_pcb'
             }
         ]),
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
         [baseUrl + '.kicad_pro']: '{}',
         [baseUrl + '.kicad_sch']: '(kicad_sch)',
         [baseUrl + '.kicad_pcb']: '(kicad_pcb)'
@@ -114,6 +119,7 @@ test('GitHubSourceLoader discovers a KiCad project from GitHub tree folders', as
     )
 
     assert.deepEqual(urls, [
+        GITHUB_RATE_LIMIT_URL,
         apiUrl,
         baseUrl + '.kicad_pro',
         baseUrl + '.kicad_sch',
@@ -125,6 +131,98 @@ test('GitHubSourceLoader discovers a KiCad project from GitHub tree folders', as
     )
     assert.equal(result.rawUrl, baseUrl + '.kicad_pro')
     assert.equal(result.boardUrl, baseUrl + '.kicad_pcb')
+})
+
+test('GitHubSourceLoader resolves Altium project manifests before generated folder zips', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/'
+    const projectUrl = baseUrl + 'Demo.PrjPcb'
+    const schematicUrl = baseUrl + 'Schematics/Main.SchDoc'
+    const boardUrl = baseUrl + 'PCB/Main.PcbDoc'
+    const zipUrl = baseUrl + 'Demo_DFM.zip'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'Demo.PrjPcb',
+                type: 'file',
+                download_url: projectUrl
+            },
+            {
+                name: 'Demo_DFM.zip',
+                type: 'file',
+                download_url: zipUrl
+            }
+        ]),
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
+        [projectUrl]:
+            '[Document1]\n' +
+            'DocumentPath=Schematics\\Main.SchDoc\n' +
+            '[Document2]\n' +
+            'DocumentPath=Libraries\\Ignored.SchLib\n' +
+            '[Document3]\n' +
+            'DocumentPath=PCB\\Main.PcbDoc\n',
+        [schematicUrl]: '|HEADER=Schematic Document',
+        [boardUrl]: '|HEADER=Protel for Windows - PCB'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://github.com/acme/demo/tree/main/hardware/project'
+    )
+
+    assert.deepEqual(urls, [
+        GITHUB_RATE_LIMIT_URL,
+        apiUrl,
+        projectUrl,
+        schematicUrl,
+        boardUrl
+    ])
+    assert.equal(result.formatFamily, 'altium')
+    assert.equal(result.rawUrl, projectUrl)
+    assert.equal(result.boardUrl, boardUrl)
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
+    )
+})
+
+test('GitHubSourceLoader reports exhausted folder discovery rate limit before listing folders', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const { fetcher, urls } = createFetchDouble({
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: {
+                core: {
+                    remaining: 0,
+                    reset: 1780510776
+                }
+            }
+        })
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    await assert.rejects(
+        () =>
+            loader.loadUrl(
+                'https://github.com/acme/demo/tree/main/hardware/project'
+            ),
+        (error) => {
+            const message = String(error?.message || '')
+            assert.match(message, /GitHub API rate limit is exhausted/)
+            assert.match(message, /Try again after .+ \(local time\)\./)
+            assert.doesNotMatch(
+                message,
+                /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
+            )
+            return true
+        }
+    )
+    assert.deepEqual(urls, [GITHUB_RATE_LIMIT_URL])
+    assert.ok(!urls.includes(apiUrl))
 })
 
 test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () => {
@@ -167,6 +265,9 @@ test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () 
                 download_url: baseUrl + '.kicad_pcb'
             }
         ]),
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
         [baseUrl + '.kicad_pro']: '{}',
         [baseUrl + '.kicad_sch']: '(kicad_sch)',
         [baseUrl + '.kicad_pcb']: boardSource,

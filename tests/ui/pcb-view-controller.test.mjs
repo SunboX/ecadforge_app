@@ -80,6 +80,7 @@ class FakeNode extends FakeEventTarget {
         super()
         this.#attributes = new Map()
         this.classList = new FakeClassList()
+        this.style = {}
     }
 
     /**
@@ -250,6 +251,43 @@ class FakeContentNode extends FakeEventTarget {
 
         this.dispatch('click', { target: button, preventDefault() {} })
     }
+
+    /**
+     * Dispatches a click on the rendered PCB SVG.
+     * @param {number} clientX Client x coordinate.
+     * @param {number} clientY Client y coordinate.
+     * @returns {void}
+     */
+    clickPcbBoard(clientX, clientY) {
+        if (!this.#svg) {
+            return
+        }
+
+        this.dispatch('click', {
+            target: this.#svg,
+            clientX,
+            clientY,
+            preventDefault() {}
+        })
+    }
+
+    /**
+     * Dispatches a mousemove on the rendered PCB SVG.
+     * @param {number} clientX Client x coordinate.
+     * @param {number} clientY Client y coordinate.
+     * @returns {void}
+     */
+    movePcbPointer(clientX, clientY) {
+        if (!this.#svg) {
+            return
+        }
+
+        this.dispatch('mousemove', {
+            target: this.#svg,
+            clientX,
+            clientY
+        })
+    }
 }
 
 /**
@@ -306,6 +344,75 @@ class PcbViewControllerFixture {
             bom: []
         }
     }
+
+    /**
+     * @returns {object}
+     */
+    static createSelectableAltiumPcbDocument() {
+        const documentModel = PcbViewControllerFixture.createAltiumPcbDocument()
+        documentModel.fileName = 'board-selection.PcbDoc'
+        documentModel.pcb.layers = [
+            { name: 'Top Layer', layerId: 1 },
+            { name: 'Bottom Layer', layerId: 32 }
+        ]
+        documentModel.pcb.tracks = [
+            {
+                x1: 0,
+                y1: 50,
+                x2: 100,
+                y2: 50,
+                width: 10,
+                layerId: 1,
+                netName: 'SENSE'
+            }
+        ]
+        documentModel.pcb.vias = [
+            {
+                x: 50,
+                y: 50,
+                diameter: 20,
+                holeDiameter: 8,
+                netName: 'SENSE'
+            }
+        ]
+        documentModel.pcb.pads = [
+            {
+                x: 50,
+                y: 50,
+                sizeTopX: 24,
+                sizeTopY: 24,
+                rotation: 0,
+                componentIndex: 0,
+                layerId: 1,
+                netName: 'SENSE'
+            }
+        ]
+        documentModel.pcb.regions = [
+            {
+                layerId: 1,
+                netName: 'SENSE',
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 0 },
+                    { x: 100, y: 100 },
+                    { x: 0, y: 100 }
+                ]
+            }
+        ]
+        documentModel.pcb.components = [
+            {
+                componentIndex: 0,
+                designator: 'U1',
+                x: 50,
+                y: 50,
+                rotation: 0,
+                layer: 'TOP',
+                pattern: 'QFN'
+            }
+        ]
+
+        return documentModel
+    }
 }
 
 /**
@@ -325,8 +432,10 @@ test('PcbViewController switches PCB sides from the toolbar', () => {
 
     assert.equal(topButton?.getAttribute('aria-pressed'), 'true')
     assert.equal(bottomButton?.getAttribute('aria-pressed'), 'false')
-    assert.match(content.innerHTML, /Top-facing composite view/)
+    assert.match(content.innerHTML, /data-pcb-view-active-side="top"/)
+    assert.match(content.innerHTML, /pcb-svg--top/)
     assert.match(content.innerHTML, />TOP_SIDE_MARK<\/text>/)
+    assert.doesNotMatch(content.innerHTML, />BOTTOM_SIDE_MARK<\/text>/)
     assert.equal(topSvg?.getListenerCount('wheel'), 1)
 
     content.clickPcbSide('bottom')
@@ -340,13 +449,39 @@ test('PcbViewController switches PCB sides from the toolbar', () => {
     assert.equal(topSvg?.getListenerCount('wheel'), 0)
     assert.equal(pressedTopButton?.getAttribute('aria-pressed'), 'false')
     assert.equal(pressedBottomButton?.getAttribute('aria-pressed'), 'true')
-    assert.match(content.innerHTML, /Bottom-facing composite view/)
+    assert.match(content.innerHTML, /data-pcb-view-active-side="bottom"/)
+    assert.match(content.innerHTML, /pcb-svg--bottom/)
     assert.match(content.innerHTML, />BOTTOM_SIDE_MARK<\/text>/)
+    assert.doesNotMatch(content.innerHTML, />TOP_SIDE_MARK<\/text>/)
     assert.equal(bottomSvg?.getListenerCount('wheel'), 1)
 
     controller.dispose()
 
     assert.equal(bottomSvg?.getListenerCount('wheel'), 0)
+})
+
+/**
+ * Verifies remounting the same PCB view keeps the user's zoom and pan
+ * position instead of returning to the renderer default viewBox.
+ */
+test('PcbViewController preserves PCB viewport when remounted for the same side', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const documentModel = PcbViewControllerFixture.createAltiumPcbDocument()
+    const controller = new PcbViewController(content, documentModel)
+    const firstSvg = content.querySelector('.pcb-svg')
+
+    firstSvg?.setAttribute('viewBox', '10 20 30 40')
+    controller.dispose()
+
+    const remountedController = new PcbViewController(content, documentModel)
+    const remountedSvg = content.querySelector('.pcb-svg')
+
+    assert.equal(firstSvg?.getListenerCount('wheel'), 0)
+    assert.equal(remountedSvg?.getAttribute('viewBox'), '10 20 30 40')
+    assert.equal(remountedSvg?.getListenerCount('wheel'), 1)
+
+    remountedController.dispose()
 })
 
 /**
@@ -374,12 +509,14 @@ test('PcbViewController refreshes the active PCB side after fonts settle', async
         const controller = new PcbViewController(content, documentModel)
 
         assert.equal(content.renderCount, 1)
-        assert.match(content.innerHTML, /Top-facing composite view/)
+        assert.match(content.innerHTML, /data-pcb-view-active-side="top"/)
+        assert.match(content.innerHTML, /pcb-svg--top/)
 
         await new Promise((resolve) => setTimeout(resolve, 0))
 
         assert.equal(content.renderCount, 2)
-        assert.match(content.innerHTML, /Top-facing composite view/)
+        assert.match(content.innerHTML, /data-pcb-view-active-side="top"/)
+        assert.match(content.innerHTML, /pcb-svg--top/)
         assert.match(content.innerHTML, />TOP_SIDE_MARK<\/text>/)
 
         controller.dispose()
@@ -390,4 +527,134 @@ test('PcbViewController refreshes the active PCB side after fonts settle', async
             delete globalThis.document
         }
     }
+})
+
+/**
+ * Verifies PCB SVG clicks are converted into board-space hit-test requests and
+ * overlap candidates are reported in selection-priority order.
+ */
+test('PcbViewController reports prioritized PCB click candidates', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const candidateChanges = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onInteractionCandidatesChange: (change) => {
+                candidateChanges.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.clickPcbBoard(200, 100)
+
+    assert.equal(candidateChanges.length, 1)
+    assert.equal(candidateChanges[0].documentId, 'doc-1')
+    assert.deepEqual(
+        candidateChanges[0].candidates.map((candidate) => candidate.type),
+        ['track', 'pad', 'via', 'component', 'zone']
+    )
+    assert.equal(candidateChanges[0].point.x, 50)
+    assert.equal(candidateChanges[0].point.y, 50)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies PCB click selection can feed the existing selected component state
+ * path when the top visible hit candidate is component-backed.
+ */
+test('PcbViewController selects a component-backed PCB click candidate', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const selections = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            hiddenObjects: ['tracks'],
+            onComponentSelectionChange: (change) => {
+                selections.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.clickPcbBoard(200, 100)
+
+    assert.deepEqual(selections, [
+        {
+            documentId: 'doc-1',
+            componentKey: 'U1'
+        }
+    ])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies component-backed PCB hits expose the browser pointing-hand cursor.
+ */
+test('PcbViewController shows pointer cursor over component-backed PCB hits', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            hiddenObjects: ['tracks']
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.movePcbPointer(200, 100)
+
+    assert.equal(svg?.style.cursor, 'pointer')
+
+    content.movePcbPointer(700, 350)
+
+    assert.equal(svg?.style.cursor, '')
+
+    controller.dispose()
+})
+
+/**
+ * Verifies clicking empty PCB space clears the selected component path.
+ */
+test('PcbViewController clears PCB component selection when clicking empty board space', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const selections = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            selectedComponentKey: 'U1',
+            onComponentSelectionChange: (change) => {
+                selections.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.clickPcbBoard(700, 350)
+
+    assert.deepEqual(selections, [
+        {
+            documentId: 'doc-1',
+            componentKey: ''
+        }
+    ])
+
+    controller.dispose()
 })

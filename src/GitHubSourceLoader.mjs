@@ -1,4 +1,5 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { GitHubAltiumProjectManifest } from './GitHubAltiumProjectManifest.mjs'
 import { SExpressionParser } from 'kicad-toolkit/parser'
 
 /**
@@ -7,6 +8,9 @@ import { SExpressionParser } from 'kicad-toolkit/parser'
 export class GitHubSourceLoader {
     /** @type {number} */
     static #MILS_PER_MM = 1000 / 25.4
+
+    /** @type {string} */
+    static #GITHUB_RATE_LIMIT_URL = 'https://api.github.com/rate_limit'
 
     /** @type {(url: string) => Promise<Response>} */
     #fetcher
@@ -49,7 +53,7 @@ export class GitHubSourceLoader {
 
     /**
      * Builds a complete source descriptor from one resolved source file.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }} resolved Resolved source file.
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }} resolved Resolved source file.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
     async #buildLoadResult(resolved) {
@@ -119,11 +123,67 @@ export class GitHubSourceLoader {
     /**
      * Resolves the preferred supported source from a GitHub directory.
      * @param {{ apiUrl: string }} treeSource GitHub Contents API source.
-     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }>}
+     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }>}
      */
     async #resolveTreeSource(treeSource) {
+        await this.#assertGitHubFolderDiscoveryAvailable()
         const entries = await this.#fetchJson(treeSource.apiUrl)
+        const altiumProject = await this.#resolveAltiumProject(entries)
+        if (altiumProject) {
+            return altiumProject
+        }
+
         return GitHubSourceLoader.#selectDirectorySource(entries)
+    }
+
+    /**
+     * Resolves an Altium `.PrjPcb` manifest from a GitHub folder, if present.
+     * @param {object[]} entries GitHub Contents API entries.
+     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[] } | null>}
+     */
+    async #resolveAltiumProject(entries) {
+        const projectEntries = (entries || []).filter((entry) => {
+            return (
+                entry?.type === 'file' &&
+                entry?.download_url &&
+                EcadFormatRegistry.resolveCompanionFormat(entry?.name) ===
+                    'altium-project'
+            )
+        })
+
+        if (!projectEntries.length) {
+            return null
+        }
+
+        if (projectEntries.length > 1) {
+            throw new Error(
+                'This GitHub folder contains multiple Altium project files. Please paste the specific project file URL.'
+            )
+        }
+
+        const projectEntry = projectEntries[0]
+        const projectRawUrl = String(projectEntry.download_url)
+        const manifestText = new TextDecoder().decode(
+            await this.#fetchArrayBuffer(projectRawUrl)
+        )
+        const projectFiles = GitHubAltiumProjectManifest.resolveSourceFiles(
+            projectRawUrl,
+            manifestText
+        )
+
+        if (!projectFiles.length) {
+            throw new Error(
+                'This Altium project file does not list supported schematic or PCB documents.'
+            )
+        }
+
+        return {
+            rawUrl: projectRawUrl,
+            fileName: String(projectEntry.name || ''),
+            formatFamily: 'altium',
+            fileType: 'prjpcb',
+            projectFiles
+        }
     }
 
     /**
@@ -277,6 +337,99 @@ export class GitHubSourceLoader {
         }
 
         return payload
+    }
+
+    /**
+     * Stops folder discovery before the rate-limited Contents API would fail.
+     * @returns {Promise<void>}
+     */
+    async #assertGitHubFolderDiscoveryAvailable() {
+        const status = await this.#readGitHubRateLimit()
+        if (!status || status.remaining > 0) {
+            return
+        }
+
+        throw new Error(
+            GitHubSourceLoader.#buildRateLimitErrorMessage(status.reset)
+        )
+    }
+
+    /**
+     * Reads the public GitHub API quota without blocking on transient failures.
+     * @returns {Promise<{ remaining: number, reset: number } | null>}
+     */
+    async #readGitHubRateLimit() {
+        if (typeof this.#fetcher !== 'function') {
+            return null
+        }
+
+        let response
+        try {
+            response = await this.#fetcher(
+                GitHubSourceLoader.#GITHUB_RATE_LIMIT_URL
+            )
+        } catch (_error) {
+            return null
+        }
+
+        if (!response || !response.ok) {
+            return null
+        }
+
+        let payload
+        try {
+            payload = await response.json()
+        } catch (_error) {
+            return null
+        }
+
+        const coreStatus = payload?.resources?.core || payload?.rate
+        const remaining = Number(coreStatus?.remaining)
+        if (!Number.isFinite(remaining)) {
+            return null
+        }
+
+        const reset = Number(coreStatus?.reset)
+        return {
+            remaining,
+            reset: Number.isFinite(reset) ? reset : 0
+        }
+    }
+
+    /**
+     * Builds an actionable message for exhausted GitHub folder discovery quota.
+     * @param {number} reset GitHub reset timestamp in seconds.
+     * @returns {string}
+     */
+    static #buildRateLimitErrorMessage(reset) {
+        const resetDate = Number(reset) > 0 ? new Date(reset * 1000) : null
+        const retryText =
+            resetDate && !Number.isNaN(resetDate.getTime())
+                ? ' Try again after ' +
+                  GitHubSourceLoader.#formatLocalDateTime(resetDate) +
+                  ' (local time).'
+                : ' Wait until GitHub resets the public API quota.'
+
+        return (
+            'GitHub API rate limit is exhausted for folder discovery. Paste a GitHub blob/raw file URL instead, or use a shared ECAD Forge link with a direct file path.' +
+            retryText
+        )
+    }
+
+    /**
+     * Formats a date with the user's runtime locale and timezone.
+     * @param {Date} date Date to format.
+     * @returns {string}
+     */
+    static #formatLocalDateTime(date) {
+        try {
+            return new Intl.DateTimeFormat(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            }).format(date)
+        } catch (_error) {
+            return date.toLocaleString()
+        }
     }
 
     /**
@@ -468,10 +621,17 @@ export class GitHubSourceLoader {
 
     /**
      * Resolves the set of files required to parse one source.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }} resolved Resolved URL.
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }} resolved Resolved URL.
      * @returns {{ rawUrl: string, fileName: string }[]}
      */
     static #resolveProjectFiles(resolved) {
+        if (
+            Array.isArray(resolved.projectFiles) &&
+            resolved.projectFiles.length
+        ) {
+            return resolved.projectFiles
+        }
+
         if (resolved.fileType !== 'kicad_pro') {
             return [{ rawUrl: resolved.rawUrl, fileName: resolved.fileName }]
         }
@@ -795,10 +955,20 @@ export class GitHubSourceLoader {
 
     /**
      * Resolves the matching board URL for PCB Styler links when possible.
-     * @param {{ rawUrl: string, fileType: string }} resolved Resolved URL.
+     * @param {{ rawUrl: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }} resolved Resolved URL.
      * @returns {string}
      */
     static #resolveBoardUrl(resolved) {
+        const projectBoard = (resolved.projectFiles || []).find((file) => {
+            return (
+                EcadFormatRegistry.resolveNativeRole(file?.fileName)
+                    ?.fileType === 'pcbdoc'
+            )
+        })
+        if (projectBoard) {
+            return projectBoard.rawUrl
+        }
+
         if (resolved.fileType === 'kicad_pro') {
             return resolved.rawUrl.replace(/\.kicad_pro$/i, '.kicad_pcb')
         }

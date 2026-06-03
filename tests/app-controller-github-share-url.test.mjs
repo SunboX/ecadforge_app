@@ -92,38 +92,73 @@ class StartupView extends GithubOpenView {
  * Parser double that returns one PCB document for any GitHub batch.
  */
 class GithubBatchParser {
+    /** @type {object[]} */
+    #documents
+
+    /**
+     * @param {object[]} [documents] Documents to return.
+     */
+    constructor(documents = [createPcbDocument('board.kicad_pcb')]) {
+        this.#documents = documents
+    }
+
     /** @param {{ name: string, buffer: ArrayBuffer }[]} _entries @returns {object} */
     parseEntries(_entries) {
         return {
-            documents: [
-                {
-                    fileName: 'board.kicad_pcb',
-                    kind: 'pcb',
-                    diagnostics: [],
-                    summary: {
-                        title: 'board.kicad_pcb',
-                        componentCount: 0,
-                        layerCount: 2,
-                        outlineSegmentCount: 0,
-                        boardWidthMil: 100,
-                        boardHeightMil: 100
-                    },
-                    pcb: {
-                        boardOutline: {
-                            minX: 0,
-                            minY: 0,
-                            widthMil: 100,
-                            heightMil: 100,
-                            segments: []
-                        },
-                        layers: [],
-                        components: []
-                    },
-                    bom: []
-                }
-            ],
+            documents: this.#documents,
             assets: []
         }
+    }
+}
+
+/**
+ * Builds a minimal schematic document model.
+ * @param {string} fileName Source file name.
+ * @returns {object}
+ */
+function createSchematicDocument(fileName) {
+    return {
+        fileName,
+        kind: 'schematic',
+        diagnostics: [],
+        schematic: {
+            sheet: { width: 100, height: 100 },
+            lines: []
+        },
+        bom: []
+    }
+}
+
+/**
+ * Builds a minimal PCB document model.
+ * @param {string} fileName Source file name.
+ * @returns {object}
+ */
+function createPcbDocument(fileName) {
+    return {
+        fileName,
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {
+            title: fileName,
+            componentCount: 0,
+            layerCount: 2,
+            outlineSegmentCount: 0,
+            boardWidthMil: 100,
+            boardHeightMil: 100
+        },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 100,
+                heightMil: 100,
+                segments: []
+            },
+            layers: [],
+            components: []
+        },
+        bom: []
     }
 }
 
@@ -251,4 +286,46 @@ test('AppController restores a startup GitHub source view from deep links', asyn
 
     assert.equal(view.snapshot?.activeView, '3d')
     assert.equal(state.getSnapshot().activeView, '3d')
+})
+
+test('AppController restores GitHub startup PCB view on the first compatible project board', async () => {
+    const view = new StartupView()
+    const state = new AppState()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new GithubBatchParser([
+            createSchematicDocument('Schematics/Main.SchDoc'),
+            createPcbDocument('PCB/Primary.PcbDoc'),
+            createPcbDocument('PCB/Primary_panel.PcbDoc')
+        ]),
+        analytics: new NoopAnalytics(),
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/acme/demo/tree/main/hardware',
+            view: 'pcb'
+        },
+        githubSourceLoader: {
+            async loadUrl(_url) {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'altium',
+                    shareUrl: 'https://github.com/acme/demo/tree/main/hardware',
+                    entries: [
+                        {
+                            name: 'Project.PrjPcb',
+                            buffer: new ArrayBuffer(4)
+                        }
+                    ],
+                    assets: [],
+                    modelReferences: []
+                }
+            }
+        }
+    })
+
+    await controller.init()
+
+    assert.equal(state.getSnapshot().activeView, 'pcb')
+    assert.equal(state.getSnapshot().activeFileName, 'PCB/Primary.PcbDoc')
 })

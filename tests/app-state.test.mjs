@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { AppState } from '../src/core/AppState.mjs'
+import { PcbObjectVisibilityModel } from '../src/core/PcbObjectVisibilityModel.mjs'
 
 /**
  * Verifies default state values are applied.
@@ -10,9 +11,13 @@ test('AppState initializes with defaults', () => {
     const snapshot = state.getSnapshot()
 
     assert.equal(snapshot.activeView, 'schematic')
+    assert.equal(snapshot.activeSidebarTab, 'project')
     assert.equal(snapshot.locale, 'en')
     assert.equal(snapshot.parseStatus, 'idle')
     assert.deepEqual(snapshot.documents, [])
+    assert.deepEqual(snapshot.hiddenPcbObjects, {})
+    assert.deepEqual(snapshot.pcbObjectOpacities, {})
+    assert.deepEqual(snapshot.selectedPcbComponents, {})
     assert.equal(snapshot.documentModel, null)
 })
 
@@ -23,15 +28,177 @@ test('AppState.patch updates multiple fields', () => {
     const state = new AppState({ activeView: 'pcb', locale: 'en' })
     const snapshot = state.patch({
         activeView: 'bom',
+        activeSidebarTab: 'layers',
         locale: 'de',
         parseStatus: 'ready',
         statusMessage: 'Loaded relic'
     })
 
     assert.equal(snapshot.activeView, 'bom')
+    assert.equal(snapshot.activeSidebarTab, 'layers')
     assert.equal(snapshot.locale, 'de')
     assert.equal(snapshot.parseStatus, 'ready')
     assert.equal(snapshot.statusMessage, 'Loaded relic')
+})
+
+/**
+ * Verifies unsupported sidebar tabs fall back to the default overview panel.
+ */
+test('AppState sanitizes unsupported sidebar tabs', () => {
+    const state = new AppState({ activeSidebarTab: 'layers' })
+
+    assert.equal(state.getSnapshot().activeSidebarTab, 'layers')
+
+    const snapshot = state.setValue('activeSidebarTab', 'unknown')
+
+    assert.equal(snapshot.activeSidebarTab, 'project')
+})
+
+/**
+ * Verifies PCB layer visibility choices are normalized and retained by
+ * document id.
+ */
+test('AppState stores hidden PCB layer keys by document', () => {
+    const state = new AppState({
+        hiddenPcbLayers: {
+            'doc-1': ['F.Cu', 'F.Cu', 14],
+            '': ['ignored'],
+            'doc-2': 'ignored'
+        }
+    })
+
+    assert.deepEqual(state.getSnapshot().hiddenPcbLayers, {
+        'doc-1': ['F.Cu', '14']
+    })
+
+    const snapshot = state.setValue('hiddenPcbLayers', {
+        'doc-2': ['B.SilkS']
+    })
+
+    assert.deepEqual(snapshot.hiddenPcbLayers, {
+        'doc-2': ['B.SilkS']
+    })
+})
+
+/**
+ * Verifies PCB object visibility choices are normalized by document id.
+ */
+test('AppState stores hidden PCB object keys by document', () => {
+    const state = new AppState({
+        hiddenPcbObjects: {
+            'doc-1': ['tracks', 'tracks', 7],
+            '': ['ignored'],
+            'doc-2': 'ignored'
+        }
+    })
+
+    assert.deepEqual(state.getSnapshot().hiddenPcbObjects, {
+        'doc-1': ['tracks', '7']
+    })
+
+    const snapshot = state.setValue('hiddenPcbObjects', {
+        'doc-2': ['vias']
+    })
+
+    assert.deepEqual(snapshot.hiddenPcbObjects, {
+        'doc-2': ['vias']
+    })
+})
+
+/**
+ * Verifies PCB object visibility exposes every virtual render-control layer.
+ */
+test('PcbObjectVisibilityModel exposes footprint text as a virtual object control', () => {
+    assert.deepEqual(
+        PcbObjectVisibilityModel.resolveObjectCategories().map(
+            (category) => category.key
+        ),
+        [
+            'tracks',
+            'vias',
+            'pads',
+            'holes',
+            'zones',
+            'footprint-text',
+            'grid',
+            'page'
+        ]
+    )
+    assert.deepEqual(
+        PcbObjectVisibilityModel.withObjectVisibility(
+            {},
+            'doc-1',
+            'footprint-text',
+            false
+        ),
+        {
+            'doc-1': ['footprint-text']
+        }
+    )
+})
+
+/**
+ * Verifies PCB object opacity values are normalized by document id.
+ */
+test('AppState stores PCB object opacity by document', () => {
+    const state = new AppState({
+        pcbObjectOpacities: {
+            'doc-1': {
+                tracks: 45.4,
+                vias: -5,
+                pads: 140,
+                zones: '30'
+            },
+            '': { tracks: 20 },
+            'doc-2': 'ignored'
+        }
+    })
+
+    assert.deepEqual(state.getSnapshot().pcbObjectOpacities, {
+        'doc-1': {
+            tracks: 45,
+            vias: 0,
+            pads: 100,
+            zones: 30
+        }
+    })
+
+    const snapshot = state.setValue('pcbObjectOpacities', {
+        'doc-2': {
+            page: 65
+        }
+    })
+
+    assert.deepEqual(snapshot.pcbObjectOpacities, {
+        'doc-2': {
+            page: 65
+        }
+    })
+})
+
+/**
+ * Verifies selected PCB components are normalized by document id.
+ */
+test('AppState stores selected PCB components by document', () => {
+    const state = new AppState({
+        selectedPcbComponents: {
+            'doc-1': 'U1',
+            '': 'ignored',
+            'doc-2': ''
+        }
+    })
+
+    assert.deepEqual(state.getSnapshot().selectedPcbComponents, {
+        'doc-1': 'U1'
+    })
+
+    const snapshot = state.setValue('selectedPcbComponents', {
+        'doc-2': 'R1'
+    })
+
+    assert.deepEqual(snapshot.selectedPcbComponents, {
+        'doc-2': 'R1'
+    })
 })
 
 /**

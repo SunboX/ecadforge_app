@@ -1,11 +1,15 @@
 import {
     BomTableRenderer as AltiumBomTableRenderer,
     preparePcbSideResolvedRenderModel as prepareAltiumPcbSideResolvedRenderModel,
+    PcbInteractionIndex as AltiumPcbInteractionIndex,
+    PcbInteractionLayerModel as AltiumPcbInteractionLayerModel,
     PcbSvgRenderer as AltiumPcbSvgRenderer,
     SchematicSvgRenderer as AltiumSchematicSvgRenderer
 } from 'altium-toolkit/renderers'
 import {
     BomTableRenderer as KicadBomTableRenderer,
+    PcbInteractionIndex as KicadPcbInteractionIndex,
+    PcbInteractionLayerModel as KicadPcbInteractionLayerModel,
     PcbSvgRenderer as KicadPcbSvgRenderer,
     SchematicSvgRenderer as KicadSchematicSvgRenderer
 } from 'kicad-toolkit/renderers'
@@ -49,6 +53,37 @@ export class EcadRendererService {
         return EcadRendererService.#isKiCad(documentModel)
             ? EcadRendererService.#renderKicadPcb(documentModel, side)
             : EcadRendererService.#renderAltiumPcb(documentModel, side)
+    }
+
+    /**
+     * Returns prioritized PCB interaction candidates for a board-space point.
+     * @param {object} documentModel Document model.
+     * @param {{ x?: unknown, y?: unknown }} point Board-space point.
+     * @param {{ side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], tolerance?: number }} [options] Hit-test options.
+     * @returns {object[]}
+     */
+    static hitTestPcb(documentModel, point, options = {}) {
+        const side = EcadRendererService.#normalizePcbSide(options.side)
+        return EcadRendererService.#isKiCad(documentModel)
+            ? KicadPcbInteractionIndex.hitTest(documentModel, point, {
+                  ...options,
+                  side: side === 'bottom' ? 'back' : 'front'
+              })
+            : AltiumPcbInteractionIndex.hitTest(documentModel, point, {
+                  ...options,
+                  side
+              })
+    }
+
+    /**
+     * Returns physical and virtual PCB interaction layers.
+     * @param {object} documentModel Document model.
+     * @returns {{ physicalLayers: object[], virtualLayers: object[] }}
+     */
+    static resolvePcbInteractionLayers(documentModel) {
+        return EcadRendererService.#isKiCad(documentModel)
+            ? KicadPcbInteractionLayerModel.resolve(documentModel)
+            : AltiumPcbInteractionLayerModel.resolve(documentModel)
     }
 
     /**

@@ -38,6 +38,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     const css = await readViewerStylesheet()
     const layoutCss = await readStylesheet('10-layout.css')
     const sceneCss = await readStylesheet('30-scene3d.css')
+    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
 
     assert.match(
         layoutCss,
@@ -75,10 +76,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
         css,
         /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*min-height:\s*360px;/
     )
-    assert.match(
-        css,
-        /\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/
-    )
+    assert.match(css, /\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/)
     assert.doesNotMatch(css, /\.bom-panel\s*\{[^}]*overflow(?:-x)?:/)
     assert.match(css, /\.bom-panel\s*\{[\s\S]*max-width:\s*100%;/)
     assert.match(
@@ -94,10 +92,21 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
         /body\.is-viewer-mode\.is-viewer-pcb \.pcb-svg\s*\{[\s\S]*display:\s*block;/
     )
     assert.match(
+        css,
+        /\.svg-panel--chrome-hidden \.pcb-layout\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);/
+    )
+    assert.match(
         sceneCss,
         /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
     )
-    assert.match(css, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
+    assert.match(sidebarCss, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
+    assert.match(
+        sidebarCss,
+        /\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*grid-template-columns:\s*minmax\(25rem,\s*32rem\) minmax\(0,\s*1fr\);/
+    )
+    assert.match(sidebarCss, /\.viewer-sidebar__overview\s*\{/)
+    assert.match(sidebarCss, /\.viewer-sidebar__preview-card\s*\{/)
+    assert.match(sidebarCss, /\.viewer-sidebar__overview-grid\s*\{/)
 })
 
 /**
@@ -119,31 +128,30 @@ test('mobile detail views keep the app shell scrollable with visible content spa
 })
 
 /**
- * Verifies the multi-document selector switches to compact cards on mobile
- * instead of keeping the full desktop preview tiles.
+ * Verifies the viewer sidebar switches to a compact stacked layout on mobile.
  */
-test('mobile multi-document rail compacts oversized preview cards', async () => {
-    const css = await readViewerStylesheet()
+test('mobile viewer sidebar switches to compact stacked navigation', async () => {
+    const css = await readStylesheet('24-viewer-sidebar.css')
 
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*grid-auto-columns:\s*minmax\(9\.75rem,\s*11\.5rem\);[\s\S]*gap:\s*0\.45rem;[\s\S]*padding:\s*0\.3rem;/
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-rail__item\s*\{[\s\S]*gap:\s*0\.45rem;[\s\S]*padding:\s*0\.48rem;[\s\S]*border-radius:\s*14px;/
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-sidebar\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\);/
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-rail__preview\s*\{[\s\S]*min-height:\s*4\.35rem;[\s\S]*padding:\s*0\.45rem;[\s\S]*border-radius:\s*10px;/
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-sidebar__tabs\s*\{[\s\S]*flex-direction:\s*row;[\s\S]*overflow-x:\s*auto;/
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-preview__summary strong\s*\{[\s\S]*font-size:\s*0\.88rem;/
+        /@media \(max-width: 760px\)[\s\S]*\.viewer-sidebar__tab\s*\{[\s\S]*width:\s*2\.55rem;[\s\S]*height:\s*2\.55rem;/
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-rail__name\s*\{[\s\S]*overflow:\s*hidden;[\s\S]*text-overflow:\s*ellipsis;[\s\S]*white-space:\s*nowrap;/
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*max-height:\s*18rem;/
     )
 })
 
@@ -216,10 +224,7 @@ test('landing viewer stage scales the empty drop area into the viewport', async 
 test('viewer loading state centers the spinner in the stage', async () => {
     const css = await readViewerStylesheet()
 
-    assert.match(
-        css,
-        /\.viewer-loading\s*\{[\s\S]*align-content:\s*center;/
-    )
+    assert.match(css, /\.viewer-loading\s*\{[\s\S]*align-content:\s*center;/)
 })
 
 /**
@@ -229,10 +234,7 @@ test('viewer loading state centers the spinner in the stage', async () => {
 test('PCB Styler tip close button is anchored to the top right', async () => {
     const css = await readStylesheet('21-pcb-styler-tip.css')
 
-    assert.match(
-        css,
-        /\.pcb-styler-cta\s*\{[\s\S]*position:\s*relative;/
-    )
+    assert.match(css, /\.pcb-styler-cta\s*\{[\s\S]*position:\s*relative;/)
     assert.match(
         css,
         /\.pcb-styler-cta__dismiss\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*0\.55rem;[\s\S]*right:\s*0\.55rem;/
@@ -246,6 +248,45 @@ test('PCB Styler tip close button is anchored to the top right', async () => {
         /\.viewer-stage\.is-pcb-styler-cta-hidden\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\);[\s\S]*gap:\s*0;/
     )
     assert.doesNotMatch(css, /#c3311d|rgba\(195,\s*49,\s*29,/)
+})
+
+/**
+ * Verifies the viewer sidebar collapse control is rendered as an icon-only
+ * affordance using the same hover treatment as the PCB Styler tip dismiss.
+ */
+test('viewer sidebar collapse control is a right-aligned icon action', async () => {
+    const css = await readStylesheet('24-viewer-sidebar.css')
+    const actionBlock =
+        css.match(
+            /\.viewer-sidebar__collapse,\s*\.viewer-sidebar__expand\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+    const collapsedRailBlock =
+        css.match(
+            /\.document-rail\.is-sidebar-collapsed\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+    const hoverBlock =
+        css.match(
+            /\.viewer-sidebar__collapse:hover,\s*\.viewer-sidebar__expand:hover\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(
+        actionBlock,
+        /width:\s*2rem;[\s\S]*height:\s*2rem;[\s\S]*padding:\s*0;[\s\S]*border:\s*1px solid transparent;[\s\S]*border-radius:\s*999px;[\s\S]*background:\s*transparent;/
+    )
+    assert.match(
+        css,
+        /\.viewer-sidebar__collapse\s*\{\s*margin-left:\s*auto;\s*\}/
+    )
+    assert.match(css, /\.viewer-sidebar__expand\s*\{\s*margin-left:\s*0;\s*\}/)
+    assert.match(
+        collapsedRailBlock,
+        /display:\s*flex;[\s\S]*align-items:\s*flex-start;[\s\S]*justify-content:\s*center;[\s\S]*padding:\s*1rem 0\.65rem;/
+    )
+    assert.doesNotMatch(actionBlock, /box-shadow:/)
+    assert.match(
+        hoverBlock,
+        /color:\s*var\(--brand-strong\);[\s\S]*background:\s*rgba\(184,\s*90,\s*37,\s*0\.12\);/
+    )
 })
 
 /**
@@ -383,23 +424,22 @@ test('viewer stylesheet draws the layered empty-state illustration', async () =>
 })
 
 /**
- * Verifies summary cards use explicit icons and ellipsize long text.
+ * Verifies sidebar overview rows use explicit icons and clipped labels.
  */
-test('viewer stylesheet uses explicit summary icons and clipped text', async () => {
-    const viewerCss = await readViewerStylesheet()
+test('viewer sidebar overview uses explicit icons and clipped text', async () => {
+    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
 
-    assert.doesNotMatch(viewerCss, /\.summary-card::before/)
-    assert.doesNotMatch(viewerCss, /\.summary-grid \.summary-card:nth-child/)
+    assert.doesNotMatch(sidebarCss, /\.summary-card/)
     assert.match(
-        viewerCss,
-        /\.meta-card > span:not\(\.meta-card__icon\)\s*\{[\s\S]*min-width: 0;/
+        sidebarCss,
+        /\.viewer-sidebar__overview-icon\s*\{[\s\S]*display:\s*inline-flex;/
     )
     assert.match(
-        viewerCss,
-        /\.meta-card strong,[\s\S]*\.summary-card strong\s*\{[\s\S]*text-overflow: ellipsis;/
+        sidebarCss,
+        /\.viewer-sidebar__overview-label\s*\{[\s\S]*text-overflow:\s*ellipsis;/
     )
     assert.match(
-        viewerCss,
-        /\.summary-card__label\s*\{[\s\S]*text-overflow: ellipsis;/
+        sidebarCss,
+        /\.viewer-sidebar__overview-row strong\s*\{[\s\S]*overflow-wrap:\s*anywhere;/
     )
 })

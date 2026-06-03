@@ -1,11 +1,14 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
+import { AppControllerDocumentSelection } from './AppControllerDocumentSelection.mjs'
 import { AppControllerMessages } from './AppControllerMessages.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
-import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
 import { GitHubShareUrlWriter } from './GitHubShareUrlWriter.mjs'
+import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
+import { PcbLayerVisibilityModel } from './core/PcbLayerVisibilityModel.mjs'
+import { PcbObjectVisibilityModel } from './core/PcbObjectVisibilityModel.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
 /**
@@ -96,41 +99,44 @@ export class AppController {
         this.#view.bindDrop((files) => this.#handleFiles(files))
         this.#view.bindViewChange((viewName) => {
             const snapshot = this.#state.patch(
-                this.#buildCompatibleViewPatch(
+                AppControllerDocumentSelection.buildCompatibleViewPatch(
                     viewName,
                     this.#state.getSnapshot()
                 )
             )
             this.#trackViewOpened(snapshot.activeView)
         })
-        if (typeof this.#view.bindDocumentSelection === 'function') {
-            this.#view.bindDocumentSelection((documentId) => {
-                this.#state.setValue('activeDocumentId', documentId)
+        this.#view.bindDocumentSelection?.((documentId) => {
+            this.#state.setValue('activeDocumentId', documentId)
+        })
+        this.#view.bindSidebarTabSelection?.((tabName) => {
+            this.#state.setValue('activeSidebarTab', tabName)
+        })
+        this.#view.bindPcbLayerVisibilityChange?.((change) => {
+            this.#handlePcbLayerVisibilityChange(change)
+        })
+        this.#view.bindPcbObjectOpacityChange?.((change) => {
+            this.#handlePcbObjectOpacityChange(change)
+        })
+        this.#view.bindPcbComponentSelectionChange?.((change) => {
+            this.#handlePcbComponentSelectionChange(change)
+        })
+        this.#view.bindPcbLayerPresetSelection?.((change) => {
+            this.#handlePcbLayerPresetSelection(change)
+        })
+        this.#view.bindDemoSelection?.((demoId) => this.#loadDemo(demoId))
+        this.#view.bindHomeNavigation?.(() => this.#handleHomeNavigation())
+        this.#view.bindGitHubOpen?.((url) => this.#loadGitHubUrl(url))
+        this.#view.bindLocalOpen?.(() => {
+            this.#analytics.track('local_file_open_clicked', {
+                sourceType: 'local'
             })
-        }
-        if (typeof this.#view.bindDemoSelection === 'function') {
-            this.#view.bindDemoSelection((demoId) => this.#loadDemo(demoId))
-        }
-        if (typeof this.#view.bindHomeNavigation === 'function') {
-            this.#view.bindHomeNavigation(() => this.#handleHomeNavigation())
-        }
-        if (typeof this.#view.bindGitHubOpen === 'function') {
-            this.#view.bindGitHubOpen((url) => this.#loadGitHubUrl(url))
-        }
-        if (typeof this.#view.bindLocalOpen === 'function') {
-            this.#view.bindLocalOpen(() => {
-                this.#analytics.track('local_file_open_clicked', {
-                    sourceType: 'local'
-                })
+        })
+        this.#view.bindPcbStylerClick?.(() => {
+            this.#analytics.track('crosslink_pcb_styler_clicked', {
+                sourceType: 'crosslink'
             })
-        }
-        if (typeof this.#view.bindPcbStylerClick === 'function') {
-            this.#view.bindPcbStylerClick(() => {
-                this.#analytics.track('crosslink_pcb_styler_clicked', {
-                    sourceType: 'crosslink'
-                })
-            })
-        }
+        })
 
         if (this.#i18n && this.#view.hasLocaleSelect()) {
             const locale = this.#i18n.getLocale()
@@ -365,10 +371,15 @@ export class AppController {
     #handleHomeNavigation() {
         this.#state.patch({
             activeView: 'schematic',
+            activeSidebarTab: 'project',
             parseStatus: 'idle',
             statusMessage: this.#translate('status.ready'),
             documents: [],
             activeDocumentId: '',
+            hiddenPcbLayers: {},
+            hiddenPcbObjects: {},
+            pcbObjectOpacities: {},
+            selectedPcbComponents: {},
             sessionAssets: []
         })
         this.#view.clearPcbStylerLink?.()
@@ -399,10 +410,11 @@ export class AppController {
         }
 
         if (startupSource.view) {
-            const patch = this.#buildCompatibleViewPatch(
-                String(startupSource.view),
-                this.#state.getSnapshot()
-            )
+            const patch =
+                AppControllerDocumentSelection.buildCompatibleViewPatch(
+                    String(startupSource.view),
+                    this.#state.getSnapshot()
+                )
             this.#state.patch(patch)
         }
     }
@@ -596,10 +608,15 @@ export class AppController {
             ? preferredView
             : snapshot.activeView
         const nextDocuments = [...snapshot.documents, ...appendedDocuments]
-        const preferredDocumentId = appendedDocuments.at(-1)?.id || ''
+        const preferredDocumentId =
+            AppControllerDocumentSelection.resolveLoadedDocumentId(
+                appendedDocuments,
+                nextActiveView,
+                options
+            )
         const patch = {
             documents: nextDocuments,
-            activeDocumentId: DocumentViewCompatibility.resolveDocumentId(
+            activeDocumentId: AppControllerDocumentSelection.resolveDocumentId(
                 nextDocuments,
                 nextActiveView,
                 preferredDocumentId
@@ -614,6 +631,93 @@ export class AppController {
         }
 
         return this.#state.patch(patch)
+    }
+
+    /**
+     * Applies one PCB layer visibility change from the sidebar.
+     * @param {{ documentId?: string, layerKey?: string, visible?: boolean }} change Layer visibility event.
+     * @returns {void}
+     */
+    #handlePcbLayerVisibilityChange(change) {
+        const snapshot = this.#state.getSnapshot()
+        const documentId = String(
+            change?.documentId || snapshot.activeDocumentId
+        )
+        const layerKey = String(change?.layerKey || '')
+        const nextHidden = PcbLayerVisibilityModel.withLayerVisibility(
+            snapshot.hiddenPcbLayers,
+            documentId,
+            layerKey,
+            change?.visible !== false
+        )
+
+        this.#state.setValue('hiddenPcbLayers', nextHidden)
+    }
+
+    /**
+     * Applies one PCB object opacity change from the sidebar.
+     * @param {{ documentId?: string, objectKey?: string, opacity?: number, preview?: boolean }} change Object opacity event.
+     * @returns {void}
+     */
+    #handlePcbObjectOpacityChange(change) {
+        if (change?.preview === true) return
+
+        const snapshot = this.#state.getSnapshot()
+        const documentId = String(
+            change?.documentId || snapshot.activeDocumentId
+        )
+        const objectKey = String(change?.objectKey || '')
+        const nextOpacities = PcbObjectVisibilityModel.withObjectOpacity(
+            snapshot.pcbObjectOpacities,
+            documentId,
+            objectKey,
+            Number(change?.opacity ?? 100)
+        )
+
+        this.#state.setValue('pcbObjectOpacities', nextOpacities)
+    }
+
+    /**
+     * Applies one PCB component selection from the sidebar.
+     * @param {{ documentId?: string, componentKey?: string }} change Selection event.
+     * @returns {void}
+     */
+    #handlePcbComponentSelectionChange(change) {
+        const snapshot = this.#state.getSnapshot()
+        const documentId = String(
+            change?.documentId || snapshot.activeDocumentId
+        )
+        const componentKey = String(change?.componentKey || '')
+        const nextSelection = PcbComponentSelectionModel.withSelection(
+            snapshot.selectedPcbComponents,
+            documentId,
+            componentKey
+        )
+
+        this.#state.setValue('selectedPcbComponents', nextSelection)
+    }
+
+    /**
+     * Applies a PCB layer visibility preset from the sidebar.
+     * @param {{ documentId?: string, preset?: string }} change Preset event.
+     * @returns {void}
+     */
+    #handlePcbLayerPresetSelection(change) {
+        const snapshot = this.#state.getSnapshot()
+        const documentId = String(
+            change?.documentId || snapshot.activeDocumentId
+        )
+        const documentModel =
+            snapshot.documents.find((entry) => entry.id === documentId)
+                ?.documentModel || snapshot.documentModel
+        const nextHidden = PcbLayerVisibilityModel.withPreset(
+            snapshot.hiddenPcbLayers,
+            documentId,
+            documentModel,
+            String(change?.preset || 'all')
+        )
+
+        this.#state.setValue('hiddenPcbLayers', nextHidden)
     }
 
     /**
@@ -711,31 +815,6 @@ export class AppController {
      */
     #buildDocumentId() {
         return 'session-document-' + this.#documentSequence++
-    }
-
-    /**
-     * Builds the active-view patch while keeping the active document
-     * compatible with the selected view whenever possible.
-     * @param {string} viewName
-     * @param {{ activeDocumentId: string, documents: { id: string, documentModel: object }[] }} snapshot
-     * @returns {{ activeView: string, activeDocumentId?: string }}
-     */
-    #buildCompatibleViewPatch(viewName, snapshot) {
-        const patch = {
-            activeView: viewName
-        }
-        const compatibleDocumentId =
-            DocumentViewCompatibility.resolveDocumentId(
-                snapshot.documents,
-                viewName,
-                snapshot.activeDocumentId
-            )
-
-        if (compatibleDocumentId) {
-            patch.activeDocumentId = compatibleDocumentId
-        }
-
-        return patch
     }
 
     /**

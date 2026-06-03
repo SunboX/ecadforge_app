@@ -50,6 +50,12 @@ PORT=3100 npm start
 - Try the explicit file picker in the header.
 - Check the browser console for worker or module-loading errors.
 
+## GitHub folder URL reports an API rate limit
+
+- GitHub tree folder URLs need a public GitHub API folder listing before the app can discover the supported ECAD file.
+- If the public API quota is exhausted, wait for the reset time shown in the app or paste a direct GitHub blob/raw URL for the `.SchDoc`, `.PcbDoc`, `.kicad_pro`, `.kicad_sch`, or `.kicad_pcb` file.
+- Direct raw/blob file URLs do not need the folder listing step.
+
 ## Tests fail after refactor
 
 - Ensure moved files are reflected in test imports.
