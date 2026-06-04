@@ -2,6 +2,7 @@ import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
+import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMarkerRenderer.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 import { UiText } from './UiText.mjs'
 
@@ -90,7 +91,8 @@ export class PcbViewRenderer {
         const markup = EcadRendererService.renderPcb(documentModel, { side })
         const componentMarkup = PcbViewRenderer.#tagComponentGroups(
             markup,
-            documentModel
+            documentModel,
+            side
         )
         const layerTargets = PcbViewRenderer.#resolveLayerVisibilityTargets(
             documentModel,
@@ -111,8 +113,14 @@ export class PcbViewRenderer {
                 visibleMarkup,
                 selectedComponentKey
             )
+        const markedMarkup = PcbComponentSelectionMarkerRenderer.render(
+            highlightedMarkup,
+            documentModel,
+            selectedComponentKey,
+            side
+        )
 
-        return SvgPanelChromeStripper.stripMetadataHeader(highlightedMarkup)
+        return SvgPanelChromeStripper.stripMetadataHeader(markedMarkup)
     }
 
     /**
@@ -321,12 +329,14 @@ export class PcbViewRenderer {
      * Adds stable component keys to grouped PCB component markup.
      * @param {string} markup Renderer-owned SVG markup.
      * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side Active board side.
      * @returns {string}
      */
-    static #tagComponentGroups(markup, documentModel) {
-        const components = Array.isArray(documentModel?.pcb?.components)
-            ? documentModel.pcb.components
-            : []
+    static #tagComponentGroups(markup, documentModel, side) {
+        const components = PcbViewRenderer.#resolveSideComponents(
+            documentModel,
+            side
+        )
         if (!components.length) return String(markup)
 
         let componentIndex = 0
@@ -376,7 +386,10 @@ export class PcbViewRenderer {
             footprintPrefix +
             "'], .pcb-svg [data-component-key='" +
             componentKey +
-            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px #ffffff) drop-shadow(0 0 4px #e35417); }"
+            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px rgba(255, 255, 255, 0.86)) drop-shadow(0 0 5px rgba(27, 191, 227, 0.86)) drop-shadow(0 0 10px rgba(27, 191, 227, 0.42)); }" +
+            '.pcb-svg .pcb-component-selection-marker { pointer-events: none; }' +
+            '.pcb-svg .pcb-component-selection-marker__outline { fill: none; stroke: rgba(255, 255, 255, 0.92); stroke-width: 5; vector-effect: non-scaling-stroke; }' +
+            '.pcb-svg .pcb-component-selection-marker__fill { fill: rgba(27, 191, 227, 0.34); stroke: rgba(27, 191, 227, 0.95); stroke-width: 3; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px rgba(27, 191, 227, 0.72)); }'
 
         return String(markup).replace(
             /(<svg\b[^>]*>)/,
@@ -384,6 +397,74 @@ export class PcbViewRenderer {
                 PcbViewRenderer.#escapeHtml(rules) +
                 '</style>'
         )
+    }
+
+    /**
+     * Returns the component subset rendered for the active board side.
+     * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side Active board side.
+     * @returns {object[]}
+     */
+    static #resolveSideComponents(documentModel, side) {
+        const components = Array.isArray(documentModel?.pcb?.components)
+            ? documentModel.pcb.components
+            : []
+        const classified = components.map((component) => ({
+            component,
+            side: PcbViewRenderer.#componentSide(component)
+        }))
+        const hasClassifiedSide = classified.some((entry) => entry.side)
+        const filtered = classified
+            .filter((entry) => {
+                return entry.side ? entry.side === side : side === 'top'
+            })
+            .map((entry) => entry.component)
+
+        return filtered.length || hasClassifiedSide ? filtered : components
+    }
+
+    /**
+     * Resolves a component's declared PCB side when present.
+     * @param {object} component Component metadata.
+     * @returns {'top' | 'bottom' | ''}
+     */
+    static #componentSide(component) {
+        const layerId = Number(
+            component?.layerId ?? component?.layerCode ?? component?.sideCode
+        )
+        if (layerId === 32) return 'bottom'
+        if (layerId === 1) return 'top'
+
+        const text = PcbViewRenderer.#componentSearchText({
+            layer: component?.layer,
+            side: component?.side,
+            layerName: component?.layerName
+        })
+        if (/\b(bottom|back)\b|\bb[._-]/.test(text)) return 'bottom'
+        if (/\b(top|front)\b|\bf[._-]/.test(text)) return 'top'
+
+        return ''
+    }
+
+    /**
+     * Builds normalized text for component classification.
+     * @param {object | null} component Component metadata.
+     * @returns {string}
+     */
+    static #componentSearchText(component) {
+        return [
+            component?.pattern,
+            component?.source,
+            component?.description,
+            component?.libraryReference,
+            component?.footprint,
+            component?.layer,
+            component?.side,
+            component?.layerName
+        ]
+            .filter((value) => value !== undefined && value !== null)
+            .join(' ')
+            .toLowerCase()
     }
 
     /**

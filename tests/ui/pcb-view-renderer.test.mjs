@@ -96,10 +96,148 @@ function createWrappedPcbDocument() {
             layers: [{ name: 'Top Layer' }, { name: 'Bottom Layer' }],
             tracks: [],
             vias: [],
-            components: [{ designator: 'A1', layer: 'TOP', pattern: 'QFN' }]
+            components: [
+                {
+                    componentIndex: 7,
+                    designator: 'A1',
+                    layer: 'TOP',
+                    pattern: 'QFN',
+                    x: 500,
+                    y: 250,
+                    rotation: 0
+                }
+            ]
         },
         bom: []
     }
+}
+
+/**
+ * Adds oversized owned footprint primitives to the wrapped PCB fixture.
+ * @param {object} documentModel Document model.
+ * @returns {object}
+ */
+function withOwnedFootprintPrimitives(documentModel) {
+    documentModel.pcb.pads = [
+        {
+            componentIndex: 7,
+            x: 430,
+            y: 250,
+            sizeTopX: 40,
+            sizeTopY: 120,
+            rotation: 0,
+            layerId: 1
+        },
+        {
+            componentIndex: 7,
+            x: 570,
+            y: 250,
+            sizeTopX: 40,
+            sizeTopY: 120,
+            rotation: 0,
+            layerId: 1
+        }
+    ]
+    documentModel.pcb.tracks = [
+        {
+            componentIndex: 7,
+            x1: 390,
+            y1: 170,
+            x2: 610,
+            y2: 170,
+            width: 10,
+            layerId: 33
+        },
+        {
+            componentIndex: 7,
+            x1: 610,
+            y1: 170,
+            x2: 610,
+            y2: 330,
+            width: 10,
+            layerId: 33
+        },
+        {
+            componentIndex: 7,
+            x1: 390,
+            y1: 330,
+            x2: 610,
+            y2: 330,
+            width: 10,
+            layerId: 33
+        },
+        {
+            componentIndex: 7,
+            x1: 390,
+            y1: 170,
+            x2: 390,
+            y2: 330,
+            width: 10,
+            layerId: 33
+        }
+    ]
+
+    return documentModel
+}
+
+/**
+ * Builds a PCB model where component array order collides with another
+ * component's explicit primitive owner id.
+ * @returns {object}
+ */
+function createOwnerCollisionPcbDocument() {
+    const documentModel = createWrappedPcbDocument()
+    documentModel.pcb.components = [
+        {
+            componentIndex: 35,
+            designator: 'A1',
+            layer: 'TOP',
+            pattern: 'SMT_C_0402',
+            x: 500,
+            y: 250,
+            rotation: 0
+        },
+        {
+            componentIndex: 0,
+            designator: 'B1',
+            layer: 'TOP',
+            pattern: 'SMT_R_0402',
+            x: 900,
+            y: 400,
+            rotation: 0
+        }
+    ]
+    documentModel.pcb.pads = [
+        {
+            componentIndex: 35,
+            x: 490,
+            y: 250,
+            sizeTopX: 20,
+            sizeTopY: 20,
+            rotation: 0,
+            layerId: 1
+        },
+        {
+            componentIndex: 35,
+            x: 510,
+            y: 250,
+            sizeTopX: 20,
+            sizeTopY: 20,
+            rotation: 0,
+            layerId: 1
+        },
+        {
+            componentIndex: 0,
+            x: 900,
+            y: 400,
+            sizeTopX: 20,
+            sizeTopY: 20,
+            rotation: 0,
+            layerId: 1
+        }
+    ]
+
+    return documentModel
 }
 
 /**
@@ -231,7 +369,8 @@ test('PcbViewRenderer highlights the selected PCB component', () => {
 
     assert.match(html, /class="pcb-component-highlight-style"/)
     assert.match(html, /\[data-footprint-id\^='footprint:J1:'\]/)
-    assert.match(html, /drop-shadow/)
+    assert.match(html, /rgba\(27, 191, 227, 0\.86\)/)
+    assert.doesNotMatch(html, /#e35417/)
 })
 
 /**
@@ -249,6 +388,80 @@ test('PcbViewRenderer tags wrapped component groups for highlighting', () => {
 
     assert.match(html, /data-component-key="A1"/)
     assert.match(html, /\[data-component-key='A1'\]/)
+    assert.match(html, /class="pcb-component-selection-marker"/)
+    assert.match(html, /data-pcb-selected-component-key="A1"/)
+    assert.match(html, /pcb-component-selection-marker__fill/)
+    assert.match(html, /fill: rgba\(27, 191, 227, 0\.34\)/)
+})
+
+/**
+ * Verifies PCB component markers cover owned footprint primitives.
+ */
+test('PcbViewRenderer sizes PCB selection markers from owned footprint primitives', () => {
+    const html = PcbViewRenderer.render(
+        withOwnedFootprintPrimitives(createWrappedPcbDocument()),
+        'top',
+        null,
+        [],
+        [],
+        'A1'
+    )
+
+    assert.match(
+        html,
+        /class="pcb-component-selection-marker"[^>]*data-pcb-selected-component-key="A1"/
+    )
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill" x="367" y="147" width="266" height="206"/
+    )
+    assert.doesNotMatch(
+        html,
+        /transform="translate\(500 250\) rotate\(0\)"[^>]*aria-hidden="true"/
+    )
+})
+
+/**
+ * Verifies explicit primitive owner ids do not collide with component row order.
+ */
+test('PcbViewRenderer ignores row-index owner collisions for PCB selection markers', () => {
+    const html = PcbViewRenderer.render(
+        createOwnerCollisionPcbDocument(),
+        'top',
+        null,
+        [],
+        [],
+        'A1'
+    )
+
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill" x="462" y="222" width="76" height="56"/
+    )
+    assert.doesNotMatch(
+        html,
+        /pcb-component-selection-marker__fill" x="462" y="222" width="466"/
+    )
+})
+
+/**
+ * Verifies component key tagging follows the rendered board side.
+ */
+test('PcbViewRenderer skips opposite-side components when tagging PCB groups', () => {
+    const documentModel = createWrappedPcbDocument()
+    documentModel.pcb.components.unshift({
+        designator: 'B1',
+        layer: 'BOTTOM',
+        pattern: 'SOT23',
+        x: 100,
+        y: 100,
+        rotation: 0
+    })
+
+    const html = PcbViewRenderer.render(documentModel, 'top')
+
+    assert.match(html, /data-component-key="A1"/)
+    assert.doesNotMatch(html, /data-component-key="B1"/)
 })
 
 /**

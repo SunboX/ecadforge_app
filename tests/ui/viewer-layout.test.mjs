@@ -348,6 +348,42 @@ test('landing hero separates GitHub URL intake from sample CTAs', async () => {
 })
 
 /**
+ * Verifies landing support chips stay compact and only style the outer pill.
+ */
+test('landing support chips use compact vertical padding', async () => {
+    const heroCss = await readStylesheet('15-hero.css')
+    const chipBlock =
+        heroCss.match(/\.dropzone__tag\s*\{(?<rules>[\s\S]*?)\}/)
+            ?.groups?.rules || ''
+
+    assert.match(
+        chipBlock,
+        /gap:\s*0\.22rem;[\s\S]*padding:\s*0\.02rem 0\.4rem;[\s\S]*border-radius:\s*0\.38rem;[\s\S]*font-size:\s*0\.7rem;[\s\S]*line-height:\s*1\.05;/
+    )
+    assert.doesNotMatch(chipBlock, /min-height:/)
+    assert.doesNotMatch(heroCss, /\.dropzone__chips/)
+    assert.doesNotMatch(heroCss, /\.chip-icon/)
+    assert.match(
+        heroCss,
+        /\.support-tag__icon\s*\{[\s\S]*width:\s*0\.72rem;[\s\S]*height:\s*0\.72rem;/
+    )
+})
+
+/**
+ * Verifies the landing status message keeps single-line states compact instead
+ * of stretching to the surrounding hero grid row height.
+ */
+test('landing status box sizes to its rendered message height', async () => {
+    const heroCss = await readStylesheet('15-hero.css')
+    const statusBlock =
+        heroCss.match(/\.dropzone__status\s*\{(?<rules>[\s\S]*?)\}/)?.groups
+            ?.rules || ''
+
+    assert.match(statusBlock, /align-self:\s*start;/)
+    assert.doesNotMatch(statusBlock, /min-height:/)
+})
+
+/**
  * Verifies the app header matches the reference lockup with a full-width
  * eyebrow above the large logo and ECAD Forge wordmark.
  */
@@ -441,5 +477,17 @@ test('viewer sidebar overview uses explicit icons and clipped text', async () =>
     assert.match(
         sidebarCss,
         /\.viewer-sidebar__overview-row strong\s*\{[\s\S]*overflow-wrap:\s*anywhere;/
+    )
+})
+
+/**
+ * Verifies open document rows are inset from both panel edges.
+ */
+test('viewer sidebar document list has horizontal inset', async () => {
+    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__list--documents\s*\{[\s\S]*padding-inline:\s*1\.1rem;/
     )
 })

@@ -1,3 +1,6 @@
+import { PcbScene3dBoardAssemblyPresentation } from './PcbScene3dBoardAssemblyPresentation.mjs'
+import { PcbScene3dBoardAssemblyPlacement } from './PcbScene3dBoardAssemblyPlacement.mjs'
+import { PcbScene3dExternalModelLoadOrder } from './PcbScene3dExternalModelLoadOrder.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dStepLoader } from './PcbScene3dStepLoader.mjs'
 import { PcbScene3dViewCompensation } from './PcbScene3dViewCompensation.mjs'
@@ -12,8 +15,10 @@ export class PcbScene3dExternalModels {
      * @returns {Promise<string[]>}
      */
     static async loadIntoScene(options) {
-        const placements = PcbScene3dExternalModels.#resolvePlacements(
-            options?.sceneDescription
+        const placements = PcbScene3dExternalModelLoadOrder.sort(
+            PcbScene3dExternalModels.#resolvePlacements(
+                options?.sceneDescription
+            )
         )
         const externalModelsGroup = options?.externalModelsGroup
         if (!placements.length || !externalModelsGroup || !options?.three) {
@@ -81,10 +86,16 @@ export class PcbScene3dExternalModels {
 
     /**
      * Resolves the external-model placements the runtime should render.
-     * @param {{ components?: any[], externalPlacements?: any[] }} sceneDescription
+     * @param {{ board?: { widthMil?: number, heightMil?: number, thicknessMil?: number }, boardAssemblyModel?: any, components?: any[], externalPlacements?: any[] }} sceneDescription
      * @returns {any[]}
      */
     static #resolvePlacements(sceneDescription) {
+        const boardAssemblyPlacement =
+            PcbScene3dBoardAssemblyPlacement.build(sceneDescription)
+        if (boardAssemblyPlacement) {
+            return [boardAssemblyPlacement]
+        }
+
         const explicitPlacements = Array.isArray(
             sceneDescription?.externalPlacements
         )
@@ -246,6 +257,14 @@ export class PcbScene3dExternalModels {
         modelGroup,
         modelViewScale
     ) {
+        if (PcbScene3dExternalModels.#isBoardAssemblyPlacement(placement)) {
+            return PcbScene3dExternalModels.#buildBoardAssemblyWrapper(
+                THREE,
+                placement,
+                modelGroup
+            )
+        }
+
         const mountRig = PcbScene3dMountRig.create(THREE, placement)
         const wrapperGroup = mountRig.rootGroup
         const viewCompensationGroup = new THREE.Group()
@@ -305,6 +324,43 @@ export class PcbScene3dExternalModels {
         mountRig.faceGroup.add(modelGroup)
 
         return wrapperGroup
+    }
+
+    /**
+     * Wraps a full board assembly model in board-local scene coordinates.
+     * @param {any} THREE
+     * @param {{ positionMil?: { x?: number, y?: number, z?: number }, board?: { widthMil?: number, heightMil?: number, thicknessMil?: number } }} placement
+     * @param {any} modelGroup
+     * @returns {any}
+     */
+    static #buildBoardAssemblyWrapper(THREE, placement, modelGroup) {
+        const wrapperGroup = new THREE.Group()
+        const positionMil = placement?.positionMil || {}
+
+        PcbScene3dBoardAssemblyPresentation.apply(modelGroup, placement?.board)
+        wrapperGroup.position.set(
+            Number(positionMil.x || 0),
+            Number(positionMil.y || 0),
+            Number(positionMil.z || 0)
+        )
+        wrapperGroup.userData.scene3dPlacementType = 'board-assembly'
+        wrapperGroup.add(modelGroup)
+
+        return wrapperGroup
+    }
+
+    /**
+     * Checks whether one placement represents a full board assembly model.
+     * @param {{ sourceType?: string, externalModel?: { origin?: string } }} placement
+     * @returns {boolean}
+     */
+    static #isBoardAssemblyPlacement(placement) {
+        return (
+            String(placement?.sourceType || '').toLowerCase() ===
+                'board-assembly' ||
+            String(placement?.externalModel?.origin || '').toLowerCase() ===
+                'board-assembly'
+        )
     }
 
     /**
@@ -906,9 +962,7 @@ export class PcbScene3dExternalModels {
         }
 
         return new THREE.Color(
-            Number(color[0] || 0),
-            Number(color[1] || 0),
-            Number(color[2] || 0)
+            Number(color[0] || 0), Number(color[1] || 0), Number(color[2] || 0)
         )
     }
 }

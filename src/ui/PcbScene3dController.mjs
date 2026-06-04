@@ -29,6 +29,9 @@ export class PcbScene3dController {
     /** @type {Map<string, { component: any | null, externalPlacement: any | null }>} */
     #selectionIndex
 
+    /** @type {string} */
+    #selectedComponentKey
+
     /** @type {{ setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void } | null} */
     #runtime
 
@@ -50,13 +53,19 @@ export class PcbScene3dController {
     /** @type {(key: string) => string} */
     #translate
 
+    /** @type {string} */
+    #documentId
+
+    /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
+    #onComponentSelectionChange
+
     /** @type {boolean} */
     #isDisposed
 
     /**
      * @param {HTMLElement} viewportNode
      * @param {any} documentModel
-     * @param {{ rootNode?: HTMLElement | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void, translate?: ((key: string) => string) | null }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }} [options]
+     * @param {{ rootNode?: HTMLElement | null, documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], buildScene?: (documentModel: any, options: { modelRegistry: any }) => any, createRuntime?: (viewportNode: HTMLElement, sceneDescription: any, hooks: { setDiagnostics: (messages: string[]) => void, setSelection: (selection: any | null) => void, translate?: ((key: string) => string) | null }) => { setPreset?: (preset: string) => void, setToggle?: (toggleName: string, enabled: boolean) => void, dispose?: () => void, whenReady?: () => Promise<void> | void }, scenePrepClient?: { prepareScene?: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose?: () => void } | null, exportArchive?: (options: { archiveBaseName?: string, sceneDescription?: any }) => Promise<{ archiveName: string, archiveBytes: Uint8Array, exportedEntries: any[], skippedEntries: any[] }>, downloadArchive?: (archiveName: string, archiveBytes: Uint8Array) => Promise<void> | void, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }} [options]
      */
     constructor(viewportNode, documentModel, options = {}) {
         this.#viewportNode = viewportNode
@@ -88,9 +97,15 @@ export class PcbScene3dController {
                 ))
         this.#setLoadingVisible = options.setLoadingVisible || (() => {})
         this.#translate = UiText.createTranslator(options.translate || null)
+        this.#documentId = String(options.documentId || '')
+        this.#onComponentSelectionChange =
+            typeof options.onComponentSelectionChange === 'function'
+                ? options.onComponentSelectionChange
+                : null
         this.#isDisposed = false
         this.#runtime = null
         this.#selectionIndex = new Map()
+        this.#selectedComponentKey = ''
 
         this.#bindPresets()
         this.#setActivePresetButton('isometric')
@@ -115,6 +130,17 @@ export class PcbScene3dController {
     }
 
     /**
+     * Updates the selected component on the mounted runtime.
+     * @param {string} componentKey Selected component key.
+     * @returns {void}
+     */
+    setSelectedComponent(componentKey) {
+        const designator = String(componentKey || '').trim()
+        this.#selectedComponentKey = designator
+        this.#applySelectedComponent()
+    }
+
+    /**
      * Releases event listeners and runtime resources.
      * @returns {void}
      */
@@ -134,6 +160,7 @@ export class PcbScene3dController {
         this.#rootNode = null
         this.#diagnosticsNode = null
         this.#selectionNode = null
+        this.#selectedComponentKey = ''
         this.#exportArchive = async () => ({
             archiveName: '',
             archiveBytes: new Uint8Array(),
@@ -269,9 +296,13 @@ export class PcbScene3dController {
 
         this.#runtime = createRuntime(this.#viewportNode, sceneDescription, {
             setDiagnostics: (messages) => this.#setDiagnostics(messages),
-            setSelection: (selection) => this.#setSelection(selection),
+            setSelection: (selection) =>
+                this.#handleRuntimeSelection(selection),
             translate: this.#translate
         })
+        if (this.#selectedComponentKey) {
+            this.#applySelectedComponent()
+        }
     }
 
     /**
@@ -486,6 +517,39 @@ export class PcbScene3dController {
                   globalThis.window,
                   this.#translate
               )
+    }
+
+    /**
+     * Updates the inspector and forwards direct 3D picks into shared state.
+     * @param {{ designator?: string, sourceType?: string } | null} selection
+     * @returns {void}
+     */
+    #handleRuntimeSelection(selection) {
+        this.#setSelection(selection)
+        const designator = String(selection?.designator || '').trim()
+        this.#selectedComponentKey = designator
+        this.#onComponentSelectionChange?.({
+            documentId: this.#documentId,
+            componentKey: designator,
+            source: '3d-scene'
+        })
+    }
+
+    /**
+     * Applies the stored selected component to the mounted runtime and
+     * inspector, if any selection is active.
+     * @returns {void}
+     */
+    #applySelectedComponent() {
+        this.#runtime?.setSelectedDesignator?.(this.#selectedComponentKey)
+        this.#setSelection(
+            this.#selectedComponentKey
+                ? {
+                      designator: this.#selectedComponentKey,
+                      sourceType: 'sidebar'
+                  }
+                : null
+        )
     }
 
     /**

@@ -55,6 +55,58 @@ export class PcbComponentSelectionModel {
     }
 
     /**
+     * Applies one component selection across compatible open documents.
+     * @param {{ [documentId: string]: string }} selectedPcbComponents Current map.
+     * @param {{ id: string, documentModel: any }[]} documents Open documents.
+     * @param {string} documentId Target document id.
+     * @param {string} componentKey Target component key.
+     * @param {string} [clearKey] Previously selected key for deselection.
+     * @returns {{ [documentId: string]: string }}
+     */
+    static withSessionSelection(
+        selectedPcbComponents,
+        documents,
+        documentId,
+        componentKey,
+        clearKey = ''
+    ) {
+        const targetDocumentId = String(documentId || '').trim()
+        const normalizedComponentKey = String(componentKey || '').trim()
+        const normalizedClearKey = String(clearKey || '').trim()
+        const next = PcbComponentSelectionModel.cloneMap(
+            selectedPcbComponents
+        )
+
+        if (!normalizedComponentKey) {
+            Object.keys(next).forEach((entryDocumentId) => {
+                if (
+                    entryDocumentId === targetDocumentId ||
+                    next[entryDocumentId] === normalizedClearKey
+                ) {
+                    delete next[entryDocumentId]
+                }
+            })
+            return next
+        }
+
+        for (const entry of documents || []) {
+            const entryDocumentId = String(entry?.id || '').trim()
+            if (
+                entryDocumentId &&
+                (entryDocumentId === targetDocumentId ||
+                    PcbComponentSelectionModel.#documentHasComponentKey(
+                        entry?.documentModel,
+                        normalizedComponentKey
+                    ))
+            ) {
+                next[entryDocumentId] = normalizedComponentKey
+            }
+        }
+
+        return next
+    }
+
+    /**
      * Clones a selected-component map.
      * @param {{ [documentId: string]: string }} selectedPcbComponents Selection map.
      * @returns {{ [documentId: string]: string }}
@@ -69,6 +121,26 @@ export class PcbComponentSelectionModel {
                 .filter(([documentId, componentKey]) =>
                     Boolean(documentId && componentKey)
                 )
+        )
+    }
+
+    /**
+     * Returns true when a document contains the selected component key.
+     * @param {any} documentModel Document model.
+     * @param {string} componentKey Component key.
+     * @returns {boolean}
+     */
+    static #documentHasComponentKey(documentModel, componentKey) {
+        const components = [
+            ...(documentModel?.schematic?.components || []),
+            ...(documentModel?.pcb?.components || [])
+        ]
+        return components.some(
+            (component, index) =>
+                PcbComponentSelectionModel.resolveComponentKey(
+                    component,
+                    index
+                ) === componentKey
         )
     }
 }

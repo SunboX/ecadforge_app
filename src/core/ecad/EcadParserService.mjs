@@ -57,12 +57,25 @@ export class EcadParserService {
         const kicadEntries = normalizedEntries.filter((entry) => {
             return entry.role?.sourceFormat === 'kicad'
         })
-        const documents = altiumEntries.map((entry) => {
-            return this.#altiumParser.parseArrayBuffer(entry.name, entry.buffer)
-        })
+        const documents = []
         const diagnostics = []
         const assets = []
         let project = null
+
+        for (const entry of altiumEntries) {
+            try {
+                documents.push(
+                    this.#altiumParser.parseArrayBuffer(
+                        entry.name,
+                        entry.buffer
+                    )
+                )
+            } catch (error) {
+                diagnostics.push(
+                    EcadParserService.#buildParseDiagnostic(entry.name, error)
+                )
+            }
+        }
 
         if (
             kicadEntries.length === 1 &&
@@ -92,6 +105,12 @@ export class EcadParserService {
             project = result.project || null
         }
 
+        if (!documents.length && diagnostics.length) {
+            throw new Error(diagnostics[0].message)
+        }
+
+        EcadParserService.#attachDiagnosticsToDocuments(documents, diagnostics)
+
         return {
             documents,
             diagnostics,
@@ -120,6 +139,46 @@ export class EcadParserService {
             fileName,
             buffer
         )
+    }
+
+    /**
+     * Creates one file-scoped parser diagnostic.
+     * @param {string} fileName Source file name.
+     * @param {unknown} error Parser error.
+     * @returns {{ severity: string, fileName: string, message: string }}
+     */
+    static #buildParseDiagnostic(fileName, error) {
+        const message =
+            error instanceof Error && error.message
+                ? error.message
+                : 'Unknown parser error.'
+
+        return {
+            severity: 'error',
+            fileName,
+            message: 'Failed to parse ' + fileName + ': ' + message
+        }
+    }
+
+    /**
+     * Adds batch diagnostics to parsed documents so the existing diagnostics
+     * view can surface source-folder parse failures.
+     * @param {object[]} documents Parsed documents.
+     * @param {{ severity: string, fileName: string, message: string }[]} diagnostics Batch diagnostics.
+     */
+    static #attachDiagnosticsToDocuments(documents, diagnostics) {
+        if (!diagnostics.length) {
+            return
+        }
+
+        for (const document of documents) {
+            document.diagnostics = [
+                ...(Array.isArray(document.diagnostics)
+                    ? document.diagnostics
+                    : []),
+                ...diagnostics
+            ]
+        }
     }
 
     /**

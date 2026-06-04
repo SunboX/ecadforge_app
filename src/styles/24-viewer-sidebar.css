@@ -406,6 +406,10 @@
     gap: 0.35rem;
 }
 
+.viewer-sidebar__list--documents {
+    padding-inline: 1.1rem;
+}
+
 .viewer-sidebar__row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

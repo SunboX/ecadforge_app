@@ -647,7 +647,7 @@ function createFakeRuntimeModules() {
  * @returns {FakeGroup | undefined}
  */
 function resolveFallbackBodiesGroup() {
-    const rootGroup = lastCreatedScene?.children?.[0]?.children?.[0]
+    const rootGroup = resolveRootGroup()
     if (!rootGroup) {
         return undefined
     }
@@ -660,6 +660,14 @@ function resolveFallbackBodiesGroup() {
                     child?.userData?.scene3dSelection?.designator === 'U1'
             )
     )
+}
+
+/**
+ * Resolves the root PCB render group from the current fake scene tree.
+ * @returns {FakeGroup | undefined}
+ */
+function resolveRootGroup() {
+    return lastCreatedScene?.children?.[0]?.children?.[0]
 }
 
 /**
@@ -839,6 +847,10 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
     const originalDocument = globalThis.document
     const originalLoadIntoScene = PcbScene3dExternalModels.loadIntoScene
     let capturedModelViewScale = null
+    let resolveExternalModelsCalled = null
+    const externalModelsCalled = new Promise((resolve) => {
+        resolveExternalModelsCalled = resolve
+    })
 
     globalThis.window = {
         devicePixelRatio: 1,
@@ -852,6 +864,7 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
     lastCreatedScene = null
     PcbScene3dExternalModels.loadIntoScene = async (options) => {
         capturedModelViewScale = options.modelViewScale
+        resolveExternalModelsCalled?.()
         return []
     }
 
@@ -884,6 +897,7 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
     try {
         runtime.setPreset('top')
         await runtime.whenReady()
+        await externalModelsCalled
 
         assert.deepEqual(capturedModelViewScale, { x: 1, y: -1, z: 1 })
     } finally {
@@ -894,7 +908,7 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
     }
 })
 
-test('PcbScene3dRuntime keeps fallback bodies hidden by default and waits for deferred settlement before reporting ready', async () => {
+test('PcbScene3dRuntime reports ready before slow external model loading settles', async () => {
     const originalWindow = globalThis.window
     const originalDocument = globalThis.document
     const originalLoadIntoScene = PcbScene3dExternalModels.loadIntoScene
@@ -968,7 +982,7 @@ test('PcbScene3dRuntime keeps fallback bodies hidden by default and waits for de
 
     assert.ok(lastCreatedScene)
     assert.equal(resolveFallbackBodiesGroup()?.visible, false)
-    assert.equal(readyResolved, false)
+    assert.equal(readyResolved, true)
 
     resolveExternalModels?.()
     await readyPromise

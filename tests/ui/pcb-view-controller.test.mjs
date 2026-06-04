@@ -591,7 +591,8 @@ test('PcbViewController selects a component-backed PCB click candidate', () => {
     assert.deepEqual(selections, [
         {
             documentId: 'doc-1',
-            componentKey: 'U1'
+            componentKey: 'U1',
+            source: 'pcb-board'
         }
     ])
 
@@ -652,7 +653,8 @@ test('PcbViewController clears PCB component selection when clicking empty board
     assert.deepEqual(selections, [
         {
             documentId: 'doc-1',
-            componentKey: ''
+            componentKey: '',
+            source: 'pcb-board'
         }
     ])
 

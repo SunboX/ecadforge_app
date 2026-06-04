@@ -3,6 +3,50 @@ import test from 'node:test'
 import { AppView } from '../../src/ui/AppView.mjs'
 
 /**
+ * Minimal event target for AppView wiring tests.
+ */
+class FakeEventTarget {
+    /** @type {Map<string, Set<(event: any) => void>>} */
+    #listeners = new Map()
+
+    /**
+     * Registers an event listener.
+     * @param {string} type Event type.
+     * @param {(event: any) => void} listener Listener.
+     * @returns {void}
+     */
+    addEventListener(type, listener) {
+        if (!this.#listeners.has(type)) {
+            this.#listeners.set(type, new Set())
+        }
+        this.#listeners.get(type)?.add(listener)
+    }
+
+    /**
+     * Removes an event listener.
+     * @param {string} type Event type.
+     * @param {(event: any) => void} listener Listener.
+     * @returns {void}
+     */
+    removeEventListener(type, listener) {
+        this.#listeners.get(type)?.delete(listener)
+    }
+
+    /**
+     * Dispatches a synthetic event.
+     * @param {string} type Event type.
+     * @param {Record<string, any>} [event] Event patch.
+     * @returns {void}
+     */
+    dispatch(type, event = {}) {
+        const payload = { type, currentTarget: this, target: this, ...event }
+        ;[...(this.#listeners.get(type) || [])].forEach((listener) =>
+            listener(payload)
+        )
+    }
+}
+
+/**
  * Minimal class list for AppView wiring tests.
  */
 class FakeClassList {
@@ -40,12 +84,13 @@ class FakeClassList {
 /**
  * Minimal DOM node for AppView render tests.
  */
-class FakeNode {
+class FakeNode extends FakeEventTarget {
     /** @type {Map<string, string>} */
     #attributes = new Map()
 
     constructor() {
-        this.innerHTML = ''
+        super()
+        this._innerHTML = ''
         this.textContent = ''
         this.value = ''
         this.hidden = false
@@ -83,14 +128,6 @@ class FakeNode {
     }
 
     /**
-     * Registers an event listener.
-     * @param {string} _type Event type.
-     * @param {(event: any) => void} _listener Listener.
-     * @returns {void}
-     */
-    addEventListener(_type, _listener) {}
-
-    /**
      * Returns no descendant matches for this focused test.
      * @param {string} _selector Selector.
      * @returns {null}
@@ -106,6 +143,86 @@ class FakeNode {
      */
     querySelectorAll(_selector) {
         return []
+    }
+}
+
+/**
+ * Minimal schematic SVG node.
+ */
+class FakeSvgElement extends FakeNode {
+    /**
+     * @param {string} viewBox SVG viewBox.
+     */
+    constructor(viewBox) {
+        super()
+        this.setAttribute('viewBox', viewBox)
+    }
+
+    /**
+     * Returns a stable SVG client box.
+     * @returns {{ left: number, top: number, width: number, height: number }}
+     */
+    getBoundingClientRect() {
+        return { left: 0, top: 0, width: 320, height: 240 }
+    }
+}
+
+/**
+ * Minimal target inside a selected schematic component.
+ */
+class FakeSchematicComponentTarget extends FakeNode {
+    /**
+     * @param {string} componentKey Selected component key.
+     */
+    constructor(componentKey) {
+        super()
+        this.setAttribute('data-schematic-component-key', componentKey)
+    }
+
+    /**
+     * Returns this target for schematic component lookups.
+     * @param {string} selector CSS selector.
+     * @returns {FakeSchematicComponentTarget | null}
+     */
+    closest(selector) {
+        return selector === '[data-schematic-component-key]' ? this : null
+    }
+}
+
+/**
+ * Minimal content node that exposes rendered schematic SVGs.
+ */
+class FakeContentNode extends FakeNode {
+    /** @type {FakeSvgElement | null} */
+    #schematicSvg = null
+
+    /**
+     * Stores rendered markup and extracts the schematic SVG node.
+     * @param {string} value Rendered markup.
+     */
+    set innerHTML(value) {
+        this._innerHTML = String(value)
+        const match = this._innerHTML.match(
+            /<svg\b(?=[^>]*\bclass="[^"]*\bschematic-svg\b[^"]*")(?=[^>]*\bviewBox="([^"]+)")[^>]*>/
+        )
+        this.#schematicSvg = match ? new FakeSvgElement(match[1]) : null
+    }
+
+    /**
+     * Returns rendered markup.
+     * @returns {string}
+     */
+    get innerHTML() {
+        return this._innerHTML || ''
+    }
+
+    /**
+     * Returns the rendered schematic SVG.
+     * @param {string} selector Selector.
+     * @returns {FakeSvgElement | null}
+     */
+    querySelector(selector) {
+        return selector === '.schematic-svg' ? this.#schematicSvg : null
     }
 }
 
@@ -130,14 +247,16 @@ class FakeDocument {
                 '#localeSelect',
                 '#viewerStage',
                 '#documentRail',
-                '#viewContent',
+                ['#viewContent', new FakeContentNode()],
                 '#viewTabs',
                 '#githubOpenForm',
                 '#githubUrlInput',
                 '#pcbStylerCta',
                 '#pcbStylerDismiss',
                 '#pcbStylerNotice'
-            ].map((selector) => [selector, new FakeNode()])
+            ].map((entry) =>
+                Array.isArray(entry) ? entry : [entry, new FakeNode()]
+            )
         )
     }
 
@@ -199,4 +318,58 @@ test('AppView highlights the selected schematic symbol', () => {
     const html = fakeDocument.querySelector('#viewContent').innerHTML
     assert.match(html, /class="schematic-component-highlight-style"/)
     assert.match(html, /data-schematic-component-key="U1"/)
+})
+
+/**
+ * Verifies schematic component clicks emit the clicked component key.
+ */
+test('AppView emits schematic component clicks from the rendered svg', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindPcbComponentSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+        .dispatch('click', {
+            target: new FakeSchematicComponentTarget('U1')
+        })
+
+    assert.deepEqual(received, [
+        {
+            documentId: 'doc-1',
+            componentKey: 'U1'
+        }
+    ])
+})
+
+/**
+ * Verifies schematic background clicks clear the current component selection.
+ */
+test('AppView emits empty schematic selection from schematic background clicks', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindPcbComponentSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+        .dispatch('click')
+
+    assert.deepEqual(received, [
+        {
+            documentId: 'doc-1',
+            componentKey: ''
+        }
+    ])
 })

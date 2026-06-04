@@ -1,8 +1,9 @@
 # WebMCP
 
 ECAD Forge registers read-only WebMCP tools when the browser exposes a native
-`navigator.modelContext` API. The tools query only designs that are already
-loaded in the current browser session.
+`document.modelContext` API. The adapter also falls back to the deprecated
+`navigator.modelContext` API for older WebMCP-capable browsers. The tools query
+only designs that are already loaded in the current browser session.
 
 If the browser does not provide native WebMCP support, ECAD Forge silently
 continues as a normal viewer. No third-party widget or bridge is bundled.
@@ -21,6 +22,12 @@ ECAD Forge owns the native WebMCP registration, session snapshot lookup, and
 source-format dispatch. Netlist extraction, regex validation, component
 grouping, and connectivity traversal are delegated to the Altium and KiCad
 toolkit query APIs for the selected loaded document.
+
+Registered tool descriptors use the current object-form WebMCP API with an
+`execute` function. They include `readOnlyHint: true` and
+`untrustedContentHint: true` annotations because the tools do not mutate app
+state and may summarize user-loaded ECAD data. Older positional browser APIs
+remain supported and receive MCP-style JSON text content.
 
 ## Supported Tools
 

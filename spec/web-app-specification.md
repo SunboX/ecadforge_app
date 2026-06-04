@@ -21,7 +21,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 13. The schematic parser preserves supported hierarchy records, explicit junctions, bus entries, and a normalized single-sheet net model when those records are recoverable.
 14. Embedded schematic image payloads remain local-first; the app renders embedded image data when present and falls back to visible placeholders plus diagnostics when the payload is missing.
 15. Shared-hosting deployment publishes an Apache-ready static frontend artifact with versioned browser module URLs and no-store cache headers.
-16. When native browser WebMCP support is available, the app registers read-only loaded-session tools for listing loaded designs, listing/searching components and nets, querying component pins, and tracing extended connectivity.
+16. When native browser WebMCP support is available through `document.modelContext` or the deprecated `navigator.modelContext` fallback, the app registers read-only loaded-session tools for listing loaded designs, listing/searching components and nets, querying component pins, and tracing extended connectivity.
 
 ## 3. Non-Functional Requirements
 
@@ -31,7 +31,7 @@ Build a browser-based viewer for native Altium and KiCad schematics, PCB files, 
 4. Include JSDoc for all public and private methods.
 5. Keep documentation in `docs/` and tests in `tests/`.
 6. Keep file parsing local-first and avoid outbound network calls.
-7. WebMCP tools must not upload files, scan local paths, fetch remote resources, mutate app state, or expose raw file contents.
+7. WebMCP tools must not upload files, scan local paths, fetch remote resources, mutate app state, or expose raw file contents. Registered descriptors must mark the tools as read-only and untrusted-content capable.
 8. Production analytics may load only on deployed HTTP(S) origins; localhost, file URLs, and private-network dev origins must not send events with the production site key.
 
 ## 4. Architecture

@@ -390,9 +390,18 @@ test('app shell implements the marketing landingpage design shell', async () => 
         indexRaw,
         /<button\s+type="button"\s+data-view-chip="schematic"/
     )
-    assert.match(indexRaw, /class="chip-icon chip-icon--schematic"/)
-    assert.match(indexRaw, /class="chip-icon chip-icon--board"/)
-    assert.match(indexRaw, /class="chip-icon chip-icon--cloud"/)
+    assert.match(
+        indexRaw,
+        /class="support-tag__icon support-tag__icon--schematic"/
+    )
+    assert.match(
+        indexRaw,
+        /class="support-tag__icon support-tag__icon--board"/
+    )
+    assert.match(
+        indexRaw,
+        /class="support-tag__icon support-tag__icon--cloud"/
+    )
     assert.match(indexRaw, /data-view-chip="schematic"/)
     assert.match(indexRaw, /data-view-chip="diagnostics"/)
     assert.match(

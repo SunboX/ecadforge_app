@@ -311,3 +311,132 @@ test('AppView keeps the 3D loading overlay visible until the 3D scene is ready',
 
     assert.equal(loadingNode.hidden, true)
 })
+
+/**
+ * Verifies selected component changes in the 3D footprints sidebar update the
+ * live scene controller without rebuilding the scene.
+ */
+test('AppView updates 3D component selection without remounting the scene', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         */
+        constructor(viewportNode, documentModel) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.selectedKeys = []
+            this.isDisposed = false
+            createdControllers.push(this)
+        }
+
+        /**
+         * @returns {any}
+         */
+        getDocumentModel() {
+            return this.documentModel
+        }
+
+        /**
+         * @param {string} componentKey Selected component key.
+         * @returns {void}
+         */
+        setSelectedComponent(componentKey) {
+            this.selectedKeys.push(componentKey)
+        }
+
+        /**
+         * @returns {void}
+         */
+        dispose() {
+            this.isDisposed = true
+        }
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel) =>
+            new FakeScene3dController(viewportNode, documentModel)
+    })
+    const firstSnapshot = {
+        ...createPcbSnapshot(),
+        selectedPcbComponents: { 'doc-1': '' }
+    }
+    const nextSnapshot = {
+        ...firstSnapshot,
+        selectedPcbComponents: { 'doc-1': 'C8' }
+    }
+
+    view.render(firstSnapshot)
+    view.render(nextSnapshot)
+
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].isDisposed, false)
+    assert.deepEqual(createdControllers[0].selectedKeys, ['', 'C8'])
+})
+
+/**
+ * Verifies the 3D controller receives the shared component selection callback
+ * and active document id when AppView mounts the scene.
+ */
+test('AppView wires 3D runtime selections into shared selection state', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+    const selectionChanges = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         * @param {{ documentId?: string, onComponentSelectionChange?: (change: any) => void }} [options]
+         */
+        constructor(viewportNode, documentModel, options = {}) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.options = options
+            this.selectedKeys = []
+            createdControllers.push(this)
+        }
+
+        /**
+         * @param {string} componentKey Selected component key.
+         * @returns {void}
+         */
+        setSelectedComponent(componentKey) {
+            this.selectedKeys.push(componentKey)
+        }
+
+        /**
+         * @returns {void}
+         */
+        dispose() {}
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel, options) =>
+            new FakeScene3dController(viewportNode, documentModel, options)
+    })
+    view.bindPcbComponentSelectionChange((change) =>
+        selectionChanges.push(change)
+    )
+
+    view.render({
+        ...createPcbSnapshot(),
+        selectedPcbComponents: { 'doc-1': 'C8' }
+    })
+
+    const controller = createdControllers[0]
+    controller.options.onComponentSelectionChange?.({
+        documentId: controller.options.documentId,
+        componentKey: 'C8',
+        source: '3d-scene'
+    })
+
+    assert.equal(controller.options.documentId, 'doc-1')
+    assert.deepEqual(controller.selectedKeys, ['C8'])
+    assert.deepEqual(selectionChanges, [
+        { documentId: 'doc-1', componentKey: 'C8', source: '3d-scene' }
+    ])
+})

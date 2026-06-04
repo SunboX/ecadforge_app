@@ -71,6 +71,43 @@ test('EcadParserService dispatches mixed Altium and KiCad batches', async () => 
 })
 
 /**
+ * Verifies batch Altium parsing preserves readable documents when one native
+ * file in the same source folder is damaged.
+ */
+test('EcadParserService reports damaged Altium entries as diagnostics', async () => {
+    const service = new EcadParserService({
+        altiumParser: {
+            parseArrayBuffer(fileName) {
+                if (fileName.endsWith('.PcbDoc')) {
+                    throw new Error(
+                        'OLE compound document is not sector-aligned.'
+                    )
+                }
+
+                return { sourceFormat: 'altium', kind: 'schematic', fileName }
+            }
+        }
+    })
+    const result = await service.parseEntries([
+        { name: 'logic.SchDoc', buffer: new ArrayBuffer(1) },
+        { name: 'board.PcbDoc', buffer: new ArrayBuffer(1) }
+    ])
+
+    assert.deepEqual(
+        result.documents.map((document) => document.fileName),
+        ['logic.SchDoc']
+    )
+    assert.equal(result.diagnostics.length, 1)
+    assert.equal(result.diagnostics[0].severity, 'error')
+    assert.equal(result.diagnostics[0].fileName, 'board.PcbDoc')
+    assert.match(result.diagnostics[0].message, /board\.PcbDoc.*sector-aligned/)
+    assert.match(
+        result.documents[0].diagnostics[0].message,
+        /board\.PcbDoc.*sector-aligned/
+    )
+})
+
+/**
  * Verifies native-style uppercase Altium schematic fields remain readable
  * through the app's installed parser integration.
  */
@@ -96,6 +133,33 @@ test('EcadParserService parses uppercase Altium schematic fields', () => {
     assert.equal(documentModel.schematic.lines.length, 1)
     assert.equal(documentModel.schematic.pins.length, 1)
     assert.equal(documentModel.schematic.texts.length, 1)
+})
+
+/**
+ * Verifies schematic component labels stay bound to their native owner group
+ * instead of the nearest unrelated visible text.
+ */
+test('EcadParserService preserves owner-bound schematic component labels', () => {
+    const source = new TextEncoder().encode(
+        '|HEADER=Schematic Document' +
+            '|RECORD=31|CustomX=300|CustomY=220|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0' +
+            '|RECORD=1|IndexInSheet=20|Location.X=100|Location.Y=100|LibReference=IC/FAKE/CONTROL-HUB|UniqueID=CMP-A' +
+            '|RECORD=14|OwnerIndex=300|OwnerPartID=1|Location.X=20|Location.Y=100|Corner.X=80|Corner.Y=190' +
+            '|RECORD=2|OwnerIndex=300|OwnerPartID=1|Location.X=80|Location.Y=120|Name=SIG_A|Designator=1' +
+            '|RECORD=34|OwnerIndex=300|OwnerPartID=-1|Location.X=20|Location.Y=200|Color=8388608|FontID=1|Text=U7|Name=Designator' +
+            '|RECORD=41|OwnerIndex=300|OwnerPartID=-1|Location.X=20|Location.Y=90|Color=8388608|FontID=1|Text=CONTROL-HUB|Name=Comment' +
+            '|RECORD=34|OwnerIndex=500|OwnerPartID=-1|Location.X=105|Location.Y=105|Color=8388608|FontID=1|Text=R4|Name=Designator' +
+            '|RECORD=41|OwnerIndex=500|OwnerPartID=-1|Location.X=105|Location.Y=115|Color=8388608|FontID=1|Text=4K7|Name=Comment'
+    )
+    const documentModel = EcadParserService.parseArrayBuffer(
+        'owner-bound-labels.SchDoc',
+        source.buffer
+    )
+
+    assert.equal(documentModel.schematic.components[0].designator, 'U7')
+    assert.equal(documentModel.schematic.components[0].value, 'CONTROL-HUB')
 })
 
 /**

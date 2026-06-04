@@ -579,6 +579,202 @@ test('PcbScene3dController renders the selected component inspector content', ()
 })
 
 /**
+ * Verifies runtime picks are promoted to the shared component selection
+ * callback so 3D selections survive view switches.
+ */
+test('PcbScene3dController reports runtime component selections', () => {
+    const rootNode = new FakeSceneRootNode()
+    const viewportNode = new FakeViewportNode(rootNode)
+    const selectionChanges = []
+    let runtimeHooks = null
+
+    const controller = new PcbScene3dController(
+        viewportNode,
+        {
+            pcb: {
+                boardOutline: {},
+                components: [
+                    {
+                        designator: 'C8',
+                        x: 100,
+                        y: 200,
+                        layer: 'TOP',
+                        pattern: 'SMT_C_0402'
+                    }
+                ]
+            }
+        },
+        {
+            documentId: 'pcb-doc',
+            onComponentSelectionChange(change) {
+                selectionChanges.push(change)
+            },
+            buildScene: () => ({
+                board: {},
+                components: [
+                    {
+                        designator: 'C8',
+                        mountSide: 'top',
+                        rotationDeg: 90,
+                        positionMil: { x: 100, y: 200, z: 0 },
+                        boardPositionMil: { x: 100, y: 200, z: 0 },
+                        pattern: 'SMT_C_0402'
+                    }
+                ],
+                externalPlacements: [],
+                detail: {}
+            }),
+            createRuntime: (_viewport, _scene, hooks) => {
+                runtimeHooks = hooks
+                return {
+                    dispose() {}
+                }
+            }
+        }
+    )
+
+    runtimeHooks.setSelection({ designator: 'C8', sourceType: 'component' })
+    runtimeHooks.setSelection(null)
+
+    assert.deepEqual(selectionChanges, [
+        { documentId: 'pcb-doc', componentKey: 'C8', source: '3d-scene' },
+        { documentId: 'pcb-doc', componentKey: '', source: '3d-scene' }
+    ])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies sidebar-driven selections are forwarded to the mounted runtime and
+ * reflected in the inspector without remounting the scene.
+ */
+test('PcbScene3dController updates selected component on the live runtime', () => {
+    const rootNode = new FakeSceneRootNode()
+    const viewportNode = new FakeViewportNode(rootNode)
+    const runtimeSelections = []
+
+    const controller = new PcbScene3dController(
+        viewportNode,
+        {
+            pcb: {
+                boardOutline: {},
+                components: [
+                    {
+                        designator: 'C8',
+                        x: 100,
+                        y: 200,
+                        layer: 'TOP',
+                        pattern: 'SMT_C_0402'
+                    }
+                ]
+            }
+        },
+        {
+            buildScene: () => ({
+                board: {},
+                components: [
+                    {
+                        designator: 'C8',
+                        mountSide: 'top',
+                        rotationDeg: 90,
+                        positionMil: { x: 100, y: 200, z: 0 },
+                        boardPositionMil: { x: 100, y: 200, z: 0 },
+                        pattern: 'SMT_C_0402'
+                    }
+                ],
+                externalPlacements: [],
+                detail: {}
+            }),
+            createRuntime: () => ({
+                setSelectedDesignator(designator) {
+                    runtimeSelections.push(designator)
+                },
+                dispose() {}
+            })
+        }
+    )
+
+    controller.setSelectedComponent('C8')
+
+    assert.deepEqual(runtimeSelections, ['C8'])
+    assert.match(rootNode.getSelectionNode().textContent, /C8/)
+    assert.match(rootNode.getSelectionNode().textContent, /SMT_C_0402/)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies a selected component is applied when async scene preparation mounts
+ * the runtime after the selection changed.
+ */
+test('PcbScene3dController applies pending component selection after async mount', async () => {
+    const rootNode = new FakeSceneRootNode()
+    const viewportNode = new FakeViewportNode(rootNode)
+    const runtimeSelections = []
+    let resolvePrep = null
+
+    const controller = new PcbScene3dController(
+        viewportNode,
+        {
+            pcb: {
+                boardOutline: {},
+                components: [
+                    {
+                        designator: 'C8',
+                        x: 100,
+                        y: 200,
+                        layer: 'TOP',
+                        pattern: 'SMT_C_0402'
+                    }
+                ]
+            }
+        },
+        {
+            scenePrepClient: {
+                prepareScene() {
+                    return new Promise((resolve) => {
+                        resolvePrep = resolve
+                    })
+                },
+                dispose() {}
+            },
+            createRuntime: () => ({
+                setSelectedDesignator(designator) {
+                    runtimeSelections.push(designator)
+                },
+                dispose() {}
+            })
+        }
+    )
+
+    controller.setSelectedComponent('C8')
+
+    assert.deepEqual(runtimeSelections, [])
+
+    resolvePrep?.({
+        board: {},
+        components: [
+            {
+                designator: 'C8',
+                mountSide: 'top',
+                rotationDeg: 90,
+                positionMil: { x: 100, y: 200, z: 0 },
+                boardPositionMil: { x: 100, y: 200, z: 0 },
+                pattern: 'SMT_C_0402'
+            }
+        ],
+        externalPlacements: [],
+        detail: {}
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+
+    assert.deepEqual(runtimeSelections, ['C8'])
+
+    controller.dispose()
+})
+
+/**
  * Verifies the controller keeps the scene loading state active until worker
  * prep and runtime settlement both finish.
  */

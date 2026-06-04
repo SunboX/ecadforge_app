@@ -150,7 +150,7 @@
     font-weight: 800;
 }
 
-.dropzone__chips {
+.dropzone__tags {
     grid-area: chips;
     display: flex;
     gap: 0.42rem;
@@ -158,28 +158,28 @@
     margin-top: 0.15rem;
 }
 
-.dropzone__chips span {
+.dropzone__tag {
     display: inline-flex;
     align-items: center;
-    gap: 0.32rem;
-    min-height: 1.85rem;
-    padding: 0.32rem 0.58rem;
+    gap: 0.22rem;
+    padding: 0.02rem 0.4rem;
     border: 1px solid rgba(95, 112, 124, 0.1);
-    border-radius: 999px;
+    border-radius: 0.38rem;
     color: var(--accent);
-    background: rgba(240, 247, 244, 0.8);
-    font-size: 0.8rem;
+    background: rgba(240, 247, 244, 0.62);
+    font-size: 0.7rem;
+    line-height: 1.05;
     font-weight: 800;
 }
 
-.chip-icon {
-    width: 0.98rem;
-    height: 0.98rem;
+.support-tag__icon {
+    width: 0.72rem;
+    height: 0.72rem;
     flex: 0 0 auto;
 }
 
-.chip-icon path,
-.chip-icon rect {
+.support-tag__icon path,
+.support-tag__icon rect {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -194,6 +194,7 @@
 
 .dropzone__status {
     grid-area: status;
+    align-self: start;
     max-width: 49rem;
     margin: 0.1rem 0 0;
     padding: 0.68rem 0.82rem;

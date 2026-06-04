@@ -19,7 +19,7 @@ class FakeView {
     /** @type {((change: { documentId: string, objectKey: string, opacity: number }) => void) | null} */
     #objectOpacityCallback
 
-    /** @type {((change: { documentId: string, componentKey: string }) => void) | null} */
+    /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #componentSelectionCallback
 
     /** @type {((change: { documentId: string, preset: string }) => void) | null} */
@@ -79,7 +79,7 @@ class FakeView {
     }
 
     /**
-     * @param {(change: { documentId: string, componentKey: string }) => void} callback
+     * @param {(change: { documentId: string, componentKey: string, source?: string }) => void} callback
      * @returns {void}
      */
     bindPcbComponentSelectionChange(callback) {
@@ -146,7 +146,7 @@ class FakeView {
     }
 
     /**
-     * @param {{ documentId: string, componentKey: string }} change
+     * @param {{ documentId: string, componentKey: string, source?: string }} change
      * @returns {void}
      */
     selectComponent(change) {
@@ -373,6 +373,42 @@ test('AppController updates selected PCB component from sidebar controls', async
         componentKey: 'U1'
     })
 
+    assert.deepEqual(state.getSnapshot().selectedPcbComponents, {
+        [documentId]: 'U1'
+    })
+
+    view.selectComponent({
+        documentId,
+        componentKey: 'U1'
+    })
+
+    assert.deepEqual(state.getSnapshot().selectedPcbComponents, {})
+})
+
+/**
+ * Verifies PCB-originated component selections open the footprints panel.
+ */
+test('AppController opens footprints for PCB component selections', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+
+    view.selectSidebarTab('layers')
+    view.selectComponent({
+        documentId,
+        componentKey: 'U1',
+        source: 'pcb-board'
+    })
+
+    assert.equal(state.getSnapshot().activeSidebarTab, 'components')
     assert.deepEqual(state.getSnapshot().selectedPcbComponents, {
         [documentId]: 'U1'
     })

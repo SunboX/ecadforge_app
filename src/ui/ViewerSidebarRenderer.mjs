@@ -1,5 +1,6 @@
 import { UiText } from './UiText.mjs'
 import { PcbObjectVisibilityModel } from '../core/PcbObjectVisibilityModel.mjs'
+import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { ViewerSidebarComponentRenderer } from './ViewerSidebarComponentRenderer.mjs'
 import { ViewerSidebarLayerRenderer } from './ViewerSidebarLayerRenderer.mjs'
 import { ViewerSidebarOverviewRenderer } from './ViewerSidebarOverviewRenderer.mjs'
@@ -27,7 +28,7 @@ const SIDEBAR_TABS = [
 export class ViewerSidebarRenderer {
     /**
      * Renders the full sidebar for one app snapshot.
-     * @param {{ activeSidebarTab?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeSidebarTab?: string, activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
      * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
@@ -159,61 +160,64 @@ export class ViewerSidebarRenderer {
 
     /**
      * Renders the active sidebar panel.
-     * @param {{ activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
      * @param {string} activeTab Active tab id.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
     static #renderPanel(snapshot, activeTab, translate) {
         const panelMarkup = (() => {
-        if (activeTab === 'project') {
-            return ViewerSidebarRenderer.#renderProjectPanel(
-                snapshot,
-                translate
-            )
-        }
+            if (activeTab === 'project') {
+                return ViewerSidebarRenderer.#renderProjectPanel(
+                    snapshot,
+                    translate
+                )
+            }
 
-        if (activeTab === 'layers') {
-            return ViewerSidebarLayerRenderer.render(snapshot, translate)
-        }
+            if (activeTab === 'layers') {
+                return ViewerSidebarLayerRenderer.render(snapshot, translate)
+            }
 
-        if (activeTab === 'objects') {
-            return ViewerSidebarRenderer.#renderObjectsPanel(
-                snapshot,
-                translate
-            )
-        }
+            if (activeTab === 'objects') {
+                return ViewerSidebarRenderer.#renderObjectsPanel(
+                    snapshot,
+                    translate
+                )
+            }
 
-        if (activeTab === 'components') {
-            return ViewerSidebarComponentRenderer.render(snapshot, translate)
-        }
+            if (activeTab === 'components') {
+                return ViewerSidebarComponentRenderer.render(
+                    snapshot,
+                    translate
+                )
+            }
 
-        if (activeTab === 'nets') {
-            return ViewerSidebarRenderer.#renderNetsPanel(
+            if (activeTab === 'nets') {
+                return ViewerSidebarRenderer.#renderNetsPanel(
+                    snapshot.documentModel,
+                    translate
+                )
+            }
+
+            if (activeTab === 'properties') {
+                return ViewerSidebarRenderer.#renderPropertiesPanel(
+                    snapshot.documentModel,
+                    translate
+                )
+            }
+
+            if (activeTab === 'preferences') {
+                return ViewerSidebarRenderer.#renderPreferencesPanel(translate)
+            }
+
+            if (activeTab === 'help') {
+                return ViewerSidebarRenderer.#renderHelpPanel(translate)
+            }
+
+            return ViewerSidebarRenderer.#renderInfoPanel(
                 snapshot.documentModel,
                 translate
             )
-        }
-
-        if (activeTab === 'properties') {
-            return ViewerSidebarRenderer.#renderPropertiesPanel(
-                snapshot.documentModel,
-                translate
-            )
-        }
-
-        if (activeTab === 'preferences') {
-            return ViewerSidebarRenderer.#renderPreferencesPanel(translate)
-        }
-
-        if (activeTab === 'help') {
-            return ViewerSidebarRenderer.#renderHelpPanel(translate)
-        }
-
-        return ViewerSidebarRenderer.#renderInfoPanel(
-            snapshot.documentModel,
-            translate
-        )
         })()
         return ViewerSidebarRenderer.#attachCollapseControl(
             panelMarkup,
@@ -223,7 +227,7 @@ export class ViewerSidebarRenderer {
 
     /**
      * Renders the project document list.
-     * @param {{ activeDocumentId?: string, documents?: { id: string, documentModel: any }[], sessionAssets?: any[] }} snapshot Viewer snapshot.
+     * @param {{ activeView?: string, activeDocumentId?: string, documents?: { id: string, documentModel: any }[], sessionAssets?: any[] }} snapshot Viewer snapshot.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -234,31 +238,39 @@ export class ViewerSidebarRenderer {
         const assets = Array.isArray(snapshot.sessionAssets)
             ? snapshot.sessionAssets
             : []
-        const documentModel = snapshot.documentModel || null
-
-        if (documentModel) {
-            return (
-                ViewerSidebarOverviewRenderer.render(documentModel, translate) +
-                ViewerSidebarRenderer.#renderDocumentListSection(
-                    documents,
-                    snapshot.activeDocumentId,
-                    translate
-                ) +
-                ViewerSidebarRenderer.#renderAssetList(assets, translate)
-            )
-        }
+        const activeView = String(snapshot.activeView || '')
+        const visibleDocuments = activeView
+            ? DocumentRailRenderer.filterDocumentsForView(documents, activeView)
+            : documents
 
         return (
+            ViewerSidebarRenderer.#renderDocumentListSection(
+                visibleDocuments,
+                snapshot.activeDocumentId,
+                translate
+            ) + ViewerSidebarRenderer.#renderAssetList(assets, translate)
+        )
+    }
+
+    /**
+     * Renders the open document selection panel.
+     * @param {{ id: string, documentModel: any }[]} documents Session documents.
+     * @param {string | undefined} activeDocumentId Active document id.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderDocumentListSection(documents, activeDocumentId, translate) {
+        return (
             ViewerSidebarRenderer.#renderPanelHeader(
-                translate('sidebar.project')
+                translate('sidebar.openDocuments')
             ) +
-            '<div class="viewer-sidebar__list">' +
+            '<div class="viewer-sidebar__list viewer-sidebar__list--documents">' +
             (documents.length
                 ? documents
                       .map((entry) =>
                           ViewerSidebarRenderer.#renderDocumentButton(
                               entry,
-                              snapshot.activeDocumentId,
+                              activeDocumentId,
                               translate
                           )
                       )
@@ -266,39 +278,7 @@ export class ViewerSidebarRenderer {
                 : ViewerSidebarRenderer.#renderEmpty(
                       translate('sidebar.noDocuments')
                   )) +
-            '</div>' +
-            ViewerSidebarRenderer.#renderAssetList(assets, translate)
-        )
-    }
-
-    /**
-     * Renders open document selection when more than one document is loaded.
-     * @param {{ id: string, documentModel: any }[]} documents Session documents.
-     * @param {string | undefined} activeDocumentId Active document id.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderDocumentListSection(documents, activeDocumentId, translate) {
-        if (documents.length < 2) {
-            return ''
-        }
-
-        return (
-            '<div class="viewer-sidebar__section"><h4>' +
-            ViewerSidebarRenderer.#escapeHtml(
-                translate('sidebar.openDocuments')
-            ) +
-            '</h4><div class="viewer-sidebar__list">' +
-            documents
-                .map((entry) =>
-                    ViewerSidebarRenderer.#renderDocumentButton(
-                        entry,
-                        activeDocumentId,
-                        translate
-                    )
-                )
-                .join('') +
-            '</div></div>'
+            '</div>'
         )
     }
 
@@ -566,15 +546,8 @@ export class ViewerSidebarRenderer {
      * @returns {string}
      */
     static #renderInfoPanel(documentModel, translate) {
-        if (documentModel?.pcb) {
-            return ViewerSidebarRenderer.#renderBoardInfoPanel(
-                documentModel,
-                translate
-            )
-        }
-
-        if (documentModel?.schematic) {
-            return ViewerSidebarRenderer.#renderSchematicInfoPanel(
+        if (documentModel?.pcb || documentModel?.schematic) {
+            return ViewerSidebarOverviewRenderer.render(
                 documentModel,
                 translate
             )
@@ -585,62 +558,6 @@ export class ViewerSidebarRenderer {
                 translate('sidebar.info')
             ) +
             ViewerSidebarRenderer.#renderEmpty(translate('sidebar.noDocument'))
-        )
-    }
-
-    /**
-     * Renders PCB document info.
-     * @param {any} documentModel Active document model.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderBoardInfoPanel(documentModel, translate) {
-        const rows = [
-            ['sidebar.infoTitle', documentModel?.summary?.title],
-            [
-                'sidebar.infoDimensions',
-                ViewerSidebarRenderer.#formatBoardDimensions(documentModel)
-            ],
-            ['summary.components', documentModel?.summary?.componentCount],
-            ['summary.layers', documentModel?.summary?.layerCount],
-            ['sidebar.objectTracks', documentModel?.summary?.trackCount],
-            ['sidebar.objectVias', documentModel?.summary?.viaCount]
-        ].filter((row) => row[1] !== undefined && row[1] !== '')
-
-        return (
-            ViewerSidebarRenderer.#renderPanelHeader(
-                translate('sidebar.boardProperties')
-            ) + ViewerSidebarRenderer.#renderKeyValueRows(rows, translate)
-        )
-    }
-
-    /**
-     * Renders schematic document info.
-     * @param {any} documentModel Active document model.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderSchematicInfoPanel(documentModel, translate) {
-        const sheet = documentModel?.schematic?.sheet || {}
-        const rows = [
-            ['sidebar.infoTitle', documentModel?.summary?.title],
-            ['sidebar.infoSize', sheet.size || sheet.paper],
-            [
-                'sidebar.infoWidth',
-                ViewerSidebarRenderer.#formatMetric(sheet.width)
-            ],
-            [
-                'sidebar.infoHeight',
-                ViewerSidebarRenderer.#formatMetric(sheet.height)
-            ],
-            ['summary.components', documentModel?.summary?.componentCount],
-            ['summary.texts', documentModel?.summary?.textCount]
-        ].filter((row) => row[1] !== undefined && row[1] !== '')
-
-        return (
-            ViewerSidebarRenderer.#renderPanelHeader(
-                translate('sidebar.pageProperties')
-            ) + ViewerSidebarRenderer.#renderKeyValueRows(rows, translate)
         )
     }
 
@@ -841,39 +758,6 @@ export class ViewerSidebarRenderer {
             net?.nodes?.length ??
             net?.members?.length
         return count ? String(count) + ' pins' : ''
-    }
-
-    /**
-     * Formats board dimensions.
-     * @param {any} documentModel Active document model.
-     * @returns {string}
-     */
-    static #formatBoardDimensions(documentModel) {
-        const width =
-            documentModel?.summary?.boardWidthMil ||
-            documentModel?.pcb?.boardOutline?.widthMil
-        const height =
-            documentModel?.summary?.boardHeightMil ||
-            documentModel?.pcb?.boardOutline?.heightMil
-
-        if (!width || !height) {
-            return ''
-        }
-
-        return String(width) + ' x ' + String(height) + ' mil'
-    }
-
-    /**
-     * Formats a metric value with millimeter units when numeric.
-     * @param {any} value Raw value.
-     * @returns {string}
-     */
-    static #formatMetric(value) {
-        if (value === undefined || value === null || value === '') {
-            return ''
-        }
-
-        return String(value) + (Number.isFinite(Number(value)) ? ' mm' : '')
     }
 
     /**

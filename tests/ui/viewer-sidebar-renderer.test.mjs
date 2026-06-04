@@ -168,11 +168,11 @@ test('ViewerSidebarRenderer renders sidebar collapse controls', () => {
 })
 
 /**
- * Verifies the default project panel renders as the new board overview.
+ * Verifies the info panel renders the active document overview.
  */
-test('ViewerSidebarRenderer renders the board overview design', () => {
+test('ViewerSidebarRenderer renders the board overview in the info panel', () => {
     const html = ViewerSidebarRenderer.render(
-        createSnapshot(createBoardDocument(), 'project')
+        createSnapshot(createBoardDocument(), 'info')
     )
 
     assert.match(html, /viewer-sidebar__overview/)
@@ -200,11 +200,11 @@ test('ViewerSidebarRenderer renders the board overview design', () => {
 })
 
 /**
- * Verifies schematic line-segment metadata is preserved in the sidebar.
+ * Verifies schematic line-segment metadata is preserved in the info overview.
  */
-test('ViewerSidebarRenderer renders schematic line segments in the overview', () => {
+test('ViewerSidebarRenderer renders schematic line segments in the info overview', () => {
     const html = ViewerSidebarRenderer.render(
-        createSnapshot(createSchematicDocument(), 'project')
+        createSnapshot(createSchematicDocument(), 'info')
     )
 
     assert.match(html, /<h3>Sheet overview<\/h3>/)
@@ -373,7 +373,48 @@ test('ViewerSidebarRenderer adapts the components panel label', () => {
 })
 
 /**
- * Verifies project and info panels render session and document metadata.
+ * Verifies open documents are filtered to files compatible with the active
+ * top-level view.
+ */
+test('ViewerSidebarRenderer filters project documents by active view', () => {
+    const boardDocument = createBoardDocument()
+    const schematicDocument = createSchematicDocument()
+    const documents = [
+        { id: 'doc-1', documentModel: schematicDocument },
+        { id: 'doc-2', documentModel: boardDocument }
+    ]
+    const schematicHtml = ViewerSidebarRenderer.render({
+        activeSidebarTab: 'project',
+        activeView: 'schematic',
+        activeDocumentId: 'doc-1',
+        documents,
+        documentModel: schematicDocument
+    })
+    const pcbHtml = ViewerSidebarRenderer.render({
+        activeSidebarTab: 'project',
+        activeView: 'pcb',
+        activeDocumentId: 'doc-2',
+        documents,
+        documentModel: boardDocument
+    })
+    const sceneHtml = ViewerSidebarRenderer.render({
+        activeSidebarTab: 'project',
+        activeView: '3d',
+        activeDocumentId: 'doc-2',
+        documents,
+        documentModel: boardDocument
+    })
+
+    assert.match(schematicHtml, /demo-sheet\.SchDoc/)
+    assert.doesNotMatch(schematicHtml, /demo-board\.PcbDoc/)
+    assert.match(pcbHtml, /demo-board\.PcbDoc/)
+    assert.doesNotMatch(pcbHtml, /demo-sheet\.SchDoc/)
+    assert.match(sceneHtml, /demo-board\.PcbDoc/)
+    assert.doesNotMatch(sceneHtml, /demo-sheet\.SchDoc/)
+})
+
+/**
+ * Verifies project and info panels separate documents from overview metadata.
  */
 test('ViewerSidebarRenderer renders project and info panels', () => {
     const boardDocument = createBoardDocument()
@@ -391,11 +432,19 @@ test('ViewerSidebarRenderer renders project and info panels', () => {
     const infoHtml = ViewerSidebarRenderer.render(
         createSnapshot(boardDocument, 'info')
     )
+    const documentsIndex = projectHtml.indexOf('Open documents')
+    const firstDocumentIndex = projectHtml.indexOf('data-document-id="doc-1"')
+    const assetIndex = projectHtml.indexOf('fake-model.step')
 
+    assert.ok(documentsIndex >= 0)
+    assert.ok(firstDocumentIndex > documentsIndex)
+    assert.ok(assetIndex > firstDocumentIndex)
+    assert.match(projectHtml, /viewer-sidebar__list--documents/)
     assert.match(projectHtml, /data-document-id="doc-1"/)
     assert.match(projectHtml, /data-document-id="doc-2"/)
     assert.match(projectHtml, /fake-model\.step/)
-    assert.match(infoHtml, /Board properties/)
-    assert.match(infoHtml, /Dimensions/)
+    assert.doesNotMatch(projectHtml, /viewer-sidebar__overview/)
+    assert.match(infoHtml, /Board overview/)
+    assert.match(infoHtml, /viewer-sidebar__overview-grid/)
     assert.match(infoHtml, /1000 x 500 mil/)
 })

@@ -694,7 +694,8 @@ test('altium-toolkit colors dense bottom overlay artwork from 3D appearance', ()
         }
     })
 
-    assert.equal(scene.board.surfaceColor, undefined)
+    assert.equal(scene.board.surfaceColor, 0x17396b)
+    assert.equal(scene.board.edgeColor, 0xf7f9d1)
     assert.equal(scene.detail.silkscreen.bottom.fillColor, 0xebebeb)
     assert.equal(scene.detail.silkscreen.bottom.strokeColor, 0xebebeb)
     assert.equal(scene.detail.silkscreen.bottom.knockoutColor, 0x2f6a2c)

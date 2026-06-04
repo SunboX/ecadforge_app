@@ -1,4 +1,5 @@
 import { PcbScene3dBoardShapeFactory } from './PcbScene3dBoardShapeFactory.mjs'
+import { PcbScene3dBoardMaterialPalette } from './PcbScene3dBoardMaterialPalette.mjs'
 import { PcbScene3dCameraRig } from './PcbScene3dCameraRig.mjs'
 import { PcbScene3dCopperFactory } from './PcbScene3dCopperFactory.mjs'
 import { PcbScene3dCopperDetailFilter } from './PcbScene3dCopperDetailFilter.mjs'
@@ -7,10 +8,12 @@ import { PcbScene3dFallbackVisibility } from './PcbScene3dFallbackVisibility.mjs
 import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
+import { PcbScene3dRenderGroupVisibility } from './PcbScene3dRenderGroupVisibility.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
 import { PcbScene3dTrueTypeTextFactory } from './PcbScene3dTrueTypeTextFactory.mjs'
 import { PcbScene3dSelectionStyler } from './PcbScene3dSelectionStyler.mjs'
 import { PcbScene3dViaFactory } from './PcbScene3dViaFactory.mjs'
+import { PcbScene3dViewportResize } from './PcbScene3dViewportResize.mjs'
 import { PcbScene3dViewScale } from './PcbScene3dViewScale.mjs'
 /**
  * Browser-side Three.js runtime for the interactive PCB 3D viewport.
@@ -40,6 +43,8 @@ export class PcbScene3dRuntime {
     #orbitControlsClass
     /** @type {any} */
     #controls
+    /** @type {{ disconnect?: () => void } | null} */
+    #resizeObserver
     /** @type {any} */
     #rootGroup
     /** @type {any} */
@@ -56,6 +61,8 @@ export class PcbScene3dRuntime {
     #fallbackBodyRoots
     /** @type {Set<string>} */
     #loadedExternalModelDesignators
+    /** @type {boolean} */
+    #hasLoadedBoardAssemblyModel
     /** @type {string} */
     #selectedDesignator
     /** @type {number} */
@@ -93,6 +100,7 @@ export class PcbScene3dRuntime {
         this.#camera = null
         this.#orbitControlsClass = null
         this.#controls = null
+        this.#resizeObserver = null
         this.#rootGroup = null
         this.#viewOrientationGroup = null
         this.#raycaster = null
@@ -101,6 +109,7 @@ export class PcbScene3dRuntime {
         this.#selectionRoots = new Map()
         this.#fallbackBodyRoots = new Map()
         this.#loadedExternalModelDesignators = new Set()
+        this.#hasLoadedBoardAssemblyModel = false
         this.#selectedDesignator = ''
         this.#initialRadius =
             PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
@@ -149,6 +158,11 @@ export class PcbScene3dRuntime {
         this.#render()
     }
 
+    /** @param {string} designator */
+    setSelectedDesignator(designator) {
+        this.#setSelectedDesignator(designator)
+    }
+
     /**
      * Resolves when the runtime has completed its initial async
      * initialization and deferred scene settlement.
@@ -166,6 +180,7 @@ export class PcbScene3dRuntime {
         })
         this.#listeners = []
         this.#controls?.dispose?.()
+        this.#resizeObserver?.disconnect?.()
         this.#renderer?.dispose?.()
         if (this.#renderer?.domElement?.remove) {
             this.#renderer.domElement.remove()
@@ -177,6 +192,7 @@ export class PcbScene3dRuntime {
         this.#camera = null
         this.#orbitControlsClass = null
         this.#controls = null
+        this.#resizeObserver = null
         this.#rootGroup = null
         this.#viewOrientationGroup = null
         this.#raycaster = null
@@ -185,6 +201,7 @@ export class PcbScene3dRuntime {
         this.#selectionRoots.clear()
         this.#fallbackBodyRoots.clear()
         this.#loadedExternalModelDesignators.clear()
+        this.#hasLoadedBoardAssemblyModel = false
         this.#selectedDesignator = ''
         this.#groups.clear()
         this.#settleReady()
@@ -237,7 +254,7 @@ export class PcbScene3dRuntime {
      */
     #createRenderer() {
         const THREE = this.#three
-        const size = this.#resolveViewportSize()
+        const size = PcbScene3dViewportResize.resolveSize(this.#viewportNode)
 
         this.#renderer = new THREE.WebGLRenderer({
             antialias: true,
@@ -358,7 +375,7 @@ export class PcbScene3dRuntime {
             this.#loadDeferredCopper()
             this.#applyToggleVisibility()
             this.#render()
-
+            this.#settleReady()
             await PcbScene3dRuntime.#yieldToNextFrame()
             if (this.#isDisposed) {
                 return
@@ -471,12 +488,14 @@ export class PcbScene3dRuntime {
             (x, y) => this.#normalizeBoardPoint(x, y)
         )
         const materialOptions = { roughness: 0.68, metalness: 0.08 }
-        const surfaceColor = Number(board.surfaceColor)
+        const hasBoardAssemblyModel = Boolean(this.#sceneDescription.boardAssemblyModel)
+        const surfaceColor = PcbScene3dBoardMaterialPalette.resolveSurfaceColor(board, { hasBoardAssemblyModel })
         const edgeColor = Number(board.edgeColor)
         return new THREE.Mesh(geometry, [
             new THREE.MeshStandardMaterial({
                 ...materialOptions,
-                color: Number.isInteger(surfaceColor) ? surfaceColor : 0x2f6a2c,
+                color: surfaceColor,
+                visible: PcbScene3dBoardMaterialPalette.isGeneratedSurfaceVisible({ hasBoardAssemblyModel }),
                 side: THREE.DoubleSide
             }),
             new THREE.MeshStandardMaterial({
@@ -595,10 +614,17 @@ export class PcbScene3dRuntime {
                     placement?.designator,
                     placementGroup
                 )
-                PcbScene3dFallbackVisibility.markExternalModelLoaded(
-                    this.#loadedExternalModelDesignators,
-                    placement?.designator
-                )
+                if (
+                    String(placement?.sourceType || '').toLowerCase() ===
+                    'board-assembly'
+                ) {
+                    this.#hasLoadedBoardAssemblyModel = true
+                } else {
+                    PcbScene3dFallbackVisibility.markExternalModelLoaded(
+                        this.#loadedExternalModelDesignators,
+                        placement?.designator
+                    )
+                }
                 this.#applyToggleVisibility()
             }
         })
@@ -644,6 +670,11 @@ export class PcbScene3dRuntime {
             event.preventDefault?.()
         })
         this.#bindListener(window, 'resize', () => this.#handleResize())
+        this.#resizeObserver = PcbScene3dViewportResize.observe(
+            globalThis,
+            this.#viewportNode,
+            () => this.#handleResize()
+        )
     }
 
     /** @returns {void} */
@@ -696,7 +727,7 @@ export class PcbScene3dRuntime {
             return
         }
 
-        const size = this.#resolveViewportSize()
+        const size = PcbScene3dViewportResize.resolveSize(this.#viewportNode)
         this.#renderer.setSize(size.width, size.height, false)
         this.#camera.aspect = size.width / size.height
         this.#camera.updateProjectionMatrix()
@@ -706,27 +737,13 @@ export class PcbScene3dRuntime {
 
     /** @returns {void} */
     #applyToggleVisibility() {
-        const copperGroup = this.#groups.get('copper')
-        const fallbackBodiesGroup = this.#groups.get('fallback-bodies')
-        const externalModelsGroup = this.#groups.get('external-models')
-
-        if (copperGroup) {
-            copperGroup.visible = this.#toggles.copper
-        }
-
-        if (fallbackBodiesGroup) {
-            fallbackBodiesGroup.visible = this.#toggles['fallback-bodies']
-        }
-
-        PcbScene3dFallbackVisibility.applyVisibility(
-            this.#fallbackBodyRoots,
-            this.#loadedExternalModelDesignators,
-            this.#toggles
-        )
-
-        if (externalModelsGroup) {
-            externalModelsGroup.visible = this.#toggles['external-models']
-        }
+        PcbScene3dRenderGroupVisibility.apply({
+            groups: this.#groups,
+            toggles: this.#toggles,
+            fallbackBodyRoots: this.#fallbackBodyRoots,
+            loadedExternalModelDesignators: this.#loadedExternalModelDesignators,
+            hasLoadedBoardAssemblyModel: this.#hasLoadedBoardAssemblyModel
+        })
     }
 
     /** @returns {void} */
@@ -783,18 +800,6 @@ export class PcbScene3dRuntime {
         return {
             x: Number(x || 0) - this.#sceneDescription.board.centerX,
             y: Number(y || 0) - this.#sceneDescription.board.centerY
-        }
-    }
-
-    /**
-     * Resolves the viewport size while guarding against zero-sized mounts.
-     * @returns {{ width: number, height: number }}
-     */
-    #resolveViewportSize() {
-        const rect = this.#viewportNode?.getBoundingClientRect?.()
-        return {
-            width: Math.max(Math.round(Number(rect?.width || 960)), 320),
-            height: Math.max(Math.round(Number(rect?.height || 560)), 320)
         }
     }
 

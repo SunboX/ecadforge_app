@@ -35,7 +35,7 @@ export class PcbViewController {
     /** @type {string} */
     #selectedComponentKey
 
-    /** @type {((change: { documentId: string, componentKey: string }) => void) | null} */
+    /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #onComponentSelectionChange
 
     /** @type {((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null} */
@@ -59,7 +59,7 @@ export class PcbViewController {
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
      * @param {object} documentModel Document model.
-     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
+     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
      */
     constructor(contentNode, documentModel, options = {}) {
         this.#contentNode = contentNode
@@ -298,7 +298,8 @@ export class PcbViewController {
 
         this.#onComponentSelectionChange({
             documentId: this.#documentId,
-            componentKey
+            componentKey,
+            source: 'pcb-board'
         })
     }
 

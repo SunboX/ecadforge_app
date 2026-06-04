@@ -59,15 +59,16 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 ## WebMCP
 
 The WebMCP layer is loaded by `src/main.mjs` after the controller is created.
-It is dependency-free and feature-detects `navigator.modelContext`. If native
-support is unavailable, registration is skipped and the viewer continues
-normally.
+It is dependency-free and feature-detects `document.modelContext`, with a
+fallback for the deprecated `navigator.modelContext`. If native support is
+unavailable, registration is skipped and the viewer continues normally.
 
 Registered tools operate only on loaded session documents. `design` arguments
 can target `active`, a loaded document id, an exact loaded file name, or an
-unambiguous loaded file base name. The tools return MCP-style JSON text content
-for design listing, component listing/search, net listing/search, component pin
-queries, and extended-net traversal.
+unambiguous loaded file base name. Current WebMCP browsers receive object-form
+tool descriptors with `execute` handlers and read-only/untrusted-content
+annotations. Older positional browser APIs remain supported with MCP-style JSON
+text results.
 
 The app WebMCP service owns session selection and source-format dispatch. The
 toolkit query services derive compact netlists from normalized schematic nets,

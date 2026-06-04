@@ -178,6 +178,7 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
         GITHUB_RATE_LIMIT_URL,
         apiUrl,
         projectUrl,
+        'https://api.github.com/repos/acme/demo/contents/hardware/project/3D%20Bodies?ref=main',
         schematicUrl,
         boardUrl
     ])
@@ -187,6 +188,68 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
     assert.deepEqual(
         result.entries.map((entry) => entry.name),
         ['Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
+    )
+})
+
+test('GitHubSourceLoader fetches Altium project-local board assembly assets', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const bodiesApiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project/3D%20Bodies?ref=main'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/'
+    const projectUrl = baseUrl + 'Demo.PrjPcb'
+    const boardUrl = baseUrl + 'PCB/FixtureBoard.PcbDoc'
+    const assemblyUrl =
+        baseUrl + '3D%20Bodies/FixtureBoard.step'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'Demo.PrjPcb',
+                type: 'file',
+                download_url: projectUrl
+            }
+        ]),
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
+        [projectUrl]: 'DocumentPath=PCB\\FixtureBoard.PcbDoc\n',
+        [boardUrl]: '|HEADER=Protel for Windows - PCB',
+        [bodiesApiUrl]: JSON.stringify([
+            {
+                name: 'FixtureBoard.step',
+                type: 'file',
+                download_url: assemblyUrl
+            },
+            {
+                name: 'notes.txt',
+                type: 'file',
+                download_url: baseUrl + '3D%20Bodies/notes.txt'
+            }
+        ]),
+        [assemblyUrl]: 'ISO-10303-21;'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://github.com/acme/demo/tree/main/hardware/project'
+    )
+
+    assert.ok(urls.includes(bodiesApiUrl))
+    assert.ok(urls.includes(assemblyUrl))
+    assert.deepEqual(
+        result.assets.map((asset) => ({
+            name: asset.name,
+            relativePath: asset.relativePath,
+            format: asset.format
+        })),
+        [
+            {
+                name: 'FixtureBoard.step',
+                relativePath: '3D Bodies/FixtureBoard.step',
+                format: 'step'
+            }
+        ]
     )
 })
 

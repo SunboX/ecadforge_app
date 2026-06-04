@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { WebMcpAdapter } from '../../../src/core/webmcp/WebMcpAdapter.mjs'
 
+const originalDocument = globalThis.document
+const originalNavigator = globalThis.navigator
+
 /**
  * Builds one fake app snapshot for adapter tool calls.
  * @returns {object}
@@ -46,27 +49,63 @@ function createSnapshot() {
 }
 
 /**
- * Builds a fake model context.
+ * Builds a fake object-form model context.
  * @param {{ throwFor?: string }} [options] Options.
- * @returns {{ calls: object[], modelContext: { registerTool: (...args: any[]) => void } }}
+ * @returns {{ calls: object[], modelContext: { registerTool: (tool: object, options?: object) => void } }}
  */
-function createModelContext(options = {}) {
+function createObjectModelContext(options = {}) {
     const calls = []
     return {
         calls,
         modelContext: {
-            registerTool(...args) {
-                if (args[0] === options.throwFor) {
+            registerTool(tool, registrationOptions) {
+                if (tool.name === options.throwFor) {
                     throw new Error('registration failed')
                 }
                 calls.push({
-                    name: args[0],
-                    descriptor: args[1],
-                    handler: args[2]
+                    tool,
+                    registrationOptions
                 })
             }
         }
     }
+}
+
+/**
+ * Builds a fake legacy positional model context.
+ * @param {{ throwFor?: string }} [options] Options.
+ * @returns {{ calls: object[], modelContext: { registerTool: (name: string, descriptor: object, handler: Function) => void } }}
+ */
+function createLegacyModelContext(options = {}) {
+    const calls = []
+    return {
+        calls,
+        modelContext: {
+            registerTool(name, descriptor, handler) {
+                if (name === options.throwFor) {
+                    throw new Error('registration failed')
+                }
+                calls.push({
+                    name,
+                    descriptor,
+                    handler
+                })
+            }
+        }
+    }
+}
+
+/**
+ * Replaces one global object for the duration of one test.
+ * @param {string} property Property name.
+ * @param {unknown} value Replacement value.
+ * @returns {void}
+ */
+function setGlobalProperty(property, value) {
+    Object.defineProperty(globalThis, property, {
+        configurable: true,
+        value
+    })
 }
 
 /**
@@ -86,17 +125,17 @@ test('WebMcpAdapter no-ops when native support is unavailable', () => {
 })
 
 /**
- * Verifies all loaded-session tools are registered and return MCP text content.
+ * Verifies all loaded-session tools are registered with the current object API.
  */
-test('WebMcpAdapter registers tools with native model context', async () => {
-    const fake = createModelContext()
+test('WebMcpAdapter registers tools with object-form native model context', async () => {
+    const fake = createObjectModelContext()
     const adapter = new WebMcpAdapter({
         getSnapshot: createSnapshot,
         modelContext: fake.modelContext
     })
 
     const result = adapter.initialize()
-    const toolNames = fake.calls.map((call) => call.name)
+    const toolNames = fake.calls.map((call) => call.tool.name)
 
     assert.equal(result.available, true)
     assert.equal(result.registered, 10)
@@ -113,8 +152,53 @@ test('WebMcpAdapter registers tools with native model context', async () => {
         'query_xnet_by_pin_name'
     ])
 
+    const listNets = fake.calls.find((call) => call.tool.name === 'list_nets')
+    assert.deepEqual(listNets.tool.annotations, {
+        readOnlyHint: true,
+        untrustedContentHint: true
+    })
+    assert.deepEqual(await listNets.tool.execute({}), { nets: ['I2C_SDA'] })
+})
+
+/**
+ * Verifies the adapter prefers the current document-scoped API when available.
+ */
+test('WebMcpAdapter prefers document model context over deprecated navigator context', () => {
+    const documentContext = createObjectModelContext()
+    const navigatorContext = createObjectModelContext()
+    setGlobalProperty('document', { modelContext: documentContext.modelContext })
+    setGlobalProperty('navigator', {
+        modelContext: navigatorContext.modelContext
+    })
+
+    try {
+        const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
+        const result = adapter.initialize()
+
+        assert.equal(result.registered, 10)
+        assert.equal(documentContext.calls.length, 10)
+        assert.equal(navigatorContext.calls.length, 0)
+    } finally {
+        setGlobalProperty('document', originalDocument)
+        setGlobalProperty('navigator', originalNavigator)
+    }
+})
+
+/**
+ * Verifies legacy browser registrations still receive MCP text content.
+ */
+test('WebMcpAdapter supports legacy positional model context', async () => {
+    const fake = createLegacyModelContext()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext
+    })
+
+    const result = adapter.initialize()
     const listNets = fake.calls.find((call) => call.name === 'list_nets')
     const response = await listNets.handler({})
+
+    assert.equal(result.registered, 10)
     assert.deepEqual(response, {
         content: [
             {
@@ -129,7 +213,7 @@ test('WebMcpAdapter registers tools with native model context', async () => {
  * Verifies one failed tool registration does not block the rest.
  */
 test('WebMcpAdapter continues after one registration failure', () => {
-    const fake = createModelContext({ throwFor: 'list_nets' })
+    const fake = createObjectModelContext({ throwFor: 'list_nets' })
     const adapter = new WebMcpAdapter({
         getSnapshot: createSnapshot,
         modelContext: fake.modelContext
@@ -141,7 +225,7 @@ test('WebMcpAdapter continues after one registration failure', () => {
     assert.equal(result.registered, 9)
     assert.equal(result.failed, 1)
     assert.equal(
-        fake.calls.some((call) => call.name === 'query_component'),
+        fake.calls.some((call) => call.tool.name === 'query_component'),
         true
     )
 })

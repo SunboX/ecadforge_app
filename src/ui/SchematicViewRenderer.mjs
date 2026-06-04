@@ -1,6 +1,7 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { SchematicHighlightBoundsPolicy } from './SchematicHighlightBoundsPolicy.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 
 const OWNER_ID_FIELDS = [
@@ -73,6 +74,17 @@ export class SchematicViewRenderer {
             isKicad
         )
         if (!bounds) return markup
+        const anchorBoundsList = ownerId
+            ? SchematicViewRenderer.#resolveOwnerBodyBounds(
+                  schematic,
+                  ownerId,
+                  SchematicViewRenderer.#resolveContentHeight(
+                      schematic,
+                      isKicad
+                  ),
+                  isKicad
+              )
+            : []
 
         const highlight = SchematicViewRenderer.#renderHighlight(
             key,
@@ -82,7 +94,8 @@ export class SchematicViewRenderer {
             SchematicViewRenderer.#injectHighlightStyle(markup)
         return SchematicViewRenderer.#injectHighlightMarkup(
             styledMarkup,
-            highlight
+            highlight,
+            anchorBoundsList
         )
     }
 
@@ -237,7 +250,23 @@ export class SchematicViewRenderer {
                   isKicad
               )
             : []
-        const bounds = SchematicViewRenderer.#mergeBounds(primitiveBounds)
+        const bodyBounds = ownerId
+            ? SchematicViewRenderer.#resolveOwnerBodyBounds(
+                  schematic,
+                  ownerId,
+                  contentHeight,
+                  isKicad
+              )
+            : []
+        const primitiveEnvelope =
+            SchematicViewRenderer.#mergeBounds(primitiveBounds)
+        const bodyEnvelope = SchematicViewRenderer.#mergeBounds(bodyBounds)
+        const pinCount = ownerId
+            ? SchematicViewRenderer.#countOwnerPins(schematic, ownerId)
+            : 0
+        const bounds = SchematicHighlightBoundsPolicy.prefersBodyBounds(
+            bodyEnvelope, primitiveEnvelope, pinCount
+        ) ? bodyEnvelope : primitiveEnvelope
         return (
             bounds ||
             SchematicViewRenderer.#resolveComponentAnchorBounds(
@@ -257,19 +286,18 @@ export class SchematicViewRenderer {
      * @returns {{ minX: number, minY: number, maxX: number, maxY: number }[]}
      */
     static #resolveOwnerBounds(schematic, ownerId, contentHeight, isKicad) {
-        const bounds = SchematicViewRenderer.#ownerPrimitiveCollections(schematic)
-            .flatMap((items) =>
-                items.filter((item) =>
-                    SchematicViewRenderer.#matchesOwnerId(item, ownerId)
-                )
+        const bounds = SchematicViewRenderer.#ownerPrimitiveEntries(schematic)
+            .filter((entry) =>
+                SchematicViewRenderer.#matchesOwnerId(entry.item, ownerId)
             )
             .map((item) => ({
                 bounds: SchematicViewRenderer.#resolvePrimitiveBounds(
-                    item,
+                    item.item,
                     contentHeight,
                     isKicad
                 ),
-                isText: SchematicViewRenderer.#isTextPrimitive(item)
+                isText: SchematicViewRenderer.#isTextPrimitive(item.item),
+                kind: item.kind
             }))
             .filter((entry) => entry.bounds)
         const geometryBounds = bounds
@@ -280,7 +308,89 @@ export class SchematicViewRenderer {
             geometryBounds.length
                 ? geometryBounds
                 : bounds.map((entry) => entry.bounds)
+        )
+    }
+
+    /**
+     * Resolves body primitive bounds used as a backdrop insertion anchor.
+     * @param {object} schematic Schematic model.
+     * @param {string} ownerId Owner id.
+     * @param {number} contentHeight Rendered content height.
+     * @param {boolean} isKicad Whether coordinates are direct.
+     * @returns {{ minX: number, minY: number, maxX: number, maxY: number }[]}
+     */
+    static #resolveOwnerBodyBounds(
+        schematic,
+        ownerId,
+        contentHeight,
+        isKicad
+    ) {
+        return SchematicViewRenderer.#ownerPrimitiveEntries(schematic)
+            .filter(
+                (entry) =>
+                    SchematicViewRenderer.#isBodyPrimitiveKind(entry.kind) &&
+                    SchematicViewRenderer.#matchesOwnerId(entry.item, ownerId)
             )
+            .map((entry) =>
+                SchematicViewRenderer.#resolvePrimitiveBounds(
+                    entry.item,
+                    contentHeight,
+                    isKicad
+                )
+            )
+            .filter((bounds) =>
+                SchematicViewRenderer.#isValidBounds(bounds)
+            )
+    }
+
+    /**
+     * Counts owner-linked pins.
+     * @param {object} schematic Schematic model.
+     * @param {string} ownerId Owner id.
+     * @returns {number}
+     */
+    static #countOwnerPins(schematic, ownerId) {
+        return Array.isArray(schematic?.pins)
+            ? schematic.pins.filter((pin) =>
+                  SchematicViewRenderer.#matchesOwnerId(pin, ownerId)
+              ).length
+            : 0
+    }
+
+    /**
+     * Returns owner-linked primitive entries with their collection kind.
+     * @param {object} schematic Schematic model.
+     * @returns {{ kind: string, item: any }[]}
+     */
+    static #ownerPrimitiveEntries(schematic) {
+        return [
+            { kind: 'rectangle', items: schematic?.rectangles },
+            { kind: 'polygon', items: schematic?.polygons },
+            { kind: 'ellipse', items: schematic?.ellipses },
+            { kind: 'arc', items: schematic?.arcs },
+            { kind: 'bezier', items: schematic?.beziers },
+            { kind: 'line', items: schematic?.lines },
+            { kind: 'pin', items: schematic?.pins },
+            { kind: 'text', items: schematic?.texts }
+        ].flatMap((collection) =>
+            Array.isArray(collection.items)
+                ? collection.items.map((item) => ({
+                      kind: collection.kind,
+                      item
+                  }))
+                : []
+        )
+    }
+
+    /**
+     * Returns whether a primitive kind is likely to describe symbol body area.
+     * @param {string} kind Primitive collection kind.
+     * @returns {boolean}
+     */
+    static #isBodyPrimitiveKind(kind) {
+        return ['rectangle', 'polygon', 'ellipse', 'arc', 'bezier'].includes(
+            kind
+        )
     }
 
     /**
@@ -289,16 +399,18 @@ export class SchematicViewRenderer {
      * @returns {any[][]}
      */
     static #ownerPrimitiveCollections(schematic) {
-        return [
-            schematic?.rectangles,
-            schematic?.polygons,
-            schematic?.ellipses,
-            schematic?.arcs,
-            schematic?.beziers,
-            schematic?.lines,
-            schematic?.pins,
-            schematic?.texts
-        ].filter(Array.isArray)
+        return SchematicViewRenderer.#ownerPrimitiveEntries(schematic).reduce(
+            (collections, entry) => {
+                const latest = collections.at(-1)
+                if (latest?.kind === entry.kind) {
+                    latest.items.push(entry.item)
+                    return collections
+                }
+                collections.push({ kind: entry.kind, items: [entry.item] })
+                return collections
+            },
+            []
+        ).map((collection) => collection.items)
     }
 
     /**
@@ -718,15 +830,16 @@ export class SchematicViewRenderer {
     static #injectHighlightStyle(markup) {
         const rules =
             '.schematic-svg .schematic-symbol-highlight {' +
-            'pointer-events: none;}' +
+            'pointer-events: visiblePainted;cursor: pointer;}' +
             '.schematic-svg .schematic-symbol-highlight__fill {' +
-            'fill: rgba(227, 84, 23, 0.14);' +
-            'stroke: #e35417;stroke-width: 1.8;' +
+            'fill: rgba(27, 191, 227, 0.4);' +
+            'stroke: rgba(27, 191, 227, 0.45);' +
+            'stroke-width: 0.8;' +
             'vector-effect: non-scaling-stroke;' +
-            'filter: drop-shadow(0 0 3px rgba(227, 84, 23, 0.55));}' +
+            'filter: drop-shadow(0 0 3px rgba(27, 191, 227, 0.55));}' +
             '.schematic-svg .schematic-symbol-highlight__outline {' +
-            'fill: none;stroke: rgba(255,255,255,0.9);' +
-            'stroke-width: 0.8;vector-effect: non-scaling-stroke;}'
+            'fill: none;stroke: rgba(255, 255, 255, 0.72);' +
+            'stroke-width: 0.6;vector-effect: non-scaling-stroke;}'
 
         return String(markup).replace(
             /(<svg\b[^>]*>)/,
@@ -740,22 +853,114 @@ export class SchematicViewRenderer {
      * Injects highlight markup into the main schematic coordinate group.
      * @param {string} markup Rendered markup.
      * @param {string} highlight Highlight SVG markup.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }[]} anchorBoundsList Body bounds anchors.
      * @returns {string}
      */
-    static #injectHighlightMarkup(markup, highlight) {
-        if (/<g class="[^"]*\bschematic-scene\b[^"]*"[^>]*>/.test(markup)) {
-            return String(markup).replace(
-                /(<g class="[^"]*\bschematic-scene\b[^"]*"[^>]*>)/,
-                '$1' + highlight
+    static #injectHighlightMarkup(markup, highlight, anchorBoundsList = []) {
+        const renderedMarkup = String(markup)
+        for (const anchorBounds of anchorBoundsList) {
+            const anchorEndIndex = SchematicViewRenderer.#findRectEndIndex(
+                renderedMarkup,
+                anchorBounds
+            )
+            if (anchorEndIndex !== null) {
+                return (
+                    renderedMarkup.slice(0, anchorEndIndex) +
+                    highlight +
+                    renderedMarkup.slice(anchorEndIndex)
+                )
+            }
+        }
+
+        const groupEndIndex =
+            SchematicViewRenderer.#findGroupEndIndex(
+                renderedMarkup,
+                'schematic-scene'
+            ) ??
+            SchematicViewRenderer.#findGroupEndIndex(
+                renderedMarkup,
+                'schematic-content'
+            )
+        if (groupEndIndex !== null) {
+            return (
+                renderedMarkup.slice(0, groupEndIndex) +
+                highlight +
+                renderedMarkup.slice(groupEndIndex)
             )
         }
-        if (/<g class="[^"]*\bschematic-content\b[^"]*"[^>]*>/.test(markup)) {
-            return String(markup).replace(
-                /(<g class="[^"]*\bschematic-content\b[^"]*"[^>]*>)/,
-                '$1' + highlight
-            )
+        return renderedMarkup.replace(/(<\/svg>)/, highlight + '$1')
+    }
+
+    /**
+     * Finds the end of a rendered rectangle matching bounds.
+     * @param {string} markup SVG markup.
+     * @param {{ minX: number, minY: number, maxX: number, maxY: number }} bounds Rectangle bounds.
+     * @returns {number | null}
+     */
+    static #findRectEndIndex(markup, bounds) {
+        if (!SchematicViewRenderer.#isValidBounds(bounds)) return null
+
+        const x = SchematicViewRenderer.#escapeRegex(
+            SchematicViewRenderer.#formatNumber(bounds.minX)
+        )
+        const y = SchematicViewRenderer.#escapeRegex(
+            SchematicViewRenderer.#formatNumber(bounds.minY)
+        )
+        const width = SchematicViewRenderer.#escapeRegex(
+            SchematicViewRenderer.#formatNumber(bounds.maxX - bounds.minX)
+        )
+        const height = SchematicViewRenderer.#escapeRegex(
+            SchematicViewRenderer.#formatNumber(bounds.maxY - bounds.minY)
+        )
+        const pattern = new RegExp(
+            '<rect\\b(?=[^>]*\\bx="' +
+                x +
+                '")(?=[^>]*\\by="' +
+                y +
+                '")(?=[^>]*\\bwidth="' +
+                width +
+                '")(?=[^>]*\\bheight="' +
+                height +
+                '")[^>]*>',
+            'i'
+        )
+        const match = String(markup).match(pattern)
+        return match && match.index !== undefined
+            ? match.index + match[0].length
+            : null
+    }
+
+    /**
+     * Finds the closing tag index for the first SVG group with a class.
+     * @param {string} markup SVG markup.
+     * @param {string} className Group class to locate.
+     * @returns {number | null}
+     */
+    static #findGroupEndIndex(markup, className) {
+        const groupPattern = new RegExp(
+            '<g\\b(?=[^>]*\\bclass="[^"]*\\b' + className + '\\b)[^>]*>',
+            'i'
+        )
+        const groupMatch = String(markup).match(groupPattern)
+        if (!groupMatch || groupMatch.index === undefined) return null
+
+        const tagPattern = /<\/?g\b[^>]*\/?>/gi
+        tagPattern.lastIndex = groupMatch.index + groupMatch[0].length
+        let depth = 1
+        let tagMatch = tagPattern.exec(markup)
+
+        while (tagMatch) {
+            const tag = tagMatch[0]
+            if (tag.startsWith('</')) {
+                depth -= 1
+                if (depth === 0) return tagMatch.index
+            } else if (!tag.endsWith('/>')) {
+                depth += 1
+            }
+            tagMatch = tagPattern.exec(markup)
         }
-        return String(markup).replace(/(<svg\b[^>]*>)/, '$1' + highlight)
+
+        return null
     }
 
     /**
@@ -780,5 +985,14 @@ export class SchematicViewRenderer {
             .replaceAll('<', '&lt;')
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
+    }
+
+    /**
+     * Escapes text for a regular expression.
+     * @param {string} value Raw text.
+     * @returns {string}
+     */
+    static #escapeRegex(value) {
+        return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     }
 }

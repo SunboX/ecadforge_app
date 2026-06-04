@@ -678,8 +678,8 @@ export class AppController {
     }
 
     /**
-     * Applies one PCB component selection from the sidebar.
-     * @param {{ documentId?: string, componentKey?: string }} change Selection event.
+     * Applies one PCB component selection from the sidebar or PCB view.
+     * @param {{ documentId?: string, componentKey?: string, source?: string }} change Selection event.
      * @returns {void}
      */
     #handlePcbComponentSelectionChange(change) {
@@ -688,13 +688,31 @@ export class AppController {
             change?.documentId || snapshot.activeDocumentId
         )
         const componentKey = String(change?.componentKey || '')
-        const nextSelection = PcbComponentSelectionModel.withSelection(
+        const selectedKey = PcbComponentSelectionModel.resolveSelectedKey(
             snapshot.selectedPcbComponents,
-            documentId,
-            componentKey
+            documentId
         )
+        const nextComponentKey =
+            componentKey && componentKey === selectedKey ? '' : componentKey
+        const nextSelection = PcbComponentSelectionModel.withSessionSelection(
+            snapshot.selectedPcbComponents,
+            snapshot.documents,
+            documentId,
+            nextComponentKey,
+            selectedKey
+        )
+        const patch = {
+            selectedPcbComponents: nextSelection
+        }
+        const nextSelectedKey = PcbComponentSelectionModel.resolveSelectedKey(
+            nextSelection,
+            documentId
+        )
+        if (change?.source === 'pcb-board' && nextSelectedKey) {
+            patch.activeSidebarTab = 'components'
+        }
 
-        this.#state.setValue('selectedPcbComponents', nextSelection)
+        this.#state.patch(patch)
     }
 
     /**

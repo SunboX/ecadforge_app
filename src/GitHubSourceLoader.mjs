@@ -1,5 +1,6 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { GitHubAltiumProjectManifest } from './GitHubAltiumProjectManifest.mjs'
+import { GitHubCompanionAssetLoader } from './GitHubCompanionAssetLoader.mjs'
 import { SExpressionParser } from 'kicad-toolkit/parser'
 
 /**
@@ -53,17 +54,23 @@ export class GitHubSourceLoader {
 
     /**
      * Builds a complete source descriptor from one resolved source file.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }} resolved Resolved source file.
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[], companionAssetFiles?: { rawUrl: string, fileName: string, relativePath: string, format: string }[] }} resolved Resolved source file.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
     async #buildLoadResult(resolved) {
         const entries = await this.#loadEntries(resolved)
         const modelReferences =
             GitHubSourceLoader.#extractKicadModelReferences(entries)
-        const assets = await this.#loadReferencedModelAssets(
-            resolved.rawUrl,
-            modelReferences
-        )
+        const assets = GitHubCompanionAssetLoader.mergeAssets([
+            ...(await this.#loadReferencedModelAssets(
+                resolved.rawUrl,
+                modelReferences
+            )),
+            ...(await GitHubCompanionAssetLoader.loadAssetFiles(
+                resolved.companionAssetFiles || [],
+                (rawUrl) => this.#fetchArrayBuffer(rawUrl)
+            ))
+        ])
 
         return {
             sourceType: 'github',
@@ -106,7 +113,9 @@ export class GitHubSourceLoader {
                 )
                 const buffer = await this.#fetchArrayBuffer(modelUrl)
                 assets.push({
-                    name: GitHubSourceLoader.#basename(relativePath),
+                    name:
+                        String(relativePath).split('/').filter(Boolean).at(-1) ||
+                        '',
                     relativePath,
                     bytes: new Uint8Array(buffer),
                     format
@@ -128,7 +137,10 @@ export class GitHubSourceLoader {
     async #resolveTreeSource(treeSource) {
         await this.#assertGitHubFolderDiscoveryAvailable()
         const entries = await this.#fetchJson(treeSource.apiUrl)
-        const altiumProject = await this.#resolveAltiumProject(entries)
+        const altiumProject = await this.#resolveAltiumProject(
+            treeSource.apiUrl,
+            entries
+        )
         if (altiumProject) {
             return altiumProject
         }
@@ -138,10 +150,11 @@ export class GitHubSourceLoader {
 
     /**
      * Resolves an Altium `.PrjPcb` manifest from a GitHub folder, if present.
+     * @param {string} contentsApiUrl GitHub Contents API URL for the project folder.
      * @param {object[]} entries GitHub Contents API entries.
-     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[] } | null>}
+     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[], companionAssetFiles: { rawUrl: string, fileName: string, relativePath: string, format: string }[] } | null>}
      */
-    async #resolveAltiumProject(entries) {
+    async #resolveAltiumProject(contentsApiUrl, entries) {
         const projectEntries = (entries || []).filter((entry) => {
             return (
                 entry?.type === 'file' &&
@@ -177,12 +190,19 @@ export class GitHubSourceLoader {
             )
         }
 
+        const companionAssetFiles =
+            await GitHubCompanionAssetLoader.resolveAltiumProjectAssets(
+                contentsApiUrl,
+                (apiUrl) => this.#fetchJson(apiUrl)
+            )
+
         return {
             rawUrl: projectRawUrl,
             fileName: String(projectEntry.name || ''),
             formatFamily: 'altium',
             fileType: 'prjpcb',
-            projectFiles
+            projectFiles,
+            companionAssetFiles
         }
     }
 
@@ -705,7 +725,9 @@ export class GitHubSourceLoader {
 
                 return {
                     designator,
-                    modelName: GitHubSourceLoader.#basename(relativePath),
+                    modelName:
+                        String(relativePath).split('/').filter(Boolean).at(-1) ||
+                        '',
                     modelPath,
                     relativePath,
                     modelTransform:
@@ -937,20 +959,6 @@ export class GitHubSourceLoader {
 
         parsedUrl.pathname = '/' + [...directoryParts, ...assetParts].join('/')
         return parsedUrl.href
-    }
-
-    /**
-     * Returns the last slash-delimited path part.
-     * @param {string} path Path-like value.
-     * @returns {string}
-     */
-    static #basename(path) {
-        return (
-            String(path || '')
-                .split('/')
-                .filter(Boolean)
-                .at(-1) || ''
-        )
     }
 
     /**

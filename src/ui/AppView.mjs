@@ -3,10 +3,13 @@ import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
+import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
+import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
 import { PcbViewController } from './PcbViewController.mjs'
 import { PcbScene3dController } from './PcbScene3dController.mjs'
 import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
+import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
 import { UiText } from './UiText.mjs'
 import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
@@ -88,7 +91,7 @@ export class AppView {
     /** @type {PcbViewController | null} */
     #pcbViewController
 
-    /** @type {((change: { documentId: string, componentKey: string }) => void) | null} */
+    /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #pcbComponentSelectionCallback
 
     /** @type {PcbScene3dController | null} */
@@ -96,12 +99,12 @@ export class AppView {
 
     #heroPreviewController
 
-    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController} */
+    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController} */
     #createScene3dController
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -137,6 +140,9 @@ export class AppView {
             options.createScene3dController ||
             ((viewportNode, documentModel, sceneOptions = {}) =>
                 new PcbScene3dController(viewportNode, documentModel, {
+                    documentId: sceneOptions.documentId || '',
+                    onComponentSelectionChange:
+                        sceneOptions.onComponentSelectionChange || null,
                     sessionAssets: sceneOptions.sessionAssets || [],
                     setLoadingVisible: sceneOptions.setLoadingVisible,
                     translate: sceneOptions.translate || this.#translate
@@ -341,7 +347,7 @@ export class AppView {
 
     /**
      * Binds PCB component selection row clicks.
-     * @param {(change: { documentId: string, componentKey: string }) => void} callback
+     * @param {(change: { documentId: string, componentKey: string, source?: string }) => void} callback
      * @returns {void}
      */
     bindPcbComponentSelectionChange(callback) {
@@ -615,6 +621,10 @@ export class AppView {
             : this.#expandedSidebarMarkup
         if (!this.#sidebarCollapsed) {
             AppView.#restoreSidebarScroll(this.#documentRailNode, scrollState)
+            AppViewPcbComponentScroller.scrollSelectedIntoView(
+                this.#documentRailNode,
+                snapshot
+            )
         }
     }
 
@@ -650,9 +660,13 @@ export class AppView {
         if (!this.#contentNode) return
 
         const previousPcbSide = this.#pcbViewController?.side || 'top'
+        const shouldKeepScene3d =
+            snapshot.activeView === '3d' &&
+            this.#scene3dController?.getDocumentModel?.() ===
+                snapshot.documentModel
         this.#disposeSvgViewportController()
         this.#disposePcbViewController()
-        this.#disposeScene3dController()
+        if (!shouldKeepScene3d) this.#disposeScene3dController()
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
             this.#contentNode.innerHTML =
@@ -676,6 +690,11 @@ export class AppView {
                 String(snapshot?.selectedPcbComponents?.[documentId] || '')
             )
             this.#attachSvgViewportController('.schematic-svg')
+            SchematicComponentSelectionBinder.bind(
+                this.#contentNode.querySelector('.schematic-svg'),
+                documentId,
+                this.#pcbComponentSelectionCallback
+            )
             return
         }
 
@@ -708,14 +727,29 @@ export class AppView {
         }
 
         if (snapshot.activeView === '3d') {
+            const documentId = String(snapshot?.activeDocumentId || '')
+            const selectedKey = String(
+                snapshot?.selectedPcbComponents?.[documentId] || ''
+            )
+            if (shouldKeepScene3d) {
+                this.#scene3dController?.setSelectedComponent?.(selectedKey)
+                return
+            }
             this.#contentNode.innerHTML = Scene3dRenderer.render(
                 snapshot.documentModel,
                 this.#translate
             )
-            this.#attachScene3dController(
-                snapshot.documentModel,
-                snapshot.sessionAssets || []
-            )
+            this.#scene3dController = AppViewScene3dControllerBinder.attach({
+                contentNode: this.#contentNode,
+                documentId,
+                documentModel: snapshot.documentModel,
+                sessionAssets: snapshot.sessionAssets || [],
+                selectedComponentKey: selectedKey,
+                onComponentSelectionChange:
+                    this.#pcbComponentSelectionCallback,
+                translate: this.#translate,
+                createScene3dController: this.#createScene3dController
+            })
             return
         }
 
@@ -775,51 +809,6 @@ export class AppView {
     #disposePcbViewController() {
         this.#pcbViewController?.dispose()
         this.#pcbViewController = null
-    }
-
-    /**
-     * Attaches the 3D scene controller when the rendered content contains a
-     * compatible viewport mount node.
-     * @param {any} documentModel
-     * @param {any[]} sessionAssets
-     * @returns {void}
-     */
-    #attachScene3dController(documentModel, sessionAssets) {
-        if (!this.#contentNode) return
-
-        const viewportNode = this.#contentNode.querySelector(
-            '[data-scene-3d-viewport]'
-        )
-        if (!AppView.#isSceneViewportNode(viewportNode)) {
-            return
-        }
-
-        const loadingNode = this.#contentNode.querySelector(
-            '[data-scene-3d-loading]'
-        )
-        const setLoadingVisible = (visible) => {
-            if (!AppView.#isSceneViewportNode(loadingNode)) {
-                return
-            }
-
-            if (visible) {
-                loadingNode.removeAttribute?.('hidden')
-                return
-            }
-
-            loadingNode.setAttribute?.('hidden', 'hidden')
-        }
-        setLoadingVisible(true)
-
-        this.#scene3dController = this.#createScene3dController(
-            viewportNode,
-            documentModel,
-            {
-                sessionAssets,
-                setLoadingVisible,
-                translate: this.#translate
-            }
-        )
     }
 
     /**
@@ -944,15 +933,6 @@ export class AppView {
             typeof node.addEventListener === 'function' &&
             typeof node.removeEventListener === 'function'
         )
-    }
-
-    /**
-     * Returns true when the queried node can host the 3D viewport.
-     * @param {unknown} node
-     * @returns {boolean}
-     */
-    static #isSceneViewportNode(node) {
-        return Boolean(node && typeof node === 'object')
     }
 
     /**

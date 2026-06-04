@@ -530,7 +530,7 @@ test('dynamic viewer renderers use provided translations', () => {
     const emptyHtml = ViewerEmptyStateRenderer.render(translate)
     const sidebarHtml = ViewerSidebarRenderer.render(
         {
-            activeSidebarTab: 'project',
+            activeSidebarTab: 'info',
             activeDocumentId: 'doc-1',
             documents: [
                 {

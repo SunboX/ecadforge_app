@@ -42,6 +42,42 @@ function createKicadSchematicDocument() {
                     orientation: 'left',
                     designator: '1',
                     name: 'IN'
+                },
+                {
+                    ownerIndex: 'owner-a',
+                    x: 40,
+                    y: 24,
+                    length: 4,
+                    orientation: 'right',
+                    designator: '2',
+                    name: 'OUT'
+                },
+                {
+                    ownerIndex: 'owner-a',
+                    x: 30,
+                    y: 22,
+                    length: 4,
+                    orientation: 'top',
+                    designator: '3',
+                    name: 'VCC'
+                },
+                {
+                    ownerIndex: 'owner-a',
+                    x: 34,
+                    y: 22,
+                    length: 4,
+                    orientation: 'top',
+                    designator: '4',
+                    name: 'EN'
+                },
+                {
+                    ownerIndex: 'owner-a',
+                    x: 30,
+                    y: 38,
+                    length: 4,
+                    orientation: 'bottom',
+                    designator: '5',
+                    name: 'GND'
                 }
             ],
             texts: [
@@ -127,6 +163,93 @@ function createAltiumSchematicDocument() {
 }
 
 /**
+ * Builds a compact Altium transistor symbol whose arrow body is smaller than
+ * the owner-linked symbol lines and pins.
+ * @returns {object}
+ */
+function createAltiumTransistorDocument() {
+    const documentModel = createAltiumSchematicDocument()
+    const schematic = documentModel.schematic
+    schematic.components = [
+        {
+            designator: 'VT1',
+            value: 'S8050',
+            x: 50,
+            y: 50
+        }
+    ]
+    schematic.polygons = [
+        {
+            ownerIndex: 'owner-vt1',
+            points: [
+                { x: 40, y: 40 },
+                { x: 43, y: 45 },
+                { x: 46, y: 41 }
+            ]
+        }
+    ]
+    schematic.lines = [
+        { ownerIndex: 'owner-vt1', x1: 40, y1: 60, x2: 50, y2: 53 },
+        { ownerIndex: 'owner-vt1', x1: 50, y1: 47, x2: 40, y2: 40 },
+        { ownerIndex: 'owner-vt1', x1: 50, y1: 59, x2: 50, y2: 41 }
+    ]
+    schematic.pins = [
+        {
+            ownerIndex: 'owner-vt1',
+            x: 40,
+            y: 60,
+            length: 20,
+            orientation: 'top'
+        },
+        {
+            ownerIndex: 'owner-vt1',
+            x: 50,
+            y: 50,
+            length: 20,
+            orientation: 'right'
+        },
+        {
+            ownerIndex: 'owner-vt1',
+            x: 40,
+            y: 40,
+            length: 20,
+            orientation: 'bottom'
+        }
+    ]
+    schematic.texts = [
+        {
+            ownerIndex: 'owner-vt1',
+            name: 'Designator',
+            x: 72,
+            y: 64,
+            text: 'VT1',
+            fontSize: 10
+        }
+    ]
+
+    return documentModel
+}
+
+/**
+ * Extracts the selected highlight fill attributes from rendered markup.
+ * @param {string} html Rendered schematic HTML.
+ * @returns {{ x: string, y: string, width: string, height: string }}
+ */
+function extractHighlightFillBox(html) {
+    const match = String(html).match(
+        /<rect class="schematic-symbol-highlight__fill" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/
+    )
+    assert.ok(match, 'Expected a schematic highlight fill rectangle.')
+
+    return {
+        x: match[1],
+        y: match[2],
+        width: match[3],
+        height: match[4]
+    }
+}
+
+/**
  * Verifies selected KiCad schematic symbols get an SVG-local highlight.
  */
 test('SchematicViewRenderer highlights selected KiCad symbols', () => {
@@ -139,12 +262,28 @@ test('SchematicViewRenderer highlights selected KiCad symbols', () => {
     assert.match(html, /class="schematic-component-highlight-style"/)
     assert.match(html, /data-schematic-component-key="U1"/)
     assert.match(html, /schematic-symbol-highlight/)
+    assert.match(html, /fill: rgba\(27, 191, 227, 0\.4\);/)
+    assert.match(html, /stroke: rgba\(27, 191, 227, 0\.45\);/)
+    assert.doesNotMatch(html, /stroke: #e35417;/)
+
+    const box = extractHighlightFillBox(html)
+    assert.deepEqual(box, {
+        x: '17.12',
+        y: '15.12',
+        width: '29.76',
+        height: '29.76'
+    })
+    const highlightIndex = html.indexOf(
+        '<g class="schematic-symbol-highlight"'
+    )
+    assert.equal(highlightIndex > html.indexOf('x="24" y="18"'), true)
+    assert.equal(highlightIndex < html.indexOf('x1="24" y1="24"'), true)
 })
 
 /**
  * Verifies selected Altium schematic symbols get an SVG-local highlight.
  */
-test('SchematicViewRenderer highlights selected Altium symbols', () => {
+test('SchematicViewRenderer keeps compact Altium highlights body-sized', () => {
     const html = SchematicViewRenderer.render(
         createAltiumSchematicDocument(),
         'R1'
@@ -154,4 +293,31 @@ test('SchematicViewRenderer highlights selected Altium symbols', () => {
     assert.match(html, /class="schematic-component-highlight-style"/)
     assert.match(html, /data-schematic-component-key="R1"/)
     assert.match(html, /schematic-symbol-highlight/)
+
+    const box = extractHighlightFillBox(html)
+    assert.deepEqual(box, {
+        x: '64',
+        y: '57',
+        width: '32',
+        height: '26'
+    })
+})
+
+/**
+ * Verifies compact Altium transistor highlights include owner-linked lines and
+ * pins when the body polygon is only the arrow.
+ */
+test('SchematicViewRenderer keeps Altium transistor highlights symbol-sized', () => {
+    const html = SchematicViewRenderer.render(
+        createAltiumTransistorDocument(),
+        'VT1'
+    )
+
+    const box = extractHighlightFillBox(html)
+    assert.deepEqual(box, {
+        x: '34',
+        y: '74',
+        width: '42',
+        height: '32'
+    })
 })

@@ -147,6 +147,7 @@ class FakeNode extends FakeEventTarget {
         return []
     }
 
+
     /**
      * @param {string} value
      */
@@ -512,6 +513,7 @@ class FakeSidebarNode extends FakeNode {
         if (button) this.dispatch('click', { target: button })
     }
 
+
     /**
      * @param {string} presetName
      * @returns {void}
@@ -681,27 +683,29 @@ test('AppView renders the viewer sidebar when one document is open', () => {
     assert.equal(rail.hidden, false)
     assert.match(rail.innerHTML, /data-sidebar-tab="project"/)
     assert.match(rail.innerHTML, /data-sidebar-tab="info"/)
-    assert.match(rail.innerHTML, /Board overview/)
-    assert.match(rail.innerHTML, /viewer-sidebar__overview-grid/)
+    assert.match(rail.innerHTML, /Open documents/)
+    assert.match(rail.innerHTML, /demo\.PcbDoc/)
+    assert.doesNotMatch(rail.innerHTML, /Board overview/)
 })
 
 /**
- * Verifies AppView renders project rows and marks the active document.
+ * Verifies AppView filters project rows to the active top-level view.
  */
-test('AppView renders a project sidebar panel with an active document row', () => {
+test('AppView filters project sidebar rows by active view', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
+    const snapshot = createMultiDocumentSnapshot()
 
-    view.render(createMultiDocumentSnapshot())
+    view.render({
+        ...snapshot,
+        activeView: 'schematic'
+    })
 
     const rail = fakeDocument.querySelector('#documentRail')
-    const activeButton = rail.querySelector('[data-document-id="doc-2"]')
 
     assert.equal(rail.hidden, false)
     assert.match(rail.innerHTML, /demo\.SchDoc/)
-    assert.match(rail.innerHTML, /demo\.PcbDoc/)
-    assert.equal(activeButton?.getAttribute('aria-pressed'), 'true')
-    assert.equal(activeButton?.classList.contains('is-active'), true)
+    assert.doesNotMatch(rail.innerHTML, /demo\.PcbDoc/)
 })
 
 /**
@@ -804,7 +808,9 @@ test('AppView binds PCB object opacity changes', () => {
     })
     view.render({ ...createPcbSnapshot(), activeSidebarTab: 'objects' })
 
-    fakeDocument.querySelector('#documentRail').changeObjectOpacity('tracks', 45)
+    fakeDocument
+        .querySelector('#documentRail')
+        .changeObjectOpacity('tracks', 45)
 
     assert.deepEqual(received, [
         {
@@ -935,9 +941,9 @@ test('AppView renders the active sidebar panel from snapshot state', () => {
 })
 
 /**
- * Verifies the detailed info table remains available behind the info tab.
+ * Verifies the overview remains available behind the info tab.
  */
-test('AppView renders the detailed info sidebar panel', () => {
+test('AppView renders the overview info sidebar panel', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
 
@@ -946,7 +952,8 @@ test('AppView renders the detailed info sidebar panel', () => {
     const rail = fakeDocument.querySelector('#documentRail')
 
     assert.equal(rail.hidden, false)
-    assert.match(rail.innerHTML, /Page properties/)
+    assert.match(rail.innerHTML, /Sheet overview/)
+    assert.match(rail.innerHTML, /viewer-sidebar__overview-grid/)
     assert.match(rail.innerHTML, /A4/)
 })
 

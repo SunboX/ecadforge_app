@@ -16,7 +16,7 @@ export class WebMcpAdapter {
     constructor(dependencies) {
         this.#modelContext =
             dependencies?.modelContext === undefined
-                ? globalThis.navigator?.modelContext || null
+                ? WebMcpAdapter.#getNativeModelContext()
                 : dependencies.modelContext
         this.#registry =
             dependencies?.registry ||
@@ -53,14 +53,17 @@ export class WebMcpAdapter {
 
     /**
      * Registers one tool using the available browser signature.
-     * @param {{ name: string, description: string, inputSchema: object, handler: (args: object) => object }} tool Tool definition.
+     * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
      * @returns {void}
      */
     #registerTool(tool) {
-        const handler = async (args = {}) => {
-            return WebMcpAdapter.#formatResult(await tool.handler(args || {}))
+        const registerTool = this.#modelContext.registerTool
+        if (registerTool.length <= 2) {
+            this.#modelContext.registerTool(WebMcpAdapter.#toNativeTool(tool))
+            return
         }
 
+        const handler = WebMcpAdapter.#toLegacyHandler(tool)
         if (this.#modelContext.registerTool.length >= 4) {
             this.#modelContext.registerTool(
                 tool.name,
@@ -79,6 +82,44 @@ export class WebMcpAdapter {
             },
             handler
         )
+    }
+
+    /**
+     * Returns the current browser WebMCP model context.
+     * @returns {object | null}
+     */
+    static #getNativeModelContext() {
+        return (
+            globalThis.document?.modelContext ||
+            globalThis.navigator?.modelContext ||
+            null
+        )
+    }
+
+    /**
+     * Converts one registry tool to the current object-form WebMCP API.
+     * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
+     * @returns {{ name: string, description: string, inputSchema: object, annotations?: object, execute: (args?: object) => Promise<unknown> }}
+     */
+    static #toNativeTool(tool) {
+        return {
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: tool.annotations,
+            execute: async (args = {}) => tool.handler(args || {})
+        }
+    }
+
+    /**
+     * Builds a handler for older positional browser APIs.
+     * @param {{ handler: (args: object) => object }} tool Tool definition.
+     * @returns {(args?: object) => Promise<{ content: { type: 'text', text: string }[] }>}
+     */
+    static #toLegacyHandler(tool) {
+        return async (args = {}) => {
+            return WebMcpAdapter.#formatResult(await tool.handler(args || {}))
+        }
     }
 
     /**

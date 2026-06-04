@@ -64,6 +64,8 @@ When the browser provides native WebMCP support, ECAD Forge registers read-only
 tools for the designs already loaded in the current session. Agents can list
 loaded designs, components, nets, search metadata, query component pins, and
 trace extended connectivity without uploading files or scanning local paths.
+The adapter uses the current `document.modelContext` API and keeps a deprecated
+`navigator.modelContext` fallback for older WebMCP-capable browsers.
 Netlist extraction, search validation, component grouping, and traversal rules
 are delegated to the Altium and KiCad toolkit query APIs.
 

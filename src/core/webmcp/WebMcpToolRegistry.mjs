@@ -20,7 +20,7 @@ export class WebMcpToolRegistry {
 
     /**
      * Returns all registered tool definitions.
-     * @returns {{ name: string, description: string, inputSchema: object, handler: (args: object) => object }[]}
+     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object) => object }[]}
      */
     getTools() {
         return [
@@ -106,7 +106,7 @@ export class WebMcpToolRegistry {
      * @param {string} description Tool description.
      * @param {object} properties Input properties.
      * @param {(args: object) => object} handler Tool handler.
-     * @returns {{ name: string, description: string, inputSchema: object, handler: (args: object) => object }}
+     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object) => object }}
      */
     #tool(name, description, properties, handler) {
         return {
@@ -116,6 +116,10 @@ export class WebMcpToolRegistry {
                 type: 'object',
                 properties,
                 additionalProperties: false
+            },
+            annotations: {
+                readOnlyHint: true,
+                untrustedContentHint: true
             },
             handler
         }
