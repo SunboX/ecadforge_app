@@ -30,6 +30,8 @@ export class PcbScene3dBoardAssemblyPresentation {
             )
         const surfaceColor =
             PcbScene3dBoardAssemblyPresentation.#resolveSurfaceColor(board)
+        const edgeColor =
+            PcbScene3dBoardAssemblyPresentation.#resolveEdgeColor(board)
         const importedSurfaceColor =
             PcbScene3dBoardAssemblyPresentation.#resolveImportedSurfaceColor(
                 meshRecords
@@ -45,7 +47,8 @@ export class PcbScene3dBoardAssemblyPresentation {
             PcbScene3dBoardAssemblyPresentation.#applyMeshPresentation(
                 record,
                 boardBounds,
-                surfaceColor
+                surfaceColor,
+                edgeColor
             )
         )
         PcbScene3dBoardAssemblyPresentation.#centerSubstrateOnBoardPlane(
@@ -100,13 +103,15 @@ export class PcbScene3dBoardAssemblyPresentation {
      * @param {{ object: any, meshBounds: { minX: number, minY: number, maxX: number, maxY: number }, materialKind: string, triangleCount: number }} record Mesh record.
      * @param {{ minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number, widthMil: number, heightMil: number, areaMil: number } | null} boardBounds Board envelope.
      * @param {number} surfaceColor Board substrate color.
+     * @param {number} edgeColor Board edge color.
      * @returns {void}
      */
-    static #applyMeshPresentation(record, boardBounds, surfaceColor) {
+    static #applyMeshPresentation(record, boardBounds, surfaceColor, edgeColor) {
         if (record?.materialKind === 'board') {
-            PcbScene3dBoardAssemblyPresentation.#applyMaterialColor(
-                record.object?.material,
-                surfaceColor
+            PcbScene3dBoardAssemblyPresentation.#applyBoardSubstrateMaterial(
+                record.object,
+                surfaceColor,
+                edgeColor
             )
             record.object.visible = true
             return
@@ -124,6 +129,284 @@ export class PcbScene3dBoardAssemblyPresentation {
     }
 
     /**
+     * Applies solder-mask and substrate-edge colors to an imported board mesh.
+     * @param {any} object Board-substrate mesh.
+     * @param {number} surfaceColor Solder-mask face color.
+     * @param {number} edgeColor Substrate edge color.
+     * @returns {void}
+     */
+    static #applyBoardSubstrateMaterial(object, surfaceColor, edgeColor) {
+        if (
+            PcbScene3dBoardAssemblyPresentation.#applyBoardFaceGroups(
+                object,
+                surfaceColor,
+                edgeColor
+            )
+        ) {
+            return
+        }
+
+        PcbScene3dBoardAssemblyPresentation.#applyMaterialColor(
+            object?.material,
+            surfaceColor
+        )
+    }
+
+    /**
+     * Splits board substrate faces into mask and edge material groups.
+     * @param {any} object Board-substrate mesh.
+     * @param {number} surfaceColor Solder-mask face color.
+     * @param {number} edgeColor Substrate edge color.
+     * @returns {boolean}
+     */
+    static #applyBoardFaceGroups(object, surfaceColor, edgeColor) {
+        const geometry = object?.geometry
+        const positions = geometry?.attributes?.position?.array
+        const triangleCount =
+            PcbScene3dBoardAssemblyPresentation.#resolveGeometryTriangleCount(
+                geometry
+            )
+
+        if (!positions?.length || triangleCount <= 0) {
+            return false
+        }
+
+        const sourceMaterial = Array.isArray(object.material)
+            ? object.material[0]
+            : object.material
+        const surfaceMaterial =
+            PcbScene3dBoardAssemblyPresentation.#cloneMaterial(sourceMaterial)
+        const edgeMaterial =
+            PcbScene3dBoardAssemblyPresentation.#cloneMaterial(sourceMaterial)
+
+        if (!surfaceMaterial || !edgeMaterial) {
+            return false
+        }
+
+        PcbScene3dBoardAssemblyPresentation.#applyMaterialColor(
+            surfaceMaterial,
+            surfaceColor
+        )
+        PcbScene3dBoardAssemblyPresentation.#applyMaterialColor(
+            edgeMaterial,
+            edgeColor
+        )
+        object.material = [surfaceMaterial, edgeMaterial]
+        PcbScene3dBoardAssemblyPresentation.#clearGeometryGroups(geometry)
+        PcbScene3dBoardAssemblyPresentation.#appendBoardFaceGroups(
+            geometry,
+            positions,
+            triangleCount
+        )
+        return true
+    }
+
+    /**
+     * Appends contiguous board face material ranges.
+     * @param {any} geometry Buffer geometry.
+     * @param {ArrayLike<number>} positions Position buffer.
+     * @param {number} triangleCount Geometry triangle count.
+     * @returns {void}
+     */
+    static #appendBoardFaceGroups(geometry, positions, triangleCount) {
+        let runStart = 0
+        let runMaterialIndex =
+            PcbScene3dBoardAssemblyPresentation.#resolveTriangleMaterialIndex(
+                geometry,
+                positions,
+                0
+            )
+
+        for (let index = 1; index < triangleCount; index += 1) {
+            const materialIndex =
+                PcbScene3dBoardAssemblyPresentation.#resolveTriangleMaterialIndex(
+                    geometry,
+                    positions,
+                    index
+                )
+
+            if (materialIndex === runMaterialIndex) {
+                continue
+            }
+
+            PcbScene3dBoardAssemblyPresentation.#appendGeometryGroup(
+                geometry,
+                runStart,
+                index,
+                runMaterialIndex
+            )
+            runStart = index
+            runMaterialIndex = materialIndex
+        }
+
+        PcbScene3dBoardAssemblyPresentation.#appendGeometryGroup(
+            geometry,
+            runStart,
+            triangleCount,
+            runMaterialIndex
+        )
+    }
+
+    /**
+     * Resolves a board triangle material index from its normal.
+     * @param {any} geometry Buffer geometry.
+     * @param {ArrayLike<number>} positions Position buffer.
+     * @param {number} triangleIndex Triangle index.
+     * @returns {0 | 1}
+     */
+    static #resolveTriangleMaterialIndex(geometry, positions, triangleIndex) {
+        const points = [0, 1, 2].map((cornerIndex) =>
+            PcbScene3dBoardAssemblyPresentation.#readTrianglePoint(
+                geometry,
+                positions,
+                triangleIndex,
+                cornerIndex
+            )
+        )
+        const zRatio =
+            PcbScene3dBoardAssemblyPresentation.#resolveNormalZRatio(points)
+
+        return zRatio >= 0.75 ? 0 : 1
+    }
+
+    /**
+     * Reads one triangle corner from indexed or unindexed geometry.
+     * @param {any} geometry Buffer geometry.
+     * @param {ArrayLike<number>} positions Position buffer.
+     * @param {number} triangleIndex Triangle index.
+     * @param {number} cornerIndex Corner index.
+     * @returns {{ x: number, y: number, z: number }}
+     */
+    static #readTrianglePoint(
+        geometry,
+        positions,
+        triangleIndex,
+        cornerIndex
+    ) {
+        const indices = geometry?.index?.array
+        const vertexIndex = indices?.length
+            ? Number(indices[triangleIndex * 3 + cornerIndex] || 0)
+            : triangleIndex * 3 + cornerIndex
+        const offset = vertexIndex * 3
+
+        return {
+            x: Number(positions[offset] || 0),
+            y: Number(positions[offset + 1] || 0),
+            z: Number(positions[offset + 2] || 0)
+        }
+    }
+
+    /**
+     * Resolves how closely one triangle normal points along board Z.
+     * @param {{ x: number, y: number, z: number }[]} points Triangle points.
+     * @returns {number}
+     */
+    static #resolveNormalZRatio(points) {
+        const [a, b, c] = points
+        const ux = b.x - a.x
+        const uy = b.y - a.y
+        const uz = b.z - a.z
+        const vx = c.x - a.x
+        const vy = c.y - a.y
+        const vz = c.z - a.z
+        const nx = uy * vz - uz * vy
+        const ny = uz * vx - ux * vz
+        const nz = ux * vy - uy * vx
+        const length = Math.hypot(nx, ny, nz)
+
+        return length > 0 ? Math.abs(nz) / length : 1
+    }
+
+    /**
+     * Resolves one geometry triangle count.
+     * @param {any} geometry Buffer geometry.
+     * @returns {number}
+     */
+    static #resolveGeometryTriangleCount(geometry) {
+        const indexCount =
+            Number(geometry?.index?.count) ||
+            Number(geometry?.index?.array?.length) ||
+            0
+
+        if (indexCount > 0) {
+            return Math.floor(indexCount / 3)
+        }
+
+        return Math.floor(
+            Number(geometry?.attributes?.position?.count || 0) / 3
+        )
+    }
+
+    /**
+     * Clears existing material groups from one geometry.
+     * @param {any} geometry Buffer geometry.
+     * @returns {void}
+     */
+    static #clearGeometryGroups(geometry) {
+        if (typeof geometry?.clearGroups === 'function') {
+            geometry.clearGroups()
+            return
+        }
+
+        if (Array.isArray(geometry?.groups)) {
+            geometry.groups.length = 0
+        }
+    }
+
+    /**
+     * Appends one triangle material group.
+     * @param {any} geometry Buffer geometry.
+     * @param {number} startTriangle First triangle index.
+     * @param {number} endTriangle Exclusive end triangle index.
+     * @param {number} materialIndex Material index.
+     * @returns {void}
+     */
+    static #appendGeometryGroup(
+        geometry,
+        startTriangle,
+        endTriangle,
+        materialIndex
+    ) {
+        const count = Math.max(endTriangle - startTriangle, 0) * 3
+        if (count <= 0) {
+            return
+        }
+
+        if (typeof geometry?.addGroup === 'function') {
+            geometry.addGroup(startTriangle * 3, count, materialIndex)
+        } else if (Array.isArray(geometry?.groups)) {
+            geometry.groups.push({
+                start: startTriangle * 3,
+                count,
+                materialIndex
+            })
+        }
+    }
+
+    /**
+     * Clones one material without sharing mutable color state.
+     * @param {any} material Source material.
+     * @returns {any | null}
+     */
+    static #cloneMaterial(material) {
+        if (!material) {
+            return null
+        }
+
+        if (typeof material.clone === 'function') {
+            return material.clone()
+        }
+
+        return {
+            ...material,
+            color:
+                typeof material.color?.clone === 'function'
+                    ? material.color.clone()
+                    : material.color
+        }
+    }
+
+    /**
      * Resolves the app-level substrate color for board assembly meshes.
      * @param {{ surfaceColor?: number } | null | undefined} board Board dimensions.
      * @returns {number}
@@ -132,6 +415,15 @@ export class PcbScene3dBoardAssemblyPresentation {
         return PcbScene3dBoardMaterialPalette.resolveSurfaceColor(board, {
             hasBoardAssemblyModel: true
         })
+    }
+
+    /**
+     * Resolves the app-level substrate edge color for board assembly meshes.
+     * @param {{ edgeColor?: number } | null | undefined} board Board dimensions.
+     * @returns {number}
+     */
+    static #resolveEdgeColor(board) {
+        return Number.isInteger(board?.edgeColor) ? board.edgeColor : 0xc9ca78
     }
 
     /**

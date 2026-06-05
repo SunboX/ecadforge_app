@@ -560,6 +560,67 @@ test('ECAD 3D service preserves KiCad model transforms for external placements',
 })
 
 /**
+ * Verifies KiCad STEP placements use the PCB face as their mount anchor while
+ * procedural body placeholders keep their height-centered positions.
+ */
+test('ECAD 3D service anchors KiCad external placements to board faces', () => {
+    const kicadPcbDocument = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'bottom-model-board.kicad_pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 800,
+                segments: []
+            },
+            components: [
+                {
+                    designator: 'U1',
+                    x: 400,
+                    y: 300,
+                    layer: 'BOTTOM',
+                    pattern: 'Package_SO:SOIC-8',
+                    modelName: 'body.step',
+                    modelPath: '${KIPRJMOD}/parts/body.step',
+                    modelTransform: {
+                        rotationDeg: { x: -90, y: 0, z: 0 }
+                    }
+                }
+            ],
+            pads: [],
+            tracks: [],
+            vias: [],
+            kicadBoard: {
+                title: 'KiCad Board',
+                bounds: { minX: 0, minY: 0, width: 25.4, height: 20.32 },
+                outlines: [],
+                pads: [],
+                drawings: [],
+                texts: []
+            }
+        },
+        bom: []
+    }
+
+    const scene = EcadScene3dService.build(kicadPcbDocument, {
+        boardThicknessMil: 80,
+        sessionAssets: [
+            {
+                name: 'body.step',
+                relativePath: 'parts/body.step',
+                format: 'step'
+            }
+        ]
+    })
+
+    assert.equal(scene.components[0].positionMil.z < -40, true)
+    assert.equal(scene.externalPlacements[0].positionMil.z, -40)
+})
+
+/**
  * Verifies KiCad silkscreen drawings from the parser root are exposed to the
  * app's interactive 3D silkscreen layer.
  */

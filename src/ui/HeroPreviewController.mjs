@@ -65,7 +65,7 @@ export class HeroPreviewController {
     #render() {
         this.#disposeScene3dController()
         this.#renderChips()
-        if (!this.#previewNode || !this.#documentModels.length) {
+        if (!this.#previewNode) {
             return
         }
 

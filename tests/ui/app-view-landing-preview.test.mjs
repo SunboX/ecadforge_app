@@ -471,6 +471,28 @@ test('AppView keeps landing preview chip clicks separate from main view changes'
 })
 
 /**
+ * Verifies landing preview chip clicks visibly replace the static fallback even
+ * when demo documents have not loaded yet.
+ */
+test('AppView replaces the static landing preview before demo documents load', () => {
+    const fakeDocument = new FakeDocument()
+    new AppView(fakeDocument)
+    const screen = fakeDocument.querySelector('#heroPreviewScreen')
+    const chips = fakeDocument.querySelector('#heroViewChips')
+
+    screen.innerHTML = '<img src="/og/ecadforge-product-preview.png" alt="">'
+
+    chips.clickChip('diagnostics')
+
+    assert.doesNotMatch(screen.innerHTML, /ecadforge-product-preview\.png/)
+    assert.match(screen.innerHTML, /hero-proof__summary/)
+    assert.equal(
+        chips.getChip('diagnostics')?.getAttribute('aria-pressed'),
+        'true'
+    )
+})
+
+/**
  * Verifies landing preview chips render the supported views with real renderer
  * output instead of switching the main viewer.
  */
@@ -507,7 +529,11 @@ test('AppView mounts the renderer-backed 3D landing preview', () => {
     const fakeDocument = new FakeDocument()
     const createdScenes = []
     const view = new AppView(fakeDocument, {
-        createScene3dController: (viewportNode, documentModel, options = {}) => {
+        createScene3dController: (
+            viewportNode,
+            documentModel,
+            options = {}
+        ) => {
             const scene = {
                 disposed: false,
                 dispose() {
@@ -531,9 +557,7 @@ test('AppView mounts the renderer-backed 3D landing preview', () => {
 
     createdScenes[0].options.setLoadingVisible(false)
     assert.equal(
-        screen
-            .querySelector('[data-scene-3d-loading]')
-            ?.getAttribute('hidden'),
+        screen.querySelector('[data-scene-3d-loading]')?.getAttribute('hidden'),
         'hidden'
     )
 

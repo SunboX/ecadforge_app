@@ -47,9 +47,16 @@ test('PcbScene3dExternalModels renders matching board assembly as the external s
                         {
                             name: 'assembly substrate',
                             color: [0.0, 0.45, 0.0],
-                            positions: [10, 5, -0.062, 11, 5, 0, 10, 5.5, 0],
+                            positions: [
+                                10, 5, 0,
+                                11, 5, 0,
+                                10, 5.5, 0,
+                                10, 5, -0.062,
+                                10, 5, 0,
+                                10, 5.5, 0
+                            ],
                             normals: [],
-                            indices: [0, 1, 2],
+                            indices: [0, 1, 2, 3, 4, 5],
                             faceColors: []
                         },
                         {
@@ -115,10 +122,16 @@ test('PcbScene3dExternalModels renders matching board assembly as the external s
         modelGroup.userData.scene3dBoardAssemblySurfaceColor,
         new THREE.Color(0.0, 0.45, 0.0).getHex()
     )
-    assert.equal(modelGroup.children[0].geometry.index.array.length, 3)
+    assert.equal(modelGroup.children[0].geometry.index.array.length, 6)
     assert.equal(modelGroup.children[0].visible, true)
-    assert.equal(modelGroup.children[0].material.color.getHex(), 0x2a5f27)
-    assert.equal(modelGroup.children[0].material.depthWrite, true)
+    assert.equal(Array.isArray(modelGroup.children[0].material), true)
+    assert.equal(modelGroup.children[0].material[0].color.getHex(), 0x2a5f27)
+    assert.equal(modelGroup.children[0].material[1].color.getHex(), 0xc9ca78)
+    assert.equal(modelGroup.children[0].material[0].depthWrite, true)
+    assert.deepEqual(modelGroup.children[0].geometry.groups, [
+        { start: 0, count: 3, materialIndex: 0 },
+        { start: 3, count: 3, materialIndex: 1 }
+    ])
     assert.equal(modelGroup.children[1].visible, false)
     assert.equal(modelGroup.children[2].visible, false)
     assert.equal(modelGroup.children[3].visible, true)

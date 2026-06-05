@@ -5,6 +5,7 @@ import { PcbScene3dCopperFactory } from './PcbScene3dCopperFactory.mjs'
 import { PcbScene3dCopperDetailFilter } from './PcbScene3dCopperDetailFilter.mjs'
 import { PcbScene3dExternalModels } from './PcbScene3dExternalModels.mjs'
 import { PcbScene3dFallbackVisibility } from './PcbScene3dFallbackVisibility.mjs'
+import { PcbScene3dDrillVoidFactory } from './PcbScene3dDrillVoidFactory.mjs'
 import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
@@ -111,8 +112,7 @@ export class PcbScene3dRuntime {
         this.#loadedExternalModelDesignators = new Set()
         this.#hasLoadedBoardAssemblyModel = false
         this.#selectedDesignator = ''
-        this.#initialRadius =
-            PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
+        this.#initialRadius = PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
         this.#presetState = new PcbScene3dPresetState()
         this.#isDisposed = false
         this.#hasSettledReady = false
@@ -303,6 +303,7 @@ export class PcbScene3dRuntime {
         const boardGroup = new THREE.Group()
         boardGroup.add(this.#buildBoardMesh())
         boardGroup.add(this.#buildBoardOutline())
+        boardGroup.add(PcbScene3dDrillVoidFactory.buildGroup(THREE, this.#sceneDescription.detail, board.thicknessMil / 2, -board.thicknessMil / 2, (x, y) => this.#normalizeBoardPoint(x, y), { enabled: Boolean(this.#sceneDescription.boardAssemblyModel) }))
         this.#groups.set('board', boardGroup)
         this.#rootGroup.add(boardGroup)
         const silkscreenGroup = new THREE.Group()
@@ -326,7 +327,6 @@ export class PcbScene3dRuntime {
         this.#groups.set('external-models', externalModelsGroup)
         this.#rootGroup.add(fallbackBodiesGroup)
         this.#rootGroup.add(externalModelsGroup)
-
         const boardSpan = Math.max(board.widthMil, board.heightMil, 1)
         this.#scene.fog = new THREE.Fog(
             0xf4f0ea,
