@@ -4,7 +4,7 @@
 export class PcbScene3dCameraRig {
     /**
      * Resolves the initial camera radius from the board size.
-     * @param {{ board?: { widthMil?: number, heightMil?: number } }} sceneDescription
+     * @param {{ board?: { widthMil?: number, heightMil?: number }, sourceFormat?: string }} sceneDescription
      * @returns {number}
      */
     static resolveInitialRadius(sceneDescription) {
@@ -16,7 +16,7 @@ export class PcbScene3dCameraRig {
     /**
      * Resolves one named camera preset into a z-up camera pose.
      * @param {string} preset
-     * @param {{ board?: { widthMil?: number, heightMil?: number } }} sceneDescription
+     * @param {{ board?: { widthMil?: number, heightMil?: number }, sourceFormat?: string }} sceneDescription
      * @param {{ radius?: number, target?: { x?: number, y?: number, z?: number } }} [options]
      * @returns {{ radius: number, target: { x: number, y: number, z: number }, up: { x: number, y: number, z: number }, position: { x: number, y: number, z: number } }}
      */
@@ -57,8 +57,8 @@ export class PcbScene3dCameraRig {
             }
         }
 
-        let theta = -Math.PI / 4
-        let phi = Math.PI / 3.3
+        const theta = -Math.PI / 4
+        const phi = Math.PI / 3.3
 
         return {
             radius,
@@ -78,7 +78,7 @@ export class PcbScene3dCameraRig {
      * @param {{ position?: { set?: (x: number, y: number, z: number) => void }, up?: { set?: (x: number, y: number, z: number) => void }, lookAt?: (x: number, y: number, z: number) => void, updateProjectionMatrix?: () => void }} camera
      * @param {{ target?: { x?: number, y?: number, z?: number, set?: (x: number, y: number, z: number) => void }, update?: () => void }} [controls]
      * @param {string} preset
-     * @param {{ board?: { widthMil?: number, heightMil?: number } }} sceneDescription
+     * @param {{ board?: { widthMil?: number, heightMil?: number }, sourceFormat?: string }} sceneDescription
      * @returns {{ radius: number, target: { x: number, y: number, z: number }, up: { x: number, y: number, z: number }, position: { x: number, y: number, z: number } }}
      */
     static applyPreset(camera, controls, preset, sceneDescription) {

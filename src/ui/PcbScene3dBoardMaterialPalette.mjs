@@ -26,6 +26,15 @@ export class PcbScene3dBoardMaterialPalette {
      * @returns {boolean}
      */
     static isGeneratedSurfaceVisible(options = {}) {
-        return !options.hasBoardAssemblyModel
+        return PcbScene3dBoardMaterialPalette.isGeneratedBodyVisible(options)
+    }
+
+    /**
+     * Resolves whether the generated board body should render.
+     * @param {{ hasBoardAssemblyModel?: boolean }} [options] Scene options.
+     * @returns {boolean}
+     */
+    static isGeneratedBodyVisible(options = {}) {
+        return true
     }
 }

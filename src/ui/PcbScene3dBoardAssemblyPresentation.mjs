@@ -113,7 +113,7 @@ export class PcbScene3dBoardAssemblyPresentation {
                 surfaceColor,
                 edgeColor
             )
-            record.object.visible = true
+            record.object.visible = false
             return
         }
 

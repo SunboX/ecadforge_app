@@ -858,10 +858,10 @@ test('AppView omits the rendered schematic metadata header', () => {
 })
 
 /**
- * Verifies AppView resets the schematic camera and disposes old listeners on
- * re-render.
+ * Verifies AppView preserves the schematic camera and disposes old listeners
+ * on re-render.
  */
-test('AppView resets the schematic viewBox when the schematic is rendered again', () => {
+test('AppView preserves the schematic viewBox when the schematic is rendered again', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
     const snapshot = createSchematicSnapshot()
@@ -887,7 +887,7 @@ test('AppView resets the schematic viewBox when the schematic is rendered again'
         .querySelector('#viewContent')
         .querySelector('.schematic-svg')
 
-    assert.equal(secondSvg.getAttribute('viewBox'), '0 0 200 100')
+    assert.equal(secondSvg.getAttribute('viewBox'), '1.5 0.75 194 97')
     assert.equal(firstSvg.getListenerCount('wheel'), 0)
     assert.equal(firstSvg.getListenerCount('mousedown'), 0)
 })

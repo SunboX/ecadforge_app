@@ -135,7 +135,19 @@ test('mobile viewer sidebar switches to compact stacked navigation', async () =>
 
     assert.match(
         css,
-        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto auto;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible \.viewer-main\s*\{[\s\S]*grid-row:\s*1;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible \.document-rail\s*\{[\s\S]*grid-row:\s*2;/
+    )
+    assert.match(
+        css,
+        /@media \(max-width: 860px\)[\s\S]*\.viewer-stage\.is-sidebar-visible \.pcb-styler-cta\s*\{[\s\S]*grid-row:\s*3;/
     )
     assert.match(
         css,

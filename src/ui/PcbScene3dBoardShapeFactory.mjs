@@ -1,3 +1,4 @@
+import { PcbScene3dBoardEdgeCutoutBuilder } from './PcbScene3dBoardEdgeCutoutBuilder.mjs'
 import { PcbScene3dDrillPathFactory } from './PcbScene3dDrillPathFactory.mjs'
 import { PcbScene3dOutlineBuilder } from './PcbScene3dOutlineBuilder.mjs'
 
@@ -27,6 +28,103 @@ export class PcbScene3dBoardShapeFactory {
         detail = {},
         normalizeBoardPoint = (x, y) => ({ x, y })
     ) {
+        const baseShape = PcbScene3dBoardShapeFactory.#buildBaseShape(
+            THREE,
+            board
+        )
+        const contourPoints =
+            PcbScene3dBoardEdgeCutoutBuilder.resolveShapePoints(baseShape)
+        const drillCutouts = PcbScene3dBoardShapeFactory.#resolveDrillCutouts(
+            THREE,
+            detail,
+            normalizeBoardPoint
+        )
+        const edgeCutouts = drillCutouts.filter(
+            (cutout) =>
+                cutout.isCircular &&
+                !PcbScene3dBoardEdgeCutoutBuilder.isHoleInsideContour(
+                    cutout.points,
+                    contourPoints
+                )
+        )
+        const shape = edgeCutouts.length
+            ? PcbScene3dBoardEdgeCutoutBuilder.buildShapeFromPoints(
+                  THREE,
+                  PcbScene3dBoardEdgeCutoutBuilder.applyCircularEdgeCutouts(
+                      contourPoints,
+                      edgeCutouts
+                  )
+              )
+            : baseShape
+        const finalContourPoints = edgeCutouts.length
+            ? PcbScene3dBoardEdgeCutoutBuilder.resolveShapePoints(shape)
+            : contourPoints
+
+        for (const cutout of drillCutouts) {
+            if (edgeCutouts.includes(cutout)) {
+                continue
+            }
+
+            if (
+                !cutout.isCircular ||
+                PcbScene3dBoardEdgeCutoutBuilder.isHoleInsideContour(
+                    cutout.points,
+                    finalContourPoints
+                )
+            ) {
+                shape.holes.push(cutout.path)
+            }
+        }
+
+        return shape
+    }
+
+    /**
+     * Resolves circular drills that intersect the board outline.
+     * @param {any} THREE
+     * @param {{ widthMil?: number, heightMil?: number, segments?: Array<Record<string, number | string>> }} board
+     * @param {{ pads?: any[], vias?: any[] }} [detail]
+     * @param {(x: number, y: number) => { x: number, y: number }} [normalizeBoardPoint]
+     * @returns {{ x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null }[]}
+     */
+    static resolveCircularEdgeDrills(
+        THREE,
+        board,
+        detail = {},
+        normalizeBoardPoint = (x, y) => ({ x, y })
+    ) {
+        if (!board) {
+            return []
+        }
+
+        const contourPoints =
+            PcbScene3dBoardEdgeCutoutBuilder.resolveShapePoints(
+                PcbScene3dBoardShapeFactory.#buildBaseShape(THREE, board)
+            )
+
+        return PcbScene3dBoardShapeFactory.#resolveDrillCutouts(
+            THREE,
+            detail,
+            normalizeBoardPoint
+        )
+            .filter(
+                (cutout) =>
+                    cutout.isCircular &&
+                    !PcbScene3dBoardEdgeCutoutBuilder.isHoleInsideContour(
+                        cutout.points,
+                        contourPoints
+                    )
+            )
+            .map((cutout) => cutout.drillSpec)
+    }
+
+    /**
+     * Builds the outer board shape before drill holes are applied.
+     * @param {any} THREE
+     * @param {{ widthMil?: number, heightMil?: number, segments?: Array<Record<string, number | string>> }} board
+     * @returns {any}
+     */
+    static #buildBaseShape(THREE, board) {
         const shape = new THREE.Shape()
         const commands = PcbScene3dOutlineBuilder.buildCommands(board)
 
@@ -59,13 +157,6 @@ export class PcbScene3dBoardShapeFactory {
             }
             shape.closePath()
         }
-
-        PcbScene3dDrillPathFactory.appendBoardDrills(
-            THREE,
-            shape,
-            detail,
-            normalizeBoardPoint
-        )
         return shape
     }
 
@@ -104,6 +195,65 @@ export class PcbScene3dBoardShapeFactory {
             normalizeBoardPoint
         )
         return geometry
+    }
+
+    /**
+     * Resolves normalized drill cutout metadata.
+     * @param {any} THREE
+     * @param {{ pads?: any[], vias?: any[] }} detail
+     * @param {(x: number, y: number) => { x: number, y: number }} normalizeBoardPoint
+     * @returns {{ path: any, points: { x: number, y: number }[], centerX: number, centerY: number, radius: number, isCircular: boolean, drillSpec: { x: number, y: number, diameter: number, slotLength?: number | null, rotationDeg?: number | null } }[]}
+     */
+    static #resolveDrillCutouts(THREE, detail, normalizeBoardPoint) {
+        return PcbScene3dDrillPathFactory.resolveBoardDrillSpecs(detail)
+            .map((drillSpec) => {
+                const point = normalizeBoardPoint(drillSpec.x, drillSpec.y)
+                const normalizedSpec = {
+                    ...drillSpec,
+                    x: point.x,
+                    y: point.y
+                }
+                const path = PcbScene3dDrillPathFactory.buildDrillPath(
+                    THREE,
+                    normalizedSpec
+                )
+                const diameter = Number(normalizedSpec.diameter || 0)
+                const slotLength = Number(normalizedSpec.slotLength || 0)
+                const isCircular =
+                    diameter > 0 && slotLength <= diameter + 0.001
+                const points = isCircular
+                    ? PcbScene3dBoardEdgeCutoutBuilder.buildCircularCutoutPoints(
+                          Number(normalizedSpec.x || 0),
+                          Number(normalizedSpec.y || 0),
+                          diameter / 2
+                      )
+                    : PcbScene3dBoardShapeFactory.#resolvePathPoints(path)
+
+                return {
+                    path,
+                    points,
+                    centerX: Number(normalizedSpec.x || 0),
+                    centerY: Number(normalizedSpec.y || 0),
+                    radius: diameter / 2,
+                    isCircular,
+                    drillSpec
+                }
+            })
+            .filter((cutout) => cutout.path && cutout.points.length >= 3)
+    }
+
+    /**
+     * Resolves sampled points from one path.
+     * @param {{ getPoints?: (segments: number) => { x: number, y: number }[] } | null} path
+     * @returns {{ x: number, y: number }[]}
+     */
+    static #resolvePathPoints(path) {
+        return (path?.getPoints?.(
+            PcbScene3dBoardShapeFactory.#CONTOUR_SAMPLE_POINTS
+        ) || []).map((point) => ({
+            x: Number(point.x || 0),
+            y: Number(point.y || 0)
+        }))
     }
 
     /**

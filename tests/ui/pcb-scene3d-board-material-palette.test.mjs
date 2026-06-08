@@ -32,18 +32,34 @@ test('PcbScene3dBoardMaterialPalette falls back to procedural mask color', () =>
     )
 })
 
-test('PcbScene3dBoardMaterialPalette hides generated face with board assembly', () => {
+test('PcbScene3dBoardMaterialPalette shows generated face with board assembly', () => {
     assert.equal(
         PcbScene3dBoardMaterialPalette.isGeneratedSurfaceVisible({
             hasBoardAssemblyModel: true
         }),
-        false
+        true
     )
 })
 
 test('PcbScene3dBoardMaterialPalette shows generated face without board assembly', () => {
     assert.equal(
         PcbScene3dBoardMaterialPalette.isGeneratedSurfaceVisible(),
+        true
+    )
+})
+
+test('PcbScene3dBoardMaterialPalette shows generated body with board assembly', () => {
+    assert.equal(
+        PcbScene3dBoardMaterialPalette.isGeneratedBodyVisible({
+            hasBoardAssemblyModel: true
+        }),
+        true
+    )
+})
+
+test('PcbScene3dBoardMaterialPalette shows generated body without board assembly', () => {
+    assert.equal(
+        PcbScene3dBoardMaterialPalette.isGeneratedBodyVisible(),
         true
     )
 })

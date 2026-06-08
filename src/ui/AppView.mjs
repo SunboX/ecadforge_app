@@ -11,6 +11,7 @@ import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
+import { SchematicViewportPreserver } from './SchematicViewportPreserver.mjs'
 import { UiText } from './UiText.mjs'
 import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
@@ -660,6 +661,10 @@ export class AppView {
         if (!this.#contentNode) return
 
         const previousPcbSide = this.#pcbViewController?.side || 'top'
+        const preservedSchematicViewBox = SchematicViewportPreserver.capture(
+            this.#contentNode,
+            snapshot
+        )
         const shouldKeepScene3d =
             snapshot.activeView === '3d' &&
             this.#scene3dController?.getDocumentModel?.() ===
@@ -677,6 +682,7 @@ export class AppView {
         }
 
         if (!snapshot.documentModel) {
+            SchematicViewportPreserver.clear(this.#contentNode)
             this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render(
                 this.#translate
             )
@@ -689,6 +695,15 @@ export class AppView {
                 snapshot.documentModel,
                 String(snapshot?.selectedPcbComponents?.[documentId] || '')
             )
+            SchematicViewportPreserver.restore(
+                this.#contentNode,
+                preservedSchematicViewBox
+            )
+            SchematicViewportPreserver.remember(
+                this.#contentNode,
+                documentId,
+                snapshot.documentModel
+            )
             this.#attachSvgViewportController('.schematic-svg')
             SchematicComponentSelectionBinder.bind(
                 this.#contentNode.querySelector('.schematic-svg'),
@@ -697,6 +712,8 @@ export class AppView {
             )
             return
         }
+
+        SchematicViewportPreserver.clear(this.#contentNode)
 
         if (snapshot.activeView === 'pcb') {
             const documentId = String(snapshot?.activeDocumentId || '')

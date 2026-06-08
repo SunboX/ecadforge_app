@@ -66,12 +66,16 @@ export class PcbScene3dCopperDetailFilter {
      */
     static resolveStandaloneVias(sceneDescription) {
         const detail = sceneDescription?.detail || {}
-
-        return PcbScene3dCopperDetailFilter.#usesRealisticMasking(
+        const vias = PcbScene3dCopperDetailFilter.#usesRealisticMasking(
             sceneDescription
         )
             ? PcbScene3dCopperDetailFilter.#filterExposedVias(detail.vias)
             : detail.vias || []
+
+        return PcbScene3dCopperDetailFilter.#appendPadBarrelSpecs(
+            vias,
+            detail.pads
+        )
     }
 
     /**
@@ -137,6 +141,99 @@ export class PcbScene3dCopperDetailFilter {
         return (vias || []).filter((via) => {
             return via?.isTentingTop === false || via?.isTentingBottom === false
         })
+    }
+
+    /**
+     * Appends copper barrels for through-hole pads with copper annuli.
+     * @param {any[]} vias Visible via list.
+     * @param {any[] | undefined} pads Pad list.
+     * @returns {any[]}
+     */
+    static #appendPadBarrelSpecs(vias, pads) {
+        const output = [...(vias || [])]
+        const seen = new Set(
+            output.map((via) =>
+                PcbScene3dCopperDetailFilter.#platedHoleKey(via)
+            )
+        )
+
+        for (const pad of pads || []) {
+            const barrelSpec =
+                PcbScene3dCopperDetailFilter.#resolvePadBarrelSpec(pad)
+            if (!barrelSpec) {
+                continue
+            }
+
+            const key = PcbScene3dCopperDetailFilter.#platedHoleKey(barrelSpec)
+            if (seen.has(key)) {
+                continue
+            }
+
+            seen.add(key)
+            output.push(barrelSpec)
+        }
+
+        return output
+    }
+
+    /**
+     * Resolves one visible through-hole pad barrel spec.
+     * @param {any} pad Pad primitive.
+     * @returns {{ x: number, y: number, holeDiameter: number, barrelOnly: true } | null}
+     */
+    static #resolvePadBarrelSpec(pad) {
+        const holeDiameter = Number(pad?.holeDiameter || 0)
+        const holeSlotLength = Number(pad?.holeSlotLength || 0)
+
+        if (
+            holeDiameter <= 0 ||
+            holeSlotLength > holeDiameter + 0.001 ||
+            !PcbScene3dCopperDetailFilter.#hasPadCopperAnnulus(
+                pad,
+                holeDiameter
+            ) ||
+            (pad?.hasTopSolderMaskOpening === false &&
+                pad?.hasBottomSolderMaskOpening === false)
+        ) {
+            return null
+        }
+
+        return {
+            x: Number(pad?.x || 0),
+            y: Number(pad?.y || 0),
+            holeDiameter,
+            barrelOnly: true
+        }
+    }
+
+    /**
+     * Checks whether one pad has copper larger than its drill aperture.
+     * @param {any} pad Pad primitive.
+     * @param {number} holeDiameter Drill diameter.
+     * @returns {boolean}
+     */
+    static #hasPadCopperAnnulus(pad, holeDiameter) {
+        return [
+            pad?.sizeTopX,
+            pad?.sizeTopY,
+            pad?.sizeMidX,
+            pad?.sizeMidY,
+            pad?.sizeBottomX,
+            pad?.sizeBottomY
+        ].some((size) => Number(size || 0) > holeDiameter + 0.001)
+    }
+
+    /**
+     * Builds a stable dedupe key for one plated through-hole.
+     * @param {{ x?: number, y?: number, holeDiameter?: number }} primitive
+     * @returns {string}
+     */
+    static #platedHoleKey(primitive) {
+        return [
+            Number(primitive?.x || 0).toFixed(4),
+            Number(primitive?.y || 0).toFixed(4),
+            Number(primitive?.holeDiameter || 0).toFixed(4)
+        ].join(':')
     }
 
     /**

@@ -54,6 +54,28 @@ test('PcbScene3dViaFactory falls back to solid cylinders when no drill is presen
     assert.equal(group.children[0].rotation.x, Math.PI / 2)
 })
 
+test('PcbScene3dViaFactory renders through-hole pad barrels as annular liners', () => {
+    const group = PcbScene3dViaFactory.buildGroup(
+        THREE,
+        [{ x: 20, y: 30, holeDiameter: 40, barrelOnly: true }],
+        63,
+        (x, y) => ({ x, y })
+    )
+
+    assert.equal(group.children.length, 1)
+    assert.equal(group.children[0].geometry.type, 'ExtrudeGeometry')
+    assert.equal(group.children[0].geometry.parameters.shapes.holes.length, 1)
+    assert.equal(
+        countCircularDrillFaceCapTriangles(group.children[0].geometry, 16),
+        0,
+        'Expected through-hole pad center to stay round and open'
+    )
+    assert.ok(
+        countCircularDrillWallTriangles(group.children[0].geometry, 16),
+        'Expected through-hole pad to keep a visible copper liner wall'
+    )
+})
+
 /**
  * Counts side-wall triangles that lie on a circular drill contour.
  * @param {any} geometry

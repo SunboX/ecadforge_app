@@ -703,12 +703,24 @@
 @media (max-width: 860px) {
     .viewer-stage.is-sidebar-visible {
         grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-rows: minmax(0, 1fr) auto auto;
     }
 
     .viewer-stage.is-sidebar-visible.is-sidebar-collapsed {
         grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-rows: minmax(0, 1fr) auto auto;
+    }
+
+    .viewer-stage.is-sidebar-visible .viewer-main {
+        grid-row: 1;
+    }
+
+    .viewer-stage.is-sidebar-visible .document-rail {
+        grid-row: 2;
+    }
+
+    .viewer-stage.is-sidebar-visible .pcb-styler-cta {
+        grid-row: 3;
     }
 
     .document-rail {

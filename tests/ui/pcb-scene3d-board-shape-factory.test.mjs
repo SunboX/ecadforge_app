@@ -99,6 +99,33 @@ test('PcbScene3dBoardShapeFactory keeps board drill walls without filling the ap
     )
 })
 
+test('PcbScene3dBoardShapeFactory cuts circular edge drills into the board substrate', () => {
+    const geometry = PcbScene3dBoardShapeFactory.buildGeometry(
+        THREE,
+        {
+            widthMil: 1000,
+            heightMil: 500,
+            thicknessMil: 62,
+            segments: []
+        },
+        {
+            pads: [],
+            vias: [{ x: 0, y: 258, holeDiameter: 120 }]
+        },
+        (x, y) => ({ x, y })
+    )
+
+    assert.equal(
+        countTopFaceTrianglesCoveringPoint(geometry, { x: 0, y: 200 }),
+        0,
+        'Expected the substrate face to leave the circular edge drill empty'
+    )
+    assert.ok(
+        countTopFaceTrianglesCoveringPoint(geometry, { x: 60, y: 248 }) > 0,
+        'Expected substrate outside the circular edge drill radius to remain present'
+    )
+})
+
 test('PcbScene3dBoardShapeFactory colors plated drill walls as copper only', () => {
     const geometry = PcbScene3dBoardShapeFactory.buildGeometry(
         THREE,
@@ -245,6 +272,104 @@ function countCircularDrillFaceCapTriangles(geometry, radius) {
     }
 
     return count
+}
+
+/**
+ * Counts board top-face triangles covering one XY point.
+ * @param {any} geometry
+ * @param {{ x: number, y: number }} point
+ * @returns {number}
+ */
+function countTopFaceTrianglesCoveringPoint(geometry, point) {
+    let count = 0
+
+    for (const group of geometry.groups) {
+        if (Number(group.materialIndex) !== 0) {
+            continue
+        }
+
+        const end = Number(group.start || 0) + Number(group.count || 0)
+        for (let index = Number(group.start || 0); index < end; index += 3) {
+            if (
+                isTopFaceTriangle(geometry, index) &&
+                triangleContainsPoint(geometry, index, point)
+            ) {
+                count += 1
+            }
+        }
+    }
+
+    return count
+}
+
+/**
+ * Checks whether one triangle lies on the board top face.
+ * @param {any} geometry
+ * @param {number} vertexIndex
+ * @returns {boolean}
+ */
+function isTopFaceTriangle(geometry, vertexIndex) {
+    const position = geometry.getAttribute('position')
+
+    for (let offset = 0; offset < 3; offset += 1) {
+        const index = resolveGeometryVertexIndex(geometry, vertexIndex + offset)
+        if (Math.abs(position.getZ(index) - 31) > 0.001) {
+            return false
+        }
+    }
+
+    return true
+}
+
+/**
+ * Checks whether one triangle covers one XY point.
+ * @param {any} geometry
+ * @param {number} vertexIndex
+ * @param {{ x: number, y: number }} point
+ * @returns {boolean}
+ */
+function triangleContainsPoint(geometry, vertexIndex, point) {
+    const [a, b, c] = [0, 1, 2].map((offset) =>
+        resolveGeometryPoint(geometry, vertexIndex + offset)
+    )
+    const area = resolveSignedArea(a, b, c)
+
+    if (Math.abs(area) < 0.001) {
+        return false
+    }
+
+    const first = resolveSignedArea(point, b, c) / area
+    const second = resolveSignedArea(a, point, c) / area
+    const third = resolveSignedArea(a, b, point) / area
+
+    return first >= -0.001 && second >= -0.001 && third >= -0.001
+}
+
+/**
+ * Resolves one geometry vertex as an XY point.
+ * @param {any} geometry
+ * @param {number} vertexIndex
+ * @returns {{ x: number, y: number }}
+ */
+function resolveGeometryPoint(geometry, vertexIndex) {
+    const position = geometry.getAttribute('position')
+    const index = resolveGeometryVertexIndex(geometry, vertexIndex)
+
+    return {
+        x: position.getX(index),
+        y: position.getY(index)
+    }
+}
+
+/**
+ * Resolves the signed area for three XY points.
+ * @param {{ x: number, y: number }} a
+ * @param {{ x: number, y: number }} b
+ * @param {{ x: number, y: number }} c
+ * @returns {number}
+ */
+function resolveSignedArea(a, b, c) {
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 }
 
 /**

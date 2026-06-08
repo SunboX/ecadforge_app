@@ -632,6 +632,7 @@ function createFakeRuntimeModules() {
                 /** @type {number} */ y = 0
             },
             DoubleSide: 'DoubleSide',
+            FrontSide: 'FrontSide',
             MOUSE: {
                 ROTATE: 'rotate',
                 DOLLY: 'dolly',
@@ -690,12 +691,12 @@ async function flushAsyncTurns(turns = 1) {
     }
 }
 
-test('PcbScene3dRuntime flips the top preset vertically into the reference top-right orientation', () => {
-    const topScreenPoint = projectPresetPoint('top', { x: 1, y: -1, z: 0 })
+test('PcbScene3dRuntime preserves top preset board-space Y orientation', () => {
+    const topScreenPoint = projectPresetPoint('top', { x: 1, y: 1, z: 0 })
 
     assert.deepEqual(PcbScene3dRuntime.resolveViewScale('top'), {
         x: 1,
-        y: -1,
+        y: 1,
         z: 1
     })
     assert.ok(topScreenPoint.x > 0)
@@ -759,10 +760,10 @@ test('PcbScene3dRuntime mirrors the bottom preset into Altium bottom orientation
     assert.ok(bottomScreenPoint.y > 0)
 })
 
-test('PcbScene3dRuntime mirrors Altium isometric top face like the top preset', () => {
+test('PcbScene3dRuntime keeps Altium isometric preset camera-only', () => {
     assert.deepEqual(PcbScene3dRuntime.resolveViewScale('isometric'), {
         x: 1,
-        y: -1,
+        y: 1,
         z: 1
     })
 })
@@ -831,7 +832,7 @@ test('PcbScene3dRuntime uses board face, edge, and plated-hole copper materials'
         assert.equal(boardMesh.material[0].options.color, 0x17396b)
         assert.equal(boardMesh.material[1].options.color, 0xf7f9d1)
         assert.equal(boardMesh.material[2].options.color, 0xd9a61d)
-        assert.equal(boardMesh.material[0].options.side, 'DoubleSide')
+        assert.equal(boardMesh.material[0].options.side, 'FrontSide')
         assert.equal(boardMesh.material[1].options.side, 'DoubleSide')
         assert.equal(boardMesh.material[2].options.side, 'DoubleSide')
     } finally {
@@ -899,7 +900,7 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
         await runtime.whenReady()
         await externalModelsCalled
 
-        assert.deepEqual(capturedModelViewScale, { x: 1, y: -1, z: 1 })
+        assert.deepEqual(capturedModelViewScale, { x: 1, y: 1, z: 1 })
     } finally {
         runtime.dispose()
         PcbScene3dExternalModels.loadIntoScene = originalLoadIntoScene

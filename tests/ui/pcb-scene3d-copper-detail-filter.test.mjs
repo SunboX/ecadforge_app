@@ -243,8 +243,24 @@ test('PcbScene3dCopperDetailFilter hides Altium copper covered by solder mask', 
 
 test('PcbScene3dCopperDetailFilter keeps scenes without mask metadata unchanged', () => {
     const detail = {
+        pads: [
+            {
+                id: 'pad-a',
+                x: 20,
+                y: 30,
+                sizeTopX: 70,
+                sizeTopY: 70,
+                holeDiameter: 40
+            },
+            {
+                id: 'mechanical-hole',
+                x: 90,
+                y: 30,
+                holeDiameter: 40
+            }
+        ],
         tracks: [{ id: 'track-a' }],
-        vias: [{ id: 'via-a' }]
+        vias: [{ id: 'via-a', x: 50, y: 30, diameter: 32, holeDiameter: 14 }]
     }
     const filtered = PcbScene3dCopperDetailFilter.resolve({
         sourceFormat: 'generic',
@@ -263,6 +279,14 @@ test('PcbScene3dCopperDetailFilter keeps scenes without mask metadata unchanged'
             sourceFormat: 'generic',
             detail
         }),
-        [{ id: 'via-a' }]
+        [
+            { id: 'via-a', x: 50, y: 30, diameter: 32, holeDiameter: 14 },
+            {
+                x: 20,
+                y: 30,
+                holeDiameter: 40,
+                barrelOnly: true
+            }
+        ]
     )
 })

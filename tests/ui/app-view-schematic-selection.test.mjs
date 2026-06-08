@@ -373,3 +373,51 @@ test('AppView emits empty schematic selection from schematic background clicks',
         }
     ])
 })
+
+/**
+ * Verifies schematic pan and zoom survive state-driven rerenders.
+ */
+test('AppView preserves schematic viewport across selection rerenders', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const snapshot = createSnapshot()
+
+    view.render(snapshot)
+
+    const contentNode = fakeDocument.querySelector('#viewContent')
+    const initialSvg = contentNode.querySelector('.schematic-svg')
+    const initialViewBox = initialSvg.getAttribute('viewBox')
+
+    initialSvg.dispatch('wheel', {
+        deltaY: -100,
+        clientX: 160,
+        clientY: 120,
+        preventDefault() {}
+    })
+    initialSvg.dispatch('mousedown', {
+        button: 0,
+        clientX: 160,
+        clientY: 120,
+        preventDefault() {}
+    })
+    initialSvg.dispatch('mousemove', {
+        buttons: 1,
+        clientX: 176,
+        clientY: 132,
+        preventDefault() {}
+    })
+    initialSvg.dispatch('mouseup', { button: 0 })
+
+    const movedViewBox = initialSvg.getAttribute('viewBox')
+    assert.notEqual(movedViewBox, initialViewBox)
+
+    view.render({
+        ...snapshot,
+        selectedPcbComponents: { 'doc-1': '' }
+    })
+
+    assert.equal(
+        contentNode.querySelector('.schematic-svg').getAttribute('viewBox'),
+        movedViewBox
+    )
+})

@@ -123,7 +123,7 @@ test('PcbScene3dExternalModels renders matching board assembly as the external s
         new THREE.Color(0.0, 0.45, 0.0).getHex()
     )
     assert.equal(modelGroup.children[0].geometry.index.array.length, 6)
-    assert.equal(modelGroup.children[0].visible, true)
+    assert.equal(modelGroup.children[0].visible, false)
     assert.equal(Array.isArray(modelGroup.children[0].material), true)
     assert.equal(modelGroup.children[0].material[0].color.getHex(), 0x2a5f27)
     assert.equal(modelGroup.children[0].material[1].color.getHex(), 0xc9ca78)

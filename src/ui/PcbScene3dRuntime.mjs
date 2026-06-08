@@ -1,15 +1,16 @@
-import { PcbScene3dBoardShapeFactory } from './PcbScene3dBoardShapeFactory.mjs'
-import { PcbScene3dBoardMaterialPalette } from './PcbScene3dBoardMaterialPalette.mjs'
+import { PcbScene3dBoardSolderMaskFactory } from './PcbScene3dBoardSolderMaskFactory.mjs'
 import { PcbScene3dCameraRig } from './PcbScene3dCameraRig.mjs'
 import { PcbScene3dCopperFactory } from './PcbScene3dCopperFactory.mjs'
 import { PcbScene3dCopperDetailFilter } from './PcbScene3dCopperDetailFilter.mjs'
+import { PcbScene3dDetailCoordinateNormalizer } from './PcbScene3dDetailCoordinateNormalizer.mjs'
+import { PcbScene3dDrillVoidFactory } from './PcbScene3dDrillVoidFactory.mjs'
 import { PcbScene3dExternalModels } from './PcbScene3dExternalModels.mjs'
 import { PcbScene3dFallbackVisibility } from './PcbScene3dFallbackVisibility.mjs'
-import { PcbScene3dDrillVoidFactory } from './PcbScene3dDrillVoidFactory.mjs'
 import { PcbScene3dInteractionHints } from './PcbScene3dInteractionHints.mjs'
 import { PcbScene3dMountRig } from './PcbScene3dMountRig.mjs'
 import { PcbScene3dPresetState } from './PcbScene3dPresetState.mjs'
 import { PcbScene3dRenderGroupVisibility } from './PcbScene3dRenderGroupVisibility.mjs'
+import { PcbScene3dRuntimeBoardMeshes } from './PcbScene3dRuntimeBoardMeshes.mjs'
 import { PcbScene3dSilkscreenFactory } from './PcbScene3dSilkscreenFactory.mjs'
 import { PcbScene3dTrueTypeTextFactory } from './PcbScene3dTrueTypeTextFactory.mjs'
 import { PcbScene3dSelectionStyler } from './PcbScene3dSelectionStyler.mjs'
@@ -112,7 +113,8 @@ export class PcbScene3dRuntime {
         this.#loadedExternalModelDesignators = new Set()
         this.#hasLoadedBoardAssemblyModel = false
         this.#selectedDesignator = ''
-        this.#initialRadius = PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
+        this.#initialRadius =
+            PcbScene3dCameraRig.resolveInitialRadius(sceneDescription)
         this.#presetState = new PcbScene3dPresetState()
         this.#isDisposed = false
         this.#hasSettledReady = false
@@ -120,7 +122,6 @@ export class PcbScene3dRuntime {
         this.#readyPromise = new Promise((resolve) => {
             this.#resolveReadyPromise = resolve
         })
-
         this.#hooks.setDiagnostics?.([
             PcbScene3dInteractionHints.resolveDefaultMessage(
                 globalThis.window,
@@ -301,9 +302,40 @@ export class PcbScene3dRuntime {
             .multiplyScalar(this.#initialRadius * 0.8)
         this.#scene.add(ambientLight, keyLight, fillLight)
         const boardGroup = new THREE.Group()
-        boardGroup.add(this.#buildBoardMesh())
-        boardGroup.add(this.#buildBoardOutline())
-        boardGroup.add(PcbScene3dDrillVoidFactory.buildGroup(THREE, this.#sceneDescription.detail, board.thicknessMil / 2, -board.thicknessMil / 2, (x, y) => this.#normalizeBoardPoint(x, y), { enabled: Boolean(this.#sceneDescription.boardAssemblyModel) }))
+        boardGroup.add(
+            PcbScene3dRuntimeBoardMeshes.buildBoardMesh(
+                THREE,
+                this.#sceneDescription,
+                (x, y) => this.#normalizeDetailPoint(x, y)
+            )
+        )
+        boardGroup.add(
+            PcbScene3dBoardSolderMaskFactory.buildGroup(
+                THREE,
+                this.#sceneDescription,
+                (x, y) => this.#normalizeDetailPoint(x, y)
+            )
+        )
+        boardGroup.add(
+            PcbScene3dDrillVoidFactory.buildGroup(
+                THREE,
+                this.#sceneDescription.detail,
+                board.thicknessMil / 2,
+                -board.thicknessMil / 2,
+                (x, y) => this.#normalizeDetailPoint(x, y),
+                {
+                    enabled: Boolean(this.#sceneDescription.boardAssemblyModel),
+                    board
+                }
+            )
+        )
+        boardGroup.add(
+            PcbScene3dRuntimeBoardMeshes.buildBoardOutline(
+                THREE,
+                this.#sceneDescription,
+                (x, y) => this.#normalizeDetailPoint(x, y)
+            )
+        )
         this.#groups.set('board', boardGroup)
         this.#rootGroup.add(boardGroup)
         const silkscreenGroup = new THREE.Group()
@@ -349,7 +381,14 @@ export class PcbScene3dRuntime {
             this.#sceneDescription
         )
         this.#viewOrientationGroup.scale.set(scale.x, scale.y, scale.z)
-        PcbScene3dExternalModels.applyViewCompensation(this.#rootGroup, scale)
+        PcbScene3dExternalModels.applyViewCompensation(
+            this.#groups.get('silkscreen'),
+            scale
+        )
+        PcbScene3dExternalModels.applyViewCompensation(
+            this.#groups.get('external-models'),
+            scale
+        )
     }
 
     /**
@@ -419,7 +458,7 @@ export class PcbScene3dRuntime {
             this.#sceneDescription.detail.silkscreen || {},
             this.#sceneDescription.board.thicknessMil / 2 + 1.18,
             -(this.#sceneDescription.board.thicknessMil / 2 + 1.18),
-            (x, y) => this.#normalizeBoardPoint(x, y)
+            (x, y) => this.#normalizeDetailPoint(x, y)
         )
 
         if (detailGroup.children.length) {
@@ -446,7 +485,7 @@ export class PcbScene3dRuntime {
             copperDetail,
             this.#sceneDescription.board.thicknessMil / 2 + 0.9,
             -(this.#sceneDescription.board.thicknessMil / 2 + 0.9),
-            (x, y) => this.#normalizeBoardPoint(x, y),
+            (x, y) => this.#normalizeDetailPoint(x, y),
             { coordinateSystem: this.#sceneDescription.coordinateSystem }
         )
         const standaloneVias =
@@ -461,7 +500,7 @@ export class PcbScene3dRuntime {
                       this.#three,
                       standaloneVias,
                       this.#sceneDescription.board.thicknessMil,
-                      (x, y) => this.#normalizeBoardPoint(x, y)
+                      (x, y) => this.#normalizeDetailPoint(x, y)
                   )
                 : new this.#three.Group()
 
@@ -472,76 +511,6 @@ export class PcbScene3dRuntime {
         if (viaGroup.children.length) {
             copperGroup.add(viaGroup)
         }
-    }
-
-    /**
-     * Builds the extruded board body mesh.
-     * @returns {any}
-     */
-    #buildBoardMesh() {
-        const THREE = this.#three
-        const board = this.#sceneDescription.board
-        const geometry = PcbScene3dBoardShapeFactory.buildGeometry(
-            THREE,
-            board,
-            this.#sceneDescription.detail,
-            (x, y) => this.#normalizeBoardPoint(x, y)
-        )
-        const materialOptions = { roughness: 0.68, metalness: 0.08 }
-        const hasBoardAssemblyModel = Boolean(this.#sceneDescription.boardAssemblyModel)
-        const surfaceColor = PcbScene3dBoardMaterialPalette.resolveSurfaceColor(board, { hasBoardAssemblyModel })
-        const edgeColor = Number(board.edgeColor)
-        return new THREE.Mesh(geometry, [
-            new THREE.MeshStandardMaterial({
-                ...materialOptions,
-                color: surfaceColor,
-                visible: PcbScene3dBoardMaterialPalette.isGeneratedSurfaceVisible({ hasBoardAssemblyModel }),
-                side: THREE.DoubleSide
-            }),
-            new THREE.MeshStandardMaterial({
-                ...materialOptions,
-                color: Number.isInteger(edgeColor) ? edgeColor : 0xc9ca78,
-                side: THREE.DoubleSide
-            }),
-            new THREE.MeshStandardMaterial({
-                color: 0xd9a61d,
-                roughness: 0.38,
-                metalness: 0.55,
-                side: THREE.DoubleSide
-            })
-        ])
-    }
-
-    /**
-     * Builds a line outline around the board edge.
-     * @returns {any}
-     */
-    #buildBoardOutline() {
-        const THREE = this.#three
-        const shape = PcbScene3dBoardShapeFactory.buildShape(
-            THREE,
-            this.#sceneDescription.board,
-            this.#sceneDescription.detail,
-            (x, y) => this.#normalizeBoardPoint(x, y)
-        )
-        const points = shape.getPoints(120)
-        const positions = []
-        const topZ = this.#sceneDescription.board.thicknessMil / 2 + 0.8
-
-        points.forEach((point) => {
-            positions.push(point.x, point.y, topZ)
-        })
-
-        const geometry = new THREE.BufferGeometry()
-        geometry.setAttribute(
-            'position',
-            new THREE.Float32BufferAttribute(positions, 3)
-        )
-
-        return new THREE.LineLoop(
-            geometry,
-            new THREE.LineBasicMaterial({ color: 0xc9ca78, transparent: true })
-        )
     }
 
     /**
@@ -741,7 +710,8 @@ export class PcbScene3dRuntime {
             groups: this.#groups,
             toggles: this.#toggles,
             fallbackBodyRoots: this.#fallbackBodyRoots,
-            loadedExternalModelDesignators: this.#loadedExternalModelDesignators,
+            loadedExternalModelDesignators:
+                this.#loadedExternalModelDesignators,
             hasLoadedBoardAssemblyModel: this.#hasLoadedBoardAssemblyModel
         })
     }
@@ -763,7 +733,6 @@ export class PcbScene3dRuntime {
         if (this.#hasSettledReady) {
             return
         }
-
         this.#hasSettledReady = true
         this.#resolveReadyPromise?.()
         this.#resolveReadyPromise = null
@@ -784,7 +753,6 @@ export class PcbScene3dRuntime {
             })
             return
         }
-
         await new Promise((resolve) => {
             globalThis.setTimeout(resolve, 0)
         })
@@ -801,6 +769,20 @@ export class PcbScene3dRuntime {
             x: Number(x || 0) - this.#sceneDescription.board.centerX,
             y: Number(y || 0) - this.#sceneDescription.board.centerY
         }
+    }
+
+    /**
+     * Normalizes one detail coordinate into the scene's centered board plane.
+     * @param {number} x
+     * @param {number} y
+     * @returns {{ x: number, y: number }}
+     */
+    #normalizeDetailPoint(x, y) {
+        return PcbScene3dDetailCoordinateNormalizer.normalize(
+            this.#sceneDescription,
+            x,
+            y
+        )
     }
 
     /**
