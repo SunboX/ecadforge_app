@@ -98,6 +98,14 @@ test('ftp workflow installs browser build dependencies before static build', asy
     )
     assert.match(
         workflow,
+        /git clone --depth 1 https:\/\/github\.com\/SunboX\/circuitjson-toolkit\.git \.\.\/circuitjson-toolkit/
+    )
+    assert.match(
+        workflow,
+        /git clone --depth 1 https:\/\/github\.com\/SunboX\/pcb-scene3d-viewer\.git \.\.\/pcb-scene3d-viewer/
+    )
+    assert.match(
+        workflow,
         /name: Install frontend build dependencies[\s\S]*?run: npm ci/
     )
 })

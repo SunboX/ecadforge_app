@@ -1,4 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { UiText } from './UiText.mjs'
 
 /**
@@ -295,8 +296,16 @@ export class DocumentRailRenderer {
             return Boolean(documentModel?.schematic)
         }
 
-        if (activeView === 'pcb' || activeView === '3d') {
+        if (activeView === 'pcb') {
             return Boolean(documentModel?.pcb)
+        }
+
+        if (activeView === '3d') {
+            return (
+                Boolean(documentModel?.pcb) ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+                    'circuitjson'
+            )
         }
 
         if (activeView === 'bom') {

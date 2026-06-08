@@ -28,7 +28,10 @@ test('rewriteHtmlDocument versions favicon link and brand image assets', () => {
 test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     const source = [
         "import { LoadedDesignNetlistService } from 'altium-toolkit/netlist-query'",
-        "import('kicad-toolkit/netlist-query')"
+        "import('kicad-toolkit/netlist-query')",
+        "import { CircuitJsonParser } from 'circuitjson-toolkit'",
+        "import { PcbScene3dRuntime } from 'pcb-scene3d-viewer'",
+        "import('pcb-scene3d-viewer/scene3d')"
     ].join('\n')
 
     const rewritten = ServerAssetVersioner.rewriteJavaScriptModule(
@@ -43,5 +46,17 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     assert.match(
         rewritten,
         /import\('\/node_modules\/kicad-toolkit\/src\/netlist-query\.mjs\?v=1\.4\.153'\)/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/pcb-scene3d-viewer\/src\/index\.mjs\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /import\('\/node_modules\/pcb-scene3d-viewer\/src\/scene3d\.mjs\?v=1\.4\.153'\)/
     )
 })

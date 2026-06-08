@@ -1,4 +1,5 @@
 import { AltiumParser } from 'altium-toolkit/parser'
+import { CircuitJsonParser } from 'circuitjson-toolkit'
 import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
@@ -15,14 +16,19 @@ export class EcadParserService {
     /** @type {{ loadEntries: (entries: { name: string, bytes: Uint8Array }[], options?: object) => Promise<object> | object }} */
     #kicadProjectLoader
 
+    /** @type {{ parseBytes: (bytes: ArrayBuffer | Uint8Array, options?: object) => object[] }} */
+    #circuitJsonParser
+
     /**
-     * @param {{ altiumParser?: any, kicadParser?: any, kicadProjectLoader?: any }} [dependencies]
+     * @param {{ altiumParser?: any, kicadParser?: any, kicadProjectLoader?: any, circuitJsonParser?: any }} [dependencies]
      */
     constructor(dependencies = {}) {
         this.#altiumParser = dependencies.altiumParser || AltiumParser
         this.#kicadParser = dependencies.kicadParser || KicadParser
         this.#kicadProjectLoader =
             dependencies.kicadProjectLoader || KicadProjectLoader
+        this.#circuitJsonParser =
+            dependencies.circuitJsonParser || CircuitJsonParser
     }
 
     /**
@@ -41,6 +47,10 @@ export class EcadParserService {
             return this.#kicadParser.parseArrayBuffer(fileName, buffer)
         }
 
+        if (role.sourceFormat === 'circuitjson') {
+            return this.#parseCircuitJsonArrayBuffer(fileName, buffer)
+        }
+
         return this.#altiumParser.parseArrayBuffer(fileName, buffer)
     }
 
@@ -57,6 +67,9 @@ export class EcadParserService {
         const kicadEntries = normalizedEntries.filter((entry) => {
             return entry.role?.sourceFormat === 'kicad'
         })
+        const circuitJsonEntries = normalizedEntries.filter((entry) => {
+            return entry.role?.sourceFormat === 'circuitjson'
+        })
         const documents = []
         const diagnostics = []
         const assets = []
@@ -69,6 +82,18 @@ export class EcadParserService {
                         entry.name,
                         entry.buffer
                     )
+                )
+            } catch (error) {
+                diagnostics.push(
+                    EcadParserService.#buildParseDiagnostic(entry.name, error)
+                )
+            }
+        }
+
+        for (const entry of circuitJsonEntries) {
+            try {
+                documents.push(
+                    this.#parseCircuitJsonArrayBuffer(entry.name, entry.buffer)
                 )
             } catch (error) {
                 diagnostics.push(
@@ -117,6 +142,16 @@ export class EcadParserService {
             assets,
             project
         }
+    }
+
+    /**
+     * Parses one standalone CircuitJSON source buffer.
+     * @param {string} fileName Source file name.
+     * @param {ArrayBuffer | Uint8Array} buffer Source bytes.
+     * @returns {object[]}
+     */
+    #parseCircuitJsonArrayBuffer(fileName, buffer) {
+        return this.#circuitJsonParser.parseBytes(buffer, { fileName })
     }
 
     /**

@@ -24,6 +24,12 @@
     backdrop-filter: blur(20px);
 }
 
+body.is-viewer-mode.is-viewer-report
+    .viewer-stage.is-sidebar-visible
+    .viewer-main {
+    overflow: auto;
+}
+
 .viewer-stage.is-sidebar-visible .pcb-styler-cta {
     grid-column: 1 / -1;
     margin: 0;

@@ -52,6 +52,10 @@ export class EcadFormatRegistry {
             return { sourceFormat: 'kicad', fileType: 'zip' }
         }
 
+        if (normalized.endsWith('.json')) {
+            return { sourceFormat: 'circuitjson', fileType: 'circuitjson' }
+        }
+
         return null
     }
 

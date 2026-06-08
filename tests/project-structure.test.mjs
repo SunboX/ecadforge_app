@@ -73,11 +73,8 @@ test('required project files exist', async () => {
         'src/vendor/occt-import-js/dist/occt-import-js.wasm',
         'src/core/AppState.mjs',
         'src/ui/AppView.mjs',
-        'src/ui/Scene3dRenderer.mjs',
         'src/ui/SchematicViewportController.mjs',
         'tests/app-state.test.mjs',
-        'tests/ui/renderers.test.mjs',
-        'tests/ui/renderers/scene3d.mjs',
         'tests/project-structure.test.mjs',
         'tests/mjs-line-limit.test.mjs',
         'src/I18n.mjs',
@@ -138,15 +135,26 @@ test('project licensing metadata uses AGPL dual licensing', async () => {
 })
 
 /**
- * Verifies the reusable Altium and KiCad parser, renderer, and scene-data
- * cores resolve from the sibling toolkit repositories during local app work.
+ * Verifies reusable ECAD parser, renderer, and scene-data cores resolve from
+ * published npm packages for release builds.
  */
-test('package depends on local Altium and KiCad toolkits', async () => {
+test('package depends on released ECAD toolkit packages', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
+    const releasedToolkitDependencies = [
+        ['altium-toolkit', /^\^1\.1\.1$/],
+        ['kicad-toolkit', /^\^1\.0\.8$/],
+        ['circuitjson-toolkit', /^\^1\.0\.1$/],
+        ['pcb-scene3d-viewer', /^\^1\.0\.1$/]
+    ]
 
-    assert.equal(pkg.dependencies?.['altium-toolkit'], 'file:../altium-toolkit')
-    assert.equal(pkg.dependencies?.['kicad-toolkit'], 'file:../kicad-toolkit')
+    for (const [dependencyName, versionPattern] of releasedToolkitDependencies) {
+        const dependencyVersion = pkg.dependencies?.[dependencyName] ?? ''
+
+        assert.match(dependencyVersion, versionPattern)
+        assert.doesNotMatch(dependencyVersion, /^file:/)
+    }
+
     assert.equal(pkg.scripts?.postinstall, undefined)
 })
 
@@ -166,7 +174,7 @@ test('app identity metadata uses the ECAD Forge name', async () => {
     assert.equal(pkg.name, 'ecadforge_app')
     assert.match(
         indexRaw,
-        /<title>ECAD Forge .* Altium & KiCad Viewer in Your Browser<\/title>/
+        /<title>\s*ECAD Forge .* Altium, KiCad & CircuitJSON Viewer in Your Browser\s*<\/title>/
     )
     assert.match(indexRaw, /<h1[^>]*>ECAD Forge<\/h1>/)
     assert.match(indexRaw, /<link[^>]+rel="icon"[^>]+href="\/favicon\.svg"/)
@@ -183,7 +191,7 @@ test('app shell exposes indexable search metadata', async () => {
     const robotsRaw = await readFile(new URL('src/robots.txt', root), 'utf8')
     const sitemapRaw = await readFile(new URL('src/sitemap.xml', root), 'utf8')
 
-    assert.match(indexRaw, /Altium & KiCad Viewer in Your Browser/)
+    assert.match(indexRaw, /Altium, KiCad & CircuitJSON Viewer in Your Browser/)
     assert.match(indexRaw, /<meta\s+name="description"/)
     assert.match(indexRaw, /property="og:image"/)
     assert.match(indexRaw, /application\/ld\+json/)
@@ -374,12 +382,18 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /class="brand-lockup"/)
     assert.match(indexRaw, /<img src="\/favicon\.svg" alt="" \/>/)
     assert.match(indexRaw, /class="topbar__description"/)
-    assert.match(indexRaw, /Private ECAD viewer for Altium &amp; KiCad/)
+    assert.match(
+        indexRaw,
+        /Private ECAD viewer for Altium, KiCad &amp; CircuitJSON/
+    )
     assert.match(indexRaw, /class="icon icon--upload"/)
     assert.match(indexRaw, /class="icon icon--folder"/)
     assert.match(indexRaw, /class="icon icon--globe"/)
     assert.match(indexRaw, /PRIVATE\s*&middot;\s*LOCAL\s*&middot;\s*NO UPLOAD/)
-    assert.match(indexRaw, /Open Altium &amp; KiCad designs locally/)
+    assert.match(
+        indexRaw,
+        /Open Altium, KiCad &amp; CircuitJSON designs locally/
+    )
     assert.doesNotMatch(indexRaw, /no tracking/)
     assert.match(indexRaw, /id="heroPreviewScreen"/)
     assert.match(indexRaw, /class="hero-proof__screen"/)
@@ -394,14 +408,8 @@ test('app shell implements the marketing landingpage design shell', async () => 
         indexRaw,
         /class="support-tag__icon support-tag__icon--schematic"/
     )
-    assert.match(
-        indexRaw,
-        /class="support-tag__icon support-tag__icon--board"/
-    )
-    assert.match(
-        indexRaw,
-        /class="support-tag__icon support-tag__icon--cloud"/
-    )
+    assert.match(indexRaw, /class="support-tag__icon support-tag__icon--board"/)
+    assert.match(indexRaw, /class="support-tag__icon support-tag__icon--cloud"/)
     assert.match(indexRaw, /data-view-chip="schematic"/)
     assert.match(indexRaw, /data-view-chip="diagnostics"/)
     assert.match(
@@ -493,8 +501,8 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies browser parser and renderer imports route through the app ECAD
- * facade and owned toolkit packages.
+ * Verifies browser parser, renderer, and 3D viewer imports route through the
+ * app ECAD facade and owned sibling packages.
  */
 test('browser parser and render core resolve through ECAD facade', async () => {
     const controllerSource = await readFile(
@@ -509,6 +517,10 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         new URL('src/core/ecad/EcadRendererService.mjs', root),
         'utf8'
     )
+    const appViewSource = await readFile(
+        new URL('src/ui/AppView.mjs', root),
+        'utf8'
+    )
 
     assert.match(
         controllerSource,
@@ -520,11 +532,14 @@ test('browser parser and render core resolve through ECAD facade', async () => {
     )
     assert.match(viewSource, /from ['"]altium-toolkit\/renderers['"]/)
     assert.match(viewSource, /from ['"]kicad-toolkit\/renderers['"]/)
+    assert.match(appViewSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.doesNotMatch(appViewSource, /from ['"]\.\/Scene3dRenderer\.mjs['"]/)
 })
 
 /**
  * Verifies the static app shell provides an import map for browser-resolved
- * toolkit, compression, and Three.js dependencies on FTP-hosted deployments.
+ * toolkit, viewer, compression, and Three.js dependencies on FTP-hosted
+ * deployments.
  */
 test('app shell defines a Three.js import map for static hosting', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
@@ -572,6 +587,14 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     )
     assert.match(
         indexRaw,
+        /"pcb-scene3d-viewer"\s*:\s*"\/node_modules\/pcb-scene3d-viewer\/src\/index\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"pcb-scene3d-viewer\/scene3d"\s*:\s*"\/node_modules\/pcb-scene3d-viewer\/src\/scene3d\.mjs"/
+    )
+    assert.match(
+        indexRaw,
         /"fflate"\s*:\s*"\/node_modules\/fflate\/esm\/browser\.js"/
     )
     assert.match(
@@ -590,15 +613,24 @@ test('app shell defines a Three.js import map for static hosting', async () => {
  */
 test('3d runtime source resolves browser dependencies through deployed asset paths', async () => {
     const runtimeSource = await readFile(
-        new URL('src/ui/PcbScene3dRuntime.mjs', root),
+        new URL(
+            'node_modules/pcb-scene3d-viewer/src/PcbScene3dRuntime.mjs',
+            root
+        ),
         'utf8'
     )
     const externalModelsSource = await readFile(
-        new URL('src/ui/PcbScene3dExternalModels.mjs', root),
+        new URL(
+            'node_modules/pcb-scene3d-viewer/src/PcbScene3dExternalModels.mjs',
+            root
+        ),
         'utf8'
     )
     const stepLoaderSource = await readFile(
-        new URL('src/ui/PcbScene3dStepLoader.mjs', root),
+        new URL(
+            'node_modules/pcb-scene3d-viewer/src/PcbScene3dStepLoader.mjs',
+            root
+        ),
         'utf8'
     )
 

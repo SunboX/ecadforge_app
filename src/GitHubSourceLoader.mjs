@@ -114,8 +114,10 @@ export class GitHubSourceLoader {
                 const buffer = await this.#fetchArrayBuffer(modelUrl)
                 assets.push({
                     name:
-                        String(relativePath).split('/').filter(Boolean).at(-1) ||
-                        '',
+                        String(relativePath)
+                            .split('/')
+                            .filter(Boolean)
+                            .at(-1) || '',
                     relativePath,
                     bytes: new Uint8Array(buffer),
                     format
@@ -546,7 +548,7 @@ export class GitHubSourceLoader {
 
         if (!role) {
             throw new Error(
-                'This GitHub file type is not supported yet. ECAD Forge supports selected Altium and KiCad design files.'
+                'This GitHub file type is not supported yet. ECAD Forge supports selected Altium, KiCad, and CircuitJSON design files.'
             )
         }
 
@@ -633,7 +635,8 @@ export class GitHubSourceLoader {
             kicad_pcb: 1,
             kicad_sch: 2,
             pcbdoc: 3,
-            schdoc: 4
+            schdoc: 4,
+            circuitjson: 5
         }
 
         return priorities[source.fileType] ?? 99
@@ -726,8 +729,10 @@ export class GitHubSourceLoader {
                 return {
                     designator,
                     modelName:
-                        String(relativePath).split('/').filter(Boolean).at(-1) ||
-                        '',
+                        String(relativePath)
+                            .split('/')
+                            .filter(Boolean)
+                            .at(-1) || '',
                     modelPath,
                     relativePath,
                     modelTransform:

@@ -1,3 +1,5 @@
+import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+
 /**
  * Resolves which loaded document can render a requested top-level view.
  */
@@ -17,8 +19,16 @@ export class DocumentViewCompatibility {
             return Boolean(documentModel.schematic)
         }
 
-        if (viewName === 'pcb' || viewName === '3d') {
+        if (viewName === 'pcb') {
             return Boolean(documentModel.pcb)
+        }
+
+        if (viewName === '3d') {
+            return (
+                Boolean(documentModel.pcb) ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+                    'circuitjson'
+            )
         }
 
         if (viewName === 'bom') {

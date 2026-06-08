@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { I18nService } from '../src/I18n.mjs'
-import { Scene3dRenderer } from '../src/ui/Scene3dRenderer.mjs'
 import { ViewerEmptyStateRenderer } from '../src/ui/ViewerEmptyStateRenderer.mjs'
 import { ViewerSidebarRenderer } from '../src/ui/ViewerSidebarRenderer.mjs'
 
@@ -546,7 +546,9 @@ test('dynamic viewer renderers use provided translations', () => {
                             boardWidthMil: 1200,
                             boardHeightMil: 800
                         },
-                        pcb: { boardOutline: { widthMil: 1200, heightMil: 800 } }
+                        pcb: {
+                            boardOutline: { widthMil: 1200, heightMil: 800 }
+                        }
                     }
                 }
             ],

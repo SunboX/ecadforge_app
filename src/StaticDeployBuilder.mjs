@@ -13,6 +13,14 @@ const browserDependencyAssets = [
         outputParts: ['node_modules', 'kicad-toolkit', 'src']
     },
     {
+        sourceParts: ['node_modules', 'circuitjson-toolkit', 'src'],
+        outputParts: ['node_modules', 'circuitjson-toolkit', 'src']
+    },
+    {
+        sourceParts: ['node_modules', 'pcb-scene3d-viewer', 'src'],
+        outputParts: ['node_modules', 'pcb-scene3d-viewer', 'src']
+    },
+    {
         sourceParts: ['node_modules', 'fflate', 'esm', 'browser.js'],
         outputParts: ['node_modules', 'fflate', 'esm', 'browser.js']
     },

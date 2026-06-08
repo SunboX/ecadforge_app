@@ -37,6 +37,7 @@ export class EcadRendererService {
      * @returns {string}
      */
     static renderSchematic(documentModel) {
+        EcadRendererService.#assertRendererBackedDocument(documentModel)
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadSchematicSvgRenderer.render(documentModel)
             : AltiumSchematicSvgRenderer.render(documentModel)
@@ -49,6 +50,7 @@ export class EcadRendererService {
      * @returns {string}
      */
     static renderPcb(documentModel, options = {}) {
+        EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         return EcadRendererService.#isKiCad(documentModel)
             ? EcadRendererService.#renderKicadPcb(documentModel, side)
@@ -63,6 +65,7 @@ export class EcadRendererService {
      * @returns {object[]}
      */
     static hitTestPcb(documentModel, point, options = {}) {
+        EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadPcbInteractionIndex.hitTest(documentModel, point, {
@@ -81,6 +84,7 @@ export class EcadRendererService {
      * @returns {{ physicalLayers: object[], virtualLayers: object[] }}
      */
     static resolvePcbInteractionLayers(documentModel) {
+        EcadRendererService.#assertRendererBackedDocument(documentModel)
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadPcbInteractionLayerModel.resolve(documentModel)
             : AltiumPcbInteractionLayerModel.resolve(documentModel)
@@ -118,6 +122,22 @@ export class EcadRendererService {
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
         )
+    }
+
+    /**
+     * Throws when a document only supports the standards-native 3D path.
+     * @param {object} documentModel Document model.
+     * @returns {void}
+     */
+    static #assertRendererBackedDocument(documentModel) {
+        if (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'circuitjson'
+        ) {
+            throw new Error(
+                'CircuitJSON documents are rendered through the 3D scene runtime.'
+            )
+        }
     }
 
     /**

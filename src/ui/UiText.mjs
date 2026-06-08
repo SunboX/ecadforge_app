@@ -16,7 +16,7 @@ const FALLBACK_MESSAGES = {
     'diagnostics.none': 'No diagnostics were emitted for this file.',
     'diagnostics.title': 'Parser diagnostics',
     'empty.copy':
-        'Supports .SchDoc, .PcbDoc, .PrjPcb, .kicad_pro and .kicad_pcb. Your files stay on your device.',
+        'Supports .SchDoc, .PcbDoc, .PrjPcb, .json, .kicad_pro and .kicad_pcb. Your files stay on your device.',
     'empty.title': 'Drop a design file here or start with a sample project',
     'github.open': 'Open GitHub URL',
     'link.localParsing': 'How local parsing works',

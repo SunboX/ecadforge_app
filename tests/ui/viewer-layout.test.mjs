@@ -110,6 +110,19 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
 })
 
 /**
+ * Verifies report views keep the main panel scrollable when the document
+ * sidebar is visible.
+ */
+test('sidebar report views keep the main viewer panel scrollable', async () => {
+    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+
+    assert.match(
+        sidebarCss,
+        /body\.is-viewer-mode\.is-viewer-report\s+\.viewer-stage\.is-sidebar-visible\s+\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/
+    )
+})
+
+/**
  * Verifies narrow detail views can scroll vertically instead of letting the
  * fixed desktop workbench height collapse content behind summaries.
  */

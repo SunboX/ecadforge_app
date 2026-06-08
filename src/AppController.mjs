@@ -2,6 +2,7 @@ import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
 import { AppControllerDocumentSelection } from './AppControllerDocumentSelection.mjs'
 import { AppControllerMessages } from './AppControllerMessages.mjs'
+import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
@@ -599,7 +600,7 @@ export class AppController {
         const snapshot = this.#state.getSnapshot()
         const preferredDocument = parsedDocuments.at(-1)
         const preferredView =
-            preferredDocument.kind === 'schematic' ? 'schematic' : 'pcb'
+            DocumentPreferredViewResolver.resolve(preferredDocument)
         const appendedDocuments = parsedDocuments.map((documentModel) => ({
             id: this.#buildDocumentId(),
             documentModel

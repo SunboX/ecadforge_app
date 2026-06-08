@@ -21,6 +21,10 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static build(documentModel, options = {}) {
+        if (EcadScene3dService.#isCircuitJson(documentModel)) {
+            return documentModel
+        }
+
         return EcadScene3dService.#isKiCad(documentModel)
             ? KicadScene3dBuilder.build(documentModel, options)
             : AltiumScene3dBuilder.build(documentModel, options)
@@ -33,6 +37,10 @@ export class EcadScene3dService {
      * @returns {Promise<object>}
      */
     static async prepare(documentModel, options = {}) {
+        if (EcadScene3dService.#isCircuitJson(documentModel)) {
+            return documentModel
+        }
+
         return EcadScene3dService.#isKiCad(documentModel)
             ? KicadScene3dScenePreparator.prepare(documentModel, options)
             : AltiumScene3dScenePreparator.prepare(documentModel, options)
@@ -45,6 +53,10 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static createModelRegistry(documentModel, sessionAssets) {
+        if (EcadScene3dService.#isCircuitJson(documentModel)) {
+            return null
+        }
+
         if (EcadScene3dService.#isKiCad(documentModel)) {
             return KicadScene3dModelRegistry.create(sessionAssets || [])
         }
@@ -66,6 +78,18 @@ export class EcadScene3dService {
         return (
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
+        )
+    }
+
+    /**
+     * Returns true for standards-native CircuitJSON document models.
+     * @param {object} documentModel Document model.
+     * @returns {boolean}
+     */
+    static #isCircuitJson(documentModel) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'circuitjson'
         )
     }
 }

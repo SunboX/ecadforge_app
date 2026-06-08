@@ -1,4 +1,9 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
+import {
+    PcbScene3dController,
+    PcbScene3dShellRenderer as Scene3dRenderer
+} from 'pcb-scene3d-viewer'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
@@ -6,8 +11,6 @@ import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
 import { PcbViewController } from './PcbViewController.mjs'
-import { PcbScene3dController } from './PcbScene3dController.mjs'
-import { Scene3dRenderer } from './Scene3dRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
@@ -145,6 +148,16 @@ export class AppView {
                     onComponentSelectionChange:
                         sceneOptions.onComponentSelectionChange || null,
                     sessionAssets: sceneOptions.sessionAssets || [],
+                    buildScene: (nextDocumentModel, buildOptions) =>
+                        EcadScene3dService.build(
+                            nextDocumentModel,
+                            buildOptions
+                        ),
+                    createModelRegistry: (nextDocumentModel, sessionAssets) =>
+                        EcadScene3dService.createModelRegistry(
+                            nextDocumentModel,
+                            sessionAssets
+                        ),
                     setLoadingVisible: sceneOptions.setLoadingVisible,
                     translate: sceneOptions.translate || this.#translate
                 }))
@@ -762,8 +775,7 @@ export class AppView {
                 documentModel: snapshot.documentModel,
                 sessionAssets: snapshot.sessionAssets || [],
                 selectedComponentKey: selectedKey,
-                onComponentSelectionChange:
-                    this.#pcbComponentSelectionCallback,
+                onComponentSelectionChange: this.#pcbComponentSelectionCallback,
                 translate: this.#translate,
                 createScene3dController: this.#createScene3dController
             })

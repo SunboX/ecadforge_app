@@ -385,6 +385,42 @@ test('server rewrites browser Altium Toolkit parser module bare imports', async 
 })
 
 /**
+ * Verifies browser-served Scene3D viewer modules are rewritten so package
+ * source copied from the sibling library can run under static browser paths.
+ */
+test('server rewrites browser Scene3D viewer module bare imports', async (t) => {
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/node_modules/pcb-scene3d-viewer/src/PcbScene3dCircuitJsonAdapter.mjs'
+    )
+    const source = await response.text()
+
+    assert.equal(response.ok, true)
+    assert.doesNotMatch(source, /from ['"]circuitjson-toolkit['"]/)
+    assert.match(
+        source,
+        /from ['"]\/node_modules\/circuitjson-toolkit\/src\/index\.mjs(?:\?v=[^'"]+)?['"]/
+    )
+    assert.match(
+        String(response.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+})
+
+/**
  * Verifies the browser-runnable STEP importer assets are served from the local
  * vendor path with the same cache policy as other runtime assets.
  */

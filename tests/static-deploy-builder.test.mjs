@@ -108,6 +108,14 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/kicad-toolkit/src/parser.mjs'
     )
+    const circuitJsonToolkitSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/circuitjson-toolkit/src/index.mjs'
+    )
+    const scene3dViewerSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
+    )
     const fflateSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/fflate/esm/browser.js'
@@ -167,6 +175,19 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         'node_modules/kicad-toolkit/src/parser.mjs'
     )
     assert.match(kicadParserSource, /KicadParser/)
+    assertNotHtmlShell(
+        circuitJsonToolkitSource,
+        'node_modules/circuitjson-toolkit/src/index.mjs'
+    )
+    assert.match(circuitJsonToolkitSource, /CircuitJsonParser/)
+    assertNotHtmlShell(
+        scene3dViewerSource,
+        'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
+    )
+    assert.match(
+        scene3dViewerSource,
+        new RegExp('/node_modules/fflate/esm/browser\\.js\\?v=' + pkg.version)
+    )
     assertNotHtmlShell(fflateSource, 'node_modules/fflate/esm/browser.js')
     assert.match(fflateSource, /unzlibSync/)
     assert.match(

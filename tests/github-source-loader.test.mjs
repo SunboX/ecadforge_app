@@ -58,6 +58,24 @@ test('GitHubSourceLoader resolves github query paths through raw GitHub URLs', (
     assert.equal(resolved.formatFamily, 'altium')
 })
 
+test('GitHubSourceLoader accepts standalone CircuitJSON raw URLs', async () => {
+    const rawUrl = 'https://raw.githubusercontent.com/acme/demo/main/board.json'
+    const { fetcher } = createFetchDouble({
+        [rawUrl]: '[{"type":"pcb_board","pcb_board_id":"board_1"}]'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(rawUrl)
+
+    assert.equal(result.formatFamily, 'circuitjson')
+    assert.equal(result.rawUrl, rawUrl)
+    assert.equal(result.boardUrl, '')
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.json']
+    )
+})
+
 test('GitHubSourceLoader fetches KiCad project siblings with the same stem', async () => {
     const baseUrl =
         'https://raw.githubusercontent.com/acme/demo/main/hardware/board'
@@ -200,8 +218,7 @@ test('GitHubSourceLoader fetches Altium project-local board assembly assets', as
         'https://raw.githubusercontent.com/acme/demo/main/hardware/project/'
     const projectUrl = baseUrl + 'Demo.PrjPcb'
     const boardUrl = baseUrl + 'PCB/FixtureBoard.PcbDoc'
-    const assemblyUrl =
-        baseUrl + '3D%20Bodies/FixtureBoard.step'
+    const assemblyUrl = baseUrl + '3D%20Bodies/FixtureBoard.step'
     const { fetcher, urls } = createFetchDouble({
         [apiUrl]: JSON.stringify([
             {

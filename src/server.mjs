@@ -115,7 +115,7 @@ app.use(
 )
 
 app.get(
-    /^\/node_modules\/(?:altium-toolkit|kicad-toolkit)\/.+\.mjs$/i,
+    /^\/node_modules\/(?:altium-toolkit|kicad-toolkit|circuitjson-toolkit|pcb-scene3d-viewer)\/.+\.mjs$/i,
     async (req, res, next) => {
         try {
             const filePath = ServerRuntime.resolveStaticAssetPath(

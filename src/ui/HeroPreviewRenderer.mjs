@@ -1,5 +1,6 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
-import { Scene3dRenderer } from './Scene3dRenderer.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
+import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { UiText } from './UiText.mjs'
 
 /**
@@ -294,8 +295,16 @@ export class HeroPreviewRenderer {
             return Boolean(documentModel?.schematic)
         }
 
-        if (activeView === 'pcb' || activeView === '3d') {
+        if (activeView === 'pcb') {
             return Boolean(documentModel?.pcb)
+        }
+
+        if (activeView === '3d') {
+            return (
+                Boolean(documentModel?.pcb) ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+                    'circuitjson'
+            )
         }
 
         if (activeView === 'bom') {
