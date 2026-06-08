@@ -7,6 +7,7 @@ test('PcbScene3dDetailCoordinateNormalizer flips Altium detail Y into viewer spa
         PcbScene3dDetailCoordinateNormalizer.normalize(
             {
                 sourceFormat: 'altium',
+                boardAssemblyModel: { name: 'assembly.step' },
                 board: {
                     centerX: 100,
                     centerY: 200
@@ -18,6 +19,26 @@ test('PcbScene3dDetailCoordinateNormalizer flips Altium detail Y into viewer spa
         {
             x: 25,
             y: 40
+        }
+    )
+})
+
+test('PcbScene3dDetailCoordinateNormalizer preserves generated Altium detail coordinates', () => {
+    assert.deepEqual(
+        PcbScene3dDetailCoordinateNormalizer.normalize(
+            {
+                sourceFormat: 'altium',
+                board: {
+                    centerX: 100,
+                    centerY: 200
+                }
+            },
+            125,
+            160
+        ),
+        {
+            x: 25,
+            y: -40
         }
     )
 })

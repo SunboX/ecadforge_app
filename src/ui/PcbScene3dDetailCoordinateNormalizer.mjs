@@ -4,7 +4,7 @@
 export class PcbScene3dDetailCoordinateNormalizer {
     /**
      * Creates a reusable normalizer for one scene description.
-     * @param {{ board?: { centerX?: number, centerY?: number }, coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
+     * @param {{ board?: { centerX?: number, centerY?: number }, boardAssemblyModel?: any, coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
      * @returns {(x: number, y: number) => { x: number, y: number }}
      */
     static create(sceneDescription) {
@@ -18,7 +18,7 @@ export class PcbScene3dDetailCoordinateNormalizer {
 
     /**
      * Normalizes one source detail coordinate into centered scene space.
-     * @param {{ board?: { centerX?: number, centerY?: number }, coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
+     * @param {{ board?: { centerX?: number, centerY?: number }, boardAssemblyModel?: any, coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
      * @param {number} x Source X coordinate.
      * @param {number} y Source Y coordinate.
      * @returns {{ x: number, y: number }}
@@ -32,7 +32,7 @@ export class PcbScene3dDetailCoordinateNormalizer {
 
         return {
             x: sourceX - centerX,
-            y: PcbScene3dDetailCoordinateNormalizer.#usesSourcePcbY(
+            y: PcbScene3dDetailCoordinateNormalizer.#usesAssemblyModelPcbY(
                 sceneDescription
             )
                 ? centerY - sourceY
@@ -41,20 +41,25 @@ export class PcbScene3dDetailCoordinateNormalizer {
     }
 
     /**
-     * Checks whether detail primitives still use a source PCB Y axis.
-     * @param {{ coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
+     * Checks whether detail primitives are being aligned to an assembly model
+     * that still uses the source PCB Y axis.
+     * @param {{ boardAssemblyModel?: any, coordinateSystem?: string, sourceFormat?: string } | null} sceneDescription Scene metadata.
      * @returns {boolean}
      */
-    static #usesSourcePcbY(sceneDescription) {
+    static #usesAssemblyModelPcbY(sceneDescription) {
         if (
             String(sceneDescription?.coordinateSystem || '') === 'kicad-3d-y-up'
         ) {
             return false
         }
 
+        const sourceFormat = String(
+            sceneDescription?.sourceFormat || ''
+        ).toLowerCase()
+
         return (
-            String(sceneDescription?.sourceFormat || '').toLowerCase() ===
-            'altium'
+            sourceFormat === 'altium' &&
+            Boolean(sceneDescription?.boardAssemblyModel)
         )
     }
 }

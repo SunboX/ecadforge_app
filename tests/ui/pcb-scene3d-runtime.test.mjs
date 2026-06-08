@@ -691,16 +691,16 @@ async function flushAsyncTurns(turns = 1) {
     }
 }
 
-test('PcbScene3dRuntime preserves top preset board-space Y orientation', () => {
+test('PcbScene3dRuntime mirrors Altium top into release-stable orientation', () => {
     const topScreenPoint = projectPresetPoint('top', { x: 1, y: 1, z: 0 })
 
     assert.deepEqual(PcbScene3dRuntime.resolveViewScale('top'), {
         x: 1,
-        y: 1,
+        y: -1,
         z: 1
     })
     assert.ok(topScreenPoint.x > 0)
-    assert.ok(topScreenPoint.y > 0)
+    assert.ok(topScreenPoint.y < 0)
 })
 
 test('PcbScene3dRuntime keeps KiCad 3D top geometry unflipped', () => {
@@ -760,10 +760,10 @@ test('PcbScene3dRuntime mirrors the bottom preset into Altium bottom orientation
     assert.ok(bottomScreenPoint.y > 0)
 })
 
-test('PcbScene3dRuntime keeps Altium isometric preset camera-only', () => {
+test('PcbScene3dRuntime mirrors Altium isometric into release-stable orientation', () => {
     assert.deepEqual(PcbScene3dRuntime.resolveViewScale('isometric'), {
         x: 1,
-        y: 1,
+        y: -1,
         z: 1
     })
 })
@@ -900,7 +900,7 @@ test('PcbScene3dRuntime passes active view scale into external model loading', a
         await runtime.whenReady()
         await externalModelsCalled
 
-        assert.deepEqual(capturedModelViewScale, { x: 1, y: 1, z: 1 })
+        assert.deepEqual(capturedModelViewScale, { x: 1, y: -1, z: 1 })
     } finally {
         runtime.dispose()
         PcbScene3dExternalModels.loadIntoScene = originalLoadIntoScene
