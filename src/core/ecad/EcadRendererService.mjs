@@ -31,6 +31,8 @@ const BOM_TRANSLATION_FALLBACKS = {
  * Chooses format-specific renderers for normalized document models.
  */
 export class EcadRendererService {
+    static #pcbInteractionIndexCache = new WeakMap()
+
     /**
      * Renders a schematic document.
      * @param {object} documentModel Document model.
@@ -67,15 +69,28 @@ export class EcadRendererService {
     static hitTestPcb(documentModel, point, options = {}) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
-        return EcadRendererService.#isKiCad(documentModel)
-            ? KicadPcbInteractionIndex.hitTest(documentModel, point, {
+        const isKiCad = EcadRendererService.#isKiCad(documentModel)
+        const interactionIndex = isKiCad
+            ? KicadPcbInteractionIndex
+            : AltiumPcbInteractionIndex
+        const hitTestOptions = isKiCad
+            ? {
                   ...options,
                   side: side === 'bottom' ? 'back' : 'front'
-              })
-            : AltiumPcbInteractionIndex.hitTest(documentModel, point, {
+              }
+            : {
                   ...options,
                   side
-              })
+              }
+
+        return interactionIndex.hitTestItems(
+            EcadRendererService.#pcbInteractionItems(
+                documentModel,
+                interactionIndex
+            ),
+            point,
+            hitTestOptions
+        )
     }
 
     /**
@@ -138,6 +153,33 @@ export class EcadRendererService {
                 'CircuitJSON documents are rendered through the 3D scene runtime.'
             )
         }
+    }
+
+    /**
+     * Returns cached PCB interaction items for one document and toolkit index.
+     * @param {object} documentModel Document model.
+     * @param {{ build: (documentModel: object) => object[] }} interactionIndex Toolkit interaction index class.
+     * @returns {object[]}
+     */
+    static #pcbInteractionItems(documentModel, interactionIndex) {
+        let indexesByToolkit =
+            EcadRendererService.#pcbInteractionIndexCache.get(documentModel)
+        if (!indexesByToolkit) {
+            indexesByToolkit = new Map()
+            EcadRendererService.#pcbInteractionIndexCache.set(
+                documentModel,
+                indexesByToolkit
+            )
+        }
+
+        if (!indexesByToolkit.has(interactionIndex)) {
+            indexesByToolkit.set(
+                interactionIndex,
+                interactionIndex.build(documentModel)
+            )
+        }
+
+        return indexesByToolkit.get(interactionIndex)
     }
 
     /**
@@ -332,7 +374,18 @@ export class EcadRendererService {
      * @returns {string}
      */
     static #renderKicadPcb(documentModel, side) {
-        const markup = KicadPcbSvgRenderer.render(documentModel, {
+        const renderModel =
+            EcadRendererService.#withRenderableKicadBoardBounds(documentModel)
+
+        if (!renderModel) {
+            return EcadRendererService.#renderNormalizedPcb(
+                documentModel,
+                side,
+                'pcb-svg--kicad'
+            )
+        }
+
+        const markup = KicadPcbSvgRenderer.render(renderModel, {
             includeOppositeCopper: true,
             side: side === 'bottom' ? 'back' : 'front'
         })
@@ -345,13 +398,13 @@ export class EcadRendererService {
     }
 
     /**
-     * Renders Altium PCB SVG for the requested side through the side-resolved
-     * model adapter exported by the toolkit.
+     * Renders normalized PCB SVG for the requested side.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side PCB side.
+     * @param {string} formatClass Format-specific SVG modifier class.
      * @returns {string}
      */
-    static #renderAltiumPcb(documentModel, side) {
+    static #renderNormalizedPcb(documentModel, side, formatClass) {
         const sideResolvedModel = prepareAltiumPcbSideResolvedRenderModel(
             documentModel,
             { side: side === 'bottom' ? 'back' : 'front' }
@@ -363,7 +416,7 @@ export class EcadRendererService {
         const markup = EcadRendererService.#withPcbSvgClasses(
             AltiumPcbSvgRenderer.render(renderModel),
             'pcb-svg--app-palette',
-            'pcb-svg--altium',
+            formatClass,
             side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
         )
 
@@ -375,6 +428,97 @@ export class EcadRendererService {
             'Top-facing composite view',
             'Bottom-facing composite view'
         )
+    }
+
+    /**
+     * Renders Altium PCB SVG for the requested side through the normalized
+     * model adapter exported by the toolkit.
+     * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side PCB side.
+     * @returns {string}
+     */
+    static #renderAltiumPcb(documentModel, side) {
+        return EcadRendererService.#renderNormalizedPcb(
+            documentModel,
+            side,
+            'pcb-svg--altium'
+        )
+    }
+
+    /**
+     * Returns a KiCad document model with bounds acceptable to the native SVG renderer.
+     * @param {object} documentModel Document model.
+     * @returns {object | null}
+     */
+    static #withRenderableKicadBoardBounds(documentModel) {
+        const kicadBoard = documentModel?.pcb?.kicadBoard
+        if (!kicadBoard) return null
+
+        const bounds = EcadRendererService.#normalizeKicadBounds(
+            kicadBoard.bounds
+        )
+        if (!bounds) return null
+
+        return {
+            ...documentModel,
+            pcb: {
+                ...documentModel.pcb,
+                kicadBoard: {
+                    ...kicadBoard,
+                    bounds
+                }
+            }
+        }
+    }
+
+    /**
+     * Completes and validates KiCad board bounds before passing them to the toolkit.
+     * @param {object | null | undefined} bounds Bounds candidate.
+     * @returns {{ minX: number, minY: number, maxX: number, maxY: number, width: number, height: number } | null}
+     */
+    static #normalizeKicadBounds(bounds) {
+        const minX = Number(bounds?.minX)
+        const minY = Number(bounds?.minY)
+        let maxX = Number(bounds?.maxX)
+        let maxY = Number(bounds?.maxY)
+        let width = Number(bounds?.width)
+        let height = Number(bounds?.height)
+
+        if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null
+
+        if (!Number.isFinite(maxX) && Number.isFinite(width)) {
+            maxX = minX + Math.max(width, 0.001)
+        }
+
+        if (!Number.isFinite(maxY) && Number.isFinite(height)) {
+            maxY = minY + Math.max(height, 0.001)
+        }
+
+        if (
+            !Number.isFinite(maxX) ||
+            !Number.isFinite(maxY) ||
+            maxX < minX ||
+            maxY < minY
+        ) {
+            return null
+        }
+
+        width = Number.isFinite(width)
+            ? Math.max(width, 0.001)
+            : Math.max(maxX - minX, 0.001)
+        height = Number.isFinite(height)
+            ? Math.max(height, 0.001)
+            : Math.max(maxY - minY, 0.001)
+
+        return {
+            ...bounds,
+            minX,
+            minY,
+            maxX,
+            maxY,
+            width,
+            height
+        }
     }
 
     /**

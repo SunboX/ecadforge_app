@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { PcbViewRenderer } from '../../src/ui/PcbViewRenderer.mjs'
 
 /**
@@ -352,6 +353,69 @@ test('PcbViewRenderer applies requested PCB object opacity categories', () => {
     assert.match(html, /\.pcb-svg \.pcb-track\s*\{\s*opacity: 0\.4 !important;/)
     assert.match(html, /\.pcb-svg \.pcb-via\s*\{\s*opacity: 0 !important;/)
     assert.doesNotMatch(html, /display: none/)
+})
+
+/**
+ * Verifies repeated UI-state renders reuse the expensive PCB SVG for the same
+ * document and side while still applying per-render styles.
+ */
+test('PcbViewRenderer reuses side SVGs across state-only renders', () => {
+    const documentModel = createPcbDocument()
+    const originalRenderPcb = EcadRendererService.renderPcb
+    let renderCount = 0
+
+    EcadRendererService.renderPcb = (...args) => {
+        renderCount += 1
+        return originalRenderPcb(...args)
+    }
+
+    try {
+        const plainHtml = PcbViewRenderer.render(documentModel, 'top')
+        const selectedHtml = PcbViewRenderer.render(
+            documentModel,
+            'top',
+            null,
+            [],
+            [],
+            'J1'
+        )
+        const hiddenHtml = PcbViewRenderer.render(documentModel, 'top', null, [
+            'B.Cu'
+        ])
+
+        assert.equal(renderCount, 1)
+        assert.match(plainHtml, /data-layer="F\.Cu"/)
+        assert.match(selectedHtml, /class="pcb-component-highlight-style"/)
+        assert.match(hiddenHtml, /\[data-layer='B\.Cu'\]\s*\{\s*display: none/)
+    } finally {
+        EcadRendererService.renderPcb = originalRenderPcb
+    }
+})
+
+/**
+ * Verifies ordinary PCB renders skip layer target resolution when no layer is
+ * hidden.
+ */
+test('PcbViewRenderer skips layer target resolution when all layers are visible', () => {
+    const originalResolvePcbInteractionLayers =
+        EcadRendererService.resolvePcbInteractionLayers
+    let resolveCount = 0
+
+    EcadRendererService.resolvePcbInteractionLayers = (...args) => {
+        resolveCount += 1
+        return originalResolvePcbInteractionLayers(...args)
+    }
+
+    try {
+        const html = PcbViewRenderer.render(createPcbDocument(), 'top')
+
+        assert.equal(resolveCount, 0)
+        assert.doesNotMatch(html, /class="pcb-layer-visibility-style"/)
+        assert.match(html, /data-layer="F\.Cu"/)
+    } finally {
+        EcadRendererService.resolvePcbInteractionLayers =
+            originalResolvePcbInteractionLayers
+    }
 })
 
 /**

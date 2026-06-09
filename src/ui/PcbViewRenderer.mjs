@@ -10,6 +10,9 @@ import { UiText } from './UiText.mjs'
  * Renders the 2D PCB viewer chrome around the format-specific SVG.
  */
 export class PcbViewRenderer {
+    /** @type {WeakMap<object, Map<string, string>>} */
+    static #sideSvgCache = new WeakMap()
+
     /**
      * Renders the PCB side toolbar and active board-side SVG.
      * @param {object} documentModel Document model.
@@ -88,9 +91,7 @@ export class PcbViewRenderer {
         selectedComponentKey,
         objectOpacities
     ) {
-        const markup = EcadRendererService.renderPcb(documentModel, { side })
-        const componentMarkup = PcbViewRenderer.#tagComponentGroups(
-            markup,
+        const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
             documentModel,
             side
         )
@@ -120,7 +121,62 @@ export class PcbViewRenderer {
             side
         )
 
-        return SvgPanelChromeStripper.stripMetadataHeader(markedMarkup)
+        return markedMarkup
+    }
+
+    /**
+     * Renders or reuses the state-independent PCB SVG for one document side.
+     * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side Active board side.
+     * @returns {string}
+     */
+    static #renderBasePcbSvg(documentModel, side) {
+        if (!PcbViewRenderer.#canCacheDocument(documentModel)) {
+            return PcbViewRenderer.#createBasePcbSvg(documentModel, side)
+        }
+
+        let sideCache = PcbViewRenderer.#sideSvgCache.get(documentModel)
+        if (!sideCache) {
+            sideCache = new Map()
+            PcbViewRenderer.#sideSvgCache.set(documentModel, sideCache)
+        }
+
+        const cachedMarkup = sideCache.get(side)
+        if (cachedMarkup !== undefined) return cachedMarkup
+
+        const markup = PcbViewRenderer.#createBasePcbSvg(documentModel, side)
+        sideCache.set(side, markup)
+        return markup
+    }
+
+    /**
+     * Creates the state-independent PCB SVG for one document side.
+     * @param {object} documentModel Document model.
+     * @param {'top' | 'bottom'} side Active board side.
+     * @returns {string}
+     */
+    static #createBasePcbSvg(documentModel, side) {
+        const markup = EcadRendererService.renderPcb(documentModel, { side })
+        const componentMarkup = PcbViewRenderer.#tagComponentGroups(
+            markup,
+            documentModel,
+            side
+        )
+
+        return SvgPanelChromeStripper.stripMetadataHeader(componentMarkup)
+    }
+
+    /**
+     * Returns true when a document can be used as a weak cache key.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {boolean}
+     */
+    static #canCacheDocument(documentModel) {
+        return (
+            documentModel !== null &&
+            (typeof documentModel === 'object' ||
+                typeof documentModel === 'function')
+        )
     }
 
     /**
@@ -168,6 +224,10 @@ export class PcbViewRenderer {
      * @returns {{ aliases: string[], selectors: string[] }}
      */
     static #resolveLayerVisibilityTargets(documentModel, hiddenLayers, side) {
+        if (!Array.isArray(hiddenLayers) || !hiddenLayers.length) {
+            return { aliases: [], selectors: [] }
+        }
+
         const aliases = PcbLayerVisibilityModel.resolveHiddenLayerAliases(
             documentModel,
             hiddenLayers

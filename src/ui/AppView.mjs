@@ -1,16 +1,15 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
-import {
-    PcbScene3dController,
-    PcbScene3dShellRenderer as Scene3dRenderer
-} from 'pcb-scene3d-viewer'
+import { PcbScene3dController } from 'pcb-scene3d-viewer'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
+import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
+import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
 import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
-import { PcbViewController } from './PcbViewController.mjs'
+import { AppViewScene3dShellRenderer } from './AppViewScene3dShellRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
@@ -92,7 +91,7 @@ export class AppView {
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
-    /** @type {PcbViewController | null} */
+    /** @type {import('./PcbViewController.mjs').PcbViewController | null} */
     #pcbViewController
 
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
@@ -673,6 +672,16 @@ export class AppView {
     #renderContent(snapshot) {
         if (!this.#contentNode) return
 
+        if (
+            AppViewPcbContentReuseModel.shouldReuse(
+                this.#contentNode,
+                this.#pcbViewController,
+                snapshot
+            )
+        ) {
+            return
+        }
+
         const previousPcbSide = this.#pcbViewController?.side || 'top'
         const preservedSchematicViewBox = SchematicViewportPreserver.capture(
             this.#contentNode,
@@ -729,30 +738,14 @@ export class AppView {
         SchematicViewportPreserver.clear(this.#contentNode)
 
         if (snapshot.activeView === 'pcb') {
-            const documentId = String(snapshot?.activeDocumentId || '')
-            const objectOpacities = snapshot?.pcbObjectOpacities?.[documentId]
-            this.#pcbViewController = new PcbViewController(
-                this.#contentNode,
-                snapshot.documentModel,
-                {
-                    documentId,
-                    side: previousPcbSide,
-                    hiddenLayers: AppView.#resolveHiddenPcbLayers(snapshot),
-                    hiddenObjects: AppView.#resolveHiddenPcbObjects(snapshot),
-                    objectOpacities:
-                        objectOpacities &&
-                        typeof objectOpacities === 'object' &&
-                        !Array.isArray(objectOpacities)
-                            ? { ...objectOpacities }
-                            : {},
-                    selectedComponentKey: String(
-                        snapshot?.selectedPcbComponents?.[documentId] || ''
-                    ),
-                    onComponentSelectionChange:
-                        this.#pcbComponentSelectionCallback,
-                    translate: this.#translate
-                }
-            )
+            this.#pcbViewController = AppViewPcbControllerBinder.attach({
+                contentNode: this.#contentNode,
+                snapshot,
+                side: previousPcbSide,
+                onComponentSelectionChange:
+                    this.#pcbComponentSelectionCallback,
+                translate: this.#translate
+            })
             return
         }
 
@@ -765,7 +758,7 @@ export class AppView {
                 this.#scene3dController?.setSelectedComponent?.(selectedKey)
                 return
             }
-            this.#contentNode.innerHTML = Scene3dRenderer.render(
+            this.#contentNode.innerHTML = AppViewScene3dShellRenderer.render(
                 snapshot.documentModel,
                 this.#translate
             )
@@ -838,6 +831,7 @@ export class AppView {
     #disposePcbViewController() {
         this.#pcbViewController?.dispose()
         this.#pcbViewController = null
+        AppViewPcbContentReuseModel.clear(this.#contentNode)
     }
 
     /**
@@ -870,28 +864,6 @@ export class AppView {
                 documentModel: snapshot.documentModel
             }
         ]
-    }
-
-    /**
-     * Resolves hidden PCB layer keys for the active document.
-     * @param {{ activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] } }} snapshot Viewer snapshot.
-     * @returns {string[]}
-     */
-    static #resolveHiddenPcbLayers(snapshot) {
-        const documentId = String(snapshot?.activeDocumentId || '')
-        const hiddenLayers = snapshot?.hiddenPcbLayers?.[documentId]
-        return Array.isArray(hiddenLayers) ? hiddenLayers : []
-    }
-
-    /**
-     * Resolves hidden PCB object keys for the active document.
-     * @param {{ activeDocumentId?: string, hiddenPcbObjects?: { [documentId: string]: string[] } }} snapshot Viewer snapshot.
-     * @returns {string[]}
-     */
-    static #resolveHiddenPcbObjects(snapshot) {
-        const documentId = String(snapshot?.activeDocumentId || '')
-        const hiddenObjects = snapshot?.hiddenPcbObjects?.[documentId]
-        return Array.isArray(hiddenObjects) ? hiddenObjects : []
     }
 
     /**

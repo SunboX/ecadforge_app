@@ -196,12 +196,14 @@ class FakeContentNode extends FakeNode {
     constructor(ownerDocument) {
         super()
         this.#ownerDocument = ownerDocument
+        this.renderCount = 0
     }
 
     /**
      * @param {string} value Markup.
      */
     set innerHTML(value) {
+        this.renderCount += 1
         this._innerHTML = String(value)
         this.#svg = null
         this.#sideButtons = new Map()
@@ -344,4 +346,23 @@ test('AppView preserves the PCB side when layer visibility re-renders', () => {
     )
 
     assert.equal(content.activeSide(), 'bottom')
+})
+
+/**
+ * Verifies sidebar-only state changes leave the mounted PCB view intact.
+ */
+test('AppView keeps PCB content mounted for sidebar-only re-renders', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const content = fakeDocument.querySelector('#viewContent')
+    const snapshot = createPcbSnapshot()
+
+    view.render(snapshot)
+    view.render({
+        ...snapshot,
+        activeSidebarTab: 'components'
+    })
+
+    assert.equal(content.renderCount, 1)
+    assert.equal(content.activeSide(), 'top')
 })

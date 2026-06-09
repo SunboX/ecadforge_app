@@ -97,7 +97,16 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         sceneCss,
-        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
+        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(520px,\s*62vh,\s*780px\),\s*1fr\s*\) auto;/
+    )
+    assert.match(sceneCss, /\.scene-3d\s*\{[\s\S]*gap:\s*1\.2rem;/)
+    assert.match(
+        sceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s+\.viewer-main\s*\{[\s\S]*padding-bottom:\s*clamp\(1rem,\s*1\.1vh,\s*1\.35rem\);/
+    )
+    assert.match(
+        sceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*gap:\s*clamp\(0\.9rem,\s*1vw,\s*1\.1rem\);/
     )
     assert.match(sidebarCss, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
     assert.match(
@@ -202,8 +211,28 @@ test('compact desktop detail views use a taller bounded viewer height', async ()
         /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(580px,\s*68vh,\s*740px\);[\s\S]*min-height:\s*580px;/
     )
     assert.match(
+        css,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(760px,\s*76vh,\s*900px\);[\s\S]*min-height:\s*760px;/
+    )
+    assert.match(
+        css,
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*margin-bottom:\s*clamp\(0\.45rem,\s*0\.8vh,\s*0\.85rem\);/
+    )
+    assert.match(
         sceneCss,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(460px,\s*50vh,\s*600px\),\s*auto\s*\) auto auto;/
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(500px,\s*58vh,\s*680px\),\s*auto\s*\) auto;/
+    )
+    assert.match(
+        css,
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(520px,\s*76vh,\s*620px\);[\s\S]*min-height:\s*0;/
+    )
+    assert.match(
+        css,
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s+\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/
+    )
+    assert.match(
+        sceneCss,
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto clamp\(360px,\s*54vh,\s*460px\) auto;/
     )
 })
 

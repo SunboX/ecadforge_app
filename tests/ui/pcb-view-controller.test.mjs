@@ -530,6 +530,52 @@ test('PcbViewController refreshes the active PCB side after fonts settle', async
 })
 
 /**
+ * Verifies the embedded-font refresh is a one-time correction for the mounted
+ * controller and does not add another full render after later side toggles.
+ */
+test('PcbViewController skips repeated font refreshes after side changes', async () => {
+    const originalDocument = globalThis.document
+    globalThis.document = {
+        fonts: {
+            ready: Promise.resolve()
+        }
+    }
+
+    try {
+        const fakeDocument = new FakeDocument()
+        const content = new FakeContentNode(fakeDocument)
+        const documentModel = PcbViewControllerFixture.createAltiumPcbDocument()
+        documentModel.pcb.embeddedFonts = [
+            {
+                name: 'Synthetic Mono',
+                payloadBase64: 'AAEAAA=='
+            }
+        ]
+        const controller = new PcbViewController(content, documentModel)
+
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        assert.equal(content.renderCount, 2)
+
+        content.clickPcbSide('bottom')
+        assert.equal(content.renderCount, 3)
+        assert.match(content.innerHTML, /data-pcb-view-active-side="bottom"/)
+
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        assert.equal(content.renderCount, 3)
+        assert.match(content.innerHTML, />BOTTOM_SIDE_MARK<\/text>/)
+
+        controller.dispose()
+    } finally {
+        if (originalDocument) {
+            globalThis.document = originalDocument
+        } else {
+            delete globalThis.document
+        }
+    }
+})
+
+/**
  * Verifies PCB SVG clicks are converted into board-space hit-test requests and
  * overlap candidates are reported in selection-priority order.
  */

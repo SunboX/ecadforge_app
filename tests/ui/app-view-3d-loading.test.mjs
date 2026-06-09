@@ -313,6 +313,35 @@ test('AppView keeps the 3D loading overlay visible until the 3D scene is ready',
 })
 
 /**
+ * Verifies AppView keeps the active 3D panel focused on the large scene while
+ * moving compact board metrics into the sidebar info tab.
+ */
+test('AppView renders the 3D panel without the bottom stat cards', () => {
+    const fakeDocument = new FakeDocument()
+
+    class FakeScene3dController {
+        /**
+         * @returns {void}
+         */
+        dispose() {}
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: () => new FakeScene3dController()
+    })
+
+    view.render(createPcbSnapshot())
+
+    const contentNode = fakeDocument.querySelector('#viewContent')
+    assert.match(contentNode._innerHTML, /class="scene-3d"/)
+    assert.match(contentNode._innerHTML, /data-scene-3d-viewport/)
+    assert.doesNotMatch(contentNode._innerHTML, /scene-3d__stats/)
+    assert.doesNotMatch(contentNode._innerHTML, /<dt>Footprint<\/dt>/)
+    assert.doesNotMatch(contentNode._innerHTML, /<dt>Placements<\/dt>/)
+    assert.doesNotMatch(contentNode._innerHTML, /<dt>BOM groups<\/dt>/)
+})
+
+/**
  * Verifies selected component changes in the 3D footprints sidebar update the
  * live scene controller without rebuilding the scene.
  */

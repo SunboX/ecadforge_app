@@ -47,6 +47,9 @@ export class PcbViewController {
     /** @type {number} */
     #renderGeneration
 
+    /** @type {boolean} */
+    #fontRefreshCompleted
+
     /** @type {(event: Event) => void} */
     #handleClick
 
@@ -90,6 +93,7 @@ export class PcbViewController {
         this.#translate = options.translate || null
         this.#svgViewportController = null
         this.#renderGeneration = 0
+        this.#fontRefreshCompleted = false
         this.#handleClick = (event) => this.#handleClickEvent(event)
         this.#handlePointerMove = (event) => this.#handlePointerMoveEvent(event)
         this.#handlePointerLeave = () => this.#clearClickableCursor()
@@ -427,7 +431,10 @@ export class PcbViewController {
             .trim()
             .split(/[\s,]+/)
             .map(Number)
-        if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+        if (
+            parts.length !== 4 ||
+            parts.some((part) => !Number.isFinite(part))
+        ) {
             return null
         }
 
@@ -480,7 +487,7 @@ export class PcbViewController {
         }
         this.#attachSvgViewportController()
 
-        if (options.refreshFonts !== false) {
+        if (options.refreshFonts !== false && !this.#fontRefreshCompleted) {
             this.#refreshAfterFontsReady(generation)
         }
     }
@@ -501,6 +508,7 @@ export class PcbViewController {
                     return
                 }
 
+                this.#fontRefreshCompleted = true
                 this.#renderSide(this.#side, {
                     refreshFonts: false,
                     preserveViewport: true

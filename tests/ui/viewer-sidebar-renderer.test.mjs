@@ -52,7 +52,7 @@ function createBoardDocument() {
             fills: [{}],
             nets: [{ name: 'VBUS' }, { name: 'GND' }]
         },
-        bom: []
+        bom: [{ quantity: 1 }, { quantity: 1 }]
     }
 }
 
@@ -188,15 +188,19 @@ test('ViewerSidebarRenderer renders the board overview in the info panel', () =>
     assert.match(html, /data-overview-key="layers"/)
     assert.match(html, /data-overview-key="outline"/)
     assert.match(html, /data-overview-key="line-segments"/)
-    assert.match(html, /data-overview-key="envelope"/)
+    assert.match(html, /data-overview-key="footprint"/)
+    assert.match(html, /data-overview-key="bom-groups"/)
     assert.match(html, /Demo board/)
     assert.match(html, /demo-board\.PcbDoc/)
     assert.match(html, /1 records/)
-    assert.match(html, /2/)
+    assert.match(html, /2 components/)
     assert.match(html, /3/)
     assert.match(html, /6/)
     assert.match(html, /449/)
+    assert.match(html, /Footprint/)
+    assert.match(html, /BOM groups/)
     assert.match(html, /1000 x 500 mil/)
+    assert.match(html, /data-overview-key="bom-groups"[\s\S]*<strong>2<\/strong>/)
 })
 
 /**
@@ -446,5 +450,8 @@ test('ViewerSidebarRenderer renders project and info panels', () => {
     assert.doesNotMatch(projectHtml, /viewer-sidebar__overview/)
     assert.match(infoHtml, /Board overview/)
     assert.match(infoHtml, /viewer-sidebar__overview-grid/)
+    assert.match(infoHtml, /Footprint/)
+    assert.match(infoHtml, /2 components/)
+    assert.match(infoHtml, /BOM groups/)
     assert.match(infoHtml, /1000 x 500 mil/)
 })

@@ -196,10 +196,10 @@ test('package depends on released ECAD toolkit packages', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const releasedToolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.1$/],
-        ['kicad-toolkit', /^\^1\.0\.8$/],
-        ['circuitjson-toolkit', /^\^1\.0\.1$/],
-        ['pcb-scene3d-viewer', /^\^1\.0\.1$/]
+        ['altium-toolkit', /^\^1\.1\.2$/],
+        ['kicad-toolkit', /^\^1\.0\.9$/],
+        ['circuitjson-toolkit', /^\^1\.0\.3$/],
+        ['pcb-scene3d-viewer', /^\^1\.1\.0$/]
     ]
 
     for (const [

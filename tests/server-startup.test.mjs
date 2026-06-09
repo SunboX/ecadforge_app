@@ -479,6 +479,31 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
 })
 
 /**
+ * Verifies the vendored STEP importer worker keeps the app-owned wasm loading
+ * cache while loading the ESM-shaped importer as a module.
+ */
+test('vendored STEP importer worker caches wasm binary instantiation inputs', async () => {
+    const workerSource = await readFile(
+        new URL(
+            '../src/vendor/occt-import-js/dist/occt-import-js-worker.js',
+            import.meta.url
+        ),
+        'utf8'
+    )
+
+    assert.match(workerSource, /wasmBinaryPromise/)
+    assert.match(workerSource, /function InstantiateWasm/)
+    assert.match(
+        workerSource,
+        /WebAssembly\.instantiate\(wasmBinary, imports\)/
+    )
+    assert.match(workerSource, /credentials:\s*'same-origin'/)
+    assert.match(workerSource, /new URL\(self\.location\.href\)\.search/)
+    assert.match(workerSource, /import\(\s*importerUrl\.href\s*\)/)
+    assert.doesNotMatch(workerSource, /importScripts/)
+})
+
+/**
  * Verifies the server rewrites frontend entrypoints and module imports with
  * the current app version so browser ESM graphs cannot keep stale parser code.
  */
@@ -512,6 +537,10 @@ test('server serves versioned HTML and module imports', async (t) => {
         baseUrl + '/workers/ecad-parser.worker.mjs' + versionSuffix
     )
     const workerSource = await workerResponse.text()
+    const parserServiceResponse = await fetch(
+        baseUrl + '/core/ecad/EcadParserService.mjs' + versionSuffix
+    )
+    const parserServiceSource = await parserServiceResponse.text()
     const sceneWorkerResponse = await fetch(
         baseUrl + '/workers/pcb-scene3d.worker.mjs' + versionSuffix
     )
@@ -540,6 +569,13 @@ test('server serves versioned HTML and module imports', async (t) => {
     assert.match(
         workerSource,
         /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs\?v=/
+    )
+
+    assert.equal(parserServiceResponse.ok, true)
+    assert.doesNotMatch(parserServiceSource, /from ['"]circuitjson-toolkit['"]/)
+    assert.match(
+        parserServiceSource,
+        /from ['"]\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=/
     )
 
     assert.equal(sceneWorkerResponse.ok, true)

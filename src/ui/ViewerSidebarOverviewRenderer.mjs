@@ -145,10 +145,31 @@ export class ViewerSidebarOverviewRenderer {
                     )
                 },
                 {
+                    key: 'footprint',
+                    icon: 'target',
+                    label: translate('scene3d.footprint'),
+                    value: ViewerSidebarOverviewRenderer.#formatBoardDimensions(
+                        documentModel
+                    )
+                },
+                {
                     key: 'placements',
                     icon: 'chip',
-                    label: translate('summary.placements'),
-                    value: String(summary.componentCount || 0)
+                    label: translate('scene3d.placements'),
+                    value: ViewerSidebarOverviewRenderer.#formatPlacementCount(
+                        documentModel,
+                        translate
+                    )
+                },
+                {
+                    key: 'bom-groups',
+                    icon: 'list',
+                    label: translate('scene3d.bomGroups'),
+                    value: String(
+                        ViewerSidebarOverviewRenderer.#bomGroupCount(
+                            documentModel
+                        )
+                    )
                 },
                 {
                     key: 'layers',
@@ -174,14 +195,6 @@ export class ViewerSidebarOverviewRenderer {
                         ViewerSidebarOverviewRenderer.#lineSegmentCount(
                             documentModel
                         )
-                    )
-                },
-                {
-                    key: 'envelope',
-                    icon: 'target',
-                    label: translate('summary.boardEnvelope'),
-                    value: ViewerSidebarOverviewRenderer.#formatBoardDimensions(
-                        documentModel
                     )
                 },
                 {
@@ -348,6 +361,51 @@ export class ViewerSidebarOverviewRenderer {
         return width && height
             ? String(width) + ' x ' + String(height) + ' mil'
             : ''
+    }
+
+    /**
+     * Formats the 3D placement count with the same suffix used in the scene.
+     * @param {any} documentModel Active document model.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #formatPlacementCount(documentModel, translate) {
+        return (
+            String(ViewerSidebarOverviewRenderer.#placementCount(documentModel)) +
+            ' ' +
+            translate('scene3d.componentsSuffix')
+        )
+    }
+
+    /**
+     * Counts PCB placements from the source used by the 3D scene shell.
+     * @param {any} documentModel Active document model.
+     * @returns {number}
+     */
+    static #placementCount(documentModel) {
+        if (Array.isArray(documentModel?.pcb?.components)) {
+            return documentModel.pcb.components.length
+        }
+
+        const summaryCount = Number(documentModel?.summary?.componentCount)
+        return Number.isFinite(summaryCount) ? summaryCount : 0
+    }
+
+    /**
+     * Counts BOM groups from the loaded BOM table metadata.
+     * @param {any} documentModel Active document model.
+     * @returns {number}
+     */
+    static #bomGroupCount(documentModel) {
+        if (Array.isArray(documentModel?.bom)) {
+            return documentModel.bom.length
+        }
+
+        const summaryCount = Number(
+            documentModel?.summary?.bomGroupCount ??
+                documentModel?.summary?.bomRowCount
+        )
+        return Number.isFinite(summaryCount) ? summaryCount : 0
     }
 
     /**

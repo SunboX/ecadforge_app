@@ -36,9 +36,9 @@ The `occt-import-js@0.0.23` release records OCCT as a submodule:
 
 The ECAD Forge vendored assets currently have these SHA-256 hashes:
 
-- `occt-import-js.js`: `0e9aa28199ebf6a839d1c8fabc953d611dc38d1ed9552ffce844af15dda33d5f`
-- `occt-import-js-worker.js`: `267f441d18b7a19307298d14936f4ac7ef99b7e66a1cec7c407e69753108633b`
-- `occt-import-js.wasm`: `17ba02892034c843a66c448732be49dae95a29d3c08fc5f5805c792f84de1f27`
+- `occt-import-js.js`: `942df5f04d8253858ba559332afe45ea40e3fb1141998950b9d631f53def0f21`
+- `occt-import-js-worker.js`: `d3acf79d58f3235b92faa4f69c4210aede38eeb9d856166f8e347eae52367756`
+- `occt-import-js.wasm`: `7f77463673868e4999abd1c932946912584acc50888d5ce58b95df332db3e93e`
 
 ## Rebuild and replacement notes
 
