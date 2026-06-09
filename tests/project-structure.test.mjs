@@ -42,11 +42,12 @@ test('required project files exist', async () => {
         'COMMERCIAL-LICENSE.md',
         'CONTRIBUTING.md',
         'package.json',
+        'occt-import-js-0.0.23.tgz',
         'LICENSE',
         'LICENSES/AGPL-3.0-or-later.txt',
         'LICENSES/CC-BY-SA-4.0.txt',
-        'LICENSES/LGPL-2.1-or-later.txt',
-        'LICENSES/LicenseRef-PolyForm-Noncommercial-1.0.0.txt',
+        'LICENSES/LGPL-2.1-only.txt',
+        'LICENSES/LicenseRef-OCCT-exception-1.0.txt',
         'NOTICE',
         'NOTICE.md',
         '.reuse/dep5',
@@ -68,6 +69,8 @@ test('required project files exist', async () => {
         'src/server.mjs',
         'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
         'src/vendor/occt-import-js/dist/license.occt.txt',
+        'src/vendor/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt',
+        'src/vendor/occt-import-js/dist/SOURCE-OFFER.md',
         'src/vendor/occt-import-js/dist/occt-import-js-worker.js',
         'src/vendor/occt-import-js/dist/occt-import-js.js',
         'src/vendor/occt-import-js/dist/occt-import-js.wasm',
@@ -131,7 +134,58 @@ test('project licensing metadata uses AGPL dual licensing', async () => {
     assert.match(noticeRaw, /Original project by André Fiedler \/ SunboX/)
     assert.match(dep5Raw, /License: AGPL-3\.0-or-later/)
     assert.match(dep5Raw, /License: CC-BY-SA-4\.0/)
-    assert.match(dep5Raw, /License: LicenseRef-PolyForm-Noncommercial-1\.0\.0/)
+    assert.doesNotMatch(dep5Raw, /LicenseRef-PolyForm-Noncommercial-1\.0\.0/)
+    assert.match(dep5Raw, /LicenseRef-OCCT-exception-1\.0/)
+})
+
+/**
+ * Verifies vendored occt-import-js and OCCT notices match their upstream LGPL
+ * terms and include rebuild/source-offer guidance for the shipped WASM.
+ */
+test('vendored OCCT importer notices preserve LGPL terms and source guidance', async () => {
+    const dep5Raw = await readFile(new URL('.reuse/dep5', root), 'utf8')
+    const noticeRaw = await readFile(new URL('NOTICE.md', root), 'utf8')
+    const packageLockRaw = await readFile(
+        new URL('package-lock.json', root),
+        'utf8'
+    )
+    const importNoticeRaw = await readFile(
+        new URL(
+            'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
+            root
+        ),
+        'utf8'
+    )
+    const occtExceptionRaw = await readFile(
+        new URL('src/vendor/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt', root),
+        'utf8'
+    )
+    const sourceOfferRaw = await readFile(
+        new URL('src/vendor/occt-import-js/dist/SOURCE-OFFER.md', root),
+        'utf8'
+    )
+
+    assert.match(importNoticeRaw, /GNU LESSER GENERAL PUBLIC LICENSE/)
+    assert.doesNotMatch(importNoticeRaw, /PolyForm Noncommercial/)
+    assert.doesNotMatch(importNoticeRaw, /Required Notice:/)
+    assert.match(occtExceptionRaw, /Open CASCADE exception \(version 1\.0\)/)
+    assert.match(
+        occtExceptionRaw,
+        /provided by the Open CASCADE Technology software/
+    )
+    assert.match(sourceOfferRaw, /occt-import-js@0\.0\.23/)
+    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.23\.tgz/)
+    assert.match(sourceOfferRaw, /sha512-RFfYQXY/)
+    assert.match(sourceOfferRaw, /git\.dev\.opencascade\.org\/repos\/occt\.git/)
+    assert.match(sourceOfferRaw, /tools\\build_wasm_win_release\.bat/)
+    assert.match(packageLockRaw, /"license": "LGPL-2\.1"/)
+    assert.match(
+        dep5Raw,
+        /src\/vendor\/occt-import-js\/dist\/occt-import-js\.wasm[\s\S]*License: LGPL-2\.1/
+    )
+    assert.doesNotMatch(dep5Raw, /PolyForm Noncommercial/)
+    assert.match(noticeRaw, /OCCT_LGPL_EXCEPTION\.txt/)
+    assert.match(noticeRaw, /SOURCE-OFFER\.md/)
 })
 
 /**
@@ -148,7 +202,10 @@ test('package depends on released ECAD toolkit packages', async () => {
         ['pcb-scene3d-viewer', /^\^1\.0\.1$/]
     ]
 
-    for (const [dependencyName, versionPattern] of releasedToolkitDependencies) {
+    for (const [
+        dependencyName,
+        versionPattern
+    ] of releasedToolkitDependencies) {
         const dependencyVersion = pkg.dependencies?.[dependencyName] ?? ''
 
         assert.match(dependencyVersion, versionPattern)

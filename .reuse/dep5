@@ -22,11 +22,27 @@ Files:
  occt-import-js-0.0.23.tgz
  src/vendor/occt-import-js/dist/license.occt-import-js.txt
  src/vendor/occt-import-js/dist/occt-import-js.js
- src/vendor/occt-import-js/dist/occt-import-js-worker.js
- src/vendor/occt-import-js/dist/occt-import-js.wasm
-Copyright: 2026 André Fiedler
-License: LicenseRef-PolyForm-Noncommercial-1.0.0
+Copyright: Viktor Kovacs and occt-import-js contributors
+License: LGPL-2.1-only
+
+Files: src/vendor/occt-import-js/dist/occt-import-js.wasm
+Copyright: Viktor Kovacs and occt-import-js contributors
+           Open CASCADE SAS and OCCT contributors
+License: LGPL-2.1-only WITH LicenseRef-OCCT-exception-1.0
+
+Files: src/vendor/occt-import-js/dist/occt-import-js-worker.js
+Copyright: Viktor Kovacs and occt-import-js contributors
+           2026 André Fiedler
+License: LGPL-2.1-only
 
 Files: src/vendor/occt-import-js/dist/license.occt.txt
 Copyright: 1991, 1999 Free Software Foundation, Inc.
-License: LGPL-2.1-or-later
+License: LGPL-2.1-only
+
+Files: src/vendor/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt
+Copyright: Open CASCADE SAS
+License: LicenseRef-OCCT-exception-1.0
+
+Files: src/vendor/occt-import-js/dist/SOURCE-OFFER.md
+Copyright: 2026 André Fiedler
+License: CC-BY-SA-4.0

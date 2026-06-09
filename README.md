@@ -126,4 +126,6 @@ required by the AGPL and the notice files in this repository.
 Documentation and non-code media are licensed under Creative Commons
 Attribution-ShareAlike 4.0 (`CC-BY-SA-4.0`) where marked in `.reuse/dep5`.
 Vendored third-party artifacts and package-manager dependencies retain their
-own licenses and notices.
+own licenses and notices. The vendored OCCT importer preserves LGPL notices,
+the Open CASCADE exception, and rebuild/source guidance under
+`src/vendor/occt-import-js/dist/`.
