@@ -9,9 +9,12 @@ import { AppState } from '../src/core/AppState.mjs'
 class GithubOpenView {
     /** @type {((url: string) => void | Promise<void>) | null} */
     #githubOpenCallback
+    /** @type {((documentId: string) => void) | null} */
+    #documentSelectionCallback
 
     constructor() {
         this.#githubOpenCallback = null
+        this.#documentSelectionCallback = null
     }
 
     /** @param {() => void} _callback @returns {void} */
@@ -29,8 +32,10 @@ class GithubOpenView {
     /** @param {(viewName: string) => void} _callback @returns {void} */
     bindViewChange(_callback) {}
 
-    /** @param {(documentId: string) => void} _callback @returns {void} */
-    bindDocumentSelection(_callback) {}
+    /** @param {(documentId: string) => void} callback @returns {void} */
+    bindDocumentSelection(callback) {
+        this.#documentSelectionCallback = callback
+    }
 
     /** @param {(demoId: string) => void | Promise<void>} _callback @returns {void} */
     bindDemoSelection(_callback) {}
@@ -67,6 +72,15 @@ class GithubOpenView {
      */
     async openGitHub(url) {
         await this.#githubOpenCallback?.(url)
+    }
+
+    /**
+     * Simulates selecting a parsed document from the document rail.
+     * @param {string} documentId Session document id.
+     * @returns {void}
+     */
+    selectDocument(documentId) {
+        this.#documentSelectionCallback?.(documentId)
     }
 }
 
@@ -227,9 +241,89 @@ test('AppController writes successful GitHub form loads into the share URL', asy
             [
                 { active: true },
                 '',
-                'https://ecadforge.app/?v=1.4.26&url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware%2Fproject'
+                'https://ecadforge.app/?v=1.4.26&url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware%2Fproject&document=board.kicad_pcb'
             ]
         ])
+    } finally {
+        if (originalHistory === undefined) {
+            delete globalThis.history
+        } else {
+            Object.defineProperty(globalThis, 'history', {
+                configurable: true,
+                value: originalHistory
+            })
+        }
+        if (originalLocation === undefined) {
+            delete globalThis.location
+        } else {
+            Object.defineProperty(globalThis, 'location', {
+                configurable: true,
+                value: originalLocation
+            })
+        }
+    }
+})
+
+test('AppController writes selected GitHub documents into the share URL', async () => {
+    const view = new GithubOpenView()
+    const state = new AppState()
+    const replaceCalls = []
+    const originalHistory = globalThis.history
+    const originalLocation = globalThis.location
+    const sourceUrl = 'https://github.com/acme/demo/tree/main/hardware'
+
+    try {
+        Object.defineProperty(globalThis, 'history', {
+            configurable: true,
+            value: {
+                state: { active: true },
+                replaceState(...args) {
+                    replaceCalls.push(args)
+                }
+            }
+        })
+        Object.defineProperty(globalThis, 'location', {
+            configurable: true,
+            value: {
+                href: 'https://ecadforge.app/?url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware&view=schematic'
+            }
+        })
+
+        const controller = new AppController({
+            state,
+            view,
+            parser: new GithubBatchParser([
+                createSchematicDocument('Schematics/01_Input.SchDoc'),
+                createSchematicDocument('Schematics/08_Output.SchDoc')
+            ]),
+            analytics: new NoopAnalytics(),
+            githubSourceLoader: {
+                async loadUrl(_url) {
+                    return {
+                        sourceType: 'github',
+                        formatFamily: 'altium',
+                        shareUrl: sourceUrl,
+                        entries: [
+                            {
+                                name: 'Project.PrjPcb',
+                                buffer: new ArrayBuffer(4)
+                            }
+                        ],
+                        assets: [],
+                        modelReferences: []
+                    }
+                }
+            }
+        })
+
+        await controller.init()
+        await view.openGitHub(sourceUrl)
+        view.selectDocument(state.getSnapshot().documents[1].id)
+
+        assert.equal(
+            replaceCalls.at(-1)[2],
+            'https://ecadforge.app/?url=https%3A%2F%2Fgithub.com%2Facme%2Fdemo%2Ftree%2Fmain%2Fhardware&view=schematic&document=Schematics%2F08_Output.SchDoc'
+        )
     } finally {
         if (originalHistory === undefined) {
             delete globalThis.history
@@ -328,4 +422,50 @@ test('AppController restores GitHub startup PCB view on the first compatible pro
 
     assert.equal(state.getSnapshot().activeView, 'pcb')
     assert.equal(state.getSnapshot().activeFileName, 'PCB/Primary.PcbDoc')
+})
+
+test('AppController restores a startup GitHub document from deep links', async () => {
+    const view = new StartupView()
+    const state = new AppState()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new GithubBatchParser([
+            createSchematicDocument('Schematics/01_Input.SchDoc'),
+            createSchematicDocument('Schematics/08_Output.SchDoc'),
+            createPcbDocument('PCB/Primary.PcbDoc')
+        ]),
+        analytics: new NoopAnalytics(),
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/acme/demo/tree/main/hardware',
+            view: 'schematic',
+            document: 'Schematics/08_Output.SchDoc'
+        },
+        githubSourceLoader: {
+            async loadUrl(_url) {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'altium',
+                    shareUrl: 'https://github.com/acme/demo/tree/main/hardware',
+                    entries: [
+                        {
+                            name: 'Project.PrjPcb',
+                            buffer: new ArrayBuffer(4)
+                        }
+                    ],
+                    assets: [],
+                    modelReferences: []
+                }
+            }
+        }
+    })
+
+    await controller.init()
+
+    assert.equal(state.getSnapshot().activeView, 'schematic')
+    assert.equal(
+        state.getSnapshot().activeFileName,
+        'Schematics/08_Output.SchDoc'
+    )
 })

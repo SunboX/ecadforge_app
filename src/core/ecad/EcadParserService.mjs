@@ -44,14 +44,20 @@ export class EcadParserService {
         }
 
         if (role.sourceFormat === 'kicad') {
-            return this.#kicadParser.parseArrayBuffer(fileName, buffer)
+            return EcadParserService.#prepareAppDocument(
+                this.#kicadParser.parseArrayBuffer(fileName, buffer)
+            )
         }
 
         if (role.sourceFormat === 'circuitjson') {
-            return this.#parseCircuitJsonArrayBuffer(fileName, buffer)
+            return EcadParserService.#prepareAppDocument(
+                this.#parseCircuitJsonArrayBuffer(fileName, buffer)
+            )
         }
 
-        return this.#altiumParser.parseArrayBuffer(fileName, buffer)
+        return EcadParserService.#prepareAppDocument(
+            this.#altiumParser.parseArrayBuffer(fileName, buffer)
+        )
     }
 
     /**
@@ -134,10 +140,11 @@ export class EcadParserService {
             throw new Error(diagnostics[0].message)
         }
 
+        EcadParserService.#attachAltiumProjectContext(documents)
         EcadParserService.#attachDiagnosticsToDocuments(documents, diagnostics)
 
         return {
-            documents,
+            documents: EcadParserService.#prepareAppDocuments(documents),
             diagnostics,
             assets,
             project
@@ -174,6 +181,43 @@ export class EcadParserService {
             fileName,
             buffer
         )
+    }
+
+    /**
+     * Normalizes parsed documents to the app runtime shape.
+     * @param {object[]} documents Parsed documents.
+     * @returns {object[]}
+     */
+    static #prepareAppDocuments(documents) {
+        return documents.map((document) =>
+            EcadParserService.#prepareAppDocument(document)
+        )
+    }
+
+    /**
+     * Removes parser-only payloads that the browser app does not render or
+     * query after parsing.
+     * @param {object} document Parsed document.
+     * @returns {object}
+     */
+    static #prepareAppDocument(document) {
+        if (!document || typeof document !== 'object') {
+            return document
+        }
+
+        EcadParserService.#stripRawPcbRecords(document)
+        return document
+    }
+
+    /**
+     * Drops large raw PCB record sidecars while preserving derived PCB data.
+     * @param {object} document Parsed document.
+     * @returns {void}
+     */
+    static #stripRawPcbRecords(document) {
+        if (document?.pcb && typeof document.pcb === 'object') {
+            delete document.pcb.rawRecords
+        }
     }
 
     /**
@@ -217,6 +261,193 @@ export class EcadParserService {
     }
 
     /**
+     * Attaches Altium project special-string context to schematic documents.
+     * @param {object[]} documents Parsed documents.
+     */
+    static #attachAltiumProjectContext(documents) {
+        const projects = (documents || []).filter((document) =>
+            EcadParserService.#isAltiumProjectDocument(document)
+        )
+        if (!projects.length) {
+            return
+        }
+
+        const currentValues =
+            EcadParserService.#buildCurrentAltiumSpecialStringValues()
+        for (const document of documents || []) {
+            if (!EcadParserService.#isAltiumSchematicDocument(document)) {
+                continue
+            }
+
+            const projectDocument =
+                EcadParserService.#findAltiumProjectForDocument(
+                    document,
+                    projects
+                ) || projects[0]
+            document.projectParameters = {
+                ...EcadParserService.#extractAltiumProjectParameters(
+                    projectDocument
+                ),
+                ...currentValues,
+                ProjectName: EcadParserService.#baseName(
+                    projectDocument?.fileName
+                ),
+                DataSourceFileName: EcadParserService.#baseName(
+                    projectDocument?.fileName
+                ),
+                DocumentName: EcadParserService.#baseName(document.fileName),
+                DocumentFullPathAndName: String(document.fileName || ''),
+                ...(document.projectParameters || {})
+            }
+        }
+    }
+
+    /**
+     * Returns true when one parsed document is an Altium project file.
+     * @param {object} document Parsed document.
+     * @returns {boolean}
+     */
+    static #isAltiumProjectDocument(document) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(document) === 'altium' &&
+            (document?.kind === 'project' || document?.fileType === 'PrjPcb')
+        )
+    }
+
+    /**
+     * Returns true when one parsed document is an Altium schematic.
+     * @param {object} document Parsed document.
+     * @returns {boolean}
+     */
+    static #isAltiumSchematicDocument(document) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(document) === 'altium' &&
+            document?.kind === 'schematic' &&
+            Boolean(document?.schematic)
+        )
+    }
+
+    /**
+     * Finds the project file that lists a schematic document.
+     * @param {object} document Schematic document.
+     * @param {object[]} projects Parsed project documents.
+     * @returns {object | null}
+     */
+    static #findAltiumProjectForDocument(document, projects) {
+        const documentPath = EcadParserService.#normalizePath(
+            document?.fileName
+        )
+        const documentBaseName = EcadParserService.#baseName(documentPath)
+        const exactMatch = projects.find((projectDocument) =>
+            EcadParserService.#altiumProjectMentionsDocument(
+                projectDocument,
+                documentPath,
+                documentBaseName,
+                false
+            )
+        )
+
+        return (
+            exactMatch ||
+            projects.find((projectDocument) =>
+                EcadParserService.#altiumProjectMentionsDocument(
+                    projectDocument,
+                    documentPath,
+                    documentBaseName,
+                    true
+                )
+            ) ||
+            null
+        )
+    }
+
+    /**
+     * Returns true when a project document references one schematic path.
+     * @param {object} projectDocument Parsed project document.
+     * @param {string} documentPath Normalized schematic path.
+     * @param {string} documentBaseName Normalized schematic basename.
+     * @param {boolean} allowBaseNameFallback Whether basename-only matches are allowed.
+     * @returns {boolean}
+     */
+    static #altiumProjectMentionsDocument(
+        projectDocument,
+        documentPath,
+        documentBaseName,
+        allowBaseNameFallback
+    ) {
+        const projectEntries = Array.isArray(
+            projectDocument?.project?.documents
+        )
+            ? projectDocument.project.documents
+            : []
+
+        return projectEntries.some((entry) => {
+            const entryPath = EcadParserService.#normalizePath(
+                entry?.fileName || entry?.name || entry?.path
+            )
+            if (!entryPath) {
+                return false
+            }
+
+            return (
+                entryPath === documentPath ||
+                documentPath.endsWith('/' + entryPath) ||
+                entryPath.endsWith('/' + documentPath) ||
+                (allowBaseNameFallback &&
+                    EcadParserService.#baseName(entryPath) === documentBaseName)
+            )
+        })
+    }
+
+    /**
+     * Extracts a project parameter map from supported Altium project shapes.
+     * @param {object} projectDocument Parsed project document.
+     * @returns {Record<string, string | number | boolean | null | undefined>}
+     */
+    static #extractAltiumProjectParameters(projectDocument) {
+        return {
+            ...(projectDocument?.project?.parameters?.map || {}),
+            ...(projectDocument?.projectParameters || {})
+        }
+    }
+
+    /**
+     * Builds current date/time special-string values for Altium templates.
+     * @returns {{ CurrentDate: string, CurrentTime: string }}
+     */
+    static #buildCurrentAltiumSpecialStringValues() {
+        const now = new Date()
+
+        return {
+            CurrentDate: now.toLocaleDateString('en-US'),
+            CurrentTime: now.toLocaleTimeString('en-US')
+        }
+    }
+
+    /**
+     * Normalizes one source path for cross-platform comparisons.
+     * @param {string | undefined} fileName Source path.
+     * @returns {string}
+     */
+    static #normalizePath(fileName) {
+        return String(fileName || '')
+            .replace(/\\+/gu, '/')
+            .replace(/\/+/gu, '/')
+    }
+
+    /**
+     * Returns the final path segment from one source path.
+     * @param {string | undefined} fileName Source path.
+     * @returns {string}
+     */
+    static #baseName(fileName) {
+        const normalized = EcadParserService.#normalizePath(fileName)
+        const parts = normalized.split('/')
+
+        return parts[parts.length - 1] || normalized
+    }
+
+    /**
      * Returns a lazily-created default service.
      * @returns {EcadParserService}
      */
@@ -238,9 +469,27 @@ export class EcadParserService {
             .map((entry) => ({
                 name: String(entry?.name || ''),
                 buffer: entry?.buffer,
-                role: EcadFormatRegistry.resolveNativeRole(entry?.name)
+                role: EcadParserService.#resolveParserRole(entry?.name)
             }))
             .filter((entry) => entry.name && entry.buffer && entry.role)
+    }
+
+    /**
+     * Resolves parser roles, including Altium project manifests that are also
+     * companion assets for UI intake.
+     * @param {string} fileName Source file name.
+     * @returns {{ sourceFormat: string, fileType: string } | null}
+     */
+    static #resolveParserRole(fileName) {
+        const nativeRole = EcadFormatRegistry.resolveNativeRole(fileName)
+        if (nativeRole) {
+            return nativeRole
+        }
+
+        return EcadFormatRegistry.resolveCompanionFormat(fileName) ===
+            'altium-project'
+            ? { sourceFormat: 'altium', fileType: 'prjpcb' }
+            : null
     }
 
     /**

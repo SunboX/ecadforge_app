@@ -1,6 +1,10 @@
 import { LoadedDesignNetlistService as AltiumLoadedDesignNetlistService } from 'altium-toolkit/netlist-query'
 import { LoadedDesignNetlistService as KicadLoadedDesignNetlistService } from 'kicad-toolkit/netlist-query'
 import { EcadFormatRegistry } from '../ecad/EcadFormatRegistry.mjs'
+import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
+import { WebMcpDesignInspector } from './WebMcpDesignInspector.mjs'
+import { WebMcpFocusedInspector } from './WebMcpFocusedInspector.mjs'
+import { WebMcpPcbInspector } from './WebMcpPcbInspector.mjs'
 
 /**
  * Dispatches loaded-session WebMCP queries to toolkit-owned netlist services.
@@ -56,8 +60,14 @@ export class LoadedDesignNetlistService {
      * @returns {{ components: object[] } | { error: string }}
      */
     listComponents(args = {}) {
-        return this.#dispatch(args.design, (service) =>
+        const result = this.#dispatch(args.design, (service) =>
             service.listComponents({ ...args, design: 'active' })
+        )
+        return WebMcpDesignAnalyzer.shapeListResult(
+            result,
+            'components',
+            args,
+            WebMcpDesignAnalyzer.compactComponent
         )
     }
 
@@ -67,9 +77,284 @@ export class LoadedDesignNetlistService {
      * @returns {{ nets: string[] } | { error: string }}
      */
     listNets(args = {}) {
-        return this.#dispatch(args.design, (service) =>
+        const result = this.#dispatch(args.design, (service) =>
             service.listNets({ ...args, design: 'active' })
         )
+        return WebMcpDesignAnalyzer.shapeListResult(
+            result,
+            'nets',
+            args,
+            (net) => net
+        )
+    }
+
+    /**
+     * Reviews loaded design coverage for agent planning.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    reviewDesign(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        const entries = resolvedEntries.entries
+        const supportedEntries = entries.filter(
+            (entry) => this.#serviceFactories[entry.sourceFormat]
+        )
+        return WebMcpDesignAnalyzer.review(entries, supportedEntries)
+    }
+
+    /**
+     * Audits loaded designs for parser, metadata, and connectivity issues.
+     * @param {{ design?: string, max_issues?: number }} [args] Tool args.
+     * @returns {{ summary: object, issues: object[] } | { error: string }}
+     */
+    auditDesign(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpDesignAnalyzer.audit(
+            resolvedEntries.entries,
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            ),
+            LoadedDesignNetlistService.#maxResults(args.max_issues)
+        )
+    }
+
+    /**
+     * Cross-references one schematic net against matching PCB pads.
+     * @param {{ design?: string, pcb_design?: string, net_name?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    crossrefNet(args = {}) {
+        const resolved = this.#resolveCrossrefEntries(args)
+        if (resolved.error) return resolved
+
+        return WebMcpDesignAnalyzer.crossrefNet(
+            resolved.schematicEntry,
+            resolved.pcbEntry,
+            args.net_name
+        )
+    }
+
+    /**
+     * Compares schematic connectivity against matching PCB pad assignments.
+     * @param {{ design?: string, pcb_design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    compareSchematicPcb(args = {}) {
+        const resolved = this.#resolveCrossrefEntries(args)
+        if (resolved.error) return resolved
+
+        return WebMcpDesignInspector.compareSchematicPcb(
+            resolved.schematicEntry,
+            resolved.pcbEntry
+        )
+    }
+
+    /**
+     * Summarizes loaded design state for agent planning.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    summarizeDesign(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpDesignInspector.summarizeDesign(
+            resolvedEntries.entries,
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            )
+        )
+    }
+
+    /**
+     * Finds components across common metadata fields.
+     * @param {{ design?: string, query?: string, limit?: number }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    findComponents(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpDesignInspector.findComponents(
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            ),
+            args
+        )
+    }
+
+    /**
+     * Queries BOM rows by refdes, MPN, or text pattern.
+     * @param {{ design?: string, refdes?: string, mpn?: string, pattern?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    queryBomItem(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpDesignInspector.queryBomItem(
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            ),
+            args
+        )
+    }
+
+    /**
+     * Lists compact pin-to-net rows for one component.
+     * @param {{ design?: string, refdes?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    listPinConnections(args = {}) {
+        const resolved = this.#resolveEntry(args.design)
+        if (resolved.error) return resolved
+
+        return WebMcpDesignInspector.listPinConnections(resolved.entry, args)
+    }
+
+    /**
+     * Returns direct schematic net membership without traversal.
+     * @param {{ design?: string, net_name?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    queryNet(args = {}) {
+        const resolved = this.#resolveEntry(args.design)
+        if (resolved.error) return resolved
+
+        return WebMcpFocusedInspector.queryNet(resolved.entry, args)
+    }
+
+    /**
+     * Lists component counts by reference-designator prefix.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    listComponentTypes(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpFocusedInspector.listComponentTypes(
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            )
+        )
+    }
+
+    /**
+     * Lists parser diagnostics directly.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    listDiagnostics(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpFocusedInspector.listDiagnostics(
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            )
+        )
+    }
+
+    /**
+     * Compares BOM component rows against matching PCB components.
+     * @param {{ design?: string, pcb_design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    compareBomPcb(args = {}) {
+        const resolved = this.#resolveCrossrefEntries(args)
+        if (resolved.error) return resolved
+
+        return WebMcpFocusedInspector.compareBomPcb(
+            resolved.schematicEntry,
+            resolved.pcbEntry
+        )
+    }
+
+    /**
+     * Lists schematic nets that have exactly one connected pin.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    listSinglePinNets(args = {}) {
+        const resolvedEntries = this.#resolveEntries(args.design)
+        if (resolvedEntries.error) return resolvedEntries
+
+        return WebMcpFocusedInspector.listSinglePinNets(
+            resolvedEntries.entries.filter(
+                (entry) => this.#serviceFactories[entry.sourceFormat]
+            )
+        )
+    }
+
+    /**
+     * Queries PCB placement, pads, and model metadata for one component.
+     * @param {{ design?: string, refdes?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    queryPcbComponent(args = {}) {
+        const resolved = this.#resolvePcbEntry(
+            args.design,
+            'query_pcb_component'
+        )
+        if (resolved.error) return resolved
+
+        return WebMcpPcbInspector.queryPcbComponent(resolved.entry, args)
+    }
+
+    /**
+     * Queries physical PCB membership for one net.
+     * @param {{ design?: string, net_name?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    queryPcbNet(args = {}) {
+        const resolved = this.#resolvePcbEntry(args.design, 'query_pcb_net')
+        if (resolved.error) return resolved
+
+        return WebMcpPcbInspector.queryPcbNet(resolved.entry, args)
+    }
+
+    /**
+     * Summarizes loaded PCB board, placement, routing, and stackup data.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    summarizePcb(args = {}) {
+        const resolved = this.#resolvePcbEntry(args.design, 'summarize_pcb')
+        if (resolved.error) return resolved
+
+        return WebMcpPcbInspector.summarizePcb(resolved.entry)
+    }
+
+    /**
+     * Lists compact normalized PCB design rules.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    listDesignRules(args = {}) {
+        const resolved = this.#resolvePcbEntry(args.design, 'list_design_rules')
+        if (resolved.error) return resolved
+
+        return WebMcpPcbInspector.listDesignRules(resolved.entry)
+    }
+
+    /**
+     * Reviews loaded PCB data for fabrication-readiness signals.
+     * @param {{ design?: string }} [args] Tool args.
+     * @returns {object | { error: string }}
+     */
+    reviewFabricationReadiness(args = {}) {
+        const resolved = this.#resolvePcbEntry(
+            args.design,
+            'review_fabrication_readiness'
+        )
+        if (resolved.error) return resolved
+
+        return WebMcpPcbInspector.reviewFabricationReadiness(resolved.entry)
     }
 
     /**
@@ -149,6 +434,120 @@ export class LoadedDesignNetlistService {
     queryXnetByPinName(args = {}) {
         return this.#dispatch(args.design, (service) =>
             service.queryXnetByPinName({ ...args, design: 'active' })
+        )
+    }
+
+    /**
+     * Resolves all entries or one selected entry.
+     * @param {string | undefined} design Design selector.
+     * @returns {{ entries: object[] } | { error: string }}
+     */
+    #resolveEntries(design) {
+        if (design) {
+            const resolved = this.#resolveEntry(design)
+            if (resolved.error) return resolved
+            return { entries: [resolved.entry] }
+        }
+
+        const entries = this.#loadedEntries()
+        if (!entries.length) {
+            return { error: 'No design is loaded in the current session.' }
+        }
+
+        return { entries }
+    }
+
+    /**
+     * Resolves the schematic and PCB entries for a net cross-reference.
+     * @param {{ design?: string, pcb_design?: string }} args Tool args.
+     * @returns {{ schematicEntry: object, pcbEntry: object } | { error: string }}
+     */
+    #resolveCrossrefEntries(args) {
+        const selected = this.#resolveEntry(args.design)
+        if (selected.error) return selected
+
+        const entries = this.#loadedEntries()
+        const selectedEntry = selected.entry
+        const schematicEntry = WebMcpDesignAnalyzer.hasSchematicNets(
+            selectedEntry.documentModel
+        )
+            ? selectedEntry
+            : this.#matchingEntry(selectedEntry, entries, (entry) =>
+                  WebMcpDesignAnalyzer.hasSchematicNets(entry.documentModel)
+              )
+        if (!schematicEntry) {
+            return {
+                error: 'No loaded schematic connectivity is available for crossref_net.'
+            }
+        }
+
+        const pcbEntry = args.pcb_design
+            ? this.#resolveEntry(args.pcb_design)
+            : {
+                  entry: WebMcpDesignAnalyzer.hasPcbPads(
+                      selectedEntry.documentModel
+                  )
+                      ? selectedEntry
+                      : this.#matchingEntry(selectedEntry, entries, (entry) =>
+                            WebMcpDesignAnalyzer.hasPcbPads(entry.documentModel)
+                        )
+              }
+        if (pcbEntry.error) return pcbEntry
+        if (!pcbEntry.entry) {
+            return {
+                error: 'No loaded PCB pad data is available for crossref_net.'
+            }
+        }
+
+        return {
+            schematicEntry,
+            pcbEntry: pcbEntry.entry
+        }
+    }
+
+    /**
+     * Resolves the loaded PCB entry for PCB-specific inspection tools.
+     * @param {string | undefined} design Design selector.
+     * @param {string} toolName Tool name.
+     * @returns {{ entry: object } | { error: string }}
+     */
+    #resolvePcbEntry(design, toolName) {
+        const selected = this.#resolveEntry(design)
+        if (selected.error) return selected
+
+        if (WebMcpPcbInspector.hasPcbData(selected.entry.documentModel)) {
+            return selected
+        }
+
+        const matched = this.#matchingEntry(
+            selected.entry,
+            this.#loadedEntries(),
+            (entry) => WebMcpPcbInspector.hasPcbData(entry.documentModel)
+        )
+        if (!matched) {
+            return {
+                error: 'No loaded PCB data is available for ' + toolName + '.'
+            }
+        }
+
+        return { entry: matched }
+    }
+
+    /**
+     * Finds a matching loaded entry.
+     * @param {object} selectedEntry Selected entry.
+     * @param {object[]} entries Loaded entries.
+     * @param {(entry: object) => boolean} predicate Match predicate.
+     * @returns {object | undefined}
+     */
+    #matchingEntry(selectedEntry, entries, predicate) {
+        return (
+            entries.find(
+                (entry) =>
+                    entry.baseName &&
+                    entry.baseName === selectedEntry.baseName &&
+                    predicate(entry)
+            ) || entries.find((entry) => predicate(entry))
         )
     }
 

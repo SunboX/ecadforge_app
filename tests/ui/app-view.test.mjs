@@ -859,14 +859,17 @@ test('AppView omits the rendered schematic metadata header', () => {
 
 /**
  * Verifies AppView preserves the schematic camera and disposes old listeners
- * on re-render.
+ * when content-affecting state forces a re-render.
  */
 test('AppView preserves the schematic viewBox when the schematic is rendered again', () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
     const snapshot = createSchematicSnapshot()
 
-    view.render(snapshot)
+    view.render({
+        ...snapshot,
+        selectedPcbComponents: { 'doc-1': 'U1' }
+    })
 
     const firstSvg = fakeDocument
         .querySelector('#viewContent')

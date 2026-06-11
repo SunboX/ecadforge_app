@@ -197,6 +197,7 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
         apiUrl,
         projectUrl,
         'https://api.github.com/repos/acme/demo/contents/hardware/project/3D%20Bodies?ref=main',
+        projectUrl,
         schematicUrl,
         boardUrl
     ])
@@ -205,7 +206,7 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
     assert.equal(result.boardUrl, boardUrl)
     assert.deepEqual(
         result.entries.map((entry) => entry.name),
-        ['Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
+        ['Demo.PrjPcb', 'Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
     )
 })
 

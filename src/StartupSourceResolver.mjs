@@ -7,37 +7,41 @@ export class StartupSourceResolver {
     /**
      * Resolves a URL into a startup source descriptor.
      * @param {string} href Browser URL.
-     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string } | null}
+     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string } | null}
      */
     static resolve(href) {
         const url = new URL(String(href || ''), 'https://ecadforge.app/')
         const demoId = StartupSourceResolver.#resolveDemoId(url)
         const view = ViewDeepLinkState.resolveView(url.href)
+        const documentPath = ViewDeepLinkState.resolveDocument(url.href)
 
         if (demoId) {
-            return StartupSourceResolver.#withView(
+            return StartupSourceResolver.#withDeepLinkState(
                 { type: 'demo', id: demoId },
-                view
+                view,
+                documentPath
             )
         }
 
         const sourceUrl = String(url.searchParams.get('url') || '').trim()
         if (sourceUrl) {
-            return StartupSourceResolver.#withView(
+            return StartupSourceResolver.#withDeepLinkState(
                 { type: 'url', url: sourceUrl },
-                view
+                view,
+                documentPath
             )
         }
 
         const githubPath = String(url.searchParams.get('github') || '').trim()
         if (githubPath) {
-            return StartupSourceResolver.#withView(
+            return StartupSourceResolver.#withDeepLinkState(
                 {
                     type: 'github',
                     path: githubPath,
                     ref: String(url.searchParams.get('ref') || 'main').trim()
                 },
-                view
+                view,
+                documentPath
             )
         }
 
@@ -62,12 +66,17 @@ export class StartupSourceResolver {
     }
 
     /**
-     * Adds a requested startup view when the URL carries one.
+     * Adds requested startup view/document state when the URL carries it.
      * @param {{ type: string, id?: string, url?: string, path?: string, ref?: string }} source Startup source descriptor.
      * @param {string} view Requested view id.
-     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string }}
+     * @param {string} documentPath Requested document file path.
+     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string }}
      */
-    static #withView(source, view) {
-        return view ? { ...source, view } : source
+    static #withDeepLinkState(source, view, documentPath) {
+        return {
+            ...source,
+            ...(view ? { view } : {}),
+            ...(documentPath ? { document: documentPath } : {})
+        }
     }
 }

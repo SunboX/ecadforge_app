@@ -648,11 +648,11 @@ export class GitHubSourceLoader {
      * @returns {{ rawUrl: string, fileName: string }[]}
      */
     static #resolveProjectFiles(resolved) {
-        if (
-            Array.isArray(resolved.projectFiles) &&
-            resolved.projectFiles.length
-        ) {
-            return resolved.projectFiles
+        if (Array.isArray(resolved.projectFiles) && resolved.projectFiles.length) {
+            const sourceFiles = resolved.projectFiles
+            return resolved.fileType === 'prjpcb'
+                ? [{ rawUrl: resolved.rawUrl, fileName: resolved.fileName }, ...sourceFiles]
+                : sourceFiles
         }
 
         if (resolved.fileType !== 'kicad_pro') {

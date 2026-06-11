@@ -550,6 +550,16 @@ test('server serves versioned HTML and module imports', async (t) => {
     assert.equal(indexResponse.ok, true)
     assert.match(indexHtml, new RegExp('/style\\.css\\?v=' + appMeta.version))
     assert.match(indexHtml, new RegExp('/main\\.mjs\\?v=' + appMeta.version))
+    assert.match(indexHtml, /http-equiv="origin-trial"/)
+    assert.match(indexHtml, /content="AnJTFnSlAlC65FIT2VeQQPPLzX97dfpvn/)
+    assert.equal(
+        String(indexResponse.headers.get('origin-agent-cluster') || ''),
+        '?1'
+    )
+    assert.match(
+        String(indexResponse.headers.get('permissions-policy') || ''),
+        /tools=\(self\)/
+    )
 
     assert.equal(mainResponse.ok, true)
     assert.match(

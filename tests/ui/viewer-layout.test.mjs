@@ -76,6 +76,10 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
         css,
         /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*min-height:\s*360px;/
     )
+    assert.match(
+        css,
+        /body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(840px,\s*75vh,\s*1250px\);[\s\S]*min-height:\s*0;[\s\S]*margin-bottom:\s*clamp\(0\.45rem,\s*0\.8vh,\s*0\.85rem\);/
+    )
     assert.match(css, /\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/)
     assert.doesNotMatch(css, /\.bom-panel\s*\{[^}]*overflow(?:-x)?:/)
     assert.match(css, /\.bom-panel\s*\{[\s\S]*max-width:\s*100%;/)
@@ -97,7 +101,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         sceneCss,
-        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(520px,\s*62vh,\s*780px\),\s*1fr\s*\) auto;/
+        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto clamp\(680px,\s*60vh,\s*1000px\) auto;/
     )
     assert.match(sceneCss, /\.scene-3d\s*\{[\s\S]*gap:\s*1\.2rem;/)
     assert.match(
@@ -212,7 +216,7 @@ test('compact desktop detail views use a taller bounded viewer height', async ()
     )
     assert.match(
         css,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(760px,\s*76vh,\s*900px\);[\s\S]*min-height:\s*760px;/
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(420px,\s*48vh,\s*560px\);[\s\S]*min-height:\s*0;/
     )
     assert.match(
         css,
@@ -220,11 +224,11 @@ test('compact desktop detail views use a taller bounded viewer height', async ()
     )
     assert.match(
         sceneCss,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto minmax\(\s*clamp\(500px,\s*58vh,\s*680px\),\s*auto\s*\) auto;/
+        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto clamp\(280px,\s*34vh,\s*420px\) auto;/
     )
     assert.match(
         css,
-        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(520px,\s*76vh,\s*620px\);[\s\S]*min-height:\s*0;/
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(340px,\s*64vh,\s*420px\);[\s\S]*min-height:\s*0;/
     )
     assert.match(
         css,
@@ -232,7 +236,7 @@ test('compact desktop detail views use a taller bounded viewer height', async ()
     )
     assert.match(
         sceneCss,
-        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto clamp\(360px,\s*54vh,\s*460px\) auto;/
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto clamp\(220px,\s*44vh,\s*300px\) auto;/
     )
 })
 
@@ -376,6 +380,42 @@ test('sample CTA styles use explicit Altium and KiCad color classes', async () =
 })
 
 /**
+ * Verifies app-level schematic palette overrides preserve the ECAD Forge theme.
+ */
+test('viewer stylesheet keeps schematic app colors in app preview wrappers', async () => {
+    const css = await readViewerStylesheet()
+    const selectorBlocks = [
+        '.schematic-svg',
+        '.document-preview__svg--schematic'
+    ]
+
+    for (const selector of selectorBlocks) {
+        const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const rules = [
+            ...css.matchAll(
+                new RegExp(escapedSelector + '\\s*\\{[^}]*\\}', 'g')
+            )
+        ].find((match) =>
+            match[0].includes('--schematic-default-ink-color')
+        )?.[0]
+
+        assert.ok(rules, selector)
+        assert.match(rules, /--schematic-default-ink-color:\s*#0091ac;/)
+        assert.match(rules, /--schematic-accent-ink-color:\s*#14c5e6;/)
+        assert.match(rules, /--schematic-text-color:\s*#121b22;/)
+        assert.match(rules, /--schematic-sheet-label-color:\s*#405662;/)
+        assert.match(rules, /--schematic-power-color:\s*#a84a12;/)
+        assert.match(rules, /--schematic-port-color:\s*#f28724;/)
+        assert.match(rules, /--schematic-alert-color:\s*#da2f70;/)
+        assert.match(rules, /--schematic-fill-color:\s*#f4dec7;/)
+        assert.match(rules, /--schematic-note-fill-color:\s*#efe4d1;/)
+        assert.match(rules, /--schematic-fill-light-color:\s*#fffaf5;/)
+        assert.match(rules, /--schematic-pin-marker-fill:\s*#edf4f3;/)
+        assert.match(rules, /--schematic-note-border-color:\s*#8a725c;/)
+    }
+})
+
+/**
  * Verifies the app-level PCB board outline stroke stays rounded when the
  * renderer supplies a refined multi-point board contour.
  */
@@ -407,8 +447,8 @@ test('landing hero separates GitHub URL intake from sample CTAs', async () => {
 test('landing support chips use compact vertical padding', async () => {
     const heroCss = await readStylesheet('15-hero.css')
     const chipBlock =
-        heroCss.match(/\.dropzone__tag\s*\{(?<rules>[\s\S]*?)\}/)
-            ?.groups?.rules || ''
+        heroCss.match(/\.dropzone__tag\s*\{(?<rules>[\s\S]*?)\}/)?.groups
+            ?.rules || ''
 
     assert.match(
         chipBlock,

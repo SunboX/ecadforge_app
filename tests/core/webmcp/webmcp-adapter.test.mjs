@@ -138,15 +138,33 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
     const toolNames = fake.calls.map((call) => call.tool.name)
 
     assert.equal(result.available, true)
-    assert.equal(result.registered, 10)
+    assert.equal(result.registered, 28)
     assert.deepEqual(toolNames, [
         'list_designs',
         'list_components',
         'list_nets',
+        'review_design',
+        'audit_design',
+        'crossref_net',
+        'compare_schematic_pcb',
+        'summarize_design',
+        'find_components',
+        'query_bom_item',
+        'list_pin_connections',
+        'query_net',
+        'list_component_types',
+        'list_diagnostics',
+        'compare_bom_pcb',
+        'list_single_pin_nets',
+        'query_pcb_component',
+        'query_pcb_net',
+        'summarize_pcb',
+        'list_design_rules',
+        'review_fabrication_readiness',
         'search_nets',
         'search_components_by_refdes',
         'search_components_by_mpn',
-        'search_components_by_description',
+        'search_component_descriptions',
         'query_component',
         'query_xnet_by_net_name',
         'query_xnet_by_pin_name'
@@ -166,7 +184,9 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
 test('WebMcpAdapter prefers document model context over deprecated navigator context', () => {
     const documentContext = createObjectModelContext()
     const navigatorContext = createObjectModelContext()
-    setGlobalProperty('document', { modelContext: documentContext.modelContext })
+    setGlobalProperty('document', {
+        modelContext: documentContext.modelContext
+    })
     setGlobalProperty('navigator', {
         modelContext: navigatorContext.modelContext
     })
@@ -175,8 +195,34 @@ test('WebMcpAdapter prefers document model context over deprecated navigator con
         const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
         const result = adapter.initialize()
 
-        assert.equal(result.registered, 10)
-        assert.equal(documentContext.calls.length, 10)
+        assert.equal(result.registered, 28)
+        assert.equal(documentContext.calls.length, 28)
+        assert.equal(navigatorContext.calls.length, 0)
+    } finally {
+        setGlobalProperty('document', originalDocument)
+        setGlobalProperty('navigator', originalNavigator)
+    }
+})
+
+/**
+ * Verifies the adapter does not rely on the deprecated navigator-scoped API.
+ */
+test('WebMcpAdapter ignores deprecated navigator-only model context', () => {
+    const navigatorContext = createObjectModelContext()
+    setGlobalProperty('document', {})
+    setGlobalProperty('navigator', {
+        modelContext: navigatorContext.modelContext
+    })
+
+    try {
+        const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
+        const result = adapter.initialize()
+
+        assert.deepEqual(result, {
+            available: false,
+            registered: 0,
+            failed: 0
+        })
         assert.equal(navigatorContext.calls.length, 0)
     } finally {
         setGlobalProperty('document', originalDocument)
@@ -198,7 +244,7 @@ test('WebMcpAdapter supports legacy positional model context', async () => {
     const listNets = fake.calls.find((call) => call.name === 'list_nets')
     const response = await listNets.handler({})
 
-    assert.equal(result.registered, 10)
+    assert.equal(result.registered, 28)
     assert.deepEqual(response, {
         content: [
             {
@@ -222,7 +268,7 @@ test('WebMcpAdapter continues after one registration failure', () => {
     const result = adapter.initialize()
 
     assert.equal(result.available, true)
-    assert.equal(result.registered, 9)
+    assert.equal(result.registered, 27)
     assert.equal(result.failed, 1)
     assert.equal(
         fake.calls.some((call) => call.tool.name === 'query_component'),

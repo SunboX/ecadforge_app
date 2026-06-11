@@ -54,7 +54,7 @@ npm start
 
 Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, companion `WRL`, or companion `STEP` files. KiCad projects can also be selected as folders from the header.
 
-Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching.
+Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching. Share links can also include `view=<tab>` and `document=<loaded-file-path>` to restore the active tab and document.
 
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
 
@@ -62,12 +62,20 @@ Production deployment is available at [https://ecadforge.app/](https://ecadforge
 
 When the browser provides native WebMCP support, ECAD Forge registers read-only
 tools for the designs already loaded in the current session. Agents can list
-loaded designs, components, nets, search metadata, query component pins, and
-trace extended connectivity without uploading files or scanning local paths.
-The adapter uses the current `document.modelContext` API and keeps a deprecated
-`navigator.modelContext` fallback for older WebMCP-capable browsers.
-Netlist extraction, search validation, component grouping, and traversal rules
-are delegated to the Altium and KiCad toolkit query APIs.
+loaded designs, components, nets, search metadata, review coverage, audit
+metadata/connectivity issues, cross-reference schematic nets against PCB pads,
+compare schematic/PCB parity, query BOM rows, list component pins, query
+direct nets, list diagnostics, compare BOM/PCB coverage, query component pins,
+inspect PCB placements, PCB net geometry, board summaries, design rules, and
+fabrication-readiness signals, and trace extended connectivity without
+uploading files or scanning local paths. The adapter uses the current
+`document.modelContext` API. The app shell carries the production WebMCP
+origin-trial token for `https://ecadforge.app/`, and served/deployed responses
+apply the same-origin `tools` permissions policy. Netlist extraction, search
+validation, component grouping, and traversal rules are delegated to the Altium
+and KiCad toolkit query APIs; the app WebMCP layer owns session-level review,
+audit, BOM/component search, cross-reference, PCB inspection, focused
+inspection summaries, and pagination summaries.
 
 See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
 constraints, and unsupported browser-only operations.

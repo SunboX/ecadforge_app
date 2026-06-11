@@ -1,4 +1,4 @@
-import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
+import { PcbScene3dShellRenderer as Scene3dRenderer } from '../../node_modules/pcb-scene3d-viewer/src/PcbScene3dShellRenderer.mjs'
 
 /**
  * Adapts the shared 3D scene shell for the app's active viewer layout.

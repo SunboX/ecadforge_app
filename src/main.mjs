@@ -1,15 +1,11 @@
-import {
-    PcbScene3dController,
-    PcbScene3dWorkerClient
-} from 'pcb-scene3d-viewer'
 import { AppController } from './AppController.mjs'
 import { AnalyticsTrackerLoader } from './AnalyticsTrackerLoader.mjs'
 import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
-import { EcadScene3dService } from './core/ecad/EcadScene3dService.mjs'
 import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
+import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
 import { AppView } from './ui/AppView.mjs'
 import { I18nService } from './I18n.mjs'
 import { StartupSourceResolver } from './StartupSourceResolver.mjs'
@@ -36,25 +32,10 @@ async function bootstrap() {
         import.meta.url,
         Date.now()
     )
-    const scene3dWorkerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
-        import.meta.url,
-        Date.now()
-    )
     const view = new AppView(document, {
-        createScene3dController: (viewportNode, documentModel, options = {}) =>
-            new PcbScene3dController(viewportNode, documentModel, {
-                ...options,
-                buildScene: (nextDocumentModel, buildOptions) =>
-                    EcadScene3dService.build(nextDocumentModel, buildOptions),
-                createModelRegistry: (nextDocumentModel, sessionAssets) =>
-                    EcadScene3dService.createModelRegistry(
-                        nextDocumentModel,
-                        sessionAssets
-                    ),
-                scenePrepClient: new PcbScene3dWorkerClient(
-                    () => new Worker(scene3dWorkerUrl, { type: 'module' })
-                )
-            }),
+        createScene3dController: Scene3dControllerFactory.create(
+            import.meta.url
+        ),
         translate: (key) => i18n.translate(key)
     })
     view.setVersion(loadedVersion)

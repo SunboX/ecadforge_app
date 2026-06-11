@@ -151,6 +151,8 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
 
     assert.match(indexHtml, new RegExp('/style\\.css\\?v=' + pkg.version))
     assert.match(indexHtml, new RegExp('/main\\.mjs\\?v=' + pkg.version))
+    assert.match(indexHtml, /http-equiv="origin-trial"/)
+    assert.match(indexHtml, /content="AnJTFnSlAlC65FIT2VeQQPPLzX97dfpvn/)
     assert.match(
         mainSource,
         new RegExp('\\./AppController\\.mjs\\?v=' + pkg.version)
@@ -221,6 +223,11 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     assert.match(chevrotainSource, /chevrotain/)
     assert.match(htaccessSource, /Cache-Control/)
     assert.match(htaccessSource, /no-store/)
+    assert.match(htaccessSource, /Header set Origin-Agent-Cluster "\?1"/)
+    assert.match(
+        htaccessSource,
+        /Header set Permissions-Policy "tools=\(self\)"/
+    )
     assert.match(htaccessSource, /RewriteEngine On/)
     assert.match(htaccessSource, /RewriteRule \^\(\.\+\)\$ \$1\.html \[L\]/)
     assert.match(htaccessSource, /RewriteRule \^ index\.html \[L\]/)

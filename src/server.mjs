@@ -11,8 +11,15 @@ const staticRoot = path.join(projectRoot, 'src')
 const vendorRoot = path.join(projectRoot, 'node_modules')
 const occtVendorRoot = path.join(staticRoot, 'vendor', 'occt-import-js', 'dist')
 const noStoreCacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
+const originAgentClusterHeaderValue = '?1'
+const permissionsPolicyHeaderValue = 'tools=(self)'
 
 const app = express()
+
+app.use((_req, res, next) => {
+    ServerRuntime.setWebMcpPolicyHeaders(res)
+    next()
+})
 
 app.use(express.json({ limit: '1mb' }))
 
@@ -203,6 +210,16 @@ app.use((req, res) => {
  * Server bootstrap helpers for metadata and configuration.
  */
 class ServerRuntime {
+    /**
+     * Applies headers required for document-scoped WebMCP registration.
+     * @param {import('express').Response} res
+     * @returns {void}
+     */
+    static setWebMcpPolicyHeaders(res) {
+        res.setHeader('Origin-Agent-Cluster', originAgentClusterHeaderValue)
+        res.setHeader('Permissions-Policy', permissionsPolicyHeaderValue)
+    }
+
     /**
      * Parses a valid TCP port.
      * @param {string | undefined} rawPort

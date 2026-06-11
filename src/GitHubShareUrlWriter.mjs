@@ -1,3 +1,5 @@
+import { ViewDeepLinkState } from './ViewDeepLinkState.mjs'
+
 /**
  * Keeps browser URLs shareable after opening GitHub-hosted sources.
  */
@@ -6,9 +8,10 @@ export class GitHubShareUrlWriter {
      * Replaces the current address with a root share URL containing `url=`.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
      * @param {{ history?: History, location?: Location }} [environment]
+     * @param {{ viewName?: string, documentPath?: string }} [options] Optional viewer state.
      * @returns {void}
      */
-    static update(sourceUrl, environment = globalThis) {
+    static update(sourceUrl, environment = globalThis, options = {}) {
         const browserHistory = environment?.history
         const browserLocation = environment?.location
 
@@ -23,7 +26,11 @@ export class GitHubShareUrlWriter {
         browserHistory.replaceState(
             browserHistory.state || null,
             '',
-            GitHubShareUrlWriter.build(browserLocation.href, sourceUrl)
+            GitHubShareUrlWriter.build(
+                browserLocation.href,
+                sourceUrl,
+                options
+            )
         )
     }
 
@@ -31,9 +38,10 @@ export class GitHubShareUrlWriter {
      * Builds a shareable ECAD Forge URL for one GitHub source.
      * @param {string} currentHref Current browser URL.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
+     * @param {{ viewName?: string, documentPath?: string }} [options] Optional viewer state.
      * @returns {string}
      */
-    static build(currentHref, sourceUrl) {
+    static build(currentHref, sourceUrl, options = {}) {
         const shareUrl = new URL(
             String(currentHref || '/'),
             'https://ecadforge.app/'
@@ -45,6 +53,26 @@ export class GitHubShareUrlWriter {
         shareUrl.searchParams.delete('ref')
         shareUrl.searchParams.set('url', String(sourceUrl || '').trim())
 
+        if (GitHubShareUrlWriter.#hasViewOrDocumentOption(options)) {
+            return ViewDeepLinkState.build(
+                shareUrl.href,
+                options.viewName || ViewDeepLinkState.resolveView(shareUrl.href),
+                options
+            )
+        }
+
         return shareUrl.href
+    }
+
+    /**
+     * Returns true when explicit viewer state should be written.
+     * @param {{ viewName?: string, documentPath?: string }} options Options.
+     * @returns {boolean}
+     */
+    static #hasViewOrDocumentOption(options) {
+        return (
+            Object.prototype.hasOwnProperty.call(options || {}, 'viewName') ||
+            Object.prototype.hasOwnProperty.call(options || {}, 'documentPath')
+        )
     }
 }

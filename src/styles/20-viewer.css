@@ -72,6 +72,12 @@ body.is-viewer-mode.is-viewer-visual .viewer-stage {
     align-self: stretch;
 }
 
+body.is-viewer-mode.is-viewer-3d .viewer-stage {
+    height: clamp(840px, 75vh, 1250px);
+    min-height: 0;
+    margin-bottom: clamp(0.45rem, 0.8vh, 0.85rem);
+}
+
 .viewer-main {
     height: 100%;
     min-height: 0;
@@ -667,7 +673,6 @@ body.is-viewer-mode.is-viewer-pcb .pcb-svg {
     .pcb-layout {
         grid-template-columns: 1fr;
     }
-
 }
 
 @media (min-width: 761px) and (max-height: 1280px) {
@@ -677,15 +682,15 @@ body.is-viewer-mode.is-viewer-pcb .pcb-svg {
     }
 
     body.is-viewer-mode.is-viewer-3d .viewer-stage {
-        height: clamp(760px, 76vh, 900px);
-        min-height: 760px;
+        height: clamp(420px, 48vh, 560px);
+        min-height: 0;
         margin-bottom: clamp(0.45rem, 0.8vh, 0.85rem);
     }
 }
 
 @media (min-width: 761px) and (max-height: 760px) {
     body.is-viewer-mode.is-viewer-3d .viewer-stage {
-        height: clamp(520px, 76vh, 620px);
+        height: clamp(340px, 64vh, 420px);
         min-height: 0;
     }
 

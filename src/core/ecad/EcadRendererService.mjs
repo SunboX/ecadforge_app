@@ -31,6 +31,10 @@ const BOM_TRANSLATION_FALLBACKS = {
  * Chooses format-specific renderers for normalized document models.
  */
 export class EcadRendererService {
+    static #schematicSvgCache = new WeakMap()
+
+    static #pcbSvgCache = new WeakMap()
+
     static #pcbInteractionIndexCache = new WeakMap()
 
     /**
@@ -40,9 +44,20 @@ export class EcadRendererService {
      */
     static renderSchematic(documentModel) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
-        return EcadRendererService.#isKiCad(documentModel)
-            ? KicadSchematicSvgRenderer.render(documentModel)
-            : AltiumSchematicSvgRenderer.render(documentModel)
+        return EcadRendererService.#renderCached(
+            EcadRendererService.#schematicSvgCache,
+            documentModel,
+            'schematic',
+            () =>
+                EcadRendererService.#isKiCad(documentModel)
+                    ? KicadSchematicSvgRenderer.render(documentModel)
+                    : AltiumSchematicSvgRenderer.render(
+                          documentModel,
+                          EcadRendererService.#altiumSchematicRenderOptions(
+                              documentModel
+                          )
+                      )
+        )
     }
 
     /**
@@ -54,9 +69,15 @@ export class EcadRendererService {
     static renderPcb(documentModel, options = {}) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
-        return EcadRendererService.#isKiCad(documentModel)
-            ? EcadRendererService.#renderKicadPcb(documentModel, side)
-            : EcadRendererService.#renderAltiumPcb(documentModel, side)
+        return EcadRendererService.#renderCached(
+            EcadRendererService.#pcbSvgCache,
+            documentModel,
+            side,
+            () =>
+                EcadRendererService.#isKiCad(documentModel)
+                    ? EcadRendererService.#renderKicadPcb(documentModel, side)
+                    : EcadRendererService.#renderAltiumPcb(documentModel, side)
+        )
     }
 
     /**
@@ -156,6 +177,19 @@ export class EcadRendererService {
     }
 
     /**
+     * Builds Altium schematic renderer options from document context.
+     * @param {object} documentModel Document model.
+     * @returns {{ projectParameters?: Record<string, string | number | boolean | null | undefined> }}
+     */
+    static #altiumSchematicRenderOptions(documentModel) {
+        const projectParameters = documentModel?.projectParameters || null
+
+        return projectParameters && Object.keys(projectParameters).length
+            ? { projectParameters }
+            : {}
+    }
+
+    /**
      * Returns cached PCB interaction items for one document and toolkit index.
      * @param {object} documentModel Document model.
      * @param {{ build: (documentModel: object) => object[] }} interactionIndex Toolkit interaction index class.
@@ -180,6 +214,46 @@ export class EcadRendererService {
         }
 
         return indexesByToolkit.get(interactionIndex)
+    }
+
+    /**
+     * Renders or returns cached renderer output for one document/key pair.
+     * @param {WeakMap<object, Map<string, string>>} cache Renderer output cache.
+     * @param {object} documentModel Parsed document model.
+     * @param {string} key Render variant key.
+     * @param {() => string} render Renderer callback.
+     * @returns {string}
+     */
+    static #renderCached(cache, documentModel, key, render) {
+        if (!EcadRendererService.#canCacheDocument(documentModel)) {
+            return render()
+        }
+
+        let documentCache = cache.get(documentModel)
+        if (!documentCache) {
+            documentCache = new Map()
+            cache.set(documentModel, documentCache)
+        }
+
+        const cachedMarkup = documentCache.get(key)
+        if (cachedMarkup !== undefined) return cachedMarkup
+
+        const markup = render()
+        documentCache.set(key, markup)
+        return markup
+    }
+
+    /**
+     * Returns true when a parsed document can be used as a weak cache key.
+     * @param {unknown} documentModel Document candidate.
+     * @returns {boolean}
+     */
+    static #canCacheDocument(documentModel) {
+        return (
+            documentModel !== null &&
+            (typeof documentModel === 'object' ||
+                typeof documentModel === 'function')
+        )
     }
 
     /**

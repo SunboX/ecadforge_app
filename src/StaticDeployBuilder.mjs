@@ -3,6 +3,8 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { ServerAssetVersioner } from './ServerAssetVersioner.mjs'
 
 const noStoreCacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
+const originAgentClusterHeaderValue = '?1'
+const permissionsPolicyHeaderValue = 'tools=(self)'
 const browserDependencyAssets = [
     {
         sourceParts: ['node_modules', 'altium-toolkit', 'src'],
@@ -226,6 +228,12 @@ export class StaticDeployBuilder {
             '    RewriteRule ^ index.html [L]\n' +
             '</IfModule>\n' +
             '<IfModule mod_headers.c>\n' +
+            '    Header set Origin-Agent-Cluster "' +
+            originAgentClusterHeaderValue +
+            '"\n' +
+            '    Header set Permissions-Policy "' +
+            permissionsPolicyHeaderValue +
+            '"\n' +
             '    <FilesMatch "\\.(?:html|css|mjs|js|json|wasm|svg|txt|xml)$">\n' +
             '        Header set Cache-Control "' +
             noStoreCacheControl +

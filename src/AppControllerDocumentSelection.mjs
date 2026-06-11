@@ -39,6 +39,29 @@ export class AppControllerDocumentSelection {
     }
 
     /**
+     * Resolves a session document id from a stable document file path.
+     * @param {{ id: string, documentModel: object }[]} documents Loaded docs.
+     * @param {string} documentPath Requested document file path.
+     * @returns {string}
+     */
+    static resolveDocumentIdByPath(documents, documentPath) {
+        const normalizedPath =
+            AppControllerDocumentSelection.#normalizeDocumentPath(documentPath)
+        if (!normalizedPath) {
+            return ''
+        }
+
+        const matchedDocument = documents.find(
+            (entry) =>
+                AppControllerDocumentSelection.#normalizeDocumentPath(
+                    entry?.documentModel?.fileName
+                ) === normalizedPath
+        )
+
+        return matchedDocument?.id || ''
+    }
+
+    /**
      * Builds the active-view patch while keeping the active document
      * compatible with the selected view whenever possible.
      * @param {string} viewName Requested view.
@@ -61,5 +84,16 @@ export class AppControllerDocumentSelection {
         }
 
         return patch
+    }
+
+    /**
+     * Normalizes document paths for URL-state matching.
+     * @param {unknown} value Candidate document path.
+     * @returns {string}
+     */
+    static #normalizeDocumentPath(value) {
+        return String(value || '')
+            .trim()
+            .replaceAll('\\', '/')
     }
 }

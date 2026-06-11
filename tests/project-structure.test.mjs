@@ -196,10 +196,10 @@ test('package depends on released ECAD toolkit packages', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const releasedToolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.2$/],
+        ['altium-toolkit', /^\^1\.1\.3$/],
         ['kicad-toolkit', /^\^1\.0\.9$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.0$/]
+        ['pcb-scene3d-viewer', /^\^1\.1\.1$/]
     ]
 
     for (const [
@@ -558,6 +558,45 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
+ * Verifies ECAD libraries resolve through published npm tarballs in release
+ * builds rather than through local sibling package links.
+ */
+test('released ECAD libraries resolve through npm registry packages', async () => {
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const lockRaw = await readFile(new URL('package-lock.json', root), 'utf8')
+    const pkg = JSON.parse(packageRaw)
+    const lock = JSON.parse(lockRaw)
+    const registryToolkitDependencies = [
+        ['altium-toolkit', '1.1.3'],
+        ['kicad-toolkit', '1.0.9'],
+        ['circuitjson-toolkit', '1.0.3'],
+        ['pcb-scene3d-viewer', '1.1.1']
+    ]
+
+    for (const [
+        dependencyName,
+        expectedVersion
+    ] of registryToolkitDependencies) {
+        const packageDependency = pkg.dependencies[dependencyName]
+        const lockedDependency =
+            lock.packages['']?.dependencies?.[dependencyName]
+        const dependencyPackage =
+            lock.packages[`node_modules/${dependencyName}`]
+
+        assert.equal(packageDependency, `^${expectedVersion}`)
+        assert.equal(lockedDependency, `^${expectedVersion}`)
+        assert.equal(dependencyPackage?.version, expectedVersion)
+        assert.match(
+            dependencyPackage?.resolved ?? '',
+            new RegExp(
+                `^https://registry\\.npmjs\\.org/${dependencyName}/-/${dependencyName}-${expectedVersion}\\.tgz$`
+            )
+        )
+        assert.notEqual(dependencyPackage?.link, true)
+    }
+})
+
+/**
  * Verifies browser parser, renderer, and 3D viewer imports route through the
  * app ECAD facade and owned sibling packages.
  */
@@ -570,12 +609,21 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         new URL('src/workers/ecad-parser.worker.mjs', root),
         'utf8'
     )
+    const mainSource = await readFile(new URL('src/main.mjs', root), 'utf8')
     const viewSource = await readFile(
         new URL('src/core/ecad/EcadRendererService.mjs', root),
         'utf8'
     )
     const appViewSource = await readFile(
         new URL('src/ui/AppView.mjs', root),
+        'utf8'
+    )
+    const sceneShellSource = await readFile(
+        new URL('src/ui/AppViewScene3dShellRenderer.mjs', root),
+        'utf8'
+    )
+    const heroPreviewSource = await readFile(
+        new URL('src/ui/HeroPreviewRenderer.mjs', root),
         'utf8'
     )
 
@@ -589,7 +637,16 @@ test('browser parser and render core resolve through ECAD facade', async () => {
     )
     assert.match(viewSource, /from ['"]altium-toolkit\/renderers['"]/)
     assert.match(viewSource, /from ['"]kicad-toolkit\/renderers['"]/)
-    assert.match(appViewSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.doesNotMatch(
+        mainSource,
+        /from ['"](?:pcb-scene3d-viewer|\.\/core\/ecad\/EcadScene3dService\.mjs)['"]/
+    )
+    assert.doesNotMatch(
+        appViewSource,
+        /from ['"](?:pcb-scene3d-viewer|\.\.\/core\/ecad\/EcadScene3dService\.mjs)['"]/
+    )
+    assert.doesNotMatch(sceneShellSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.doesNotMatch(heroPreviewSource, /from ['"]pcb-scene3d-viewer['"]/)
     assert.doesNotMatch(appViewSource, /from ['"]\.\/Scene3dRenderer\.mjs['"]/)
 })
 

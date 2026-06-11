@@ -4,12 +4,15 @@ import { AppControllerDocumentSelection } from './AppControllerDocumentSelection
 import { AppControllerMessages } from './AppControllerMessages.mjs'
 import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
+import { AppControllerParserData } from './AppControllerParserData.mjs'
+import { AppControllerDeepLinkState } from './AppControllerDeepLinkState.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
-import { GitHubShareUrlWriter } from './GitHubShareUrlWriter.mjs'
+import { GitHubParsePlan } from './GitHubParsePlan.mjs'
 import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
 import { PcbLayerVisibilityModel } from './core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectVisibilityModel } from './core/PcbObjectVisibilityModel.mjs'
+import { PcbStylerLinkState } from './PcbStylerLinkState.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
 /**
@@ -48,7 +51,7 @@ export class AppController {
     /** @type {{ track: (eventName: string, properties?: object) => void }} */
     #analytics
 
-    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string } | null} */
+    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string } | null} */
     #startupSource
 
     /**
@@ -61,7 +64,7 @@ export class AppController {
      * fetcher?: (url: string) => Promise<Response>,
      * githubSourceLoader?: { loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> },
      * analytics?: { track: (eventName: string, properties?: object) => void },
-     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string } | null
+     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string } | null
      * }} dependencies
      */
     constructor(dependencies) {
@@ -106,9 +109,12 @@ export class AppController {
                 )
             )
             this.#trackViewOpened(snapshot.activeView)
+            AppControllerDeepLinkState.sync(snapshot)
         })
         this.#view.bindDocumentSelection?.((documentId) => {
-            this.#state.setValue('activeDocumentId', documentId)
+            AppControllerDeepLinkState.sync(
+                this.#state.setValue('activeDocumentId', documentId)
+            )
         })
         this.#view.bindSidebarTabSelection?.((tabName) => {
             this.#state.setValue('activeSidebarTab', tabName)
@@ -193,10 +199,10 @@ export class AppController {
         if (companionFiles.length) {
             this.#state.setValue(
                 'sessionAssets',
-                AppController.#mergeSessionAssets(
+                AppControllerParserData.mergeSessionAssets(
                     snapshot.sessionAssets,
                     companionFiles.map((file) =>
-                        AppController.#buildCompanionAsset(file)
+                        AppControllerParserData.buildCompanionAsset(file)
                     )
                 )
             )
@@ -225,7 +231,9 @@ export class AppController {
 
         try {
             const entries = await Promise.all(
-                nativeFiles.map((file) => AppController.#buildParserEntry(file))
+                nativeFiles.map((file) =>
+                    AppControllerParserData.buildParserEntry(file)
+                )
             )
             const parseResult = await this.#parseEntries(entries)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
@@ -235,10 +243,11 @@ export class AppController {
             shouldAdoptPreferredView = sessionWasEmpty
             this.#analytics.track('local_file_loaded_success', {
                 sourceType: 'local',
-                formatFamily: AppController.#resolveFormatFamily(entries)
+                formatFamily:
+                    AppControllerParserData.resolveFormatFamily(entries)
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
-            this.#setPcbStylerLink('', 'local')
+            PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('local_file_loaded_error', {
@@ -286,7 +295,7 @@ export class AppController {
                 formatFamily: demo.formatFamily
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
-            this.#setPcbStylerLink('', 'local')
+            PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('sample_loaded_error', {
@@ -302,11 +311,13 @@ export class AppController {
      * @param {string} url Raw or GitHub blob URL.
      * @returns {Promise<void>}
      */
-    async #loadGitHubUrl(url) {
-        await this.#loadGitHubSource(async () =>
-            Object.assign(await this.#githubSourceLoader.loadUrl(url), {
-                shareUrl: url
-            })
+    async #loadGitHubUrl(url, options = {}) {
+        await this.#loadGitHubSource(
+            async () =>
+                Object.assign(await this.#githubSourceLoader.loadUrl(url), {
+                    shareUrl: url
+                }),
+            options
         )
     }
 
@@ -316,22 +327,25 @@ export class AppController {
      * @param {string} ref Optional git ref.
      * @returns {Promise<void>}
      */
-    async #loadGitHubPath(githubPath, ref) {
-        await this.#loadGitHubSource(() =>
-            typeof this.#githubSourceLoader.loadGitHubPath === 'function'
-                ? this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
-                : new GitHubSourceLoader({
-                      fetcher: this.#fetcher
-                  }).loadGitHubPath(githubPath, ref)
+    async #loadGitHubPath(githubPath, ref, options = {}) {
+        await this.#loadGitHubSource(
+            () =>
+                typeof this.#githubSourceLoader.loadGitHubPath === 'function'
+                    ? this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
+                    : new GitHubSourceLoader({
+                          fetcher: this.#fetcher
+                      }).loadGitHubPath(githubPath, ref),
+            options
         )
     }
 
     /**
      * Loads and parses one GitHub source descriptor.
      * @param {() => Promise<object>} loadSource Source loader.
+     * @param {{ preferredDocument?: string }} [options] Load options.
      * @returns {Promise<void>}
      */
-    async #loadGitHubSource(loadSource) {
+    async #loadGitHubSource(loadSource, options = {}) {
         this.#analytics.track('github_url_open_attempted', {
             sourceType: 'github'
         })
@@ -342,7 +356,13 @@ export class AppController {
 
         try {
             const source = await loadSource()
-            const parseResult = await this.#parseEntries(source.entries || [])
+            const parsePlan = GitHubParsePlan.build(
+                source.entries || [],
+                String(options.preferredDocument || '')
+            )
+            const parseResult = await this.#parseEntries(
+                parsePlan.initialEntries
+            )
             GitHubSourceModelLinker.apply(parseResult, source)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
@@ -354,14 +374,53 @@ export class AppController {
                 formatFamily: source.formatFamily
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
-            this.#setPcbStylerLink(String(source.boardUrl || ''), 'github')
-            GitHubShareUrlWriter.update(String(source.shareUrl || ''))
+            PcbStylerLinkState.updateView(
+                this.#view,
+                String(source.boardUrl || ''),
+                'github'
+            )
+            AppControllerDeepLinkState.syncGitHubShareUrl(
+                String(source.shareUrl || ''),
+                snapshotAfterLoad
+            )
+            if (parsePlan.prioritized) {
+                this.#loadDeferredGitHubEntries(
+                    source,
+                    parsePlan.deferredEntries
+                )
+            }
         } catch (error) {
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('github_url_loaded_error', {
                 sourceType: 'github',
                 errorBucket: AppControllerMessages.resolveErrorBucket(error)
             })
+        }
+    }
+
+    /**
+     * Parses non-critical GitHub project entries after the requested document
+     * has painted.
+     * @param {object} source GitHub source descriptor.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Deferred entries.
+     * @returns {Promise<void>}
+     */
+    async #loadDeferredGitHubEntries(source, entries) {
+        try {
+            const parseResult = await this.#parseEntries(entries)
+            GitHubSourceModelLinker.apply(parseResult, source)
+            const filteredResult = GitHubParsePlan.filterNewDocuments(
+                parseResult,
+                this.#state.getSnapshot().documents
+            )
+            if (!filteredResult.documents.length) return
+            this.#applyParseResult(filteredResult, {
+                preserveActiveDocument: true,
+                statusMessage: this.#translate('status.loadedGithub')
+            })
+        } catch (_error) {
+            // A deferred project document should not replace the already
+            // rendered deep-linked document with an error state.
         }
     }
 
@@ -400,13 +459,18 @@ export class AppController {
         }
 
         if (startupSource.type === 'url') {
-            await this.#loadGitHubUrl(String(startupSource.url || ''))
+            await this.#loadGitHubUrl(String(startupSource.url || ''), {
+                preferredDocument: String(startupSource.document || '')
+            })
         }
 
         if (startupSource.type === 'github') {
             await this.#loadGitHubPath(
                 String(startupSource.path || ''),
-                String(startupSource.ref || 'main')
+                String(startupSource.ref || 'main'),
+                {
+                    preferredDocument: String(startupSource.document || '')
+                }
             )
         }
 
@@ -418,6 +482,12 @@ export class AppController {
                 )
             this.#state.patch(patch)
         }
+
+        AppControllerDeepLinkState.restoreDocument(
+            this.#state,
+            String(startupSource.document || '')
+        )
+        AppControllerDeepLinkState.sync(this.#state.getSnapshot())
     }
 
     /**
@@ -449,18 +519,18 @@ export class AppController {
     /**
      * Applies parser assets and documents to state.
      * @param {{ documents: object[], assets: object[] }} parseResult Parse result.
-     * @param {{ adoptPreferredView?: boolean, statusMessage?: string }} options
+     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, statusMessage?: string }} options
      * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #applyParseResult(parseResult, options = {}) {
         const parsedAssets = parseResult.assets.map((asset) =>
-            AppController.#buildParsedAsset(asset)
+            AppControllerParserData.buildParsedAsset(asset)
         )
 
         if (parsedAssets.length) {
             this.#state.setValue(
                 'sessionAssets',
-                AppController.#mergeSessionAssets(
+                AppControllerParserData.mergeSessionAssets(
                     this.#state.getSnapshot().sessionAssets,
                     parsedAssets
                 )
@@ -504,12 +574,12 @@ export class AppController {
      */
     async #parseEntriesDirect(entries) {
         if (typeof this.#parser.parseEntries === 'function') {
-            return AppController.#normalizeParseResult(
+            return AppControllerParserData.normalizeParseResult(
                 await this.#parser.parseEntries(entries)
             )
         }
 
-        return AppController.#normalizeParseResult({
+        return AppControllerParserData.normalizeParseResult({
             documents: entries.map((entry) =>
                 this.#parser.parseArrayBuffer(entry.name, entry.buffer)
             )
@@ -556,7 +626,9 @@ export class AppController {
         }
 
         if (payload.type === 'parser:success') {
-            matchedRequest.resolve(AppController.#normalizeParseResult(payload))
+            matchedRequest.resolve(
+                AppControllerParserData.normalizeParseResult(payload)
+            )
             return
         }
 
@@ -588,7 +660,7 @@ export class AppController {
     /**
      * Applies parsed documents to state.
      * @param {object[]} documentModels Parsed documents.
-     * @param {{ adoptPreferredView?: boolean, statusMessage?: string }} [options]
+     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, statusMessage?: string }} [options]
      * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #handleParsedDocuments(documentModels, options = {}) {
@@ -609,12 +681,13 @@ export class AppController {
             ? preferredView
             : snapshot.activeView
         const nextDocuments = [...snapshot.documents, ...appendedDocuments]
-        const preferredDocumentId =
-            AppControllerDocumentSelection.resolveLoadedDocumentId(
-                appendedDocuments,
-                nextActiveView,
-                options
-            )
+        const preferredDocumentId = options.preserveActiveDocument
+            ? snapshot.activeDocumentId
+            : AppControllerDocumentSelection.resolveLoadedDocumentId(
+                  appendedDocuments,
+                  nextActiveView,
+                  options
+              )
         const patch = {
             documents: nextDocuments,
             activeDocumentId: AppControllerDocumentSelection.resolveDocumentId(
@@ -767,23 +840,6 @@ export class AppController {
     }
 
     /**
-     * Updates the PCB Styler crosslink when a board is available.
-     * @param {string} boardUrl Optional raw board URL.
-     * @param {string} mode Link mode.
-     * @returns {void}
-     */
-    #setPcbStylerLink(boardUrl, mode) {
-        if (typeof this.#view.setPcbStylerLink !== 'function') {
-            return
-        }
-
-        const url = boardUrl
-            ? 'https://pcb-styler.app/?url=' + encodeURIComponent(boardUrl)
-            : 'https://pcb-styler.app/'
-        this.#view.setPcbStylerLink(url, mode)
-    }
-
-    /**
      * Returns a stable state snapshot for integration consumers.
      * @returns {{ app: string, activeView: string, locale: string, parseStatus: string, activeFileName: string }}
      */
@@ -847,16 +903,6 @@ export class AppController {
     }
 
     /**
-     * Resolves the coarse format family for a parser entry batch.
-     * @param {{ name: string }[]} entries Parser entries.
-     * @returns {string}
-     */
-    static #resolveFormatFamily(entries) {
-        const role = EcadFormatRegistry.resolveNativeRole(entries[0]?.name)
-        return role?.sourceFormat || ''
-    }
-
-    /**
      * Returns true for worker transport/module failures that can safely fall
      * back to direct parsing in the document module graph.
      * @param {unknown} error
@@ -874,101 +920,6 @@ export class AppController {
      */
     static #isRecoverableWorkerResponseError(error) {
         return /maximum call stack size exceeded/i.test(error.message)
-    }
-
-    /**
-     * Normalizes one companion asset record for session state.
-     * @param {{ name?: string, webkitRelativePath?: string }} file
-     * @returns {{ name: string, relativePath: string, file: any, format: string }}
-     */
-    static #buildCompanionAsset(file) {
-        const fileName = String(file?.name || '')
-        const relativePath =
-            String(file?.webkitRelativePath || fileName) || fileName
-
-        return {
-            name: fileName,
-            relativePath,
-            file,
-            format: EcadFormatRegistry.resolveCompanionFormat(fileName)
-        }
-    }
-
-    /**
-     * Normalizes one parser asset record for session state.
-     * @param {{ name?: string, bytes?: Uint8Array, relativePath?: string, format?: string }} asset Parser asset.
-     * @returns {{ name: string, relativePath: string, file: any, format: string }}
-     */
-    static #buildParsedAsset(asset) {
-        const relativePath = String(asset?.relativePath || asset?.name || '')
-        const name = String(asset?.name || relativePath.split('/').pop() || '')
-        const bytes = asset?.bytes || new Uint8Array()
-        const format =
-            String(asset?.format || '') ||
-            EcadFormatRegistry.resolveCompanionFormat(name)
-
-        return {
-            name,
-            relativePath,
-            file: typeof Blob === 'function' ? new Blob([bytes]) : bytes,
-            format
-        }
-    }
-
-    /**
-     * Merges session companion assets by relative path.
-     * @param {{ name: string, relativePath: string, file: any, format: string }[]} existingAssets
-     * @param {{ name: string, relativePath: string, file: any, format: string }[]} nextAssets
-     * @returns {{ name: string, relativePath: string, file: any, format: string }[]}
-     */
-    static #mergeSessionAssets(existingAssets, nextAssets) {
-        const mergedAssets = new Map()
-
-        ;[...(existingAssets || []), ...(nextAssets || [])].forEach((asset) => {
-            mergedAssets.set(String(asset.relativePath).toLowerCase(), asset)
-        })
-
-        return [...mergedAssets.values()]
-    }
-
-    /**
-     * Builds one parser entry from a browser File.
-     * @param {{ name?: string, webkitRelativePath?: string, arrayBuffer: () => Promise<ArrayBuffer> }} file Source file.
-     * @returns {Promise<{ name: string, buffer: ArrayBuffer }>}
-     */
-    static async #buildParserEntry(file) {
-        const fileName = String(file?.name || '')
-        const relativePath =
-            String(file?.webkitRelativePath || fileName) || fileName
-
-        return {
-            name: relativePath,
-            buffer: await file.arrayBuffer()
-        }
-    }
-
-    /**
-     * Normalizes parser return shapes from direct and worker code paths.
-     * @param {object} result Parser result.
-     * @returns {{ documents: object[], assets: object[], diagnostics: object[], project: object | null }}
-     */
-    static #normalizeParseResult(result) {
-        const documents = Array.isArray(result?.documents)
-            ? result.documents
-            : result?.documentModel
-              ? [result.documentModel]
-              : result?.kind || result?.pcb || result?.schematic
-                ? [result]
-                : []
-
-        return {
-            documents,
-            assets: Array.isArray(result?.assets) ? result.assets : [],
-            diagnostics: Array.isArray(result?.diagnostics)
-                ? result.diagnostics
-                : [],
-            project: result?.project || null
-        }
     }
 
     /**

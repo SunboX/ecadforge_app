@@ -85,15 +85,11 @@ export class WebMcpAdapter {
     }
 
     /**
-     * Returns the current browser WebMCP model context.
+     * Returns the current document-scoped browser WebMCP model context.
      * @returns {object | null}
      */
     static #getNativeModelContext() {
-        return (
-            globalThis.document?.modelContext ||
-            globalThis.navigator?.modelContext ||
-            null
-        )
+        return globalThis.document?.modelContext || null
     }
 
     /**

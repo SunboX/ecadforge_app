@@ -1,6 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
-import { EcadScene3dService } from '../core/ecad/EcadScene3dService.mjs'
-import { PcbScene3dController } from 'pcb-scene3d-viewer'
+import { Scene3dControllerFactory } from '../Scene3dControllerFactory.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
@@ -10,6 +9,7 @@ import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
 import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
 import { AppViewScene3dShellRenderer } from './AppViewScene3dShellRenderer.mjs'
+import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
@@ -97,17 +97,17 @@ export class AppView {
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #pcbComponentSelectionCallback
 
-    /** @type {PcbScene3dController | null} */
+    /** @type {any | null} */
     #scene3dController
 
     #heroPreviewController
 
-    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController} */
+    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
     #createScene3dController
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => PcbScene3dController, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -141,25 +141,9 @@ export class AppView {
         this.#scene3dController = null
         this.#createScene3dController =
             options.createScene3dController ||
-            ((viewportNode, documentModel, sceneOptions = {}) =>
-                new PcbScene3dController(viewportNode, documentModel, {
-                    documentId: sceneOptions.documentId || '',
-                    onComponentSelectionChange:
-                        sceneOptions.onComponentSelectionChange || null,
-                    sessionAssets: sceneOptions.sessionAssets || [],
-                    buildScene: (nextDocumentModel, buildOptions) =>
-                        EcadScene3dService.build(
-                            nextDocumentModel,
-                            buildOptions
-                        ),
-                    createModelRegistry: (nextDocumentModel, sessionAssets) =>
-                        EcadScene3dService.createModelRegistry(
-                            nextDocumentModel,
-                            sessionAssets
-                        ),
-                    setLoadingVisible: sceneOptions.setLoadingVisible,
-                    translate: sceneOptions.translate || this.#translate
-                }))
+            Scene3dControllerFactory.create(
+                new URL('../main.mjs', import.meta.url).href
+            )
         this.#heroPreviewController = new HeroPreviewController(
             this.#document,
             {
@@ -681,6 +665,14 @@ export class AppView {
         ) {
             return
         }
+        if (
+            AppViewSchematicContentReuseModel.shouldReuse(
+                this.#contentNode,
+                snapshot
+            )
+        ) {
+            return
+        }
 
         const previousPcbSide = this.#pcbViewController?.side || 'top'
         const preservedSchematicViewBox = SchematicViewportPreserver.capture(
@@ -696,6 +688,7 @@ export class AppView {
         if (!shouldKeepScene3d) this.#disposeScene3dController()
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
+            AppViewSchematicContentReuseModel.clear(this.#contentNode)
             this.#contentNode.innerHTML =
                 '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>' +
                 AppView.#escapeHtml(this.#translate('status.loading')) +
@@ -705,6 +698,7 @@ export class AppView {
 
         if (!snapshot.documentModel) {
             SchematicViewportPreserver.clear(this.#contentNode)
+            AppViewSchematicContentReuseModel.clear(this.#contentNode)
             this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render(
                 this.#translate
             )
@@ -726,6 +720,10 @@ export class AppView {
                 documentId,
                 snapshot.documentModel
             )
+            AppViewSchematicContentReuseModel.remember(
+                this.#contentNode,
+                snapshot
+            )
             this.#attachSvgViewportController('.schematic-svg')
             SchematicComponentSelectionBinder.bind(
                 this.#contentNode.querySelector('.schematic-svg'),
@@ -736,14 +734,14 @@ export class AppView {
         }
 
         SchematicViewportPreserver.clear(this.#contentNode)
+        AppViewSchematicContentReuseModel.clear(this.#contentNode)
 
         if (snapshot.activeView === 'pcb') {
             this.#pcbViewController = AppViewPcbControllerBinder.attach({
                 contentNode: this.#contentNode,
                 snapshot,
                 side: previousPcbSide,
-                onComponentSelectionChange:
-                    this.#pcbComponentSelectionCallback,
+                onComponentSelectionChange: this.#pcbComponentSelectionCallback,
                 translate: this.#translate
             })
             return

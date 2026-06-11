@@ -53,15 +53,20 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 5. `AppState` stores parse status, the recovered document models, and session companion assets
 6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
 7. The app uses `EcadScene3dService` only to choose the Altium or KiCad toolkit scene-description builder; the local 3D runtime then resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder
-8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, and never read local paths directly
+8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, and never read local paths directly
 9. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## WebMCP
 
 The WebMCP layer is loaded by `src/main.mjs` after the controller is created.
-It is dependency-free and feature-detects `document.modelContext`, with a
-fallback for the deprecated `navigator.modelContext`. If native support is
-unavailable, registration is skipped and the viewer continues normally.
+It is dependency-free and feature-detects the current `document.modelContext`
+API. If native support is unavailable, registration is skipped and the viewer
+continues normally.
+
+The app shell provides the production WebMCP origin-trial token for
+`https://ecadforge.app/`. Local server responses and generated Apache deploys
+set `Origin-Agent-Cluster: ?1` and `Permissions-Policy: tools=(self)`, matching
+Chrome's document-scoped WebMCP and default same-origin tools policy.
 
 Registered tools operate only on loaded session documents. `design` arguments
 can target `active`, a loaded document id, an exact loaded file name, or an
@@ -70,11 +75,16 @@ tool descriptors with `execute` handlers and read-only/untrusted-content
 annotations. Older positional browser APIs remain supported with MCP-style JSON
 text results.
 
-The app WebMCP service owns session selection and source-format dispatch. The
+The app WebMCP service owns session selection, source-format dispatch, bounded
+list response shaping, design review, audit issue generation, BOM/component
+search, compact net and pin summaries, focused diagnostics, BOM-to-PCB
+comparison, schematic-to-PCB net cross-reference summaries, PCB placement/net
+inspection, design-rule summaries, and fabrication-readiness checks. The
 toolkit query services derive compact netlists from normalized schematic nets,
 schematic/PCB component records, and BOM rows. PCB-only documents can still
-provide component metadata when present, but connectivity tools return a clear
-error if schematic connectivity is unavailable.
+provide component metadata, board summaries, design rules, and fabrication
+signals when present, but schematic connectivity tools return a clear error if
+schematic connectivity is unavailable.
 
 ## Styling
 
@@ -86,7 +96,7 @@ error if schematic connectivity is unavailable.
 
 ## Server Endpoints
 
-- `GET /`, `/demo/kicad`, `/demo/altium`, and supported query variants return the app shell and are resolved by browser startup logic
+- `GET /`, `/demo/kicad`, `/demo/altium`, and supported query variants return the app shell and are resolved by browser startup logic; `view=` restores the active tab and `document=` restores the active loaded file path when present
 - `GET /altium-pcbdoc-viewer`, `/altium-schdoc-viewer`, `/kicad-viewer-online`, `/kicad-project-viewer`, `/ecad-viewer-no-upload`, `/altium-kicad-browser-viewer`, `/pcb-3d-viewer-browser`, and `/bom-viewer-kicad-altium`: crawlable SEO landing pages
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
