@@ -8,10 +8,19 @@ export class AppControllerDocumentSelection {
      * Resolves the preferred active document after a successful load.
      * @param {{ id: string, documentModel: object }[]} appendedDocuments Newly parsed documents.
      * @param {string} activeView View that will be shown after the load.
-     * @param {{ adoptPreferredView?: boolean }} options Load options.
+     * @param {{ adoptPreferredView?: boolean, preferredDocument?: string }} options Load options.
      * @returns {string}
      */
     static resolveLoadedDocumentId(appendedDocuments, activeView, options) {
+        const preferredDocumentId =
+            AppControllerDocumentSelection.resolveDocumentIdByPath(
+                appendedDocuments,
+                String(options?.preferredDocument || '')
+            )
+        if (preferredDocumentId) {
+            return preferredDocumentId
+        }
+
         if (options?.adoptPreferredView) {
             return AppControllerDocumentSelection.resolveDocumentId(
                 appendedDocuments,

@@ -1,8 +1,10 @@
 import { UiText } from './UiText.mjs'
+import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbObjectVisibilityModel } from '../core/PcbObjectVisibilityModel.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { ViewerSidebarComponentRenderer } from './ViewerSidebarComponentRenderer.mjs'
 import { ViewerSidebarLayerRenderer } from './ViewerSidebarLayerRenderer.mjs'
+import { ViewerSidebarNetRenderer } from './ViewerSidebarNetRenderer.mjs'
 import { ViewerSidebarOverviewRenderer } from './ViewerSidebarOverviewRenderer.mjs'
 
 const SIDEBAR_TABS = [
@@ -13,6 +15,7 @@ const SIDEBAR_TABS = [
     { id: 'nets', icon: 'nets', labelKey: 'sidebar.nets' },
     { id: 'properties', icon: 'list', labelKey: 'sidebar.properties' },
     { id: 'info', icon: 'info', labelKey: 'sidebar.info' },
+    { id: 'model3d', icon: 'sliders', labelKey: 'sidebar.model3d' },
     {
         id: 'preferences',
         icon: 'settings',
@@ -193,15 +196,19 @@ export class ViewerSidebarRenderer {
             }
 
             if (activeTab === 'nets') {
-                return ViewerSidebarRenderer.#renderNetsPanel(
-                    snapshot.documentModel,
-                    translate
-                )
+                return ViewerSidebarNetRenderer.render(snapshot, translate)
             }
 
             if (activeTab === 'properties') {
                 return ViewerSidebarRenderer.#renderPropertiesPanel(
                     snapshot.documentModel,
+                    translate
+                )
+            }
+
+            if (activeTab === 'model3d') {
+                return ViewerSidebarRenderer.#renderModel3dPanel(
+                    snapshot,
                     translate
                 )
             }
@@ -214,10 +221,7 @@ export class ViewerSidebarRenderer {
                 return ViewerSidebarRenderer.#renderHelpPanel(translate)
             }
 
-            return ViewerSidebarRenderer.#renderInfoPanel(
-                snapshot.documentModel,
-                translate
-            )
+            return ViewerSidebarRenderer.#renderInfoPanel(snapshot, translate)
         })()
         return ViewerSidebarRenderer.#attachCollapseControl(
             panelMarkup,
@@ -541,15 +545,19 @@ export class ViewerSidebarRenderer {
 
     /**
      * Renders document info rows.
-     * @param {any} documentModel Active document model.
+     * @param {{ activeView?: string, documentModel?: any }} snapshot Viewer snapshot.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderInfoPanel(documentModel, translate) {
+    static #renderInfoPanel(snapshot, translate) {
+        const documentModel = snapshot?.documentModel || null
         if (documentModel?.pcb || documentModel?.schematic) {
             return ViewerSidebarOverviewRenderer.render(
                 documentModel,
-                translate
+                translate,
+                {
+                    showModelZipExport: snapshot?.activeView === '3d'
+                }
             )
         }
 
@@ -609,6 +617,100 @@ export class ViewerSidebarRenderer {
                 )
                 .join('') +
             '</div>'
+        )
+    }
+
+    /**
+     * Renders the app-owned 3D model adjustment host.
+     * @param {{ activeView?: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string } }} snapshot Viewer snapshot.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderModel3dPanel(snapshot, translate) {
+        const documentId = String(snapshot?.activeDocumentId || '')
+        const selectedComponent = PcbComponentSelectionModel.resolveSelectedKey(
+            snapshot?.selectedPcbComponents || {},
+            documentId
+        )
+        const emptyMessage =
+            snapshot?.activeView === '3d'
+                ? translate('sidebar.model3dEmpty')
+                : translate('sidebar.model3dOpen3d')
+
+        return (
+            ViewerSidebarRenderer.#renderPanelHeader(
+                translate('sidebar.model3d')
+            ) +
+            (selectedComponent
+                ? '<div class="viewer-sidebar__model-summary"><span>' +
+                  ViewerSidebarRenderer.#escapeHtml(
+                      translate('sidebar.model3dSelected')
+                  ) +
+                  '</span><strong>' +
+                  ViewerSidebarRenderer.#escapeHtml(selectedComponent) +
+                  '</strong></div>'
+                : '') +
+            '<div class="viewer-sidebar__scene3d-adjustments" data-scene-3d-adjustment-host>' +
+            (selectedComponent
+                ? ''
+                : ViewerSidebarRenderer.#renderEmpty(emptyMessage)) +
+            '</div>' +
+            (selectedComponent
+                ? ViewerSidebarRenderer.#renderSelectedPartExportSection(
+                      documentId,
+                      selectedComponent,
+                      translate
+                  )
+                : '')
+        )
+    }
+
+    /**
+     * Renders selected-part export actions for the 3D model sidebar.
+     * @param {string} documentId Active document id.
+     * @param {string} selectedComponent Selected component key.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderSelectedPartExportSection(
+        documentId,
+        selectedComponent,
+        translate
+    ) {
+        const formats = [
+            ['kicad', translate('sidebar.model3dExportKicad')],
+            ['altium', translate('sidebar.model3dExportAltium')],
+            ['circuitjson', translate('sidebar.model3dExportCircuitJson')]
+        ]
+
+        return (
+            '<section class="viewer-sidebar__model-export" aria-label="' +
+            ViewerSidebarRenderer.#escapeHtml(
+                translate('sidebar.model3dExport')
+            ) +
+            '"><h4>' +
+            ViewerSidebarRenderer.#escapeHtml(
+                translate('sidebar.model3dExport')
+            ) +
+            '</h4><div class="viewer-sidebar__model-export-actions">' +
+            formats
+                .map(
+                    ([format, label]) =>
+                        '<button class="viewer-sidebar__model-export-button" type="button" data-document-id="' +
+                        ViewerSidebarRenderer.#escapeHtml(documentId) +
+                        '" data-pcb-component-key="' +
+                        ViewerSidebarRenderer.#escapeHtml(selectedComponent) +
+                        '" data-selected-part-export-format="' +
+                        ViewerSidebarRenderer.#escapeHtml(format) +
+                        '">' +
+                        ViewerSidebarRenderer.#renderModelExportDownloadIcon() +
+                        '<span class="viewer-sidebar__model-export-label">' +
+                        ViewerSidebarRenderer.#escapeHtml(label) +
+                        '</span>' +
+                        '</button>'
+                )
+                .join('') +
+            '</div></section>'
         )
     }
 
@@ -795,6 +897,9 @@ export class ViewerSidebarRenderer {
             chip: '<rect x="7" y="7" width="10" height="10" rx="2" /><path d="M4 10h3" /><path d="M4 14h3" /><path d="M17 10h3" /><path d="M17 14h3" /><path d="M10 4v3" /><path d="M14 4v3" /><path d="M10 17v3" /><path d="M14 17v3" />',
             nets: '<circle cx="6" cy="12" r="2" /><circle cx="18" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 11 16 7" /><path d="M8 13 16 17" />',
             list: '<path d="M8 6h13" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M3 6h1" /><path d="M3 12h1" /><path d="M3 18h1" />',
+            model: '<path d="m12 3 7 4v8l-7 4-7-4V7z" /><path d="M12 11 5 7" /><path d="m12 11 7-4" /><path d="M12 11v8" />',
+            sliders:
+                '<path d="M5 4v16" /><path d="M12 4v16" /><path d="M19 4v16" /><circle cx="5" cy="9" r="2" /><circle cx="12" cy="15" r="2" /><circle cx="19" cy="7" r="2" />',
             info: '<circle cx="12" cy="12" r="9" /><path d="M12 10v6" /><path d="M12 7h.01" />',
             settings:
                 '<circle cx="12" cy="12" r="3" /><path d="M12 3v3" /><path d="M12 18v3" /><path d="M3 12h3" /><path d="M18 12h3" /><path d="m5.6 5.6 2.1 2.1" /><path d="m16.3 16.3 2.1 2.1" /><path d="m18.4 5.6-2.1 2.1" /><path d="m7.7 16.3-2.1 2.1" />',
@@ -804,6 +909,20 @@ export class ViewerSidebarRenderer {
         return (
             '<svg class="icon viewer-sidebar__icon" viewBox="0 0 24 24" aria-hidden="true">' +
             (paths[icon] || paths.info) +
+            '</svg>'
+        )
+    }
+
+    /**
+     * Renders the download icon for selected-part export actions.
+     * @returns {string}
+     */
+    static #renderModelExportDownloadIcon() {
+        return (
+            '<svg class="icon viewer-sidebar__model-export-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M12 3v12" />' +
+            '<path d="m7 10 5 5 5-5" />' +
+            '<path d="M5 21h14" />' +
             '</svg>'
         )
     }

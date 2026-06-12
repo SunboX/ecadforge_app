@@ -25,6 +25,15 @@ class FakeView {
     /** @type {((change: { documentId: string, preset: string }) => void) | null} */
     #layerPresetCallback
 
+    /** @type {((change: { documentId: string, componentKey: string, format: string }) => void | Promise<void>) | null} */
+    #selectedPartExportCallback
+
+    /** @type {{ fileName: string, bytes: Uint8Array, contentType?: string }[]} */
+    downloadedArchives
+
+    /** @type {string[]} */
+    statuses
+
     constructor() {
         this.#fileSelectionCallback = null
         this.#sidebarTabSelectionCallback = null
@@ -32,6 +41,9 @@ class FakeView {
         this.#objectOpacityCallback = null
         this.#componentSelectionCallback = null
         this.#layerPresetCallback = null
+        this.#selectedPartExportCallback = null
+        this.downloadedArchives = []
+        this.statuses = []
     }
 
     /**
@@ -95,6 +107,14 @@ class FakeView {
     }
 
     /**
+     * @param {(change: { documentId: string, componentKey: string, format: string }) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindSelectedPartExport(callback) {
+        this.#selectedPartExportCallback = callback
+    }
+
+    /**
      * @returns {boolean}
      */
     hasLocaleSelect() {
@@ -105,7 +125,19 @@ class FakeView {
      * @param {string} _status
      * @returns {void}
      */
-    setStatus(_status) {}
+    setStatus(status) {
+        this.statuses.push(status)
+    }
+
+    /**
+     * @param {string} fileName Downloaded file name.
+     * @param {Uint8Array} bytes Download bytes.
+     * @param {string} [contentType] Content type.
+     * @returns {void}
+     */
+    downloadBytes(fileName, bytes, contentType) {
+        this.downloadedArchives.push({ fileName, bytes, contentType })
+    }
 
     /**
      * @param {any} _snapshot
@@ -159,6 +191,14 @@ class FakeView {
      */
     selectLayerPreset(change) {
         this.#layerPresetCallback?.(change)
+    }
+
+    /**
+     * @param {{ documentId: string, componentKey: string, format: string }} change
+     * @returns {Promise<void>}
+     */
+    async exportSelectedPart(change) {
+        await this.#selectedPartExportCallback?.(change)
     }
 }
 
@@ -406,6 +446,183 @@ test('AppController opens footprints for PCB component selections', async () => 
         documentId,
         componentKey: 'U1',
         source: 'pcb-board'
+    })
+
+    assert.equal(state.getSnapshot().activeSidebarTab, 'components')
+    assert.deepEqual(state.getSnapshot().selectedPcbComponents, {
+        [documentId]: 'U1'
+    })
+})
+
+/**
+ * Verifies 3D-originated component selections open the 3D model parameters tab.
+ */
+test('AppController opens 3D model parameters for 3D scene selections', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+
+    view.selectSidebarTab('layers')
+    view.selectComponent({
+        documentId,
+        componentKey: 'U1',
+        source: '3d-scene'
+    })
+
+    assert.equal(state.getSnapshot().activeSidebarTab, 'model3d')
+    assert.deepEqual(state.getSnapshot().selectedPcbComponents, {
+        [documentId]: 'U1'
+    })
+})
+
+/**
+ * Verifies selected-part export requests are resolved and downloaded.
+ */
+test('AppController exports the selected part from sidebar controls', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const exportRequests = []
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser(),
+        selectedPartExportService: {
+            async export(options) {
+                exportRequests.push(options)
+                return {
+                    archiveName: 'U1-kicad-part.zip',
+                    archiveBytes: new Uint8Array([1, 2, 3])
+                }
+            }
+        }
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+    state.setValue('sessionAssets', [
+        {
+            name: 'body.step',
+            relativePath: 'parts/body.step',
+            file: new Uint8Array([1]),
+            format: 'step'
+        }
+    ])
+
+    await view.exportSelectedPart({
+        documentId,
+        componentKey: 'U1',
+        format: 'kicad'
+    })
+
+    assert.equal(exportRequests.length, 1)
+    assert.equal(exportRequests[0].format, 'kicad')
+    assert.equal(exportRequests[0].documentId, documentId)
+    assert.equal(exportRequests[0].selectedComponentKey, 'U1')
+    assert.equal(exportRequests[0].documentModel.fileName, 'alpha.PcbDoc')
+    assert.equal(
+        exportRequests[0].sessionAssets[0].relativePath,
+        'parts/body.step'
+    )
+    assert.deepEqual(view.downloadedArchives, [
+        {
+            fileName: 'U1-kicad-part.zip',
+            bytes: new Uint8Array([1, 2, 3]),
+            contentType: 'application/zip'
+        }
+    ])
+    assert.match(view.statuses.at(-1), /Exported U1-kicad-part\.zip/)
+})
+
+/**
+ * Verifies selected-part exports can use auto-discovered model assets.
+ */
+test('AppController resolves missing model assets before selected part export', async () => {
+    const state = new AppState({ autoSearchMissingModels: true })
+    const view = new FakeView()
+    const searchRequests = []
+    const exportRequests = []
+    const searchedAsset = {
+        name: '10103594.stp',
+        relativePath: '10103594.stp',
+        file: new Uint8Array([5, 6, 7]),
+        format: 'step'
+    }
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser(),
+        modelSearchService: {
+            async resolveSessionAssets(documentModel, options) {
+                searchRequests.push({ documentModel, options })
+                return [...options.sessionAssets, searchedAsset]
+            }
+        },
+        selectedPartExportService: {
+            async export(options) {
+                exportRequests.push(options)
+                return {
+                    archiveName: 'USB-kicad-part.zip',
+                    archiveBytes: new Uint8Array([1, 2, 3])
+                }
+            }
+        }
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+
+    await view.exportSelectedPart({
+        documentId,
+        componentKey: 'U1',
+        format: 'kicad'
+    })
+
+    assert.equal(searchRequests.length, 1)
+    assert.equal(searchRequests[0].documentModel.fileName, 'alpha.PcbDoc')
+    assert.equal(searchRequests[0].options.enabled, true)
+    assert.deepEqual(searchRequests[0].options.sessionAssets, [])
+    assert.equal(exportRequests.length, 1)
+    assert.equal(
+        exportRequests[0].sessionAssets.at(-1).relativePath,
+        '10103594.stp'
+    )
+    assert.equal(
+        state.getSnapshot().sessionAssets.at(-1).relativePath,
+        '10103594.stp'
+    )
+})
+
+/**
+ * Verifies schematic-originated component selections open the symbols panel.
+ */
+test('AppController opens symbols for schematic component selections', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.SchDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+
+    view.selectSidebarTab('layers')
+    view.selectComponent({
+        documentId,
+        componentKey: 'U1',
+        source: 'schematic'
     })
 
     assert.equal(state.getSnapshot().activeSidebarTab, 'components')

@@ -1,4 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbViewRenderer } from './PcbViewRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 
@@ -35,8 +36,14 @@ export class PcbViewController {
     /** @type {string} */
     #selectedComponentKey
 
+    /** @type {string} */
+    #selectedNetName
+
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #onComponentSelectionChange
+
+    /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
+    #onNetSelectionChange
 
     /** @type {((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null} */
     #onInteractionCandidatesChange
@@ -62,13 +69,19 @@ export class PcbViewController {
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
      * @param {object} documentModel Document model.
-     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
+     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, selectedNetName?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onNetSelectionChange?: ((change: { documentId: string, netName: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
      */
     constructor(contentNode, documentModel, options = {}) {
         this.#contentNode = contentNode
         this.#documentModel = documentModel
         this.#documentId = String(options.documentId || '')
-        this.#side = PcbViewController.#normalizeSide(options.side)
+        this.#selectedComponentKey = String(options.selectedComponentKey || '')
+        this.#selectedNetName = String(options.selectedNetName || '')
+        this.#side = PcbViewController.#resolveInitialSide(
+            documentModel,
+            options.side,
+            this.#selectedComponentKey
+        )
         this.#hiddenLayers = Array.isArray(options.hiddenLayers)
             ? options.hiddenLayers.map(String)
             : []
@@ -81,10 +94,13 @@ export class PcbViewController {
             !Array.isArray(options.objectOpacities)
                 ? { ...options.objectOpacities }
                 : {}
-        this.#selectedComponentKey = String(options.selectedComponentKey || '')
         this.#onComponentSelectionChange =
             typeof options.onComponentSelectionChange === 'function'
                 ? options.onComponentSelectionChange
+                : null
+        this.#onNetSelectionChange =
+            typeof options.onNetSelectionChange === 'function'
+                ? options.onNetSelectionChange
                 : null
         this.#onInteractionCandidatesChange =
             typeof options.onInteractionCandidatesChange === 'function'
@@ -198,6 +214,7 @@ export class PcbViewController {
         this.#emitComponentSelection(
             PcbViewController.#componentCandidate(hit.candidates)
         )
+        this.#emitNetSelection(PcbViewController.#netCandidate(hit.candidates))
     }
 
     /**
@@ -210,8 +227,11 @@ export class PcbViewController {
         const componentCandidate = hit
             ? PcbViewController.#componentCandidate(hit.candidates)
             : null
+        const netCandidate = hit
+            ? PcbViewController.#netCandidate(hit.candidates)
+            : null
 
-        this.#setClickableCursor(Boolean(componentCandidate))
+        this.#setClickableCursor(Boolean(componentCandidate || netCandidate))
     }
 
     /**
@@ -303,6 +323,24 @@ export class PcbViewController {
         this.#onComponentSelectionChange({
             documentId: this.#documentId,
             componentKey,
+            source: 'pcb-board'
+        })
+    }
+
+    /**
+     * Emits net selection or an empty name when no net is available.
+     * @param {object | null} selectedCandidate Net-backed candidate.
+     * @returns {void}
+     */
+    #emitNetSelection(selectedCandidate) {
+        const netName = PcbViewController.#candidateNetName(selectedCandidate)
+        if (!this.#onNetSelectionChange) {
+            return
+        }
+
+        this.#onNetSelectionChange({
+            documentId: this.#documentId,
+            netName,
             source: 'pcb-board'
         })
     }
@@ -460,6 +498,30 @@ export class PcbViewController {
     }
 
     /**
+     * Returns the first net-backed candidate from a hit-test result.
+     * @param {object[]} candidates Hit-test candidates.
+     * @returns {object | null}
+     */
+    static #netCandidate(candidates) {
+        return (
+            (Array.isArray(candidates) ? candidates : []).find((candidate) =>
+                PcbViewController.#candidateNetName(candidate)
+            ) || null
+        )
+    }
+
+    /**
+     * Returns one candidate's net name.
+     * @param {object | null} candidate Hit-test candidate.
+     * @returns {string}
+     */
+    static #candidateNetName(candidate) {
+        return String(
+            candidate?.netName ?? candidate?.net ?? candidate?.net_name ?? ''
+        ).trim()
+    }
+
+    /**
      * Replaces the PCB view with the selected board side.
      * @param {'top' | 'bottom'} side Requested side.
      * @param {{ refreshFonts?: boolean, preserveViewport?: boolean }} [options] Render options.
@@ -480,7 +542,8 @@ export class PcbViewController {
             this.#hiddenLayers,
             this.#hiddenObjects,
             this.#selectedComponentKey,
-            this.#objectOpacities
+            this.#objectOpacities,
+            this.#selectedNetName
         )
         if (!this.#restorePreservedViewport()) {
             this.#applyViewBox(preservedViewBox)
@@ -634,6 +697,26 @@ export class PcbViewController {
             typeof node.getBoundingClientRect === 'function' &&
             typeof node.addEventListener === 'function' &&
             typeof node.removeEventListener === 'function'
+        )
+    }
+
+    /**
+     * Resolves the first rendered side for a selected component.
+     * @param {object} documentModel PCB document model.
+     * @param {unknown} requestedSide Caller-requested side.
+     * @param {string} selectedComponentKey Selected component key.
+     * @returns {'top' | 'bottom'}
+     */
+    static #resolveInitialSide(
+        documentModel,
+        requestedSide,
+        selectedComponentKey
+    ) {
+        return (
+            PcbComponentSelectionModel.resolveSelectedComponentSide(
+                documentModel,
+                selectedComponentKey
+            ) || PcbViewController.#normalizeSide(requestedSide)
         )
     }
 

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { AppView } from '../../src/ui/AppView.mjs'
 
+const MODEL_ZIP_EXPORT_SELECTOR = '[data-scene-3d-export="models-zip"]'
+
 /**
  * Minimal event target for focused 3D AppView tests.
  */
@@ -77,6 +79,7 @@ class FakeNode extends FakeEventTarget {
         this.classList = new FakeClassList()
         this.textContent = ''
         this._innerHTML = ''
+        this.childNodes = []
     }
 
     /**
@@ -114,6 +117,45 @@ class FakeNode extends FakeEventTarget {
      */
     querySelectorAll(_selector) {
         return []
+    }
+}
+
+/**
+ * Minimal button-like node for delegated selector checks.
+ */
+class FakeButtonNode extends FakeNode {
+    /** @type {Map<string, string>} */
+    #attributes
+
+    /**
+     * @param {{ [name: string]: string }} attributes
+     */
+    constructor(attributes = {}) {
+        super()
+        this.#attributes = new Map(Object.entries(attributes))
+    }
+
+    /**
+     * @param {string} name
+     * @returns {string | null}
+     */
+    getAttribute(name) {
+        return this.#attributes.get(name) || null
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeButtonNode | null}
+     */
+    closest(selector) {
+        if (
+            selector === MODEL_ZIP_EXPORT_SELECTOR &&
+            this.getAttribute('data-scene-3d-export') === 'models-zip'
+        ) {
+            return this
+        }
+
+        return null
     }
 }
 
@@ -164,14 +206,52 @@ class FakeContentNode extends FakeNode {
     set innerHTML(value) {
         this._innerHTML = String(value)
         this.#nodes = new Map()
+        this.childNodes = [new FakeNode()]
 
         if (this._innerHTML.includes('data-scene-3d-viewport')) {
-            this.#nodes.set('[data-scene-3d-viewport]', new FakeNode())
+            const shellNode = new FakeNode()
+            const viewportNode = new FakeNode()
+            const loadingNode = new FakeNode()
+            const exportNode = new FakeButtonNode({
+                'data-scene-3d-export': 'models-zip'
+            })
+            viewportNode.closest = (selector) =>
+                selector === '.scene-3d' ? shellNode : null
+            exportNode.remove = () => {
+                this._innerHTML = this._innerHTML.replace(
+                    /<button class="scene-3d__preset scene-3d__action"[\s\S]*?data-scene-3d-export="models-zip"[\s\S]*?<\/button>/u,
+                    ''
+                )
+                this.#nodes.delete('[data-scene-3d-export="models-zip"]')
+                shellNode._queryNodes?.delete?.(MODEL_ZIP_EXPORT_SELECTOR)
+            }
+            shellNode._queryNodes = new Map([
+                ['[data-scene-3d-viewport]', viewportNode],
+                ['[data-scene-3d-loading]', loadingNode],
+                [MODEL_ZIP_EXPORT_SELECTOR, exportNode]
+            ])
+            shellNode.querySelector = (selector) =>
+                shellNode._queryNodes.get(selector) || null
+            this.childNodes = [shellNode]
+            this.#nodes.set('[data-scene-3d-viewport]', viewportNode)
+            this.#nodes.set('[data-scene-3d-loading]', loadingNode)
+            this.#nodes.set(MODEL_ZIP_EXPORT_SELECTOR, exportNode)
         }
+    }
 
-        if (this._innerHTML.includes('data-scene-3d-loading')) {
-            this.#nodes.set('[data-scene-3d-loading]', new FakeNode())
-        }
+    /**
+     * @param {...FakeNode} nodes
+     * @returns {void}
+     */
+    replaceChildren(...nodes) {
+        this._innerHTML = ''
+        this.childNodes = nodes
+        this.#nodes = new Map()
+        nodes.forEach((node) => {
+            node._queryNodes?.forEach?.((value, key) => {
+                this.#nodes.set(key, value)
+            })
+        })
     }
 
     /**
@@ -180,6 +260,61 @@ class FakeContentNode extends FakeNode {
      */
     querySelector(selector) {
         return this.#nodes.get(selector) || null
+    }
+}
+
+/**
+ * Minimal document rail node that exposes the 3D adjustment host after render.
+ */
+class FakeDocumentRailNode extends FakeNode {
+    /** @type {FakeNode | null} */
+    #adjustmentHostNode
+
+    /** @type {FakeButtonNode | null} */
+    #modelZipExportNode
+
+    constructor() {
+        super()
+        this.#adjustmentHostNode = null
+        this.#modelZipExportNode = null
+    }
+
+    /** @param {string} value */
+    set innerHTML(value) {
+        this._innerHTML = String(value)
+        this.#adjustmentHostNode = this._innerHTML.includes(
+            'data-scene-3d-adjustment-host'
+        )
+            ? new FakeNode()
+            : null
+        this.#modelZipExportNode = this._innerHTML.includes(
+            'data-scene-3d-export="models-zip"'
+        )
+            ? new FakeButtonNode({
+                  'data-scene-3d-export': 'models-zip'
+              })
+            : null
+    }
+
+    /** @returns {string} */
+    get innerHTML() {
+        return this._innerHTML
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeNode | null}
+     */
+    querySelector(selector) {
+        if (selector === '[data-scene-3d-adjustment-host]') {
+            return this.#adjustmentHostNode
+        }
+
+        if (selector === MODEL_ZIP_EXPORT_SELECTOR) {
+            return this.#modelZipExportNode
+        }
+
+        return null
     }
 }
 
@@ -199,7 +334,7 @@ class FakeDocument {
             ['#localeSelect', new FakeNode()],
             ['#summaryGrid', new FakeNode()],
             ['#viewerStage', new FakeNode()],
-            ['#documentRail', new FakeNode()],
+            ['#documentRail', new FakeDocumentRailNode()],
             ['#viewContent', new FakeContentNode()],
             ['#activeDocumentName', new FakeNode()],
             ['#viewTabs', new FakeTabsNode()],
@@ -256,6 +391,57 @@ function createPcbSnapshot() {
         documents: [{ id: 'doc-1', documentModel }],
         activeDocumentId: 'doc-1',
         documentModel
+    }
+}
+
+/**
+ * Builds paired project snapshots for a schematic tab and a PCB-backed 3D tab.
+ * @returns {{ schematicSnapshot: any, sceneSnapshot: any }}
+ */
+function createProjectViewSnapshots() {
+    const schematicDocument = {
+        fileName: 'demo.SchDoc',
+        kind: 'schematic',
+        diagnostics: [],
+        summary: {
+            title: 'Demo schematic',
+            componentCount: 0,
+            lineCount: 1,
+            textCount: 0,
+            bomRowCount: 0
+        },
+        schematic: {
+            sheet: { width: 200, height: 100 },
+            lines: [{ x1: 0, y1: 0, x2: 200, y2: 0, width: 1 }],
+            texts: [],
+            components: [],
+            pins: [],
+            ports: [],
+            crosses: []
+        },
+        bom: []
+    }
+    const sceneSnapshot = createPcbSnapshot()
+    const documents = [
+        { id: 'schematic-doc', documentModel: schematicDocument },
+        { id: 'pcb-doc', documentModel: sceneSnapshot.documentModel }
+    ]
+
+    return {
+        schematicSnapshot: {
+            ...sceneSnapshot,
+            activeView: 'schematic',
+            activeFileName: 'demo.SchDoc',
+            documents,
+            activeDocumentId: 'schematic-doc',
+            documentModel: schematicDocument
+        },
+        sceneSnapshot: {
+            ...sceneSnapshot,
+            activeView: '3d',
+            documents,
+            activeDocumentId: 'pcb-doc'
+        }
     }
 }
 
@@ -335,10 +521,129 @@ test('AppView renders the 3D panel without the bottom stat cards', () => {
     const contentNode = fakeDocument.querySelector('#viewContent')
     assert.match(contentNode._innerHTML, /class="scene-3d"/)
     assert.match(contentNode._innerHTML, /data-scene-3d-viewport/)
+    assert.equal(
+        contentNode.querySelector(MODEL_ZIP_EXPORT_SELECTOR).hidden,
+        true
+    )
+    assert.doesNotMatch(contentNode._innerHTML, /svg-panel__header/)
+    assert.doesNotMatch(contentNode._innerHTML, /3D preview/)
     assert.doesNotMatch(contentNode._innerHTML, /scene-3d__stats/)
     assert.doesNotMatch(contentNode._innerHTML, /<dt>Footprint<\/dt>/)
     assert.doesNotMatch(contentNode._innerHTML, /<dt>Placements<\/dt>/)
     assert.doesNotMatch(contentNode._innerHTML, /<dt>BOM groups<\/dt>/)
+})
+
+/**
+ * Verifies the 3D panel exposes the app-owned missing model search preference.
+ */
+test('AppView renders the 3D missing model search checkbox', () => {
+    const fakeDocument = new FakeDocument()
+
+    class FakeScene3dController {
+        /**
+         * @returns {void}
+         */
+        dispose() {}
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: () => new FakeScene3dController()
+    })
+
+    view.render({
+        ...createPcbSnapshot(),
+        autoSearchMissingModels: true
+    })
+
+    const contentNode = fakeDocument.querySelector('#viewContent')
+    assert.match(contentNode._innerHTML, /data-scene-3d-model-search/)
+    assert.match(contentNode._innerHTML, /checked/)
+})
+
+/**
+ * Verifies the info-tab model ZIP action forwards to the 3D controller action.
+ */
+test('AppView routes the info tab model ZIP export action', () => {
+    const fakeDocument = new FakeDocument()
+    let exportClicks = 0
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode) => {
+            const exportButton = viewportNode
+                .closest?.('.scene-3d')
+                ?.querySelector?.(MODEL_ZIP_EXPORT_SELECTOR)
+            exportButton?.addEventListener?.('click', () => {
+                exportClicks += 1
+            })
+            return {}
+        }
+    })
+
+    view.render({
+        ...createPcbSnapshot(),
+        activeSidebarTab: 'info'
+    })
+
+    const railNode = fakeDocument.querySelector('#documentRail')
+    const exportButton = railNode.querySelector(MODEL_ZIP_EXPORT_SELECTOR)
+    const contentNode = fakeDocument.querySelector('#viewContent')
+
+    assert.ok(exportButton)
+    assert.equal(
+        contentNode.querySelector(MODEL_ZIP_EXPORT_SELECTOR).hidden,
+        true
+    )
+
+    railNode.dispatch('click', {
+        target: exportButton,
+        preventDefault() {}
+    })
+
+    assert.equal(exportClicks, 1)
+})
+
+/**
+ * Verifies the sidebar model ZIP action still works when the real 3D runtime
+ * binds its export listener after the app has rendered the sidebar proxy.
+ */
+test('AppView routes the info tab model ZIP export action after lazy 3D runtime bind', async () => {
+    const fakeDocument = new FakeDocument()
+    let exportClicks = 0
+    const bindTasks = []
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode) => {
+            bindTasks.push(
+                Promise.resolve().then(() => {
+                    const exportButton = viewportNode
+                        .closest?.('.scene-3d')
+                        ?.querySelector?.(MODEL_ZIP_EXPORT_SELECTOR)
+                    exportButton?.addEventListener?.('click', () => {
+                        exportClicks += 1
+                    })
+                })
+            )
+            return {}
+        }
+    })
+
+    view.render({
+        ...createPcbSnapshot(),
+        activeSidebarTab: 'info'
+    })
+    await Promise.all(bindTasks)
+
+    const railNode = fakeDocument.querySelector('#documentRail')
+    const exportButton = railNode.querySelector(MODEL_ZIP_EXPORT_SELECTOR)
+
+    assert.ok(exportButton)
+
+    railNode.dispatch('click', {
+        target: exportButton,
+        preventDefault() {}
+    })
+
+    assert.equal(exportClicks, 1)
 })
 
 /**
@@ -407,6 +712,172 @@ test('AppView updates 3D component selection without remounting the scene', () =
 })
 
 /**
+ * Verifies reopening the 3D tab for the same loaded board reuses the existing
+ * scene instead of forcing another scene build.
+ */
+test('AppView reopens the 3D tab without rebuilding the scene', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         */
+        constructor(viewportNode, documentModel) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.isDisposed = false
+            createdControllers.push(this)
+        }
+
+        /**
+         * @returns {any}
+         */
+        getDocumentModel() {
+            return this.documentModel
+        }
+
+        /**
+         * @returns {void}
+         */
+        setSelectedComponent() {}
+
+        /**
+         * @returns {void}
+         */
+        dispose() {
+            this.isDisposed = true
+        }
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel) =>
+            new FakeScene3dController(viewportNode, documentModel)
+    })
+    const loadedSnapshot = createPcbSnapshot()
+
+    view.render(loadedSnapshot)
+    view.render({ ...loadedSnapshot, activeView: 'bom' })
+    view.render(loadedSnapshot)
+
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].isDisposed, false)
+})
+
+/**
+ * Verifies changing the missing model search setting updates the mounted 3D
+ * scene without discarding the rendered board.
+ */
+test('AppView updates missing model search visibility without rebuilding the 3D scene', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         * @param {{ autoSearchMissingModels?: boolean }} [options]
+         */
+        constructor(viewportNode, documentModel, options = {}) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.options = options
+            this.isDisposed = false
+            this.autoSearchUpdates = []
+            createdControllers.push(this)
+        }
+
+        /**
+         * @returns {void}
+         */
+        setSelectedComponent() {}
+
+        /**
+         * @param {boolean} enabled
+         * @returns {void}
+         */
+        setAutoSearchMissingModels(enabled) {
+            this.autoSearchUpdates.push(enabled)
+        }
+
+        /**
+         * @returns {void}
+         */
+        dispose() {
+            this.isDisposed = true
+        }
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel, options) =>
+            new FakeScene3dController(viewportNode, documentModel, options)
+    })
+    const loadedSnapshot = {
+        ...createPcbSnapshot(),
+        autoSearchMissingModels: true
+    }
+
+    view.render(loadedSnapshot)
+    view.render({
+        ...loadedSnapshot,
+        autoSearchMissingModels: false
+    })
+    view.render({
+        ...loadedSnapshot,
+        autoSearchMissingModels: true
+    })
+
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].isDisposed, false)
+    assert.equal(createdControllers[0].options.autoSearchMissingModels, true)
+    assert.deepEqual(createdControllers[0].autoSearchUpdates, [false, true])
+})
+
+/**
+ * Verifies switching through a separate schematic document does not invalidate
+ * the already-mounted 3D PCB scene.
+ */
+test('AppView reopens 3D from a schematic document without rebuilding the scene', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         */
+        constructor(viewportNode, documentModel) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.isDisposed = false
+            createdControllers.push(this)
+        }
+
+        /** @returns {void} */
+        setSelectedComponent() {}
+
+        /** @returns {void} */
+        dispose() {
+            this.isDisposed = true
+        }
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel) =>
+            new FakeScene3dController(viewportNode, documentModel)
+    })
+    const { schematicSnapshot, sceneSnapshot } = createProjectViewSnapshots()
+
+    view.render(sceneSnapshot)
+    view.render(schematicSnapshot)
+    view.render(sceneSnapshot)
+
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].isDisposed, false)
+})
+
+/**
  * Verifies the 3D controller receives the shared component selection callback
  * and active document id when AppView mounts the scene.
  */
@@ -468,4 +939,56 @@ test('AppView wires 3D runtime selections into shared selection state', () => {
     assert.deepEqual(selectionChanges, [
         { documentId: 'doc-1', componentKey: 'C8', source: '3d-scene' }
     ])
+})
+
+/**
+ * Verifies the app forwards the sidebar 3D model parameter host to the
+ * mounted scene controller.
+ */
+test('AppView forwards the 3D model sidebar host to the scene controller', () => {
+    const fakeDocument = new FakeDocument()
+    const createdControllers = []
+
+    class FakeScene3dController {
+        /**
+         * @param {FakeNode} viewportNode
+         * @param {any} documentModel
+         */
+        constructor(viewportNode, documentModel) {
+            this.viewportNode = viewportNode
+            this.documentModel = documentModel
+            this.adjustmentHosts = []
+            createdControllers.push(this)
+        }
+
+        /**
+         * @param {FakeNode | null} hostNode 3D adjustment host.
+         * @returns {void}
+         */
+        setAdjustmentHost(hostNode) {
+            this.adjustmentHosts.push(hostNode)
+        }
+
+        /**
+         * @returns {void}
+         */
+        dispose() {}
+    }
+
+    const view = new AppView(fakeDocument, {
+        createScene3dController: (viewportNode, documentModel) =>
+            new FakeScene3dController(viewportNode, documentModel)
+    })
+
+    view.render({
+        ...createPcbSnapshot(),
+        activeSidebarTab: 'model3d',
+        selectedPcbComponents: {
+            'doc-1': 'U1'
+        }
+    })
+
+    assert.equal(createdControllers.length, 1)
+    assert.equal(createdControllers[0].adjustmentHosts.length, 1)
+    assert.ok(createdControllers[0].adjustmentHosts[0])
 })

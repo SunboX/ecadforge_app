@@ -50,9 +50,9 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 2. `AppController` stores any companion 3D assets in session state and posts native design files to the parser worker
 3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium or KiCad toolkit
 4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
-5. `AppState` stores parse status, the recovered document models, and session companion assets
-6. `AppView` renders the active tab from the normalized model and mounts the interactive 3D controller when needed
-7. The app uses `EcadScene3dService` only to choose the Altium or KiCad toolkit scene-description builder; the local 3D runtime then resolves embedded STEP payloads from the normalized PCB model first and falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder
+5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
+6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, and mounts the interactive 3D controller when needed
+7. The app uses `EcadScene3dService` only to choose the Altium or KiCad toolkit scene-description builder; the local 3D runtime then resolves embedded STEP payloads from the normalized PCB model first, falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy.
 8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, and never read local paths directly
 9. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
@@ -96,11 +96,15 @@ schematic connectivity is unavailable.
 
 ## Server Endpoints
 
-- `GET /`, `/demo/kicad`, `/demo/altium`, and supported query variants return the app shell and are resolved by browser startup logic; `view=` restores the active tab and `document=` restores the active loaded file path when present
+- `GET /`, `/demo/kicad`, `/demo/altium`, and supported query variants return the app shell and are resolved by browser startup logic; `view=`, `document=`, `component=`, and `net=` restore the active tab, loaded file path, selected component, and selected net when present
 - `GET /altium-pcbdoc-viewer`, `/altium-schdoc-viewer`, `/kicad-viewer-online`, `/kicad-project-viewer`, `/ecad-viewer-no-upload`, `/altium-kicad-browser-viewer`, `/pcb-3d-viewer-browser`, and `/bom-viewer-kicad-altium`: crawlable SEO landing pages
 - `GET /api/health`: liveness check
 - `GET /api/app-meta`: app metadata (version)
 - `GET /api/app-meta.php`: PHP/shared-hosting alias when extensionless rewrites are unavailable
+- `GET /api/component-source/search`: same-origin component-source search proxy for optional 3D model lookup
+- `GET /api/component-source/components/:id`: same-origin component-source detail proxy
+- `GET /api/component-source/models/:id.step`: same-origin component-source STEP download proxy
+- `GET /api/component-source.php?path=...`: PHP/shared-hosting alias for the same component-source proxy paths; the upstream timeout defaults to 5 seconds and can be tuned with `ECAD_FORGE_COMPONENT_SOURCE_TIMEOUT_SECONDS`
 - `GET /robots.txt`: crawler policy that allows public app crawling and points to the production sitemap
 - `GET /sitemap.xml`: production sitemap for the app shell and crawlable view URLs
 - `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium and KiCad Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.

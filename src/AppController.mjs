@@ -1,6 +1,7 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from './core/ecad/EcadParserService.mjs'
 import { AppControllerDocumentSelection } from './AppControllerDocumentSelection.mjs'
+import { AppControllerModelSearchPreferenceHandler } from './AppControllerModelSearchPreferenceHandler.mjs'
 import { AppControllerMessages } from './AppControllerMessages.mjs'
 import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
@@ -9,9 +10,9 @@ import { AppControllerDeepLinkState } from './AppControllerDeepLinkState.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
 import { GitHubParsePlan } from './GitHubParsePlan.mjs'
-import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
-import { PcbLayerVisibilityModel } from './core/PcbLayerVisibilityModel.mjs'
-import { PcbObjectVisibilityModel } from './core/PcbObjectVisibilityModel.mjs'
+import { AppControllerPcbStateHandlers } from './AppControllerPcbStateHandlers.mjs'
+import { AppControllerSelectedPartExport } from './AppControllerSelectedPartExport.mjs'
+import { SelectedPartExportService } from './core/SelectedPartExportService.mjs'
 import { PcbStylerLinkState } from './PcbStylerLinkState.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
@@ -51,7 +52,13 @@ export class AppController {
     /** @type {{ track: (eventName: string, properties?: object) => void }} */
     #analytics
 
-    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string } | null} */
+    /** @type {{ export: (options: object) => Promise<{ archiveName: string, archiveBytes: Uint8Array }> }} */
+    #selectedPartExportService
+
+    /** @type {{ resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null} */
+    #modelSearchService
+
+    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null} */
     #startupSource
 
     /**
@@ -64,7 +71,9 @@ export class AppController {
      * fetcher?: (url: string) => Promise<Response>,
      * githubSourceLoader?: { loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> },
      * analytics?: { track: (eventName: string, properties?: object) => void },
-     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string } | null
+     * selectedPartExportService?: { export: (options: object) => Promise<{ archiveName: string, archiveBytes: Uint8Array }> },
+     * modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null,
+     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null
      * }} dependencies
      */
     constructor(dependencies) {
@@ -87,6 +96,10 @@ export class AppController {
             new GitHubSourceLoader({ fetcher: this.#fetcher })
         this.#analytics =
             dependencies.analytics || PrivacySafeAnalytics.fromWindow()
+        this.#selectedPartExportService =
+            dependencies.selectedPartExportService ||
+            new SelectedPartExportService()
+        this.#modelSearchService = dependencies.modelSearchService || null
         this.#startupSource = dependencies.startupSource || null
     }
 
@@ -120,16 +133,46 @@ export class AppController {
             this.#state.setValue('activeSidebarTab', tabName)
         })
         this.#view.bindPcbLayerVisibilityChange?.((change) => {
-            this.#handlePcbLayerVisibilityChange(change)
+            AppControllerPcbStateHandlers.handleLayerVisibility(
+                this.#state,
+                change
+            )
         })
         this.#view.bindPcbObjectOpacityChange?.((change) => {
-            this.#handlePcbObjectOpacityChange(change)
+            AppControllerPcbStateHandlers.handleObjectOpacity(
+                this.#state,
+                change
+            )
         })
         this.#view.bindPcbComponentSelectionChange?.((change) => {
-            this.#handlePcbComponentSelectionChange(change)
+            AppControllerPcbStateHandlers.handleComponentSelection(
+                this.#state,
+                change
+            )
+        })
+        this.#view.bindPcbNetSelectionChange?.((change) => {
+            AppControllerPcbStateHandlers.handleNetSelection(
+                this.#state,
+                change
+            )
         })
         this.#view.bindPcbLayerPresetSelection?.((change) => {
-            this.#handlePcbLayerPresetSelection(change)
+            AppControllerPcbStateHandlers.handleLayerPreset(this.#state, change)
+        })
+        this.#view.bindSelectedPartExport?.((change) => {
+            return AppControllerSelectedPartExport.handle({
+                change,
+                state: this.#state,
+                view: this.#view,
+                selectedPartExportService: this.#selectedPartExportService,
+                modelSearchService: this.#modelSearchService
+            })
+        })
+        this.#view.bindModelSearchPreferenceChange?.((enabled) => {
+            AppControllerModelSearchPreferenceHandler.handle(
+                enabled,
+                this.#state
+            )
         })
         this.#view.bindDemoSelection?.((demoId) => this.#loadDemo(demoId))
         this.#view.bindHomeNavigation?.(() => this.#handleHomeNavigation())
@@ -260,9 +303,10 @@ export class AppController {
     /**
      * Loads a bundled demo project by id.
      * @param {string} demoId Demo id.
+     * @param {{ preferredView?: string, preferredDocument?: string }} [options] Startup load hints.
      * @returns {Promise<void>}
      */
-    async #loadDemo(demoId) {
+    async #loadDemo(demoId, options = {}) {
         const demo = DemoProjectRegistry.get(demoId)
         if (!demo) {
             this.#handleParseError(this.#translate('status.unknownSample'))
@@ -287,14 +331,19 @@ export class AppController {
             const parseResult = await this.#parseEntries(entries)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
+                preferredDocument: String(options.preferredDocument || ''),
+                preferredView: String(options.preferredView || ''),
                 statusMessage: this.#translate('status.loadedSample')
             })
-
             this.#analytics.track('sample_loaded_success', {
                 sourceType: 'sample',
                 formatFamily: demo.formatFamily
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
+            AppControllerDeepLinkState.syncDemoShareUrl(
+                demo.id,
+                snapshotAfterLoad
+            )
             PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
@@ -342,7 +391,7 @@ export class AppController {
     /**
      * Loads and parses one GitHub source descriptor.
      * @param {() => Promise<object>} loadSource Source loader.
-     * @param {{ preferredDocument?: string }} [options] Load options.
+     * @param {{ preferredDocument?: string, preferredView?: string }} [options] Load options.
      * @returns {Promise<void>}
      */
     async #loadGitHubSource(loadSource, options = {}) {
@@ -366,6 +415,8 @@ export class AppController {
             GitHubSourceModelLinker.apply(parseResult, source)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
+                preferredDocument: String(options.preferredDocument || ''),
+                preferredView: String(options.preferredView || ''),
                 statusMessage: this.#translate('status.loadedGithub')
             })
 
@@ -384,7 +435,7 @@ export class AppController {
                 snapshotAfterLoad
             )
             if (parsePlan.prioritized) {
-                this.#loadDeferredGitHubEntries(
+                this.#scheduleDeferredGitHubEntries(
                     source,
                     parsePlan.deferredEntries
                 )
@@ -396,6 +447,23 @@ export class AppController {
                 errorBucket: AppControllerMessages.resolveErrorBucket(error)
             })
         }
+    }
+
+    /**
+     * Schedules non-critical GitHub project parsing after first paint.
+     * @param {object} source GitHub source descriptor.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Deferred entries.
+     * @returns {void}
+     */
+    #scheduleDeferredGitHubEntries(source, entries) {
+        if (!entries.length) return
+        const runDeferredParse = () =>
+            this.#loadDeferredGitHubEntries(source, entries)
+        if (typeof globalThis.requestIdleCallback === 'function') {
+            globalThis.requestIdleCallback(runDeferredParse, { timeout: 2000 })
+            return
+        }
+        globalThis.setTimeout?.(runDeferredParse, 250)
     }
 
     /**
@@ -440,6 +508,7 @@ export class AppController {
             hiddenPcbObjects: {},
             pcbObjectOpacities: {},
             selectedPcbComponents: {},
+            selectedNets: {},
             sessionAssets: []
         })
         this.#view.clearPcbStylerLink?.()
@@ -454,27 +523,37 @@ export class AppController {
         const startupSource = this.#startupSource
         if (!startupSource) return
 
+        const startupLoadOptions = {
+            preferredDocument: String(startupSource.document || ''),
+            preferredView: String(startupSource.view || '')
+        }
+        let loadedStartupSource = false
+
         if (startupSource.type === 'demo') {
-            await this.#loadDemo(String(startupSource.id || ''))
+            await this.#loadDemo(
+                String(startupSource.id || ''),
+                startupLoadOptions
+            )
+            loadedStartupSource = true
         }
 
         if (startupSource.type === 'url') {
             await this.#loadGitHubUrl(String(startupSource.url || ''), {
-                preferredDocument: String(startupSource.document || '')
+                ...startupLoadOptions
             })
+            loadedStartupSource = true
         }
 
         if (startupSource.type === 'github') {
             await this.#loadGitHubPath(
                 String(startupSource.path || ''),
                 String(startupSource.ref || 'main'),
-                {
-                    preferredDocument: String(startupSource.document || '')
-                }
+                startupLoadOptions
             )
+            loadedStartupSource = true
         }
 
-        if (startupSource.view) {
+        if (!loadedStartupSource && startupSource.view) {
             const patch =
                 AppControllerDocumentSelection.buildCompatibleViewPatch(
                     String(startupSource.view),
@@ -483,10 +562,20 @@ export class AppController {
             this.#state.patch(patch)
         }
 
-        AppControllerDeepLinkState.restoreDocument(
+        const startupDocument = String(startupSource.document || '')
+        const startupComponent = String(startupSource.component || '')
+        const startupNet = String(startupSource.net || '')
+        if (!loadedStartupSource) {
+            AppControllerDeepLinkState.restoreDocument(
+                this.#state,
+                startupDocument
+            )
+        }
+        AppControllerDeepLinkState.restoreComponent(
             this.#state,
-            String(startupSource.document || '')
+            startupComponent
         )
+        AppControllerDeepLinkState.restoreNet(this.#state, startupNet)
         AppControllerDeepLinkState.sync(this.#state.getSnapshot())
     }
 
@@ -519,7 +608,7 @@ export class AppController {
     /**
      * Applies parser assets and documents to state.
      * @param {{ documents: object[], assets: object[] }} parseResult Parse result.
-     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, statusMessage?: string }} options
+     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, preferredDocument?: string, preferredView?: string, statusMessage?: string }} options
      * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #applyParseResult(parseResult, options = {}) {
@@ -660,7 +749,7 @@ export class AppController {
     /**
      * Applies parsed documents to state.
      * @param {object[]} documentModels Parsed documents.
-     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, statusMessage?: string }} [options]
+     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, preferredDocument?: string, preferredView?: string, statusMessage?: string }} [options]
      * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #handleParsedDocuments(documentModels, options = {}) {
@@ -677,9 +766,12 @@ export class AppController {
             id: this.#buildDocumentId(),
             documentModel
         }))
-        const nextActiveView = options.adoptPreferredView
-            ? preferredView
-            : snapshot.activeView
+        const nextActiveView =
+            options.adoptPreferredView && options.preferredView
+                ? String(options.preferredView)
+                : options.adoptPreferredView
+                  ? preferredView
+                  : snapshot.activeView
         const nextDocuments = [...snapshot.documents, ...appendedDocuments]
         const preferredDocumentId = options.preserveActiveDocument
             ? snapshot.activeDocumentId
@@ -705,111 +797,6 @@ export class AppController {
         }
 
         return this.#state.patch(patch)
-    }
-
-    /**
-     * Applies one PCB layer visibility change from the sidebar.
-     * @param {{ documentId?: string, layerKey?: string, visible?: boolean }} change Layer visibility event.
-     * @returns {void}
-     */
-    #handlePcbLayerVisibilityChange(change) {
-        const snapshot = this.#state.getSnapshot()
-        const documentId = String(
-            change?.documentId || snapshot.activeDocumentId
-        )
-        const layerKey = String(change?.layerKey || '')
-        const nextHidden = PcbLayerVisibilityModel.withLayerVisibility(
-            snapshot.hiddenPcbLayers,
-            documentId,
-            layerKey,
-            change?.visible !== false
-        )
-
-        this.#state.setValue('hiddenPcbLayers', nextHidden)
-    }
-
-    /**
-     * Applies one PCB object opacity change from the sidebar.
-     * @param {{ documentId?: string, objectKey?: string, opacity?: number, preview?: boolean }} change Object opacity event.
-     * @returns {void}
-     */
-    #handlePcbObjectOpacityChange(change) {
-        if (change?.preview === true) return
-
-        const snapshot = this.#state.getSnapshot()
-        const documentId = String(
-            change?.documentId || snapshot.activeDocumentId
-        )
-        const objectKey = String(change?.objectKey || '')
-        const nextOpacities = PcbObjectVisibilityModel.withObjectOpacity(
-            snapshot.pcbObjectOpacities,
-            documentId,
-            objectKey,
-            Number(change?.opacity ?? 100)
-        )
-
-        this.#state.setValue('pcbObjectOpacities', nextOpacities)
-    }
-
-    /**
-     * Applies one PCB component selection from the sidebar or PCB view.
-     * @param {{ documentId?: string, componentKey?: string, source?: string }} change Selection event.
-     * @returns {void}
-     */
-    #handlePcbComponentSelectionChange(change) {
-        const snapshot = this.#state.getSnapshot()
-        const documentId = String(
-            change?.documentId || snapshot.activeDocumentId
-        )
-        const componentKey = String(change?.componentKey || '')
-        const selectedKey = PcbComponentSelectionModel.resolveSelectedKey(
-            snapshot.selectedPcbComponents,
-            documentId
-        )
-        const nextComponentKey =
-            componentKey && componentKey === selectedKey ? '' : componentKey
-        const nextSelection = PcbComponentSelectionModel.withSessionSelection(
-            snapshot.selectedPcbComponents,
-            snapshot.documents,
-            documentId,
-            nextComponentKey,
-            selectedKey
-        )
-        const patch = {
-            selectedPcbComponents: nextSelection
-        }
-        const nextSelectedKey = PcbComponentSelectionModel.resolveSelectedKey(
-            nextSelection,
-            documentId
-        )
-        if (change?.source === 'pcb-board' && nextSelectedKey) {
-            patch.activeSidebarTab = 'components'
-        }
-
-        this.#state.patch(patch)
-    }
-
-    /**
-     * Applies a PCB layer visibility preset from the sidebar.
-     * @param {{ documentId?: string, preset?: string }} change Preset event.
-     * @returns {void}
-     */
-    #handlePcbLayerPresetSelection(change) {
-        const snapshot = this.#state.getSnapshot()
-        const documentId = String(
-            change?.documentId || snapshot.activeDocumentId
-        )
-        const documentModel =
-            snapshot.documents.find((entry) => entry.id === documentId)
-                ?.documentModel || snapshot.documentModel
-        const nextHidden = PcbLayerVisibilityModel.withPreset(
-            snapshot.hiddenPcbLayers,
-            documentId,
-            documentModel,
-            String(change?.preset || 'all')
-        )
-
-        this.#state.setValue('hiddenPcbLayers', nextHidden)
     }
 
     /**

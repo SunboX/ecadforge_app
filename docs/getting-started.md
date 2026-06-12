@@ -56,7 +56,8 @@ npm test
 3. Wait for the worker-backed parser to finish.
 4. Switch between `Schematic`, `PCB`, `3D`, `BOM`, and `Diagnostics`.
 5. Use `Diagnostics` to inspect parser recovery details when a document is only partially understood.
-6. When a board view is available, use the PCB Styler crosslink to continue with board styling in the companion app.
+6. In the `3D` view, enable missing-model search only when you want the app to fetch unresolved STEP or WRL models from known KiCad library paths, close same-folder KiCad package matches, or the configured component source.
+7. When a board view is available, use the PCB Styler crosslink to continue with board styling in the companion app.
 
 ## Sample Corpus
 

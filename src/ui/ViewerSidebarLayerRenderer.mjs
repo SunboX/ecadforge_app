@@ -14,6 +14,12 @@ const PRESETS = [
     ['drawings', 'sidebar.presetDrawings']
 ]
 
+const LAYER_GROUPS = [
+    ['front', 'sidebar.front'],
+    ['back', 'sidebar.back'],
+    ['other', 'sidebar.otherSide']
+]
+
 /**
  * Renders PCB layer visibility controls for the viewer sidebar.
  */
@@ -34,20 +40,10 @@ export class ViewerSidebarLayerRenderer {
                 translate('sidebar.layers')
             ) +
             (layers.length
-                ? '<div class="viewer-sidebar__list">' +
-                  layers
-                      .map((layer, index) =>
-                          ViewerSidebarLayerRenderer.#renderLayerRow(
-                              layer,
-                              index,
-                              documentId,
-                              snapshot?.hiddenPcbLayers || {}
-                          )
-                      )
-                      .join('') +
-                  '</div>' +
-                  ViewerSidebarLayerRenderer.#renderPresetList(
+                ? ViewerSidebarLayerRenderer.#renderLayerBrowser(
+                      layers,
                       documentId,
+                      snapshot?.hiddenPcbLayers || {},
                       translate
                   )
                 : ViewerSidebarLayerRenderer.#renderEmpty(
@@ -57,14 +53,44 @@ export class ViewerSidebarLayerRenderer {
     }
 
     /**
-     * Renders one layer visibility row.
+     * Renders searchable, grouped layer controls.
+     * @param {any[]} layers Layer metadata.
+     * @param {string} documentId Active document id.
+     * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Hidden layer map.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLayerBrowser(
+        layers,
+        documentId,
+        hiddenPcbLayers,
+        translate
+    ) {
+        const rows = layers.map((layer, index) =>
+            ViewerSidebarLayerRenderer.#buildLayerRow(
+                layer,
+                index,
+                documentId,
+                hiddenPcbLayers
+            )
+        )
+
+        return (
+            ViewerSidebarLayerRenderer.#renderSearch(translate) +
+            ViewerSidebarLayerRenderer.#renderLayerGroups(rows, translate) +
+            ViewerSidebarLayerRenderer.#renderPresetList(documentId, translate)
+        )
+    }
+
+    /**
+     * Builds one normalized layer row.
      * @param {any} layer Layer metadata.
      * @param {number} index Layer index.
      * @param {string} documentId Active document id.
      * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Hidden layer map.
-     * @returns {string}
+     * @returns {{ color: string, documentId: string, group: string, key: string, name: string, search: string, visible: boolean }}
      */
-    static #renderLayerRow(layer, index, documentId, hiddenPcbLayers) {
+    static #buildLayerRow(layer, index, documentId, hiddenPcbLayers) {
         const key = PcbLayerVisibilityModel.resolveLayerKey(layer, index)
         const color = ViewerSidebarLayerRenderer.#resolveLayerSwatchColor(
             layer,
@@ -76,11 +102,134 @@ export class ViewerSidebarLayerRenderer {
             key
         )
         const name = String(layer?.name || key)
+        const search = ViewerSidebarLayerRenderer.#layerSearchText(layer, key)
+
+        return {
+            color,
+            documentId,
+            group: ViewerSidebarLayerRenderer.#resolveLayerGroup(layer, key),
+            key,
+            name,
+            search,
+            visible
+        }
+    }
+
+    /**
+     * Renders the search field.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderSearch(translate) {
+        const label = translate('sidebar.searchLayers')
 
         return (
-            '<button class="viewer-sidebar__row viewer-sidebar__row--layer' +
-            (visible ? '' : ' is-hidden') +
-            '" type="button" data-pcb-layer-key="' +
+            '<label class="viewer-sidebar__search"><span class="sr-only">' +
+            ViewerSidebarLayerRenderer.#escapeHtml(label) +
+            '</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' +
+            '<circle cx="11" cy="11" r="7" /><path d="m16 16 4 4" /></svg>' +
+            '<input type="search" data-layer-filter placeholder="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(
+                translate('sidebar.search')
+            ) +
+            '" aria-label="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(label) +
+            '"></label>'
+        )
+    }
+
+    /**
+     * Renders all non-empty layer groups.
+     * @param {{ color: string, documentId: string, group: string, key: string, name: string, search: string, visible: boolean }[]} rows Layer rows.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @returns {string}
+     */
+    static #renderLayerGroups(rows, translate) {
+        return LAYER_GROUPS.map(([groupKey, labelKey]) =>
+            ViewerSidebarLayerRenderer.#renderLayerGroup(
+                groupKey,
+                translate(labelKey),
+                rows
+            )
+        ).join('')
+    }
+
+    /**
+     * Renders one layer group.
+     * @param {string} groupKey Group key.
+     * @param {string} groupLabel Group label.
+     * @param {{ color: string, documentId: string, group: string, key: string, name: string, search: string, visible: boolean }[]} rows Layer rows.
+     * @returns {string}
+     */
+    static #renderLayerGroup(groupKey, groupLabel, rows) {
+        const groupRows = rows.filter((row) => row.group === groupKey)
+        if (!groupRows.length) return ''
+
+        return (
+            '<div class="viewer-sidebar__component-group" data-layer-group="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(groupKey) +
+            '"><h4>' +
+            ViewerSidebarLayerRenderer.#escapeHtml(groupLabel) +
+            '</h4><div class="viewer-sidebar__component-list viewer-sidebar__layer-list">' +
+            groupRows
+                .map((row) =>
+                    ViewerSidebarLayerRenderer.#renderLayerRow(row)
+                )
+                .join('') +
+            '</div></div>'
+        )
+    }
+
+    /**
+     * Renders one layer visibility row.
+     * @param {{ color: string, documentId: string, key: string, name: string, search: string, visible: boolean }} row Layer row.
+     * @returns {string}
+     */
+    static #renderLayerRow(row) {
+        const hiddenClass = row.visible ? '' : ' is-hidden'
+        const attributes =
+            ViewerSidebarLayerRenderer.#renderLayerToggleAttributes(
+                row.key,
+                row.visible,
+                row.documentId
+            )
+        const actionLabel = 'Toggle layer visibility: ' + row.name
+
+        return (
+            '<div class="viewer-sidebar__layer-row-shell' +
+            hiddenClass +
+            '" data-layer-search="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(row.search) +
+            '"><button class="viewer-sidebar__row viewer-sidebar__row--layer' +
+            hiddenClass +
+            '" type="button" ' +
+            attributes +
+            '><span class="viewer-sidebar__swatch" style="--sidebar-swatch: ' +
+            ViewerSidebarLayerRenderer.#escapeHtml(row.color) +
+            '"></span><strong>' +
+            ViewerSidebarLayerRenderer.#escapeHtml(row.name) +
+            '</strong></button><button class="viewer-sidebar__layer-visibility viewer-sidebar__component-copy" type="button" ' +
+            attributes +
+            ' title="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(actionLabel) +
+            '" aria-label="' +
+            ViewerSidebarLayerRenderer.#escapeHtml(actionLabel) +
+            '"><span class="viewer-sidebar__visibility-icon" aria-hidden="true">' +
+            ViewerSidebarLayerRenderer.#renderVisibilityIcon(row.visible) +
+            '</span></button></div>'
+        )
+    }
+
+    /**
+     * Renders shared layer visibility toggle attributes.
+     * @param {string} key Stable layer key.
+     * @param {boolean} visible Whether the layer is visible.
+     * @param {string} documentId Active document id.
+     * @returns {string}
+     */
+    static #renderLayerToggleAttributes(key, visible, documentId) {
+        return (
+            'data-pcb-layer-key="' +
             ViewerSidebarLayerRenderer.#escapeHtml(key) +
             '" data-pcb-layer-visible="' +
             (visible ? 'true' : 'false') +
@@ -88,14 +237,7 @@ export class ViewerSidebarLayerRenderer {
             ViewerSidebarLayerRenderer.#escapeHtml(documentId) +
             '" aria-pressed="' +
             (visible ? 'true' : 'false') +
-            '">' +
-            '<span class="viewer-sidebar__visibility-icon" aria-hidden="true">' +
-            ViewerSidebarLayerRenderer.#renderVisibilityIcon(visible) +
-            '</span><span class="viewer-sidebar__swatch" style="--sidebar-swatch: ' +
-            ViewerSidebarLayerRenderer.#escapeHtml(color) +
-            '"></span><strong>' +
-            ViewerSidebarLayerRenderer.#escapeHtml(name) +
-            '</strong></button>'
+            '"'
         )
     }
 
@@ -177,6 +319,36 @@ export class ViewerSidebarLayerRenderer {
         }
 
         return String(layer?.color || PCB_LAYER_SWATCH_COLORS.footprint)
+    }
+
+    /**
+     * Resolves the display group for a layer from generic side metadata.
+     * @param {any} layer Layer metadata.
+     * @param {string} layerKey Stable layer key.
+     * @returns {string}
+     */
+    static #resolveLayerGroup(layer, layerKey) {
+        const text = ViewerSidebarLayerRenderer.#layerSearchText(
+            layer,
+            layerKey
+        )
+        const layerId = Number(layer?.layerId ?? layer?.id ?? layer?.number)
+        if (
+            layerId === 32 ||
+            layerId === 34 ||
+            /\b(back|bottom)\b|\bb[._-]/.test(text)
+        ) {
+            return 'back'
+        }
+        if (
+            layerId === 1 ||
+            layerId === 33 ||
+            /\b(front|top)\b|\bf[._-]/.test(text)
+        ) {
+            return 'front'
+        }
+
+        return 'other'
     }
 
     /**

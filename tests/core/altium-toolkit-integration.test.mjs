@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { AltiumParser } from '../../node_modules/altium-toolkit/src/parser.mjs'
 import { PcbTextPrimitiveParser } from '../../node_modules/altium-toolkit/src/core/altium/PcbTextPrimitiveParser.mjs'
 import { SchematicSvgRenderer } from '../../node_modules/altium-toolkit/src/renderers.mjs'
 import { PcbScene3dBuilder } from '../../node_modules/altium-toolkit/src/scene3d.mjs'
@@ -113,7 +114,7 @@ function estimatePlaceholderCharacterWidth(character, fontSize) {
 
 /**
  * Verifies the published altium-toolkit package keeps compact double-marker
- * pin numbers clear of the marker triangles.
+ * pin numbers clear of the marker triangles while anchoring toward them.
  */
 test('altium-toolkit clears double outer pin markers from pin numbers', () => {
     const markup = SchematicSvgRenderer.render({
@@ -169,11 +170,55 @@ test('altium-toolkit clears double outer pin markers from pin numbers', () => {
 
     assert.match(
         markup,
-        /<text class="schematic-pin-number" x="93" y="59" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">1<\/text>/
+        /<text class="schematic-pin-number" x="89" y="59" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">1<\/text>/
     )
     assert.match(
         markup,
-        /<text class="schematic-pin-number" x="167" y="59" fill="var\(--schematic-text-color\)" text-anchor="start" font-size="9" font-family="Times New Roman" font-weight="400">2<\/text>/
+        /<text class="schematic-pin-number" x="171" y="59" fill="var\(--schematic-text-color\)" text-anchor="end" font-size="9" font-family="Times New Roman" font-weight="400">2<\/text>/
+    )
+})
+
+/**
+ * Verifies the published altium-toolkit package renders Altium's omitted
+ * formal electrical type as the default input marker.
+ */
+test('altium-toolkit renders default input markers from omitted formal electrical type', () => {
+    const records = [
+        '|HEADER=Schematic Document',
+        '|RECORD=31|CustomX=260|CustomY=180|VisibleGridSize=10|SnapGridSize=5' +
+            '|BorderOn=F|TitleBlockOn=F|CustomMarginWidth=10|CustomXZones=6|CustomYZones=4' +
+            '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+        '|RECORD=6|OwnerIndex=800|OwnerPartId=1|LineWidth=1|Color=11796480' +
+            '|LocationCount=5|X1=120|Y1=140|X2=180|Y2=140|X3=180|Y3=80|X4=120|Y4=80|X5=120|Y5=140',
+        '|RECORD=2|OwnerIndex=800|OwnerPartId=1|FormalType=1|PinConglomerate=58' +
+            '|PinLength=20|Location.X=120|Location.Y=120|Name=IN_A|Designator=1',
+        '|RECORD=2|OwnerIndex=800|OwnerPartId=1|FormalType=1|Electrical=4|PinConglomerate=58' +
+            '|PinLength=20|Location.X=120|Location.Y=100|Name=PASS_A|Designator=2',
+        '|RECORD=2|OwnerIndex=800|OwnerPartId=1|FormalType=1|PinConglomerate=56' +
+            '|PinLength=20|Location.X=180|Location.Y=120|Name=IN_B|Designator=3'
+    ]
+    const documentModel = AltiumParser.parseArrayBufferToRendererModel(
+        'default-input-marker.SchDoc',
+        new TextEncoder().encode(records.join('')).buffer
+    )
+    const markup = SchematicSvgRenderer.render(documentModel)
+
+    assert.equal(
+        documentModel.schematic.pins.find((pin) => pin.designator === '1')
+            ?.electrical,
+        0
+    )
+    assert.equal(
+        (markup.match(/class="schematic-pin-marker"/g) || []).length,
+        2
+    )
+    assert.match(
+        markup,
+        /<polygon points="114,57 114,63 120,60" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)"/
+    )
+    assert.match(
+        markup,
+        /<polygon points="186,57 186,63 180,60" fill="var\(--schematic-pin-marker-fill\)" stroke="var\(--schematic-text-color\)"/
     )
 })
 

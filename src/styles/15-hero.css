@@ -429,12 +429,15 @@ body.is-viewer-mode .hero-grid {
             'actions'
             'github'
             'chips'
-            'visual'
             'status';
     }
 
     .dropzone h2 {
         max-width: 100%;
+    }
+
+    .hero-proof {
+        display: none;
     }
 }
 

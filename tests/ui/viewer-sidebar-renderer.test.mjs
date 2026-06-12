@@ -120,6 +120,7 @@ test('ViewerSidebarRenderer renders the complete sidebar tab set', () => {
         'nets',
         'properties',
         'info',
+        'model3d',
         'preferences',
         'help'
     ].forEach((tabName) => {
@@ -144,6 +145,7 @@ test('ViewerSidebarRenderer renders sidebar collapse controls', () => {
         'nets',
         'properties',
         'info',
+        'model3d',
         'preferences',
         'help'
     ]
@@ -168,12 +170,40 @@ test('ViewerSidebarRenderer renders sidebar collapse controls', () => {
 })
 
 /**
+ * Verifies the 3D model transform panel is available in the activity sidebar.
+ */
+test('ViewerSidebarRenderer renders the 3D model parameter tab and host', () => {
+    const html = ViewerSidebarRenderer.render({
+        ...createSnapshot(createBoardDocument(), 'model3d'),
+        activeView: '3d',
+        selectedPcbComponents: {
+            'doc-1': 'U1'
+        }
+    })
+
+    assert.match(html, /data-sidebar-tab="model3d"[^>]*aria-selected="true"/)
+    assert.match(html, /<h3>3D model<\/h3>/)
+    assert.match(html, /data-scene-3d-adjustment-host/)
+    assert.match(html, /Selected component/)
+    assert.match(html, /U1/)
+    assert.match(html, /Export selected part/)
+    assert.equal(
+        (html.match(/viewer-sidebar__model-export-icon/g) || []).length,
+        3
+    )
+    assert.match(html, /data-selected-part-export-format="kicad"/)
+    assert.match(html, /data-selected-part-export-format="altium"/)
+    assert.match(html, /data-selected-part-export-format="circuitjson"/)
+})
+
+/**
  * Verifies the info panel renders the active document overview.
  */
 test('ViewerSidebarRenderer renders the board overview in the info panel', () => {
-    const html = ViewerSidebarRenderer.render(
-        createSnapshot(createBoardDocument(), 'info')
-    )
+    const html = ViewerSidebarRenderer.render({
+        ...createSnapshot(createBoardDocument(), 'info'),
+        activeView: '3d'
+    })
 
     assert.match(html, /viewer-sidebar__overview/)
     assert.match(html, /<h3>Board overview<\/h3>/)
@@ -190,6 +220,9 @@ test('ViewerSidebarRenderer renders the board overview in the info panel', () =>
     assert.match(html, /data-overview-key="line-segments"/)
     assert.match(html, /data-overview-key="footprint"/)
     assert.match(html, /data-overview-key="bom-groups"/)
+    assert.match(html, /viewer-sidebar__overview-action/)
+    assert.match(html, /data-scene-3d-export="models-zip"/)
+    assert.match(html, /Download Models ZIP/)
     assert.match(html, /Demo board/)
     assert.match(html, /demo-board\.PcbDoc/)
     assert.match(html, /1 records/)
@@ -200,7 +233,10 @@ test('ViewerSidebarRenderer renders the board overview in the info panel', () =>
     assert.match(html, /Footprint/)
     assert.match(html, /BOM groups/)
     assert.match(html, /1000 x 500 mil/)
-    assert.match(html, /data-overview-key="bom-groups"[\s\S]*<strong>2<\/strong>/)
+    assert.match(
+        html,
+        /data-overview-key="bom-groups"[\s\S]*<strong>2<\/strong>/
+    )
 })
 
 /**
@@ -308,6 +344,32 @@ test('ViewerSidebarRenderer renders layer visibility controls', () => {
 })
 
 /**
+ * Verifies layer rows use the footprint-style action column with visibility
+ * controls aligned on the right edge.
+ */
+test('ViewerSidebarRenderer renders layer visibility actions on the row end', () => {
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(createBoardDocument(), 'layers')
+    )
+
+    assert.match(html, /data-layer-filter/)
+    assert.match(html, /aria-label="Search layers"/)
+    assert.match(html, /viewer-sidebar__component-list viewer-sidebar__layer-list/)
+    assert.match(
+        html,
+        /data-layer-group="front"><h4>Front<\/h4>[\s\S]+data-pcb-layer-key="Top Layer"/
+    )
+    assert.match(
+        html,
+        /data-layer-group="back"><h4>Back<\/h4>[\s\S]+data-pcb-layer-key="Bottom Layer"/
+    )
+    assert.match(
+        html,
+        /<div class="viewer-sidebar__layer-row-shell"[^>]*data-layer-search="[^"]*top layer[^"]*"[^>]*><button class="viewer-sidebar__row viewer-sidebar__row--layer"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__swatch"[\s\S]*?<strong>Top Layer<\/strong><\/button><button class="viewer-sidebar__layer-visibility viewer-sidebar__component-copy"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__visibility-icon"/
+    )
+})
+
+/**
  * Verifies board object rows render as opacity slider controls.
  */
 test('ViewerSidebarRenderer renders PCB object opacity controls', () => {
@@ -364,6 +426,80 @@ test('ViewerSidebarRenderer renders grouped footprint selection rows', () => {
 })
 
 /**
+ * Verifies PCB net rows use the shared selectable styling without reserving
+ * row text for pin counts.
+ */
+test('ViewerSidebarRenderer renders styled selectable net rows', () => {
+    const html = ViewerSidebarRenderer.render({
+        ...createSnapshot(createBoardDocument(), 'nets'),
+        selectedNets: {
+            'doc-1': 'VBUS'
+        }
+    })
+
+    assert.match(html, /<h3>Nets<\/h3>/)
+    assert.match(html, /data-net-filter/)
+    assert.match(html, /viewer-sidebar__component-group/)
+    assert.match(html, /viewer-sidebar__component-row-shell is-active/)
+    assert.match(html, /viewer-sidebar__component-row viewer-sidebar__net-row/)
+    assert.match(html, /viewer-sidebar__net-row--label-only/)
+    assert.match(html, /viewer-sidebar__component-ref">VBUS/)
+    assert.doesNotMatch(html, /viewer-sidebar__net-detail/)
+    assert.doesNotMatch(html, /0 pins/)
+    assert.match(html, /data-pcb-net-key="VBUS"[^>]*aria-pressed="true"/)
+    assert.match(html, /data-pcb-net-key="GND"[^>]*aria-pressed="false"/)
+})
+
+/**
+ * Verifies schematic net rows still include recovered pin counts.
+ */
+test('ViewerSidebarRenderer keeps schematic net pin counts', () => {
+    const documentModel = createSchematicDocument()
+    documentModel.schematic.nets = [
+        {
+            name: 'RESET',
+            pins: [{}, {}]
+        }
+    ]
+
+    const html = ViewerSidebarRenderer.render({
+        ...createSnapshot(documentModel, 'nets'),
+        selectedNets: {
+            'doc-1': 'RESET'
+        }
+    })
+
+    assert.match(
+        html,
+        /viewer-sidebar__component-detail viewer-sidebar__net-detail">2 pins/
+    )
+    assert.doesNotMatch(html, /viewer-sidebar__net-row--label-only/)
+})
+
+/**
+ * Verifies component rows expose an icon action that copies only the full
+ * detail/name text instead of the designator.
+ */
+test('ViewerSidebarRenderer renders component detail copy buttons', () => {
+    const documentModel = createBoardDocument()
+    documentModel.pcb.components[0].value =
+        'RP2040_minimal:USB_Micro-B_A & full detail'
+
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'components')
+    )
+
+    assert.match(html, /viewer-sidebar__component-copy/)
+    assert.match(html, /aria-label="Copy component name"/)
+    assert.match(
+        html,
+        /data-component-copy-text="RP2040_minimal:USB_Micro-B_A &amp; full detail"/
+    )
+    assert.doesNotMatch(html, /data-component-copy-text="U1 /)
+    assert.match(html, /<rect x="9" y="9" width="13" height="13"/)
+})
+
+/**
  * Verifies the shared components tab adapts its panel label to schematics.
  */
 test('ViewerSidebarRenderer adapts the components panel label', () => {
@@ -374,6 +510,41 @@ test('ViewerSidebarRenderer adapts the components panel label', () => {
     assert.match(schematicHtml, /<h3>Symbols<\/h3>/)
     assert.match(schematicHtml, /U2/)
     assert.match(schematicHtml, /Device:Logic/)
+})
+
+/**
+ * Verifies schematic multi-part components render one shared symbol row.
+ */
+test('ViewerSidebarRenderer de-duplicates schematic symbol rows by component key', () => {
+    const documentModel = createSchematicDocument()
+    documentModel.schematic.components = [
+        {
+            designator: 'IC1',
+            value: 'Logic',
+            libReference: 'Device:Logic',
+            uniqueId: 'part-a'
+        },
+        {
+            designator: 'IC1',
+            value: 'Logic',
+            libReference: 'Device:Logic',
+            uniqueId: 'part-b'
+        }
+    ]
+
+    const schematicHtml = ViewerSidebarRenderer.render({
+        ...createSnapshot(documentModel, 'components'),
+        selectedPcbComponents: { 'doc-1': 'IC1' }
+    })
+
+    assert.equal(
+        (schematicHtml.match(/data-pcb-component-key="IC1"/g) || []).length,
+        1
+    )
+    assert.match(
+        schematicHtml,
+        /data-pcb-component-key="IC1"[^>]*aria-pressed="true"/
+    )
 })
 
 /**

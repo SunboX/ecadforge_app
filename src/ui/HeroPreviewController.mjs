@@ -7,6 +7,7 @@ export class HeroPreviewController {
     #previewNode
     #chipsNode
     #documentModels
+    #hasReceivedDocuments
     #activeView
     #createScene3dController
     #scene3dController
@@ -20,6 +21,7 @@ export class HeroPreviewController {
         this.#previewNode = documentRef.querySelector('#heroPreviewScreen')
         this.#chipsNode = documentRef.querySelector('#heroViewChips')
         this.#documentModels = []
+        this.#hasReceivedDocuments = false
         this.#activeView = 'pcb'
         this.#createScene3dController =
             options.createScene3dController || (() => ({ dispose() {} }))
@@ -37,6 +39,7 @@ export class HeroPreviewController {
         this.#documentModels = Array.isArray(documentModels)
             ? documentModels
             : []
+        this.#hasReceivedDocuments = true
         this.#render()
     }
 
@@ -66,6 +69,10 @@ export class HeroPreviewController {
         this.#disposeScene3dController()
         this.#renderChips()
         if (!this.#previewNode) {
+            return
+        }
+
+        if (!this.#hasReceivedDocuments) {
             return
         }
 

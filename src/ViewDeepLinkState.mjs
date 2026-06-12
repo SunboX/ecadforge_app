@@ -6,7 +6,7 @@ export class ViewDeepLinkState {
      * Builds the same URL with the active view query parameter applied.
      * @param {string} currentHref Current browser URL.
      * @param {string} viewName Requested top-level viewer tab.
-     * @param {{ documentPath?: string }} [options] Optional document state.
+     * @param {{ documentPath?: string, componentKey?: string, netName?: string }} [options] Optional document and selection state.
      * @returns {string}
      */
     static build(currentHref, viewName, options = {}) {
@@ -20,6 +20,8 @@ export class ViewDeepLinkState {
             url.searchParams.set('view', normalizedView)
         }
         ViewDeepLinkState.#applyDocumentPath(url, options)
+        ViewDeepLinkState.#applyComponentKey(url, options)
+        ViewDeepLinkState.#applyNetName(url, options)
 
         return url.href
     }
@@ -61,7 +63,7 @@ export class ViewDeepLinkState {
      * Replaces the current history entry with a URL for the selected view.
      * @param {string} viewName Requested top-level viewer tab.
      * @param {{ history?: History, location?: Location }} [environment]
-     * @param {{ documentPath?: string }} [options] Optional document state.
+     * @param {{ documentPath?: string, componentKey?: string, netName?: string }} [options] Optional document and selection state.
      * @returns {void}
      */
     static update(viewName, environment = globalThis, options = {}) {
@@ -108,10 +110,7 @@ export class ViewDeepLinkState {
         browserHistory.replaceState(
             browserHistory.state || null,
             '',
-            ViewDeepLinkState.buildDocument(
-                browserLocation.href,
-                documentPath
-            )
+            ViewDeepLinkState.buildDocument(browserLocation.href, documentPath)
         )
     }
 
@@ -161,12 +160,36 @@ export class ViewDeepLinkState {
     }
 
     /**
+     * Resolves the selected component query parameter from a browser URL.
+     * @param {string} href Browser URL.
+     * @returns {string}
+     */
+    static resolveComponent(href) {
+        const url = new URL(String(href || '/'), 'https://ecadforge.app/')
+        return ViewDeepLinkState.#sanitizeComponent(
+            url.searchParams.get('component')
+        )
+    }
+
+    /**
+     * Resolves the selected net query parameter from a browser URL.
+     * @param {string} href Browser URL.
+     * @returns {string}
+     */
+    static resolveNet(href) {
+        const url = new URL(String(href || '/'), 'https://ecadforge.app/')
+        return ViewDeepLinkState.#sanitizeNet(url.searchParams.get('net'))
+    }
+
+    /**
      * Returns a supported view id, or an empty string when absent/invalid.
      * @param {unknown} value Candidate view id.
      * @returns {string}
      */
     static #sanitizeView(value) {
-        const normalized = String(value || '').trim().toLowerCase()
+        const normalized = String(value || '')
+            .trim()
+            .toLowerCase()
         const supported = new Set([
             'schematic',
             'pcb',
@@ -186,10 +209,7 @@ export class ViewDeepLinkState {
      */
     static #applyDocumentPath(url, options) {
         if (
-            !Object.prototype.hasOwnProperty.call(
-                options || {},
-                'documentPath'
-            )
+            !Object.prototype.hasOwnProperty.call(options || {}, 'documentPath')
         ) {
             return
         }
@@ -207,11 +227,75 @@ export class ViewDeepLinkState {
     }
 
     /**
+     * Applies the optional selected component query parameter to a URL.
+     * @param {URL} url URL to update.
+     * @param {{ componentKey?: string }} options Optional component state.
+     * @returns {void}
+     */
+    static #applyComponentKey(url, options) {
+        if (
+            !Object.prototype.hasOwnProperty.call(options || {}, 'componentKey')
+        ) {
+            return
+        }
+
+        const componentKey = ViewDeepLinkState.#sanitizeComponent(
+            options.componentKey
+        )
+
+        if (componentKey) {
+            url.searchParams.set('component', componentKey)
+            return
+        }
+
+        url.searchParams.delete('component')
+    }
+
+    /**
+     * Applies the optional selected net query parameter to a URL.
+     * @param {URL} url URL to update.
+     * @param {{ netName?: string }} options Optional net state.
+     * @returns {void}
+     */
+    static #applyNetName(url, options) {
+        if (!Object.prototype.hasOwnProperty.call(options || {}, 'netName')) {
+            return
+        }
+
+        const netName = ViewDeepLinkState.#sanitizeNet(options.netName)
+
+        if (netName) {
+            url.searchParams.set('net', netName)
+            return
+        }
+
+        url.searchParams.delete('net')
+    }
+
+    /**
      * Returns a URL-safe document path value, or an empty string.
      * @param {unknown} value Candidate document path.
      * @returns {string}
      */
     static #sanitizeDocument(value) {
+        return String(value || '').trim()
+    }
+
+    /**
+     * Returns a URL-safe component key value, or an empty string.
+     * @param {unknown} value Candidate component key.
+     * @returns {string}
+     */
+    static #sanitizeComponent(value) {
+        return String(value || '').trim()
+    }
+
+    /**
+     * Returns a URL-safe net name value, or an empty string.
+     * @param {unknown} value Candidate net name.
+     * @returns {string}
+     */
+    static #sanitizeNet(value) {
         return String(value || '').trim()
     }
 }

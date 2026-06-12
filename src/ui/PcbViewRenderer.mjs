@@ -22,6 +22,7 @@ export class PcbViewRenderer {
      * @param {string[]} [hiddenObjects] Hidden object category keys.
      * @param {string} [selectedComponentKey] Selected component key.
      * @param {{ [objectKey: string]: number }} [objectOpacities] Object opacity map.
+     * @param {string} [selectedNetName] Selected net name.
      * @returns {string}
      */
     static render(
@@ -31,7 +32,8 @@ export class PcbViewRenderer {
         hiddenLayers = [],
         hiddenObjects = [],
         selectedComponentKey = '',
-        objectOpacities = {}
+        objectOpacities = {},
+        selectedNetName = ''
     ) {
         const t = UiText.createTranslator(translate)
         const normalizedSide = PcbViewRenderer.#normalizeSide(side)
@@ -53,7 +55,8 @@ export class PcbViewRenderer {
                 hiddenLayers,
                 hiddenObjects,
                 selectedComponentKey,
-                objectOpacities
+                objectOpacities,
+                selectedNetName
             ) +
             '</div>' +
             '</section>'
@@ -81,6 +84,7 @@ export class PcbViewRenderer {
      * @param {string[]} hiddenObjects Hidden object category keys.
      * @param {string} selectedComponentKey Selected component key.
      * @param {{ [objectKey: string]: number }} objectOpacities Object opacity map.
+     * @param {string} selectedNetName Selected net name.
      * @returns {string}
      */
     static #renderPcbSvg(
@@ -89,7 +93,8 @@ export class PcbViewRenderer {
         hiddenLayers,
         hiddenObjects,
         selectedComponentKey,
-        objectOpacities
+        objectOpacities,
+        selectedNetName
     ) {
         const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
             documentModel,
@@ -114,8 +119,12 @@ export class PcbViewRenderer {
                 visibleMarkup,
                 selectedComponentKey
             )
-        const markedMarkup = PcbComponentSelectionMarkerRenderer.render(
+        const netHighlightedMarkup = PcbViewRenderer.#injectNetHighlightStyle(
             highlightedMarkup,
+            selectedNetName
+        )
+        const markedMarkup = PcbComponentSelectionMarkerRenderer.render(
+            netHighlightedMarkup,
             documentModel,
             selectedComponentKey,
             side
@@ -157,8 +166,9 @@ export class PcbViewRenderer {
      */
     static #createBasePcbSvg(documentModel, side) {
         const markup = EcadRendererService.renderPcb(documentModel, { side })
+        const netMarkup = PcbViewRenderer.#tagNetElements(markup)
         const componentMarkup = PcbViewRenderer.#tagComponentGroups(
-            markup,
+            netMarkup,
             documentModel,
             side
         )
@@ -421,6 +431,58 @@ export class PcbViewRenderer {
     }
 
     /**
+     * Adds app-owned net-name attributes to rendered PCB primitives.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @returns {string}
+     */
+    static #tagNetElements(markup) {
+        return String(markup).replace(
+            /<([a-zA-Z][a-zA-Z0-9:-]*)\b(?=[^>]*\bdata-net="([^"]+)")[^>]*>/g,
+            (match, _tagName, netName) => {
+                if (match.includes('data-pcb-net-name=')) return match
+                return match.replace(
+                    /^<([a-zA-Z][a-zA-Z0-9:-]*)\b/,
+                    '<$1 data-pcb-net-name="' +
+                        PcbViewRenderer.#escapeHtml(netName) +
+                        '"'
+                )
+            }
+        )
+    }
+
+    /**
+     * Injects SVG-local CSS rules for selected net highlighting.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @param {string} selectedNetName Selected net name.
+     * @returns {string}
+     */
+    static #injectNetHighlightStyle(markup, selectedNetName) {
+        const key = String(selectedNetName || '').trim()
+        if (!key) return markup
+
+        const netName = PcbViewRenderer.#escapeCssString(key)
+        const rules =
+            '.pcb-svg [data-pcb-net-name] {' +
+            ' transition: opacity 120ms ease, filter 120ms ease, stroke 120ms ease, fill 120ms ease; }' +
+            ".pcb-svg [data-pcb-net-name='" +
+            netName +
+            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px rgba(27, 191, 227, 0.68)) drop-shadow(0 0 3px rgba(27, 191, 227, 0.32)); }" +
+            ".pcb-svg [data-pcb-net-name='" +
+            netName +
+            "'] { stroke: rgba(27, 191, 227, 0.94) !important; }" +
+            ".pcb-svg [data-pcb-net-name='" +
+            netName +
+            "'][fill]:not([fill='none']) { fill: rgba(27, 191, 227, 0.38) !important; }"
+
+        return String(markup).replace(
+            /(<svg\b[^>]*>)/,
+            '$1<style class="pcb-net-highlight-style">' +
+                PcbViewRenderer.#escapeHtml(rules) +
+                '</style>'
+        )
+    }
+
+    /**
      * Injects SVG-local CSS rules for selected component highlighting.
      * @param {string} markup Renderer-owned SVG markup.
      * @param {string} selectedComponentKey Selected component key.
@@ -446,10 +508,10 @@ export class PcbViewRenderer {
             footprintPrefix +
             "'], .pcb-svg [data-component-key='" +
             componentKey +
-            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px rgba(255, 255, 255, 0.86)) drop-shadow(0 0 5px rgba(27, 191, 227, 0.86)) drop-shadow(0 0 10px rgba(27, 191, 227, 0.42)); }" +
+            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px rgba(27, 191, 227, 0.68)) drop-shadow(0 0 3px rgba(27, 191, 227, 0.32)); }" +
             '.pcb-svg .pcb-component-selection-marker { pointer-events: none; }' +
-            '.pcb-svg .pcb-component-selection-marker__outline { fill: none; stroke: rgba(255, 255, 255, 0.92); stroke-width: 5; vector-effect: non-scaling-stroke; }' +
-            '.pcb-svg .pcb-component-selection-marker__fill { fill: rgba(27, 191, 227, 0.34); stroke: rgba(27, 191, 227, 0.95); stroke-width: 3; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px rgba(27, 191, 227, 0.72)); }'
+            '.pcb-svg .pcb-component-selection-marker__outline { fill: none; stroke: transparent; stroke-width: 0; }' +
+            '.pcb-svg .pcb-component-selection-marker__fill { fill: rgba(27, 191, 227, 0.52); stroke: transparent; stroke-width: 0; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 1.4px rgba(27, 191, 227, 0.62)); }'
 
         return String(markup).replace(
             /(<svg\b[^>]*>)/,
@@ -471,7 +533,7 @@ export class PcbViewRenderer {
             : []
         const classified = components.map((component) => ({
             component,
-            side: PcbViewRenderer.#componentSide(component)
+            side: PcbComponentSelectionModel.resolveComponentSide(component)
         }))
         const hasClassifiedSide = classified.some((entry) => entry.side)
         const filtered = classified
@@ -481,50 +543,6 @@ export class PcbViewRenderer {
             .map((entry) => entry.component)
 
         return filtered.length || hasClassifiedSide ? filtered : components
-    }
-
-    /**
-     * Resolves a component's declared PCB side when present.
-     * @param {object} component Component metadata.
-     * @returns {'top' | 'bottom' | ''}
-     */
-    static #componentSide(component) {
-        const layerId = Number(
-            component?.layerId ?? component?.layerCode ?? component?.sideCode
-        )
-        if (layerId === 32) return 'bottom'
-        if (layerId === 1) return 'top'
-
-        const text = PcbViewRenderer.#componentSearchText({
-            layer: component?.layer,
-            side: component?.side,
-            layerName: component?.layerName
-        })
-        if (/\b(bottom|back)\b|\bb[._-]/.test(text)) return 'bottom'
-        if (/\b(top|front)\b|\bf[._-]/.test(text)) return 'top'
-
-        return ''
-    }
-
-    /**
-     * Builds normalized text for component classification.
-     * @param {object | null} component Component metadata.
-     * @returns {string}
-     */
-    static #componentSearchText(component) {
-        return [
-            component?.pattern,
-            component?.source,
-            component?.description,
-            component?.libraryReference,
-            component?.footprint,
-            component?.layer,
-            component?.side,
-            component?.layerName
-        ]
-            .filter((value) => value !== undefined && value !== null)
-            .join(' ')
-            .toLowerCase()
     }
 
     /**

@@ -179,3 +179,27 @@ test('AppView shows landing intake errors next to the opening controls', () => {
     )
     assert.equal(messageNode?.getAttribute('data-status'), 'error')
 })
+
+test('AppView does not duplicate landing intake errors in the persistent status', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render(createLandingErrorSnapshot())
+
+    const persistentStatusNode = fakeDocument.querySelector('#statusMessage')
+
+    assert.equal(persistentStatusNode?.hidden, true)
+    assert.equal(persistentStatusNode?.textContent, '')
+
+    view.render({
+        ...createLandingErrorSnapshot(),
+        parseStatus: 'ready',
+        statusMessage: 'Drop supported ECAD files here.'
+    })
+
+    assert.equal(persistentStatusNode?.hidden, false)
+    assert.equal(
+        persistentStatusNode?.textContent,
+        'Drop supported ECAD files here.'
+    )
+})

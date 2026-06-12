@@ -6,9 +6,10 @@ export class ViewerSidebarOverviewRenderer {
      * Renders the overview panel for the active document.
      * @param {any} documentModel Active document model.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ showModelZipExport?: boolean }} [options] Render options.
      * @returns {string}
      */
-    static render(documentModel, translate) {
+    static render(documentModel, translate, options = {}) {
         const title = documentModel?.pcb
             ? translate('sidebar.boardOverview')
             : translate('sidebar.sheetOverview')
@@ -22,6 +23,11 @@ export class ViewerSidebarOverviewRenderer {
                 documentModel,
                 translate
             ) +
+            ViewerSidebarOverviewRenderer.#renderOverviewActions(
+                documentModel,
+                translate,
+                options
+            ) +
             ViewerSidebarOverviewRenderer.#renderOverviewGrid(
                 documentModel,
                 translate
@@ -31,6 +37,31 @@ export class ViewerSidebarOverviewRenderer {
                 translate
             ) +
             '</div>'
+        )
+    }
+
+    /**
+     * Renders document-level actions in the overview panel.
+     * @param {any} documentModel Active document model.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ showModelZipExport?: boolean }} options Render options.
+     * @returns {string}
+     */
+    static #renderOverviewActions(documentModel, translate, options) {
+        if (!documentModel?.pcb || options.showModelZipExport !== true) {
+            return ''
+        }
+
+        return (
+            '<div class="viewer-sidebar__model-export viewer-sidebar__overview-actions">' +
+            '<div class="viewer-sidebar__model-export-actions">' +
+            '<button class="viewer-sidebar__model-export-button viewer-sidebar__overview-action" type="button" data-scene-3d-export="models-zip">' +
+            ViewerSidebarOverviewRenderer.#renderOverviewActionIcon() +
+            '<span class="viewer-sidebar__model-export-label">' +
+            ViewerSidebarOverviewRenderer.#escapeHtml(
+                translate('scene3d.downloadModelsZip')
+            ) +
+            '</span></button></div></div>'
         )
     }
 
@@ -521,6 +552,20 @@ export class ViewerSidebarOverviewRenderer {
         return (
             '<svg class="icon" viewBox="0 0 24 24">' +
             (paths[icon] || paths.file) +
+            '</svg>'
+        )
+    }
+
+    /**
+     * Renders the overview action download icon.
+     * @returns {string}
+     */
+    static #renderOverviewActionIcon() {
+        return (
+            '<svg class="icon viewer-sidebar__model-export-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M12 3v12" />' +
+            '<path d="m7 10 5 5 5-5" />' +
+            '<path d="M5 21h14" />' +
             '</svg>'
         )
     }

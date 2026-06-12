@@ -11,7 +11,8 @@ export class AppViewPcbControllerBinder {
      * @param {HTMLElement} options.contentNode PCB content mount.
      * @param {object} options.snapshot App state snapshot.
      * @param {'top' | 'bottom'} options.side Requested PCB side.
-     * @param {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} options.onComponentSelectionChange Selection callback.
+     * @param {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} options.onComponentSelectionChange Component selection callback.
+     * @param {((change: { documentId: string, netName: string, source?: string }) => void) | null} options.onNetSelectionChange Net selection callback.
      * @param {((key: string) => string) | null} options.translate Translation lookup.
      * @returns {PcbViewController}
      */
@@ -20,6 +21,7 @@ export class AppViewPcbControllerBinder {
         snapshot,
         side,
         onComponentSelectionChange,
+        onNetSelectionChange,
         translate
     }) {
         const documentId = String(snapshot?.activeDocumentId || '')
@@ -47,7 +49,11 @@ export class AppViewPcbControllerBinder {
                 selectedComponentKey: String(
                     snapshot?.selectedPcbComponents?.[documentId] || ''
                 ),
+                selectedNetName: String(
+                    snapshot?.selectedNets?.[documentId] || ''
+                ),
                 onComponentSelectionChange,
+                onNetSelectionChange,
                 translate
             }
         )

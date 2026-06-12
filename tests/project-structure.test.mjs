@@ -42,7 +42,7 @@ test('required project files exist', async () => {
         'COMMERCIAL-LICENSE.md',
         'CONTRIBUTING.md',
         'package.json',
-        'occt-import-js-0.0.23.tgz',
+        'occt-import-js-0.0.25.tgz',
         'LICENSE',
         'LICENSES/AGPL-3.0-or-later.txt',
         'LICENSES/CC-BY-SA-4.0.txt',
@@ -59,6 +59,7 @@ test('required project files exist', async () => {
         'docs/troubleshooting.md',
         'api/.htaccess',
         'api/app-meta.php',
+        'api/component-source.php',
         'src/AppMetaLoader.mjs',
         'src/favicon.svg',
         'src/index.html',
@@ -173,9 +174,11 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
         occtExceptionRaw,
         /provided by the Open CASCADE Technology software/
     )
-    assert.match(sourceOfferRaw, /occt-import-js@0\.0\.23/)
-    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.23\.tgz/)
-    assert.match(sourceOfferRaw, /sha512-RFfYQXY/)
+    assert.match(sourceOfferRaw, /@sunbox\/occt-import-js@0\.0\.25/)
+    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.25\.tgz/)
+    assert.match(packageLockRaw, /"@sunbox\/occt-import-js": "\^0\.0\.25"/)
+    assert.match(packageLockRaw, /"version": "0\.0\.25"/)
+    assert.match(sourceOfferRaw, /sha512-/)
     assert.match(sourceOfferRaw, /git\.dev\.opencascade\.org\/repos\/occt\.git/)
     assert.match(sourceOfferRaw, /tools\\build_wasm_win_release\.bat/)
     assert.match(packageLockRaw, /"license": "LGPL-2\.1"/)
@@ -189,23 +192,20 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
 })
 
 /**
- * Verifies reusable ECAD parser, renderer, and scene-data cores resolve from
- * published npm packages for release builds.
+ * Verifies reusable ECAD parser, renderer, and 3D cores resolve from the
+ * intended npm package sources.
  */
-test('package depends on released ECAD toolkit packages', async () => {
+test('package depends on intended ECAD toolkit package sources', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
-    const releasedToolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.3$/],
-        ['kicad-toolkit', /^\^1\.0\.9$/],
+    const toolkitDependencies = [
+        ['altium-toolkit', /^\^1\.1\.22$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.1$/]
+        ['kicad-toolkit', /^\^1\.0\.10$/],
+        ['pcb-scene3d-viewer', /^\^1\.1\.2$/]
     ]
 
-    for (const [
-        dependencyName,
-        versionPattern
-    ] of releasedToolkitDependencies) {
+    for (const [dependencyName, versionPattern] of toolkitDependencies) {
         const dependencyVersion = pkg.dependencies?.[dependencyName] ?? ''
 
         assert.match(dependencyVersion, versionPattern)
@@ -558,38 +558,46 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies ECAD libraries resolve through published npm tarballs in release
- * builds rather than through local sibling package links.
+ * Verifies ECAD libraries resolve through configured npm tarballs.
  */
-test('released ECAD libraries resolve through npm registry packages', async () => {
+test('ECAD libraries resolve through configured package sources', async () => {
     const packageRaw = await readFile(new URL('package.json', root), 'utf8')
     const lockRaw = await readFile(new URL('package-lock.json', root), 'utf8')
     const pkg = JSON.parse(packageRaw)
     const lock = JSON.parse(lockRaw)
-    const registryToolkitDependencies = [
-        ['altium-toolkit', '1.1.3'],
-        ['kicad-toolkit', '1.0.9'],
-        ['circuitjson-toolkit', '1.0.3'],
-        ['pcb-scene3d-viewer', '1.1.1']
+    const toolkitDependencies = [
+        {
+            name: 'altium-toolkit',
+            registryVersion: '1.1.22'
+        },
+        {
+            name: 'circuitjson-toolkit',
+            registryVersion: '1.0.3'
+        },
+        {
+            name: 'kicad-toolkit',
+            registryVersion: '1.0.10'
+        },
+        {
+            name: 'pcb-scene3d-viewer',
+            registryVersion: '1.1.2'
+        }
     ]
 
-    for (const [
-        dependencyName,
-        expectedVersion
-    ] of registryToolkitDependencies) {
-        const packageDependency = pkg.dependencies[dependencyName]
+    for (const dependency of toolkitDependencies) {
+        const packageDependency = pkg.dependencies[dependency.name]
         const lockedDependency =
-            lock.packages['']?.dependencies?.[dependencyName]
+            lock.packages['']?.dependencies?.[dependency.name]
         const dependencyPackage =
-            lock.packages[`node_modules/${dependencyName}`]
+            lock.packages[`node_modules/${dependency.name}`]
 
-        assert.equal(packageDependency, `^${expectedVersion}`)
-        assert.equal(lockedDependency, `^${expectedVersion}`)
-        assert.equal(dependencyPackage?.version, expectedVersion)
+        assert.equal(packageDependency, `^${dependency.registryVersion}`)
+        assert.equal(lockedDependency, `^${dependency.registryVersion}`)
+        assert.equal(dependencyPackage?.version, dependency.registryVersion)
         assert.match(
             dependencyPackage?.resolved ?? '',
             new RegExp(
-                `^https://registry\\.npmjs\\.org/${dependencyName}/-/${dependencyName}-${expectedVersion}\\.tgz$`
+                `^https://registry\\.npmjs\\.org/${dependency.name}/-/${dependency.name}-${dependency.registryVersion}\\.tgz$`
             )
         )
         assert.notEqual(dependencyPackage?.link, true)

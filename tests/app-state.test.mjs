@@ -18,6 +18,7 @@ test('AppState initializes with defaults', () => {
     assert.deepEqual(snapshot.hiddenPcbObjects, {})
     assert.deepEqual(snapshot.pcbObjectOpacities, {})
     assert.deepEqual(snapshot.selectedPcbComponents, {})
+    assert.equal(snapshot.autoSearchMissingModels, false)
     assert.equal(snapshot.documentModel, null)
 })
 
@@ -29,6 +30,7 @@ test('AppState.patch updates multiple fields', () => {
     const snapshot = state.patch({
         activeView: 'bom',
         activeSidebarTab: 'layers',
+        autoSearchMissingModels: true,
         locale: 'de',
         parseStatus: 'ready',
         statusMessage: 'Loaded relic'
@@ -36,6 +38,7 @@ test('AppState.patch updates multiple fields', () => {
 
     assert.equal(snapshot.activeView, 'bom')
     assert.equal(snapshot.activeSidebarTab, 'layers')
+    assert.equal(snapshot.autoSearchMissingModels, true)
     assert.equal(snapshot.locale, 'de')
     assert.equal(snapshot.parseStatus, 'ready')
     assert.equal(snapshot.statusMessage, 'Loaded relic')
@@ -198,6 +201,31 @@ test('AppState stores selected PCB components by document', () => {
 
     assert.deepEqual(snapshot.selectedPcbComponents, {
         'doc-2': 'R1'
+    })
+})
+
+/**
+ * Verifies selected nets are normalized by document id.
+ */
+test('AppState stores selected nets by document', () => {
+    const state = new AppState({
+        selectedNets: {
+            'doc-1': 'SENSE_A',
+            '': 'ignored',
+            'doc-2': ''
+        }
+    })
+
+    assert.deepEqual(state.getSnapshot().selectedNets, {
+        'doc-1': 'SENSE_A'
+    })
+
+    const snapshot = state.setValue('selectedNets', {
+        'doc-2': 'RETURN'
+    })
+
+    assert.deepEqual(snapshot.selectedNets, {
+        'doc-2': 'RETURN'
     })
 })
 

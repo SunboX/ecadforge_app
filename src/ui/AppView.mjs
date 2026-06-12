@@ -4,11 +4,12 @@ import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
+import { AppViewDownloadHelper } from './AppViewDownloadHelper.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
-import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
-import { AppViewScene3dShellRenderer } from './AppViewScene3dShellRenderer.mjs'
+import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.mjs'
+import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
 import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
@@ -19,7 +20,6 @@ import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 import { ViewerSidebarEventBinder } from './ViewerSidebarEventBinder.mjs'
 import { ViewerSidebarRenderer } from './ViewerSidebarRenderer.mjs'
-const PCB_STYLER_TIP_DISMISSED_STORAGE_KEY = 'ecadforge.pcbStylerTipDismissed'
 
 /**
  * DOM rendering and event binding helper.
@@ -73,15 +73,6 @@ export class AppView {
     /** @type {HTMLInputElement | null} */
     #githubUrlInput
 
-    /** @type {HTMLElement | null} */
-    #pcbStylerCtaNode
-
-    /** @type {HTMLAnchorElement | null} */
-    #pcbStylerLinkNode
-
-    /** @type {HTMLElement | null} */
-    #pcbStylerDismissNode
-
     /** @type {Storage | null} */
     #storage
 
@@ -97,17 +88,29 @@ export class AppView {
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #pcbComponentSelectionCallback
 
-    /** @type {any | null} */
-    #scene3dController
+    /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
+    #pcbNetSelectionCallback
+
+    /** @type {boolean} */
+    #suppressNextComponentScroll
+
+    /** @type {boolean} */
+    #suppressNextNetScroll
+
+    /** @type {AppViewScene3dPanelController} */
+    #scene3dPanelController
+
+    /** @type {AppViewPcbStylerTipController} */
+    #pcbStylerTipController
 
     #heroPreviewController
 
-    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
+    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
     #createScene3dController
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -126,10 +129,6 @@ export class AppView {
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#githubOpenForm = this.#document.querySelector('#githubOpenForm')
         this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
-        this.#pcbStylerCtaNode = this.#document.querySelector('#pcbStylerCta')
-        this.#pcbStylerLinkNode = this.#document.querySelector('#pcbStylerLink')
-        this.#pcbStylerDismissNode =
-            this.#document.querySelector('#pcbStylerDismiss')
         this.#storage =
             options.storage === undefined
                 ? AppView.#resolveBrowserStorage(this.#document)
@@ -138,7 +137,18 @@ export class AppView {
         this.#svgViewportController = null
         this.#pcbViewController = null
         this.#pcbComponentSelectionCallback = null
-        this.#scene3dController = null
+        this.#pcbNetSelectionCallback = null
+        this.#suppressNextComponentScroll = false
+        this.#suppressNextNetScroll = false
+        this.#scene3dPanelController = new AppViewScene3dPanelController()
+        this.#pcbStylerTipController = new AppViewPcbStylerTipController(
+            this.#document,
+            {
+                viewerStageNode: this.#viewerStageNode,
+                storage: this.#storage,
+                translate: this.#translate
+            }
+        )
         this.#createScene3dController =
             options.createScene3dController ||
             Scene3dControllerFactory.create(
@@ -151,12 +161,19 @@ export class AppView {
                 translate: this.#translate
             }
         )
-        this.#bindPcbStylerDismiss()
+        this.#pcbStylerTipController.bindDismiss()
         ViewerSidebarEventBinder.bindSidebarCollapseToggle(
             this.#documentRailNode,
             (collapsed) => this.#setSidebarCollapsed(collapsed)
         )
+        ViewerSidebarEventBinder.bindComponentDetailCopy(this.#documentRailNode)
         ViewerSidebarEventBinder.bindComponentFilter(this.#documentRailNode)
+        ViewerSidebarEventBinder.bindLayerFilter(this.#documentRailNode)
+        ViewerSidebarEventBinder.bindNetFilter(this.#documentRailNode)
+        ViewerSidebarEventBinder.bindScene3dModelZipExport(
+            this.#documentRailNode,
+            () => this.#scene3dPanelController.triggerModelArchiveExport()
+        )
     }
 
     /**
@@ -164,7 +181,7 @@ export class AppView {
      * @param {{ activeView: string, activeSidebarTab?: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
      */
     render(snapshot) {
-        this.setStatus(snapshot.statusMessage)
+        LandingStatusRenderer.renderPersistentStatus(this.#statusNode, snapshot)
         LandingStatusRenderer.render(
             this.#document.querySelector('#landingStatusMessage'),
             snapshot
@@ -181,9 +198,11 @@ export class AppView {
      * @param {string} value
      */
     setStatus(value) {
-        if (this.#statusNode) {
-            this.#statusNode.textContent = value
+        if (!this.#statusNode) {
+            return
         }
+        this.#statusNode.textContent = value
+        this.#statusNode.removeAttribute('hidden')
     }
 
     /**
@@ -352,7 +371,35 @@ export class AppView {
             typeof callback === 'function' ? callback : null
         ViewerSidebarEventBinder.bindPcbComponentSelectionChange(
             this.#documentRailNode,
-            callback
+            (change) => {
+                this.#suppressNextComponentScroll = true
+                try {
+                    this.#pcbComponentSelectionCallback?.(change)
+                } finally {
+                    this.#suppressNextComponentScroll = false
+                }
+            }
+        )
+    }
+
+    /**
+     * Binds PCB and schematic net selection row clicks.
+     * @param {(change: { documentId: string, netName: string, source?: string }) => void} callback
+     * @returns {void}
+     */
+    bindPcbNetSelectionChange(callback) {
+        this.#pcbNetSelectionCallback =
+            typeof callback === 'function' ? callback : null
+        ViewerSidebarEventBinder.bindPcbNetSelectionChange(
+            this.#documentRailNode,
+            (change) => {
+                this.#suppressNextNetScroll = true
+                try {
+                    this.#pcbNetSelectionCallback?.(change)
+                } finally {
+                    this.#suppressNextNetScroll = false
+                }
+            }
         )
     }
 
@@ -366,6 +413,50 @@ export class AppView {
             this.#documentRailNode,
             callback
         )
+    }
+
+    /**
+     * Binds selected-part export buttons.
+     * @param {(change: { documentId: string, componentKey: string, format: string }) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindSelectedPartExport(callback) {
+        ViewerSidebarEventBinder.bindSelectedPartExport(
+            this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
+     * Downloads bytes through a temporary browser anchor.
+     * @param {string} fileName Download file name.
+     * @param {Uint8Array} bytes Download bytes.
+     * @param {string} [contentType] MIME content type.
+     * @returns {void}
+     */
+    downloadBytes(fileName, bytes, contentType = 'application/octet-stream') {
+        AppViewDownloadHelper.downloadBytes(
+            this.#document,
+            fileName,
+            bytes,
+            contentType
+        )
+    }
+
+    /**
+     * Binds the 3D missing model search preference checkbox.
+     * @param {(enabled: boolean) => void} callback Preference callback.
+     * @returns {void}
+     */
+    bindModelSearchPreferenceChange(callback) {
+        this.#document.addEventListener('change', (event) => {
+            const target = event.target
+            if (!(target instanceof HTMLElement)) return
+            const input = target.closest('[data-scene-3d-model-search]')
+            if (!(input instanceof HTMLInputElement)) return
+
+            callback(input.checked)
+        })
     }
 
     /**
@@ -421,9 +512,7 @@ export class AppView {
      * @returns {void}
      */
     bindPcbStylerClick(callback) {
-        this.#pcbStylerLinkNode?.addEventListener('click', () => {
-            callback()
-        })
+        this.#pcbStylerTipController.bindClick(callback)
     }
 
     /**
@@ -433,21 +522,7 @@ export class AppView {
      * @returns {void}
      */
     setPcbStylerLink(url, mode) {
-        if (!this.#pcbStylerCtaNode || !this.#pcbStylerLinkNode) {
-            return
-        }
-
-        this.#pcbStylerLinkNode.href = url || 'https://pcb-styler.app/'
-        this.#pcbStylerLinkNode.textContent =
-            mode === 'github'
-                ? this.#translate('pcbStyler.open')
-                : this.#translate('pcbStyler.export')
-        if (this.#isPcbStylerTipDismissed()) {
-            this.#setPcbStylerCtaHidden(true)
-            return
-        }
-
-        this.#setPcbStylerCtaHidden(false)
+        this.#pcbStylerTipController.setLink(url, mode)
     }
 
     /**
@@ -455,75 +530,7 @@ export class AppView {
      * @returns {void}
      */
     clearPcbStylerLink() {
-        if (!this.#pcbStylerCtaNode || !this.#pcbStylerLinkNode) {
-            return
-        }
-
-        this.#pcbStylerLinkNode.href = 'https://pcb-styler.app/'
-        this.#pcbStylerLinkNode.textContent = this.#translate('pcbStyler.open')
-        this.#setPcbStylerCtaHidden(true)
-    }
-
-    /**
-     * Binds the persistent PCB Styler tip dismissal button.
-     * @returns {void}
-     */
-    #bindPcbStylerDismiss() {
-        this.#pcbStylerDismissNode?.addEventListener('click', () => {
-            this.#dismissPcbStylerTip()
-        })
-    }
-
-    /**
-     * Hides the PCB Styler tip and stores the user preference.
-     * @returns {void}
-     */
-    #dismissPcbStylerTip() {
-        this.#storePcbStylerTipDismissed()
-        this.#setPcbStylerCtaHidden(true)
-    }
-
-    /**
-     * Toggles the PCB Styler CTA and collapses the unused grid row with it.
-     * @param {boolean} hidden Whether the CTA should be hidden.
-     * @returns {void}
-     */
-    #setPcbStylerCtaHidden(hidden) {
-        if (hidden) {
-            this.#pcbStylerCtaNode?.setAttribute('hidden', 'hidden')
-            this.#viewerStageNode?.classList.add('is-pcb-styler-cta-hidden')
-            return
-        }
-
-        this.#pcbStylerCtaNode?.removeAttribute('hidden')
-        this.#viewerStageNode?.classList.remove('is-pcb-styler-cta-hidden')
-    }
-
-    /**
-     * Returns true when the PCB Styler tip was dismissed in this browser.
-     * @returns {boolean}
-     */
-    #isPcbStylerTipDismissed() {
-        try {
-            return (
-                this.#storage?.getItem(PCB_STYLER_TIP_DISMISSED_STORAGE_KEY) ===
-                'true'
-            )
-        } catch (_error) {
-            return false
-        }
-    }
-
-    /**
-     * Persists the PCB Styler tip dismissal preference when storage is usable.
-     * @returns {void}
-     */
-    #storePcbStylerTipDismissed() {
-        try {
-            this.#storage?.setItem(PCB_STYLER_TIP_DISMISSED_STORAGE_KEY, 'true')
-        } catch (_error) {
-            // The current click still hides the tip when browser storage fails.
-        }
+        this.#pcbStylerTipController.clearLink()
     }
 
     /**
@@ -597,6 +604,7 @@ export class AppView {
             this.#documentRailNode.setAttribute('hidden', 'hidden')
             this.#viewerStageNode?.classList.remove('is-sidebar-visible')
             this.#applySidebarCollapsedClass()
+            this.#scene3dPanelController.setAdjustmentHost(null)
             return
         }
 
@@ -616,11 +624,20 @@ export class AppView {
         this.#documentRailNode.innerHTML = this.#sidebarCollapsed
             ? ViewerSidebarRenderer.renderCollapsedToggle(this.#translate)
             : this.#expandedSidebarMarkup
+        this.#scene3dPanelController.setAdjustmentHostFromRail(
+            this.#documentRailNode
+        )
         if (!this.#sidebarCollapsed) {
             AppView.#restoreSidebarScroll(this.#documentRailNode, scrollState)
             AppViewPcbComponentScroller.scrollSelectedIntoView(
                 this.#documentRailNode,
-                snapshot
+                snapshot,
+                { suppressScroll: this.#suppressNextComponentScroll }
+            )
+            AppViewPcbComponentScroller.scrollSelectedNetIntoView(
+                this.#documentRailNode,
+                snapshot,
+                { suppressScroll: this.#suppressNextNetScroll }
             )
         }
     }
@@ -637,6 +654,9 @@ export class AppView {
         this.#documentRailNode.innerHTML = this.#sidebarCollapsed
             ? ViewerSidebarRenderer.renderCollapsedToggle(this.#translate)
             : this.#expandedSidebarMarkup
+        this.#scene3dPanelController.setAdjustmentHostFromRail(
+            this.#documentRailNode
+        )
     }
 
     /**
@@ -679,13 +699,12 @@ export class AppView {
             this.#contentNode,
             snapshot
         )
-        const shouldKeepScene3d =
-            snapshot.activeView === '3d' &&
-            this.#scene3dController?.getDocumentModel?.() ===
-                snapshot.documentModel
         this.#disposeSvgViewportController()
         this.#disposePcbViewController()
-        if (!shouldKeepScene3d) this.#disposeScene3dController()
+        this.#scene3dPanelController.prepareForRender(
+            this.#contentNode,
+            snapshot
+        )
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
             AppViewSchematicContentReuseModel.clear(this.#contentNode)
@@ -709,7 +728,8 @@ export class AppView {
             const documentId = String(snapshot?.activeDocumentId || '')
             this.#contentNode.innerHTML = SchematicViewRenderer.render(
                 snapshot.documentModel,
-                String(snapshot?.selectedPcbComponents?.[documentId] || '')
+                String(snapshot?.selectedPcbComponents?.[documentId] || ''),
+                String(snapshot?.selectedNets?.[documentId] || '')
             )
             SchematicViewportPreserver.restore(
                 this.#contentNode,
@@ -728,7 +748,8 @@ export class AppView {
             SchematicComponentSelectionBinder.bind(
                 this.#contentNode.querySelector('.schematic-svg'),
                 documentId,
-                this.#pcbComponentSelectionCallback
+                this.#pcbComponentSelectionCallback,
+                this.#pcbNetSelectionCallback
             )
             return
         }
@@ -742,6 +763,7 @@ export class AppView {
                 snapshot,
                 side: previousPcbSide,
                 onComponentSelectionChange: this.#pcbComponentSelectionCallback,
+                onNetSelectionChange: this.#pcbNetSelectionCallback,
                 translate: this.#translate
             })
             return
@@ -752,19 +774,14 @@ export class AppView {
             const selectedKey = String(
                 snapshot?.selectedPcbComponents?.[documentId] || ''
             )
-            if (shouldKeepScene3d) {
-                this.#scene3dController?.setSelectedComponent?.(selectedKey)
-                return
-            }
-            this.#contentNode.innerHTML = AppViewScene3dShellRenderer.render(
-                snapshot.documentModel,
-                this.#translate
-            )
-            this.#scene3dController = AppViewScene3dControllerBinder.attach({
+            this.#scene3dPanelController.render({
                 contentNode: this.#contentNode,
                 documentId,
                 documentModel: snapshot.documentModel,
                 sessionAssets: snapshot.sessionAssets || [],
+                autoSearchMissingModels:
+                    snapshot.autoSearchMissingModels === true,
+                renderAdjustmentControlsInSelection: false,
                 selectedComponentKey: selectedKey,
                 onComponentSelectionChange: this.#pcbComponentSelectionCallback,
                 translate: this.#translate,
@@ -830,16 +847,6 @@ export class AppView {
         this.#pcbViewController?.dispose()
         this.#pcbViewController = null
         AppViewPcbContentReuseModel.clear(this.#contentNode)
-    }
-
-    /**
-     * Disposes the active 3D scene controller before the panel content
-     * changes.
-     * @returns {void}
-     */
-    #disposeScene3dController() {
-        this.#scene3dController?.dispose()
-        this.#scene3dController = null
     }
 
     /**

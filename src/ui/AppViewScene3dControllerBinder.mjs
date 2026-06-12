@@ -4,7 +4,7 @@
 export class AppViewScene3dControllerBinder {
     /**
      * Attaches a 3D scene controller to the rendered viewport node.
-     * @param {{ contentNode: HTMLElement | null, documentId?: string, documentModel: any, sessionAssets?: any[], selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any }} options
+     * @param {{ contentNode: HTMLElement | null, documentId?: string, documentModel: any, sessionAssets?: any[], selectedComponentKey?: string, autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any }} options
      * @returns {any | null}
      */
     static attach(options) {
@@ -14,13 +14,13 @@ export class AppViewScene3dControllerBinder {
         const viewportNode = contentNode.querySelector(
             '[data-scene-3d-viewport]'
         )
-        if (!AppViewScene3dControllerBinder.#isSceneViewportNode(viewportNode)) {
+        if (
+            !AppViewScene3dControllerBinder.#isSceneViewportNode(viewportNode)
+        ) {
             return null
         }
 
-        const loadingNode = contentNode.querySelector(
-            '[data-scene-3d-loading]'
-        )
+        const loadingNode = contentNode.querySelector('[data-scene-3d-loading]')
         const setLoadingVisible = (visible) => {
             if (
                 !AppViewScene3dControllerBinder.#isSceneViewportNode(
@@ -47,6 +47,11 @@ export class AppViewScene3dControllerBinder {
                 onComponentSelectionChange:
                     options.onComponentSelectionChange || null,
                 sessionAssets: options.sessionAssets || [],
+                autoSearchMissingModels: Boolean(
+                    options.autoSearchMissingModels
+                ),
+                renderAdjustmentControlsInSelection:
+                    options.renderAdjustmentControlsInSelection,
                 setLoadingVisible,
                 translate: options.translate
             }

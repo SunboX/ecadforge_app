@@ -190,6 +190,28 @@ class FakeSchematicComponentTarget extends FakeNode {
 }
 
 /**
+ * Minimal target inside a selected schematic net.
+ */
+class FakeSchematicNetTarget extends FakeNode {
+    /**
+     * @param {string} netName Selected net name.
+     */
+    constructor(netName) {
+        super()
+        this.setAttribute('data-schematic-net-name', netName)
+    }
+
+    /**
+     * Returns this target for schematic net lookups.
+     * @param {string} selector CSS selector.
+     * @returns {FakeSchematicNetTarget | null}
+     */
+    closest(selector) {
+        return selector === '[data-schematic-net-name]' ? this : null
+    }
+}
+
+/**
  * Minimal content node that exposes rendered schematic SVGs.
  */
 class FakeContentNode extends FakeNode {
@@ -288,7 +310,13 @@ function createSnapshot() {
             ],
             texts: [{ ownerIndex: 'owner-u1', x: 20, y: 18, value: 'U1' }],
             pins: [],
-            lines: []
+            lines: [],
+            nets: [
+                {
+                    name: 'SENSE_A',
+                    segments: [{ x1: 8, y1: 24, x2: 20, y2: 24 }]
+                }
+            ]
         },
         bom: []
     }
@@ -302,6 +330,7 @@ function createSnapshot() {
         documents: [{ id: 'doc-1', documentModel }],
         activeDocumentId: 'doc-1',
         selectedPcbComponents: { 'doc-1': 'U1' },
+        selectedNets: {},
         documentModel
     }
 }
@@ -318,6 +347,24 @@ test('AppView highlights the selected schematic symbol', () => {
     const html = fakeDocument.querySelector('#viewContent').innerHTML
     assert.match(html, /class="schematic-component-highlight-style"/)
     assert.match(html, /data-schematic-component-key="U1"/)
+})
+
+/**
+ * Verifies selected schematic net state reaches the schematic renderer.
+ */
+test('AppView highlights the selected schematic net', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+
+    view.render({
+        ...createSnapshot(),
+        selectedPcbComponents: {},
+        selectedNets: { 'doc-1': 'SENSE_A' }
+    })
+
+    const html = fakeDocument.querySelector('#viewContent').innerHTML
+    assert.match(html, /class="schematic-net-highlight-style"/)
+    assert.match(html, /data-schematic-net-name="SENSE_A"/)
 })
 
 /**
@@ -343,7 +390,37 @@ test('AppView emits schematic component clicks from the rendered svg', () => {
     assert.deepEqual(received, [
         {
             documentId: 'doc-1',
-            componentKey: 'U1'
+            componentKey: 'U1',
+            source: 'schematic'
+        }
+    ])
+})
+
+/**
+ * Verifies schematic net clicks emit the clicked net name.
+ */
+test('AppView emits schematic net clicks from the rendered svg', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindPcbNetSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+        .dispatch('click', {
+            target: new FakeSchematicNetTarget('SENSE_A')
+        })
+
+    assert.deepEqual(received, [
+        {
+            documentId: 'doc-1',
+            netName: 'SENSE_A',
+            source: 'schematic'
         }
     ])
 })
@@ -369,7 +446,8 @@ test('AppView emits empty schematic selection from schematic background clicks',
     assert.deepEqual(received, [
         {
             documentId: 'doc-1',
-            componentKey: ''
+            componentKey: '',
+            source: 'schematic'
         }
     ])
 })

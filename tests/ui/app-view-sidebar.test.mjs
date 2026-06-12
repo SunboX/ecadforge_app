@@ -147,7 +147,6 @@ class FakeNode extends FakeEventTarget {
         return []
     }
 
-
     /**
      * @param {string} value
      */
@@ -176,6 +175,10 @@ class FakeSidebarButton extends FakeNode {
      */
     constructor(attributeName, value, classNames, stateName, stateValue) {
         super()
+        this.scrollIntoViewCalls = []
+        this.scrollIntoView = (options = true) => {
+            this.scrollIntoViewCalls.push(options)
+        }
         this.setAttribute(attributeName, value)
         this.setAttribute(stateName, stateValue)
         this.classList = new FakeClassList(classNames)
@@ -451,6 +454,18 @@ class FakeSidebarNode extends FakeNode {
         if (tabMatch) return this.#tabs.get(tabMatch[1]) || null
 
         return null
+    }
+
+    /**
+     * @param {string} selector
+     * @returns {FakeSidebarButton[]}
+     */
+    querySelectorAll(selector) {
+        if (selector === '[data-pcb-component-key]') {
+            return [...this.#components.values()]
+        }
+
+        return []
     }
 
     /**
@@ -856,10 +871,19 @@ test('AppView binds PCB component selection clicks', () => {
 
     view.bindPcbComponentSelectionChange((change) => {
         received.push(change)
+        view.render({
+            ...createPcbSnapshot(),
+            activeSidebarTab: 'components',
+            selectedPcbComponents: { 'doc-1': change.componentKey }
+        })
     })
     view.render({ ...createPcbSnapshot(), activeSidebarTab: 'components' })
 
-    fakeDocument.querySelector('#documentRail').clickComponent('R1')
+    const rail = fakeDocument.querySelector('#documentRail')
+    rail.clickComponent('R1')
+    const selectedRow = rail.querySelectorAll('[data-pcb-component-key]').find(
+        (row) => row.getAttribute('data-pcb-component-key') === 'R1'
+    )
 
     assert.deepEqual(received, [
         {
@@ -867,6 +891,7 @@ test('AppView binds PCB component selection clicks', () => {
             componentKey: 'R1'
         }
     ])
+    assert.deepEqual(selectedRow.scrollIntoViewCalls, [])
 })
 
 /**

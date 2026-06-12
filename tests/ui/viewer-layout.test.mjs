@@ -22,6 +22,20 @@ async function readStylesheet(fileName) {
 }
 
 /**
+ * Reads the sidebar styles in the same order as the app stylesheet imports them.
+ * @returns {Promise<string>}
+ */
+async function readSidebarStylesheet() {
+    const files = [
+        '24-viewer-sidebar.css',
+        '24-viewer-sidebar-lists.css',
+        '24-viewer-sidebar-responsive.css'
+    ]
+    const chunks = await Promise.all(files.map((file) => readStylesheet(file)))
+    return chunks.join('\n')
+}
+
+/**
  * Reads the browser app shell markup.
  * @returns {Promise<string>}
  */
@@ -31,15 +45,78 @@ async function readIndexMarkup() {
 }
 
 /**
+ * Extracts the contents of one top-level media query block.
+ * @param {string} css Stylesheet text.
+ * @param {string} query Media query condition including parentheses.
+ * @returns {string}
+ */
+function readMediaBlock(css, query) {
+    const marker = `@media ${query} {`
+    const start = String(css).indexOf(marker)
+    if (start < 0) {
+        return ''
+    }
+
+    const blockStart = start + marker.length
+    let depth = 1
+    for (let index = blockStart; index < css.length; index += 1) {
+        if (css[index] === '{') {
+            depth += 1
+        }
+        if (css[index] === '}') {
+            depth -= 1
+        }
+        if (depth === 0) {
+            return css.slice(blockStart, index)
+        }
+    }
+
+    return ''
+}
+
+/**
+ * Verifies filtered sidebar rows marked hidden cannot be brought back by
+ * component-specific display declarations.
+ */
+test('core stylesheet keeps hidden elements visually suppressed', async () => {
+    const coreCss = await readStylesheet('00-core.css')
+
+    assert.match(coreCss, /\[hidden\]\s*\{[\s\S]*display:\s*none\s*!important;/)
+})
+
+/**
+ * Verifies preset toolbars reserve space for controls lifted by hover and
+ * active states.
+ */
+test('viewer preset toolbars reserve top space for hover lift', async () => {
+    const sceneCss = await readStylesheet('30-scene3d.css')
+
+    assert.match(
+        sceneCss,
+        /\.scene-3d__toolbar\s*\{[\s\S]*padding-top:\s*1px;/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d__preset:hover\s*\{[\s\S]*transform:\s*translateY\(-1px\);/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d__preset\.is-active,[\s\S]*\.scene-3d__preset\[aria-pressed='true'\]\s*\{[\s\S]*transform:\s*translateY\(-1px\);/
+    )
+})
+
+/**
  * Verifies the primary viewer stage is a bounded work surface on the landing
  * page instead of a full-screen empty panel.
  */
 test('viewer stylesheet sizes the main viewer stage as a bounded work surface', async () => {
+    const coreCss = await readStylesheet('00-core.css')
     const css = await readViewerStylesheet()
     const layoutCss = await readStylesheet('10-layout.css')
     const sceneCss = await readStylesheet('30-scene3d.css')
-    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+    const sidebarCss = await readSidebarStylesheet()
 
+    assert.match(coreCss, /--viewer-workbench-gap:\s*0\.65rem;/)
     assert.match(
         layoutCss,
         /\.app-shell\s*\{[\s\S]*width:\s*min\(2200px, 100% - clamp\(1rem, 2vw, 3rem\)\);/
@@ -51,6 +128,10 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     assert.match(
         layoutCss,
         /body\.is-viewer-mode\.is-viewer-visual \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto auto;/
+    )
+    assert.match(
+        layoutCss,
+        /body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.app-shell\s*\{[\s\S]*height:\s*calc\(100vh - 1\.55rem\);[\s\S]*min-height:\s*0;[\s\S]*grid-template-rows:\s*auto auto minmax\(0, 1fr\) auto;/
     )
     assert.match(
         layoutCss,
@@ -78,7 +159,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         css,
-        /body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(840px,\s*75vh,\s*1250px\);[\s\S]*min-height:\s*0;[\s\S]*margin-bottom:\s*clamp\(0\.45rem,\s*0\.8vh,\s*0\.85rem\);/
+        /body\.is-viewer-mode\.is-viewer-schematic \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.viewer-stage\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*0;[\s\S]*margin-bottom:\s*0;[\s\S]*align-self:\s*stretch;/
     )
     assert.match(css, /\.viewer-main\s*\{[\s\S]*overflow:\s*auto;/)
     assert.doesNotMatch(css, /\.bom-panel\s*\{[^}]*overflow(?:-x)?:/)
@@ -101,21 +182,58 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
     )
     assert.match(
         sceneCss,
-        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto clamp\(680px,\s*60vh,\s*1000px\) auto;/
-    )
-    assert.match(sceneCss, /\.scene-3d\s*\{[\s\S]*gap:\s*1\.2rem;/)
-    assert.match(
-        sceneCss,
-        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s+\.viewer-main\s*\{[\s\S]*padding-bottom:\s*clamp\(1rem,\s*1\.1vh,\s*1\.35rem\);/
+        /\.scene-3d\s*\{[^}]*grid-template-areas:\s*['"]header['"]\s*['"]toolbar['"]\s*['"]stage['"]\s*['"]diagnostics['"]\s*['"]stats['"];/
     )
     assert.match(
         sceneCss,
-        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*gap:\s*clamp\(0\.9rem,\s*1vw,\s*1\.1rem\);/
+        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*100%;[\s\S]*grid-template-areas:\s*['"]toolbar['"]\s*['"]stage['"]\s*['"]diagnostics['"];[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d\s*\{[^}]*gap:\s*var\(--viewer-workbench-gap\);/
+    )
+    assert.match(
+        css,
+        /\.pcb-view\s*\{[\s\S]*gap:\s*var\(--viewer-workbench-gap\);/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d \.svg-panel__header\s*\{[\s\S]*grid-area:\s*header;/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d\s*>\s*\.scene-3d__toolbar\s*\{[\s\S]*grid-area:\s*toolbar;/
+    )
+    assert.doesNotMatch(
+        sceneCss,
+        /^\s*\.scene-3d__toolbar\s*\{[\s\S]*grid-area:\s*toolbar;/m
+    )
+    assert.match(sceneCss, /\.scene-3d__stage\s*\{[\s\S]*grid-area:\s*stage;/)
+    assert.match(
+        sceneCss,
+        /\.scene-3d__diagnostics\s*\{[\s\S]*grid-area:\s*diagnostics;/
+    )
+    assert.match(sceneCss, /\.scene-3d__stats\s*\{[\s\S]*grid-area:\s*stats;/)
+    assert.match(
+        sceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s+\.viewer-main\s*\{[\s\S]*padding-bottom:\s*var\(--viewer-workbench-gap\);/
+    )
+    assert.doesNotMatch(
+        sceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d\s+\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*gap:/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d__controls\s*\{[\s\S]*border-radius:\s*0 28px 28px 0;/
     )
     assert.match(sidebarCss, /\.document-rail\s*\{[\s\S]*max-height:\s*100%;/)
     assert.match(
         sidebarCss,
         /\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*grid-template-columns:\s*minmax\(25rem,\s*32rem\) minmax\(0,\s*1fr\);/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-stage\.is-sidebar-visible\s*\{[\s\S]*gap:\s*var\(--viewer-workbench-gap\);/
     )
     assert.match(sidebarCss, /\.viewer-sidebar__overview\s*\{/)
     assert.match(sidebarCss, /\.viewer-sidebar__preview-card\s*\{/)
@@ -127,7 +245,7 @@ test('viewer stylesheet sizes the main viewer stage as a bounded work surface', 
  * sidebar is visible.
  */
 test('sidebar report views keep the main viewer panel scrollable', async () => {
-    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+    const sidebarCss = await readSidebarStylesheet()
 
     assert.match(
         sidebarCss,
@@ -154,10 +272,23 @@ test('mobile detail views keep the app shell scrollable with visible content spa
 })
 
 /**
+ * Verifies compact landing-page viewports do not show the large preview card.
+ */
+test('compact landing view hides the supported views preview card', async () => {
+    const heroCss = await readStylesheet('15-hero.css')
+
+    assert.match(
+        heroCss,
+        /@media \(max-width: 1180px\)[\s\S]*\.hero-proof\s*\{[\s\S]*display:\s*none;/
+    )
+})
+
+/**
  * Verifies the viewer sidebar switches to a compact stacked layout on mobile.
  */
 test('mobile viewer sidebar switches to compact stacked navigation', async () => {
-    const css = await readStylesheet('24-viewer-sidebar.css')
+    const css = await readSidebarStylesheet()
+    const sceneCss = await readStylesheet('30-scene3d.css')
 
     assert.match(
         css,
@@ -191,44 +322,60 @@ test('mobile viewer sidebar switches to compact stacked navigation', async () =>
         css,
         /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*max-height:\s*18rem;/
     )
+    assert.match(
+        sceneCss,
+        /@media \(max-width: 760px\)[\s\S]*\.scene-3d__controls\s*\{[\s\S]*border-radius:\s*0 0 28px 28px;/
+    )
 })
 
 /**
- * Verifies short desktop browser windows get a larger active viewer surface
- * without letting SVG views expand far beyond the visible browser window.
+ * Verifies short desktop browser windows keep visual workbench views in the
+ * flexible viewport-height row instead of capping them above the footer.
  */
-test('compact desktop detail views use a taller bounded viewer height', async () => {
+test('compact desktop visual views fill the remaining viewport height', async () => {
     const css = await readViewerStylesheet()
     const layoutCss = await readStylesheet('10-layout.css')
     const sceneCss = await readStylesheet('30-scene3d.css')
+    const compactQuery = '(min-width: 761px) and (max-height: 1280px)'
+    const compactLayoutCss = readMediaBlock(layoutCss, compactQuery)
+    const compactViewerCss = readMediaBlock(css, compactQuery)
+    const compactSceneCss = readMediaBlock(sceneCss, compactQuery)
 
-    assert.match(
-        layoutCss,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-visual \.app-shell\s*\{[\s\S]*grid-template-rows:\s*auto auto auto auto auto;/
+    assert.doesNotMatch(
+        compactLayoutCss,
+        /body\.is-viewer-mode\.is-viewer-report \.app-shell/
+    )
+    assert.doesNotMatch(
+        compactLayoutCss,
+        /body\.is-viewer-mode\.is-viewer-schematic \.app-shell/
+    )
+    assert.doesNotMatch(
+        compactLayoutCss,
+        /body\.is-viewer-mode\.is-viewer-pcb \.app-shell/
+    )
+    assert.doesNotMatch(
+        compactViewerCss,
+        /body\.is-viewer-mode\.is-viewer-report \.viewer-stage/
+    )
+    assert.doesNotMatch(
+        compactViewerCss,
+        /body\.is-viewer-mode\.is-viewer-visual \.viewer-stage/
     )
     assert.match(
-        layoutCss,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-schematic \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-pcb \.app-shell,[\s\S]*body\.is-viewer-mode\.is-viewer-report \.app-shell\s*\{[\s\S]*height:\s*auto;/
+        compactViewerCss,
+        /body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*0;/
+    )
+    assert.match(
+        compactViewerCss,
+        /body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*margin-bottom:\s*0;[\s\S]*align-self:\s*stretch;/
+    )
+    assert.match(
+        compactSceneCss,
+        /body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*100%;[\s\S]*grid-template-areas:\s*['"]toolbar['"]\s*['"]stage['"]\s*['"]diagnostics['"];[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/
     )
     assert.match(
         css,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-visual \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(580px,\s*68vh,\s*740px\);[\s\S]*min-height:\s*580px;/
-    )
-    assert.match(
-        css,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(420px,\s*48vh,\s*560px\);[\s\S]*min-height:\s*0;/
-    )
-    assert.match(
-        css,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*margin-bottom:\s*clamp\(0\.45rem,\s*0\.8vh,\s*0\.85rem\);/
-    )
-    assert.match(
-        sceneCss,
-        /@media \(min-width: 761px\) and \(max-height: 1280px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*height:\s*auto;[\s\S]*grid-template-rows:\s*auto auto clamp\(280px,\s*34vh,\s*420px\) auto;/
-    )
-    assert.match(
-        css,
-        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*clamp\(340px,\s*64vh,\s*420px\);[\s\S]*min-height:\s*0;/
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.viewer-stage\s*\{[\s\S]*height:\s*auto;[\s\S]*min-height:\s*0;/
     )
     assert.match(
         css,
@@ -236,7 +383,19 @@ test('compact desktop detail views use a taller bounded viewer height', async ()
     )
     assert.match(
         sceneCss,
-        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-rows:\s*auto auto clamp\(220px,\s*44vh,\s*300px\) auto;/
+        /@media \(min-width: 761px\) and \(max-height: 760px\)[\s\S]*body\.is-viewer-mode\.is-viewer-3d \.scene-3d\s*\{[\s\S]*grid-template-areas:\s*['"]toolbar['"]\s*['"]stage['"]\s*['"]diagnostics['"];[\s\S]*grid-template-rows:\s*auto minmax\(0,\s*1fr\) auto;/
+    )
+})
+
+/**
+ * Verifies wrapped 3D toggle labels cannot shrink their checkbox controls.
+ */
+test('3D toggle checkboxes keep a fixed flex size', async () => {
+    const sceneCss = await readStylesheet('30-scene3d.css')
+
+    assert.match(
+        sceneCss,
+        /\.scene-3d__toggle input\s*\{[\s\S]*flex:\s*0 0 1rem;[\s\S]*width:\s*1rem;[\s\S]*height:\s*1rem;/
     )
 })
 
@@ -313,7 +472,7 @@ test('PCB Styler tip close button is anchored to the top right', async () => {
  * affordance using the same hover treatment as the PCB Styler tip dismiss.
  */
 test('viewer sidebar collapse control is a right-aligned icon action', async () => {
-    const css = await readStylesheet('24-viewer-sidebar.css')
+    const css = await readSidebarStylesheet()
     const actionBlock =
         css.match(
             /\.viewer-sidebar__collapse,\s*\.viewer-sidebar__expand\s*\{(?<rules>[\s\S]*?)\}/
@@ -400,14 +559,14 @@ test('viewer stylesheet keeps schematic app colors in app preview wrappers', asy
         )?.[0]
 
         assert.ok(rules, selector)
-        assert.match(rules, /--schematic-default-ink-color:\s*#0091ac;/)
-        assert.match(rules, /--schematic-accent-ink-color:\s*#14c5e6;/)
+        assert.match(rules, /--schematic-default-ink-color:\s*#008aa3;/)
+        assert.match(rules, /--schematic-accent-ink-color:\s*#009bb2;/)
         assert.match(rules, /--schematic-text-color:\s*#121b22;/)
         assert.match(rules, /--schematic-sheet-label-color:\s*#405662;/)
-        assert.match(rules, /--schematic-power-color:\s*#a84a12;/)
-        assert.match(rules, /--schematic-port-color:\s*#f28724;/)
-        assert.match(rules, /--schematic-alert-color:\s*#da2f70;/)
-        assert.match(rules, /--schematic-fill-color:\s*#f4dec7;/)
+        assert.match(rules, /--schematic-power-color:\s*#a44a1b;/)
+        assert.match(rules, /--schematic-port-color:\s*#a44a1b;/)
+        assert.match(rules, /--schematic-alert-color:\s*#c43a68;/)
+        assert.match(rules, /--schematic-fill-color:\s*#f1d8bd;/)
         assert.match(rules, /--schematic-note-fill-color:\s*#efe4d1;/)
         assert.match(rules, /--schematic-fill-light-color:\s*#fffaf5;/)
         assert.match(rules, /--schematic-pin-marker-fill:\s*#edf4f3;/)
@@ -557,7 +716,7 @@ test('viewer stylesheet draws the layered empty-state illustration', async () =>
  * Verifies sidebar overview rows use explicit icons and clipped labels.
  */
 test('viewer sidebar overview uses explicit icons and clipped text', async () => {
-    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+    const sidebarCss = await readSidebarStylesheet()
 
     assert.doesNotMatch(sidebarCss, /\.summary-card/)
     assert.match(
@@ -578,10 +737,70 @@ test('viewer sidebar overview uses explicit icons and clipped text', async () =>
  * Verifies open document rows are inset from both panel edges.
  */
 test('viewer sidebar document list has horizontal inset', async () => {
-    const sidebarCss = await readStylesheet('24-viewer-sidebar.css')
+    const sidebarCss = await readSidebarStylesheet()
 
     assert.match(
         sidebarCss,
         /\.viewer-sidebar__list--documents\s*\{[\s\S]*padding-inline:\s*1\.1rem;/
+    )
+})
+
+/**
+ * Verifies component rows reserve stable space for the copy icon action.
+ */
+test('viewer sidebar component rows reserve copy action space', async () => {
+    const sidebarCss = await readSidebarStylesheet()
+
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__component-row-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) 2\.2rem;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__component-row\s*\{[\s\S]*grid-template-columns:\s*max-content minmax\(0,\s*1fr\);/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__component-copy\s*\{[\s\S]*width:\s*2\.2rem;[\s\S]*height:\s*2\.2rem;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__component-copy-icon\s*\{[\s\S]*stroke:\s*currentColor;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__net-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) max-content;[\s\S]*padding-right:\s*0\.45rem;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__net-detail\s*\{[\s\S]*justify-self:\s*end;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__net-row--label-only\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*gap:\s*0;/
+    )
+})
+
+/**
+ * Verifies layer rows follow the same row/action geometry as footprint rows.
+ */
+test('viewer sidebar layer rows reserve visibility action space', async () => {
+    const sidebarCss = await readSidebarStylesheet()
+
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__layer-list\s*\{[\s\S]*gap:\s*0;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__layer-row-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) 2\.2rem;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__row--layer\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\);/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__layer-visibility\s*\{[\s\S]*width:\s*2\.2rem;[\s\S]*height:\s*2\.2rem;/
     )
 })

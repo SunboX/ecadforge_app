@@ -1,5 +1,4 @@
-const SCHEMATIC_CONTENT_SIGNATURE_KEY =
-    '__ecadForgeSchematicContentSignature'
+const SCHEMATIC_CONTENT_SIGNATURE_KEY = '__ecadForgeSchematicContentSignature'
 
 /**
  * Tracks whether mounted schematic content can survive an AppView render.
@@ -66,7 +65,8 @@ export class AppViewSchematicContentReuseModel {
             parseStatus: String(snapshot?.parseStatus || ''),
             selectedComponentKey: String(
                 snapshot?.selectedPcbComponents?.[documentId] || ''
-            )
+            ),
+            selectedNetName: String(snapshot?.selectedNets?.[documentId] || '')
         }
     }
 
@@ -82,7 +82,8 @@ export class AppViewSchematicContentReuseModel {
             previous?.activeView === next.activeView &&
             previous?.documentModel === next.documentModel &&
             previous?.parseStatus === next.parseStatus &&
-            previous?.selectedComponentKey === next.selectedComponentKey
+            previous?.selectedComponentKey === next.selectedComponentKey &&
+            previous?.selectedNetName === next.selectedNetName
         )
     }
 }

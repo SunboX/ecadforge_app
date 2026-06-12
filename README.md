@@ -11,10 +11,10 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Client-side parsing for native Altium and KiCad files with no server-side preprocessing
 - Bundled Altium and KiCad demo projects with preserved third-party license notices
 - GitHub raw/blob URL loading for supported native ECAD files and KiCad project triplets
-- Schematic SVG view derived from recovered record geometry and text
-- PCB SVG view with recovered board outline, layer stack, and component placements
+- Schematic SVG view derived from recovered record geometry, text, symbols, and highlightable nets
+- PCB SVG view with recovered board outline, layer stack, component placements, and highlightable nets
 - BOM grouping from recovered component metadata
-- Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, and companion-model lookup
+- Interactive 3D PCB viewer with pan, orbit, zoom, embedded STEP extraction, companion-model lookup, and opt-in missing-model search
 - Browser-native WebMCP tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback
 - Runtime language switching with browser detection and Brazilian Portuguese support
@@ -54,7 +54,7 @@ npm start
 
 Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, companion `WRL`, or companion `STEP` files. KiCad projects can also be selected as folders from the header.
 
-Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching. Share links can also include `view=<tab>` and `document=<loaded-file-path>` to restore the active tab and document.
+Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching. Share links can also include `view=<tab>`, `document=<loaded-file-path>`, `component=<designator>`, and `net=<net-name>` to restore the active tab, document, selected component, and selected net.
 
 Production deployment is available at [https://ecadforge.app/](https://ecadforge.app/).
 

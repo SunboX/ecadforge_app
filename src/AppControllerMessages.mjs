@@ -32,7 +32,10 @@ export class AppControllerMessages {
             'status.sampleLoadHttp': 'Could not load sample file. HTTP',
             'status.noDocuments': 'Parser did not return any documents.',
             'status.refreshing':
-                'Refreshing viewer to load the latest renderer...'
+                'Refreshing viewer to load the latest renderer...',
+            'scene3d.autoSearchModels': 'Auto-search missing models',
+            'scene3d.modelSearchHint':
+                'When enabled, ECAD Forge may fetch missing STEP or WRL models from known KiCad model paths or the configured component source.'
         }
         return fallbackMap[key] || key
     }

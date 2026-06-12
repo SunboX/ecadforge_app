@@ -29,6 +29,55 @@ export class PcbComponentSelectionModel {
     }
 
     /**
+     * Resolves the PCB side declared by component metadata.
+     * @param {object} component Component metadata.
+     * @returns {'top' | 'bottom' | ''}
+     */
+    static resolveComponentSide(component) {
+        const layerId = Number(
+            component?.layerId ?? component?.layerCode ?? component?.sideCode
+        )
+        if (layerId === 32) return 'bottom'
+        if (layerId === 1) return 'top'
+
+        const text = PcbComponentSelectionModel.#componentSearchText(component)
+        if (/\b(bottom|back)\b|\bb[._-]/.test(text)) return 'bottom'
+        if (/\b(top|front)\b|\bf[._-]/.test(text)) return 'top'
+
+        return ''
+    }
+
+    /**
+     * Resolves the PCB side for one selected component key.
+     * @param {object} documentModel PCB document model.
+     * @param {string} componentKey Selected component key.
+     * @returns {'top' | 'bottom' | ''}
+     */
+    static resolveSelectedComponentSide(documentModel, componentKey) {
+        const key = String(componentKey || '').trim()
+        if (!key) return ''
+
+        const components = Array.isArray(documentModel?.pcb?.components)
+            ? documentModel.pcb.components
+            : []
+        for (let index = 0; index < components.length; index += 1) {
+            const component = components[index]
+            if (
+                PcbComponentSelectionModel.resolveComponentKey(
+                    component,
+                    index
+                ) === key
+            ) {
+                return PcbComponentSelectionModel.resolveComponentSide(
+                    component
+                )
+            }
+        }
+
+        return ''
+    }
+
+    /**
      * Applies one component selection to a selection map.
      * @param {{ [documentId: string]: string }} selectedPcbComponents Current map.
      * @param {string} documentId Target document id.
@@ -142,5 +191,17 @@ export class PcbComponentSelectionModel {
                     index
                 ) === componentKey
         )
+    }
+
+    /**
+     * Builds normalized search text for component metadata classification.
+     * @param {object | null} component Component metadata.
+     * @returns {string}
+     */
+    static #componentSearchText(component) {
+        return [component?.layer, component?.side, component?.layerName]
+            .filter((value) => value !== undefined && value !== null)
+            .join(' ')
+            .toLowerCase()
     }
 }

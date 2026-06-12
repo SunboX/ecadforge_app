@@ -70,11 +70,14 @@ export class ViewerSidebarComponentRenderer {
                 selectedKey
             )
         )
+        const renderedRows = documentModel?.schematic
+            ? ViewerSidebarComponentRenderer.#deduplicateRowsByKey(rows)
+            : rows
 
         return (
             ViewerSidebarComponentRenderer.#renderSearch(title, translate) +
             ViewerSidebarComponentRenderer.#renderGroups(
-                rows,
+                renderedRows,
                 Boolean(documentModel?.pcb),
                 title,
                 translate
@@ -134,6 +137,32 @@ export class ViewerSidebarComponentRenderer {
     }
 
     /**
+     * Keeps one sidebar row per shared schematic component key.
+     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]} rows Component rows.
+     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]}
+     */
+    static #deduplicateRowsByKey(rows) {
+        const rowsByKey = new Map()
+        const uniqueRows = []
+        for (const row of rows) {
+            const dedupeKey = row.key || row.label
+            const existing = rowsByKey.get(dedupeKey)
+            if (existing) {
+                existing.search = [existing.search, row.search]
+                    .filter(Boolean)
+                    .join(' ')
+                existing.selected = existing.selected || row.selected
+                continue
+            }
+
+            const nextRow = { ...row }
+            rowsByKey.set(dedupeKey, nextRow)
+            uniqueRows.push(nextRow)
+        }
+        return uniqueRows
+    }
+
+    /**
      * Resolves the row detail with PCB and schematic-specific priority.
      * @param {any} component Component metadata.
      * @param {boolean} isPcb Whether the component belongs to a PCB.
@@ -143,7 +172,9 @@ export class ViewerSidebarComponentRenderer {
         const keys = isPcb
             ? ['value', 'comment', 'pattern', 'footprint', 'libReference']
             : ['libReference', 'value', 'comment', 'footprint', 'pattern']
-        return ViewerSidebarComponentRenderer.#firstValue(component, keys) || '-'
+        return (
+            ViewerSidebarComponentRenderer.#firstValue(component, keys) || '-'
+        )
     }
 
     /**
@@ -195,7 +226,8 @@ export class ViewerSidebarComponentRenderer {
                 ViewerSidebarComponentRenderer.#renderGroup(
                     groupKey,
                     groupLabel,
-                    rows
+                    rows,
+                    translate
                 )
             )
             .join('')
@@ -206,9 +238,10 @@ export class ViewerSidebarComponentRenderer {
      * @param {string} groupKey Group key.
      * @param {string} groupLabel Group label.
      * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]} rows Component rows.
+     * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderGroup(groupKey, groupLabel, rows) {
+    static #renderGroup(groupKey, groupLabel, rows, translate) {
         const groupRows = rows
             .filter((row) => row.group === groupKey)
             .sort((left, right) =>
@@ -227,7 +260,10 @@ export class ViewerSidebarComponentRenderer {
             '</h4><div class="viewer-sidebar__component-list">' +
             groupRows
                 .map((row) =>
-                    ViewerSidebarComponentRenderer.#renderComponentRow(row)
+                    ViewerSidebarComponentRenderer.#renderComponentRow(
+                        row,
+                        translate
+                    )
                 )
                 .join('') +
             '</div></div>'
@@ -237,18 +273,22 @@ export class ViewerSidebarComponentRenderer {
     /**
      * Renders one footprint row.
      * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }} row Component row.
+     * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderComponentRow(row) {
+    static #renderComponentRow(row, translate) {
+        const copyLabel = translate('sidebar.copyComponentName')
         return (
-            '<button class="viewer-sidebar__component-row' +
+            '<div class="viewer-sidebar__component-row-shell' +
+            (row.selected ? ' is-active' : '') +
+            '" data-component-search="' +
+            ViewerSidebarComponentRenderer.#escapeHtml(row.search) +
+            '"><button class="viewer-sidebar__component-row' +
             (row.selected ? ' is-active' : '') +
             '" type="button" data-pcb-component-key="' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.key) +
             '" data-document-id="' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.documentId) +
-            '" data-component-search="' +
-            ViewerSidebarComponentRenderer.#escapeHtml(row.search) +
             '" aria-pressed="' +
             (row.selected ? 'true' : 'false') +
             '" title="' +
@@ -259,7 +299,28 @@ export class ViewerSidebarComponentRenderer {
             ViewerSidebarComponentRenderer.#escapeHtml(row.label) +
             '</span><span class="viewer-sidebar__component-detail">' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.detail) +
-            '</span></button>'
+            '</span></button><button class="viewer-sidebar__component-copy" type="button" data-component-detail-copy="true" data-component-copy-text="' +
+            ViewerSidebarComponentRenderer.#escapeHtml(row.detail) +
+            '" title="' +
+            ViewerSidebarComponentRenderer.#escapeHtml(copyLabel) +
+            '" aria-label="' +
+            ViewerSidebarComponentRenderer.#escapeHtml(copyLabel) +
+            '">' +
+            ViewerSidebarComponentRenderer.#renderCopyIcon() +
+            '</button></div>'
+        )
+    }
+
+    /**
+     * Renders the standard copy action icon.
+     * @returns {string}
+     */
+    static #renderCopyIcon() {
+        return (
+            '<svg class="icon viewer-sidebar__component-copy-icon" viewBox="0 0 24 24" aria-hidden="true">' +
+            '<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />' +
+            '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />' +
+            '</svg>'
         )
     }
 

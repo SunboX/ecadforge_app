@@ -231,6 +231,96 @@ function createAltiumTransistorDocument() {
 }
 
 /**
+ * Builds an Altium multi-part symbol whose body owner is named by a visible
+ * designator suffix.
+ * @returns {object}
+ */
+function createAltiumMultipartSchematicDocument() {
+    const documentModel = createAltiumSchematicDocument()
+    const schematic = documentModel.schematic
+    schematic.sheet = {
+        width: 180,
+        height: 180,
+        sourceWidth: 180,
+        sourceHeight: 180,
+        borderOn: false,
+        marginWidth: 10
+    }
+    schematic.components = [
+        {
+            designator: 'U1',
+            value: 'Logic',
+            x: 36,
+            y: 138,
+            uniqueId: 'unmatched-component-id'
+        },
+        {
+            designator: 'U1',
+            value: 'Logic',
+            x: 96,
+            y: 78,
+            uniqueId: 'second-unmatched-component-id'
+        }
+    ]
+    schematic.rectangles = [
+        {
+            ownerIndex: 'owner-u1b',
+            x: 30,
+            y: 60,
+            width: 50,
+            height: 90
+        },
+        {
+            ownerIndex: 'owner-u1c',
+            x: 90,
+            y: 20,
+            width: 40,
+            height: 50
+        }
+    ]
+    schematic.texts = [
+        {
+            ownerIndex: 'owner-u1b',
+            name: 'Designator',
+            x: 28,
+            y: 154,
+            text: 'U1B',
+            fontSize: 10
+        },
+        {
+            ownerIndex: 'owner-u1c',
+            name: 'Designator',
+            x: 92,
+            y: 94,
+            text: 'U1C',
+            fontSize: 10
+        }
+    ]
+    schematic.pins = [
+        {
+            ownerIndex: 'owner-u1b',
+            x: 80,
+            y: 120,
+            length: 8,
+            orientation: 'right',
+            designator: '1',
+            name: 'OUT'
+        },
+        {
+            ownerIndex: 'owner-u1c',
+            x: 130,
+            y: 42,
+            length: 8,
+            orientation: 'right',
+            designator: '2',
+            name: 'OUT2'
+        }
+    ]
+
+    return documentModel
+}
+
+/**
  * Extracts the selected highlight fill attributes from rendered markup.
  * @param {string} html Rendered schematic HTML.
  * @returns {{ x: string, y: string, width: string, height: string }}
@@ -250,6 +340,106 @@ function extractHighlightFillBox(html) {
 }
 
 /**
+ * Extracts one schematic hit target rectangle by component key.
+ * @param {string} html Rendered schematic HTML.
+ * @param {string} key Component key.
+ * @returns {{ x: string, y: string, width: string, height: string }}
+ */
+function extractHitTargetBox(html, key) {
+    const pattern = new RegExp(
+        '<g class="schematic-symbol-hit-target" data-schematic-component-key="' +
+            key +
+            '"><rect class="schematic-symbol-hit-target__area" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"'
+    )
+    const match = String(html).match(pattern)
+    assert.ok(match, 'Expected a schematic hit target rectangle.')
+
+    return {
+        x: match[1],
+        y: match[2],
+        width: match[3],
+        height: match[4]
+    }
+}
+
+/**
+ * Extracts selected schematic highlight rectangles by component key.
+ * @param {string} html Rendered schematic HTML.
+ * @param {string} key Component key.
+ * @returns {{ x: string, y: string, width: string, height: string }[]}
+ */
+function extractHighlightBoxes(html, key) {
+    const pattern = new RegExp(
+        '<g class="schematic-symbol-highlight" data-schematic-component-key="' +
+            key +
+            '"><rect class="schematic-symbol-highlight__fill" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"',
+        'g'
+    )
+    return [...String(html).matchAll(pattern)].map((match) => ({
+        x: match[1],
+        y: match[2],
+        width: match[3],
+        height: match[4]
+    }))
+}
+
+/**
+ * Verifies unselected schematic symbols expose invisible click targets.
+ */
+test('SchematicViewRenderer adds hit targets to unselected symbols', () => {
+    const html = SchematicViewRenderer.render(createAltiumSchematicDocument())
+
+    assert.doesNotMatch(html, /<g class="schematic-symbol-highlight"/)
+    assert.match(html, /class="schematic-component-highlight-style"/)
+    assert.match(html, /class="schematic-symbol-hit-target"/)
+    assert.match(html, /data-schematic-component-key="R1"/)
+    assert.match(html, /pointer-events: all;/)
+})
+
+/**
+ * Verifies Altium multi-part suffix designators still map to the shared
+ * component hit target.
+ */
+test('SchematicViewRenderer sizes multipart Altium symbol hit targets from the body', () => {
+    const html = SchematicViewRenderer.render(
+        createAltiumMultipartSchematicDocument()
+    )
+
+    assert.deepEqual(extractHitTargetBox(html, 'U1'), {
+        x: '24',
+        y: '19.2',
+        width: '62',
+        height: '111.6'
+    })
+})
+
+/**
+ * Verifies selecting a shared multi-part component highlights each visible
+ * schematic part for that component key.
+ */
+test('SchematicViewRenderer highlights every selected multipart Altium symbol', () => {
+    const html = SchematicViewRenderer.render(
+        createAltiumMultipartSchematicDocument(),
+        'U1'
+    )
+
+    assert.deepEqual(extractHighlightBoxes(html, 'U1'), [
+        {
+            x: '24',
+            y: '19.2',
+            width: '62',
+            height: '111.6'
+        },
+        {
+            x: '84',
+            y: '104',
+            width: '52',
+            height: '62'
+        }
+    ])
+})
+
+/**
  * Verifies selected KiCad schematic symbols get an SVG-local highlight.
  */
 test('SchematicViewRenderer highlights selected KiCad symbols', () => {
@@ -264,6 +454,10 @@ test('SchematicViewRenderer highlights selected KiCad symbols', () => {
     assert.match(html, /schematic-symbol-highlight/)
     assert.match(html, /fill: rgba\(27, 191, 227, 0\.4\);/)
     assert.match(html, /stroke: rgba\(27, 191, 227, 0\.45\);/)
+    assert.match(
+        html,
+        /filter: drop-shadow\(0 0 1\.4px rgba\(27, 191, 227, 0\.68\)\) drop-shadow\(0 0 3px rgba\(27, 191, 227, 0\.32\)\);/
+    )
     assert.doesNotMatch(html, /stroke: #e35417;/)
 
     const box = extractHighlightFillBox(html)
@@ -273,11 +467,53 @@ test('SchematicViewRenderer highlights selected KiCad symbols', () => {
         width: '29.76',
         height: '29.76'
     })
-    const highlightIndex = html.indexOf(
-        '<g class="schematic-symbol-highlight"'
-    )
+    const highlightIndex = html.indexOf('<g class="schematic-symbol-highlight"')
     assert.equal(highlightIndex > html.indexOf('x="24" y="18"'), true)
     assert.equal(highlightIndex < html.indexOf('x1="24" y1="24"'), true)
+})
+
+/**
+ * Verifies selected schematic nets render as highlighted wire overlays.
+ */
+test('SchematicViewRenderer highlights the selected schematic net', () => {
+    const documentModel = createKicadSchematicDocument()
+    documentModel.schematic.nets = [
+        {
+            name: 'SENSE_A',
+            pins: [{ refdes: 'U1', pin: '1' }],
+            segments: [
+                {
+                    x1: 18,
+                    y1: 24,
+                    x2: 24,
+                    y2: 24
+                }
+            ]
+        },
+        {
+            name: 'RETURN',
+            segments: [
+                {
+                    x1: 40,
+                    y1: 38,
+                    x2: 50,
+                    y2: 38
+                }
+            ]
+        }
+    ]
+
+    const html = SchematicViewRenderer.render(documentModel, '', 'SENSE_A')
+
+    assert.match(html, /class="schematic-net-highlight-style"/)
+    assert.match(html, /class="schematic-net-highlight"/)
+    assert.match(html, /data-schematic-net-name="SENSE_A"/)
+    assert.match(html, /class="schematic-net-hit-target"/)
+    assert.match(html, /drop-shadow/)
+    assert.doesNotMatch(
+        html,
+        /data-schematic-net-name="RETURN"[\s\S]+schematic-net-highlight/
+    )
 })
 
 /**

@@ -8,7 +8,7 @@ export class GitHubShareUrlWriter {
      * Replaces the current address with a root share URL containing `url=`.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
      * @param {{ history?: History, location?: Location }} [environment]
-     * @param {{ viewName?: string, documentPath?: string }} [options] Optional viewer state.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} [options] Optional viewer state.
      * @returns {void}
      */
     static update(sourceUrl, environment = globalThis, options = {}) {
@@ -26,11 +26,7 @@ export class GitHubShareUrlWriter {
         browserHistory.replaceState(
             browserHistory.state || null,
             '',
-            GitHubShareUrlWriter.build(
-                browserLocation.href,
-                sourceUrl,
-                options
-            )
+            GitHubShareUrlWriter.build(browserLocation.href, sourceUrl, options)
         )
     }
 
@@ -38,7 +34,7 @@ export class GitHubShareUrlWriter {
      * Builds a shareable ECAD Forge URL for one GitHub source.
      * @param {string} currentHref Current browser URL.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
-     * @param {{ viewName?: string, documentPath?: string }} [options] Optional viewer state.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} [options] Optional viewer state.
      * @returns {string}
      */
     static build(currentHref, sourceUrl, options = {}) {
@@ -56,7 +52,8 @@ export class GitHubShareUrlWriter {
         if (GitHubShareUrlWriter.#hasViewOrDocumentOption(options)) {
             return ViewDeepLinkState.build(
                 shareUrl.href,
-                options.viewName || ViewDeepLinkState.resolveView(shareUrl.href),
+                options.viewName ||
+                    ViewDeepLinkState.resolveView(shareUrl.href),
                 options
             )
         }
@@ -66,13 +63,21 @@ export class GitHubShareUrlWriter {
 
     /**
      * Returns true when explicit viewer state should be written.
-     * @param {{ viewName?: string, documentPath?: string }} options Options.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} options Options.
      * @returns {boolean}
      */
     static #hasViewOrDocumentOption(options) {
         return (
             Object.prototype.hasOwnProperty.call(options || {}, 'viewName') ||
-            Object.prototype.hasOwnProperty.call(options || {}, 'documentPath')
+            Object.prototype.hasOwnProperty.call(
+                options || {},
+                'documentPath'
+            ) ||
+            Object.prototype.hasOwnProperty.call(
+                options || {},
+                'componentKey'
+            ) ||
+            Object.prototype.hasOwnProperty.call(options || {}, 'netName')
         )
     }
 }

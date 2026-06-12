@@ -6,5 +6,7 @@
 @import './styles/22-viewer-empty.css';
 @import './styles/23-pcb-text.css';
 @import './styles/24-viewer-sidebar.css';
+@import './styles/24-viewer-sidebar-lists.css';
+@import './styles/24-viewer-sidebar-responsive.css';
 @import './styles/25-kicad-pcb.css';
 @import './styles/30-scene3d.css';

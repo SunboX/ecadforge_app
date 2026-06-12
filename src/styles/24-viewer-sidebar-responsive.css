@@ -1,0 +1,106 @@
+@media (max-width: 1080px) {
+    .viewer-stage.is-sidebar-visible {
+        grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr);
+    }
+
+    .viewer-stage.is-sidebar-visible.is-sidebar-collapsed {
+        grid-template-columns: 4rem minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 860px) {
+    .viewer-stage.is-sidebar-visible {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto auto;
+    }
+
+    .viewer-stage.is-sidebar-visible.is-sidebar-collapsed {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto auto;
+    }
+
+    .viewer-stage.is-sidebar-visible .viewer-main {
+        grid-row: 1;
+    }
+
+    .viewer-stage.is-sidebar-visible .document-rail {
+        grid-row: 2;
+    }
+
+    .viewer-stage.is-sidebar-visible .pcb-styler-cta {
+        grid-row: 3;
+    }
+
+    .document-rail {
+        max-height: 20rem;
+    }
+
+    .document-rail.is-sidebar-collapsed {
+        align-items: center;
+        justify-content: flex-start;
+        max-height: 4.1rem;
+    }
+
+    .viewer-sidebar {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .viewer-sidebar__tabs {
+        flex-direction: row;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding: 0.45rem;
+        border-right: 0;
+        border-bottom: 1px solid rgba(95, 112, 124, 0.14);
+    }
+
+    .viewer-sidebar__tab-group {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 0.3rem;
+    }
+}
+
+@media (max-width: 760px) {
+    .viewer-stage.is-sidebar-visible {
+        gap: 0.62rem;
+    }
+
+    .document-rail {
+        max-height: 18rem;
+    }
+
+    .viewer-sidebar__tab {
+        width: 2.55rem;
+        height: 2.55rem;
+    }
+
+    .viewer-sidebar__panel-header,
+    .viewer-sidebar__section {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+
+    .viewer-sidebar__preview-card,
+    .viewer-sidebar__overview-meta,
+    .viewer-sidebar__empty {
+        margin-left: 0.7rem;
+        margin-right: 0.7rem;
+    }
+
+    .viewer-sidebar__overview-grid {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+
+    .viewer-sidebar__table {
+        width: calc(100% - 1.4rem);
+        margin-left: 0.7rem;
+        margin-right: 0.7rem;
+    }
+
+    .viewer-sidebar__panel-header h3 {
+        font-size: 0.95rem;
+    }
+}

@@ -1,4 +1,5 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^app-meta/?$ app-meta.php [L,QSA]
+    RewriteRule ^component-source/(.*)$ component-source.php?path=$1 [L,QSA]
 </IfModule>

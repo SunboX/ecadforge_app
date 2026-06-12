@@ -4,6 +4,7 @@ import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
+import { EcadModelSearchPreference } from './core/ecad/EcadModelSearchPreference.mjs'
 import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
 import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
 import { AppView } from './ui/AppView.mjs'
@@ -22,6 +23,9 @@ async function bootstrap() {
     const state = new AppState({
         locale: i18n ? i18n.getLocale() : 'en',
         activeView: 'schematic',
+        autoSearchMissingModels: EcadModelSearchPreference.read(
+            resolveBrowserStorage()
+        ),
         parseStatus: 'idle',
         statusMessage: i18n
             ? i18n.translate('status.ready')
@@ -32,9 +36,13 @@ async function bootstrap() {
         import.meta.url,
         Date.now()
     )
+    const modelSearchService =
+        Scene3dControllerFactory.createModelSearchService()
     const view = new AppView(document, {
         createScene3dController: Scene3dControllerFactory.create(
-            import.meta.url
+            import.meta.url,
+            () => Date.now(),
+            { modelSearchService }
         ),
         translate: (key) => i18n.translate(key)
     })
@@ -45,6 +53,7 @@ async function bootstrap() {
         view,
         i18n,
         workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' }),
+        modelSearchService,
         startupSource
     })
     const webMcpAdapter = new WebMcpAdapter({
@@ -54,7 +63,7 @@ async function bootstrap() {
     await controller.init()
     webMcpAdapter.initialize()
     if (!startupSource) {
-        void HeroPreviewDemoLoader.load(view)
+        HeroPreviewDemoLoader.schedule(view)
     }
 
     await loadVersion(view, loadedVersion, i18n)
@@ -144,6 +153,18 @@ const startVersionRefreshLoop = (view, loadedVersion, i18n) => {
             refreshVersion()
         }
     })
+}
+
+/**
+ * Resolves browser local storage when available.
+ * @returns {Storage | null}
+ */
+const resolveBrowserStorage = () => {
+    try {
+        return window.localStorage || null
+    } catch (_error) {
+        return null
+    }
 }
 
 bootstrap().catch((error) => {

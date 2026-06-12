@@ -170,10 +170,12 @@ function createEntry(name) {
     return { name, buffer: new ArrayBuffer(8) }
 }
 
-test('AppController prioritizes startup GitHub document parsing before background project parsing', async () => {
+test('AppController prioritizes startup GitHub document parsing and defers background project parsing until idle', async () => {
     const state = new AppState()
     const view = new FakeView()
     const parser = new DeferredBatchParser()
+    const originalRequestIdleCallback = globalThis.requestIdleCallback
+    const idleCallbacks = []
     const controller = new AppController({
         state,
         view,
@@ -203,21 +205,43 @@ test('AppController prioritizes startup GitHub document parsing before backgroun
         }
     })
 
-    await controller.init()
+    try {
+        globalThis.requestIdleCallback = (callback) => {
+            idleCallbacks.push(callback)
+            return idleCallbacks.length
+        }
+
+        await controller.init()
+    } finally {
+        if (originalRequestIdleCallback === undefined) {
+            delete globalThis.requestIdleCallback
+        } else {
+            globalThis.requestIdleCallback = originalRequestIdleCallback
+        }
+    }
 
     let snapshot = state.getSnapshot()
     assert.deepEqual(parser.calls[0], [
         'Demo.PrjPcb',
         'Schematics/Target.SchDoc'
     ])
+    assert.equal(parser.calls.length, 1)
+    assert.equal(idleCallbacks.length, 1)
+    assert.equal(snapshot.documents.length, 1)
+    assert.equal(snapshot.activeFileName, 'Schematics/Target.SchDoc')
+    assert.equal(snapshot.activeView, 'schematic')
+
+    idleCallbacks[0]({
+        didTimeout: false,
+        timeRemaining: () => 50
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
     assert.deepEqual(parser.calls[1], [
         'Demo.PrjPcb',
         'Schematics/Other.SchDoc',
         'PCB/Main.PcbDoc'
     ])
-    assert.equal(snapshot.documents.length, 1)
-    assert.equal(snapshot.activeFileName, 'Schematics/Target.SchDoc')
-    assert.equal(snapshot.activeView, 'schematic')
 
     await parser.resolveDeferred()
 

@@ -433,8 +433,54 @@ test('PcbViewRenderer highlights the selected PCB component', () => {
 
     assert.match(html, /class="pcb-component-highlight-style"/)
     assert.match(html, /\[data-footprint-id\^='footprint:J1:'\]/)
-    assert.match(html, /rgba\(27, 191, 227, 0\.86\)/)
+    assert.match(html, /drop-shadow\(0 0 1\.4px rgba\(27, 191, 227, 0\.68\)\)/)
+    assert.match(html, /drop-shadow\(0 0 3px rgba\(27, 191, 227, 0\.32\)\)/)
     assert.doesNotMatch(html, /#e35417/)
+})
+
+/**
+ * Verifies selected PCB net names are tagged and highlighted in the rendered
+ * SVG.
+ */
+test('PcbViewRenderer highlights the selected PCB net', () => {
+    const documentModel = createWrappedPcbDocument()
+    documentModel.pcb.tracks = [
+        {
+            x1: 100,
+            y1: 100,
+            x2: 240,
+            y2: 100,
+            width: 12,
+            layerId: 1,
+            netName: 'SENSE_A'
+        },
+        {
+            x1: 100,
+            y1: 140,
+            x2: 240,
+            y2: 140,
+            width: 12,
+            layerId: 1,
+            netName: 'RETURN'
+        }
+    ]
+
+    const html = PcbViewRenderer.render(
+        documentModel,
+        'top',
+        null,
+        [],
+        [],
+        '',
+        {},
+        'SENSE_A'
+    )
+
+    assert.match(html, /class="pcb-net-highlight-style"/)
+    assert.match(html, /data-pcb-net-name="SENSE_A"/)
+    assert.match(html, /data-pcb-net-name="RETURN"/)
+    assert.match(html, /\[data-pcb-net-name='SENSE_A'\]/)
+    assert.match(html, /drop-shadow/)
 })
 
 /**
@@ -455,7 +501,161 @@ test('PcbViewRenderer tags wrapped component groups for highlighting', () => {
     assert.match(html, /class="pcb-component-selection-marker"/)
     assert.match(html, /data-pcb-selected-component-key="A1"/)
     assert.match(html, /pcb-component-selection-marker__fill/)
-    assert.match(html, /fill: rgba\(27, 191, 227, 0\.34\)/)
+    assert.match(html, /fill: rgba\(27, 191, 227, 0\.52\)/)
+})
+
+/**
+ * Verifies PCB component markers use a high-contrast palette that remains
+ * visible over normal board and footprint artwork.
+ */
+test('PcbViewRenderer renders selected PCB component markers with visible contrast', () => {
+    const html = PcbViewRenderer.render(
+        createWrappedPcbDocument(),
+        'top',
+        null,
+        [],
+        [],
+        'A1'
+    )
+
+    assert.match(
+        html,
+        /pcb-component-selection-marker__outline[^}]+stroke: transparent/
+    )
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill[^}]+stroke: transparent/
+    )
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill[^}]+stroke-width: 0/
+    )
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill[^}]+filter: drop-shadow\(0 0 1\.4px rgba\(27, 191, 227, 0\.62\)\)/
+    )
+    assert.doesNotMatch(html, /rgba\(17, 24, 39/)
+})
+
+/**
+ * Verifies rendered footprint geometry is used when parsed primitive
+ * coordinates do not overlap the SVG viewBox.
+ */
+test('PcbViewRenderer keeps KiCad selection markers on the rendered footprint', () => {
+    const documentModel = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'rendered-footprint-fake.kicad_pcb',
+        pcb: {
+            components: [
+                {
+                    componentIndex: 11,
+                    designator: 'U2',
+                    layer: 'TOP',
+                    pattern: 'SOIC-8'
+                }
+            ],
+            pads: [
+                {
+                    componentIndex: 11,
+                    x: 3500,
+                    y: 3400,
+                    sizeTopX: 100,
+                    sizeTopY: 60,
+                    layerId: 1
+                }
+            ]
+        }
+    }
+    const originalRenderPcb = EcadRendererService.renderPcb
+    EcadRendererService.renderPcb = () =>
+        '<svg class="pcb-svg pcb-svg--kicad pcb-svg--top" viewBox="70 66 60 59">' +
+        '<line data-footprint-id="footprint:U2:11" x1="90.325" y1="84.55" x2="95.775" y2="90" stroke-width="0.12"></line>' +
+        '<rect data-footprint-id="footprint:U2:11" x="88.65" y="85.07" width="1.6" height="0.6" stroke-width="0.12"></rect>' +
+        '</svg>'
+
+    try {
+        const html = PcbViewRenderer.render(
+            documentModel,
+            'top',
+            null,
+            [],
+            [],
+            'U2'
+        )
+
+        assert.match(
+            html,
+            /pcb-component-selection-marker__fill" x="87\.938" y="83\.837" width="8\.55" height="6\.875"/
+        )
+        assert.doesNotMatch(
+            html,
+            /pcb-component-selection-marker__fill" x="3432/
+        )
+    } finally {
+        EcadRendererService.renderPcb = originalRenderPcb
+    }
+})
+
+/**
+ * Verifies SVG path arc parameters do not inflate selected footprint markers as
+ * if every path number were an x/y coordinate.
+ */
+test('PcbViewRenderer bounds selected rendered footprint arcs from path coordinates', () => {
+    const documentModel = {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        fileName: 'rendered-arc-footprint-fake.kicad_pcb',
+        pcb: {
+            components: [
+                {
+                    componentIndex: 0,
+                    designator: 'X1',
+                    layer: 'TOP',
+                    pattern: 'ARC-SHAPE'
+                }
+            ],
+            pads: [
+                {
+                    componentIndex: 0,
+                    x: 500,
+                    y: 500,
+                    sizeTopX: 20,
+                    sizeTopY: 20,
+                    layerId: 1
+                }
+            ]
+        }
+    }
+    const originalRenderPcb = EcadRendererService.renderPcb
+    EcadRendererService.renderPcb = () =>
+        '<svg class="pcb-svg pcb-svg--kicad pcb-svg--top" viewBox="20 20 40 40">' +
+        '<path data-footprint-id="footprint:X1:0" d="M 40 30 A 10 10 0 1 1 30 30" stroke-width="0.12" fill="none"></path>' +
+        '<circle data-footprint-id="footprint:X1:0" cx="35" cy="45" r="2"></circle>' +
+        '</svg>'
+
+    try {
+        const html = PcbViewRenderer.render(
+            documentModel,
+            'top',
+            null,
+            [],
+            [],
+            'X1'
+        )
+        const marker = html.match(
+            /pcb-component-selection-marker__fill" x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"/
+        )
+        assert.ok(marker)
+        const bounds = marker.slice(1).map(Number)
+
+        assert.ok(bounds[0] > 15)
+        assert.ok(bounds[1] > 10)
+        assert.ok(bounds[2] < 35)
+        assert.ok(bounds[3] < 45)
+    } finally {
+        EcadRendererService.renderPcb = originalRenderPcb
+    }
 })
 
 /**

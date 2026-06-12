@@ -461,6 +461,38 @@ test('PcbViewController switches PCB sides from the toolbar', () => {
 })
 
 /**
+ * Verifies a selected bottom-side footprint opens on the side where it can be
+ * highlighted.
+ */
+test('PcbViewController opens the side containing the selected component', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const documentModel = PcbViewControllerFixture.createAltiumPcbDocument()
+    documentModel.pcb.layers.push({ name: 'Bottom Layer', layerId: 32 })
+    documentModel.pcb.components = [
+        {
+            componentIndex: 0,
+            designator: 'J1',
+            x: 40,
+            y: 40,
+            rotation: 0,
+            layer: 'BOTTOM',
+            pattern: 'CONN'
+        }
+    ]
+    const controller = new PcbViewController(content, documentModel, {
+        selectedComponentKey: 'J1'
+    })
+
+    assert.match(content.innerHTML, /data-pcb-view-active-side="bottom"/)
+    assert.match(content.innerHTML, /pcb-svg--bottom/)
+    assert.match(content.innerHTML, />BOTTOM_SIDE_MARK<\/text>/)
+    assert.doesNotMatch(content.innerHTML, />TOP_SIDE_MARK<\/text>/)
+
+    controller.dispose()
+})
+
+/**
  * Verifies remounting the same PCB view keeps the user's zoom and pan
  * position instead of returning to the renderer default viewBox.
  */
@@ -611,6 +643,39 @@ test('PcbViewController reports prioritized PCB click candidates', () => {
 })
 
 /**
+ * Verifies PCB trace clicks emit selected net state from hit-test candidates.
+ */
+test('PcbViewController selects a net-backed PCB click candidate', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const selections = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onNetSelectionChange: (change) => {
+                selections.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.clickPcbBoard(200, 100)
+
+    assert.deepEqual(selections, [
+        {
+            documentId: 'doc-1',
+            netName: 'SENSE',
+            source: 'pcb-board'
+        }
+    ])
+
+    controller.dispose()
+})
+
+/**
  * Verifies PCB click selection can feed the existing selected component state
  * path when the top visible hit candidate is component-backed.
  */
@@ -700,6 +765,40 @@ test('PcbViewController clears PCB component selection when clicking empty board
         {
             documentId: 'doc-1',
             componentKey: '',
+            source: 'pcb-board'
+        }
+    ])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies clicking empty PCB space clears selected net state.
+ */
+test('PcbViewController clears PCB net selection when clicking empty board space', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const selections = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
+        {
+            documentId: 'doc-1',
+            selectedNetName: 'SENSE',
+            onNetSelectionChange: (change) => {
+                selections.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.clickPcbBoard(700, 350)
+
+    assert.deepEqual(selections, [
+        {
+            documentId: 'doc-1',
+            netName: '',
             source: 'pcb-board'
         }
     ])

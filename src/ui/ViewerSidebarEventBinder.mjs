@@ -127,16 +127,112 @@ export class ViewerSidebarEventBinder {
      * @returns {void}
      */
     static bindPcbComponentSelectionChange(mount, callback) {
+        mount?.addEventListener('click', (event) => {
+            if (
+                ViewerSidebarEventBinder.#closest(
+                    event.target,
+                    '[data-selected-part-export-format]'
+                )
+            ) {
+                return
+            }
+
+            const button = ViewerSidebarEventBinder.#closest(
+                event.target,
+                '[data-pcb-component-key]'
+            )
+            if (!button || typeof button.getAttribute !== 'function') return
+
+            event.preventDefault?.()
+            callback({
+                documentId: button.getAttribute('data-document-id') || '',
+                componentKey:
+                    button.getAttribute('data-pcb-component-key') || ''
+            })
+        })
+    }
+
+    /**
+     * Binds PCB and schematic net selections.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {(change: { documentId: string, netName: string }) => void} callback Selection callback.
+     * @returns {void}
+     */
+    static bindPcbNetSelectionChange(mount, callback) {
         ViewerSidebarEventBinder.#bindAttribute(
             mount,
-            '[data-pcb-component-key]',
+            '[data-pcb-net-key]',
+            (button) =>
+                callback({
+                    documentId: button.getAttribute('data-document-id') || '',
+                    netName: button.getAttribute('data-pcb-net-key') || ''
+                })
+        )
+    }
+
+    /**
+     * Binds selected-part export button clicks.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {(change: { documentId: string, componentKey: string, format: string }) => void} callback Export callback.
+     * @returns {void}
+     */
+    static bindSelectedPartExport(mount, callback) {
+        ViewerSidebarEventBinder.#bindAttribute(
+            mount,
+            '[data-selected-part-export-format]',
             (button) =>
                 callback({
                     documentId: button.getAttribute('data-document-id') || '',
                     componentKey:
-                        button.getAttribute('data-pcb-component-key') || ''
+                        button.getAttribute('data-pcb-component-key') || '',
+                    format:
+                        button.getAttribute(
+                            'data-selected-part-export-format'
+                        ) || ''
                 })
         )
+    }
+
+    /**
+     * Binds full-model ZIP export button clicks.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {() => void} callback Export callback.
+     * @returns {void}
+     */
+    static bindScene3dModelZipExport(mount, callback) {
+        ViewerSidebarEventBinder.#bindAttribute(
+            mount,
+            '[data-scene-3d-export="models-zip"]',
+            () => callback()
+        )
+    }
+
+    /**
+     * Binds component detail/name copy actions.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {{ writeText?: (value: string) => Promise<void> | void } | ((value: string) => Promise<void> | void) | null} [clipboardWriter] Clipboard writer override.
+     * @returns {void}
+     */
+    static bindComponentDetailCopy(mount, clipboardWriter = null) {
+        mount?.addEventListener('click', (event) => {
+            const button = ViewerSidebarEventBinder.#closest(
+                event.target,
+                '[data-component-detail-copy]'
+            )
+            if (!button || typeof button.getAttribute !== 'function') return
+
+            event.preventDefault?.()
+            event.stopPropagation?.()
+            event.stopImmediatePropagation?.()
+
+            const text = button.getAttribute('data-component-copy-text') || ''
+            if (!text) return
+            ViewerSidebarEventBinder.#writeClipboardText(
+                text,
+                clipboardWriter,
+                mount
+            )
+        })
     }
 
     /**
@@ -173,6 +269,114 @@ export class ViewerSidebarEventBinder {
 
             ViewerSidebarEventBinder.#applyComponentFilter(mount, input.value)
         })
+    }
+
+    /**
+     * Binds client-side layer filtering.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @returns {void}
+     */
+    static bindLayerFilter(mount) {
+        mount?.addEventListener('input', (event) => {
+            const input = ViewerSidebarEventBinder.#closest(
+                event.target,
+                '[data-layer-filter]'
+            )
+            if (!input || typeof input.value !== 'string') return
+
+            ViewerSidebarEventBinder.#applyLayerFilter(mount, input.value)
+        })
+    }
+
+    /**
+     * Binds client-side net filtering.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @returns {void}
+     */
+    static bindNetFilter(mount) {
+        mount?.addEventListener('input', (event) => {
+            const input = ViewerSidebarEventBinder.#closest(
+                event.target,
+                '[data-net-filter]'
+            )
+            if (!input || typeof input.value !== 'string') return
+
+            ViewerSidebarEventBinder.#applyNetFilter(mount, input.value)
+        })
+    }
+
+    /**
+     * Writes text through the browser clipboard API when available.
+     * @param {string} text Clipboard text.
+     * @param {{ writeText?: (value: string) => Promise<void> | void } | ((value: string) => Promise<void> | void) | null} clipboardWriter Clipboard writer override.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @returns {void}
+     */
+    static #writeClipboardText(text, clipboardWriter, mount) {
+        const writer =
+            clipboardWriter ||
+            ViewerSidebarEventBinder.#resolveClipboardWriter()
+        try {
+            if (!writer) {
+                ViewerSidebarEventBinder.#copyTextWithSelection(text, mount)
+                return
+            }
+
+            const result =
+                typeof writer === 'function'
+                    ? writer(text)
+                    : writer?.writeText?.(text)
+            result?.catch?.(() =>
+                ViewerSidebarEventBinder.#copyTextWithSelection(text, mount)
+            )
+        } catch (_error) {
+            ViewerSidebarEventBinder.#copyTextWithSelection(text, mount)
+        }
+    }
+
+    /**
+     * Resolves the browser clipboard writer.
+     * @returns {{ writeText?: (value: string) => Promise<void> | void } | null}
+     */
+    static #resolveClipboardWriter() {
+        const clipboard =
+            typeof navigator !== 'undefined' ? navigator.clipboard : null
+        return clipboard && typeof clipboard.writeText === 'function'
+            ? clipboard
+            : null
+    }
+
+    /**
+     * Copies text using a temporary off-screen textarea fallback.
+     * @param {string} text Clipboard text.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @returns {void}
+     */
+    static #copyTextWithSelection(text, mount) {
+        const documentRef = mount?.ownerDocument
+        if (
+            !documentRef?.body ||
+            typeof documentRef.createElement !== 'function' ||
+            typeof documentRef.execCommand !== 'function'
+        ) {
+            return
+        }
+
+        const textarea = documentRef.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute?.('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.top = '-9999px'
+        textarea.style.left = '-9999px'
+
+        try {
+            documentRef.body.appendChild(textarea)
+            textarea.select?.()
+            documentRef.execCommand('copy')
+        } catch (_error) {
+        } finally {
+            documentRef.body.removeChild?.(textarea)
+        }
     }
 
     /**
@@ -227,6 +431,58 @@ export class ViewerSidebarEventBinder {
             rows.forEach((row) => {
                 const searchText = String(
                     row.getAttribute?.('data-component-search') || ''
+                )
+                const hidden = Boolean(query && !searchText.includes(query))
+                row.toggleAttribute?.('hidden', hidden)
+                if (!hidden) visibleRows += 1
+            })
+            group.toggleAttribute?.('hidden', visibleRows === 0)
+        })
+    }
+
+    /**
+     * Applies the current layer search query to rendered rows.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {string} rawQuery Search query.
+     * @returns {void}
+     */
+    static #applyLayerFilter(mount, rawQuery) {
+        const query = String(rawQuery || '')
+            .trim()
+            .toLowerCase()
+        const groups = mount?.querySelectorAll?.('[data-layer-group]') || []
+        groups.forEach((group) => {
+            let visibleRows = 0
+            const rows = group.querySelectorAll?.('[data-layer-search]') || []
+            rows.forEach((row) => {
+                const searchText = String(
+                    row.getAttribute?.('data-layer-search') || ''
+                )
+                const hidden = Boolean(query && !searchText.includes(query))
+                row.toggleAttribute?.('hidden', hidden)
+                if (!hidden) visibleRows += 1
+            })
+            group.toggleAttribute?.('hidden', visibleRows === 0)
+        })
+    }
+
+    /**
+     * Applies the current net search query to rendered rows.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {string} rawQuery Search query.
+     * @returns {void}
+     */
+    static #applyNetFilter(mount, rawQuery) {
+        const query = String(rawQuery || '')
+            .trim()
+            .toLowerCase()
+        const groups = mount?.querySelectorAll?.('[data-net-group]') || []
+        groups.forEach((group) => {
+            let visibleRows = 0
+            const rows = group.querySelectorAll?.('[data-net-search]') || []
+            rows.forEach((row) => {
+                const searchText = String(
+                    row.getAttribute?.('data-net-search') || ''
                 )
                 const hidden = Boolean(query && !searchText.includes(query))
                 row.toggleAttribute?.('hidden', hidden)

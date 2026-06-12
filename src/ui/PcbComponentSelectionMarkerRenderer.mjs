@@ -1,4 +1,5 @@
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { PcbRenderedFootprintBoundsResolver } from './PcbRenderedFootprintBoundsResolver.mjs'
 
 /**
  * Renders visible PCB component selection markers from component geometry.
@@ -21,6 +22,9 @@ export class PcbComponentSelectionMarkerRenderer {
                 documentModel,
                 key
             )
+        const viewBox = PcbRenderedFootprintBoundsResolver.resolveSvgViewBox(
+            markup
+        )
         const primitiveBounds = componentRecord
             ? PcbComponentSelectionMarkerRenderer.#resolveComponentPrimitiveMarkerBounds(
                   documentModel,
@@ -28,6 +32,38 @@ export class PcbComponentSelectionMarkerRenderer {
                   side
               )
             : null
+        if (
+            primitiveBounds &&
+            PcbRenderedFootprintBoundsResolver.boundsOverlapViewBox(
+                primitiveBounds,
+                viewBox
+            )
+        ) {
+            return String(markup).replace(
+                /<\/svg>/,
+                PcbComponentSelectionMarkerRenderer.#renderBoundsMarker(
+                    key,
+                    primitiveBounds
+                ) + '</svg>'
+            )
+        }
+
+        const renderedBounds =
+            PcbRenderedFootprintBoundsResolver.resolveMarkerBounds(
+                markup,
+                key,
+                viewBox
+            )
+        if (renderedBounds) {
+            return String(markup).replace(
+                /<\/svg>/,
+                PcbComponentSelectionMarkerRenderer.#renderBoundsMarker(
+                    key,
+                    renderedBounds
+                ) + '</svg>'
+            )
+        }
+
         if (primitiveBounds) {
             return String(markup).replace(
                 /<\/svg>/,

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
+import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:net'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -137,6 +138,68 @@ async function stopChildProcess(childProcess) {
 
     childProcess.kill('SIGTERM')
     await once(childProcess, 'exit')
+}
+
+/**
+ * Starts a fake source service for component-source proxy tests.
+ * @param {import('node:test').TestContext} t Test context.
+ * @returns {Promise<string>}
+ */
+async function startFakeComponentSource(t) {
+    const upstream = createHttpServer((req, res) => {
+        const requestUrl = new URL(req.url || '/', 'http://127.0.0.1')
+        if (requestUrl.pathname === '/search') {
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+                JSON.stringify({
+                    result: [
+                        {
+                            display_title: 'Fake connector',
+                            product_code: 'C2040',
+                            attributes: {
+                                '3D Model': 'seed-model'
+                            }
+                        }
+                    ]
+                })
+            )
+            return
+        }
+
+        if (requestUrl.pathname === '/components/seed-model') {
+            res.setHeader('Content-Type', 'application/json')
+            res.end(
+                JSON.stringify({
+                    code: 0,
+                    result: {
+                        '3d_model_uuid': 'resolved-model'
+                    }
+                })
+            )
+            return
+        }
+
+        if (requestUrl.pathname === '/models/resolved-model') {
+            res.setHeader('Content-Type', 'model/step')
+            res.end('ISO-10303-21;')
+            return
+        }
+
+        res.statusCode = 404
+        res.end('Not Found')
+    })
+
+    await new Promise((resolve, reject) => {
+        upstream.once('error', reject)
+        upstream.listen(0, '127.0.0.1', resolve)
+    })
+    t.after(async () => {
+        await new Promise((resolve) => upstream.close(resolve))
+    })
+
+    const address = upstream.address()
+    assert.ok(address && typeof address !== 'string')
+    return 'http://127.0.0.1:' + String(address.port)
 }
 
 /**
@@ -597,6 +660,56 @@ test('server serves versioned HTML and module imports', async (t) => {
         sceneWorkerSource,
         /from ['"]\.\.\/core\/ecad\/EcadScene3dService\.mjs\?v=/
     )
+})
+
+/**
+ * Verifies the same-origin component-source proxy exposes search, detail, and
+ * model bytes without requiring the browser to call the upstream search API.
+ */
+test('server proxies component source search and STEP downloads', async (t) => {
+    const upstreamBaseUrl = await startFakeComponentSource(t)
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: {
+            ...process.env,
+            PORT: String(port),
+            ECAD_FORGE_EASYEDA_SEARCH_API: upstreamBaseUrl + '/search',
+            ECAD_FORGE_EASYEDA_COMPONENT_API: upstreamBaseUrl + '/components/',
+            ECAD_FORGE_EASYEDA_STEP_API: upstreamBaseUrl + '/models/'
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const baseUrl = 'http://127.0.0.1:' + String(port)
+    const searchResponse = await fetch(
+        baseUrl + '/api/component-source/search?q=C2040&limit=1'
+    )
+    const searchPayload = await searchResponse.json()
+    const componentResponse = await fetch(
+        baseUrl + '/api/component-source/components/seed-model'
+    )
+    const componentPayload = await componentResponse.json()
+    const modelResponse = await fetch(
+        baseUrl + '/api/component-source/models/resolved-model.step'
+    )
+    const modelText = await modelResponse.text()
+
+    assert.equal(searchResponse.ok, true)
+    assert.equal(searchPayload.results[0].id, 'seed-model')
+    assert.equal(searchPayload.results[0].name, 'Fake connector')
+    assert.equal(componentResponse.ok, true)
+    assert.equal(
+        componentPayload.models[0].sourceUrl,
+        'models/resolved-model.step'
+    )
+    assert.equal(modelResponse.ok, true)
+    assert.equal(modelText, 'ISO-10303-21;')
 })
 
 /**

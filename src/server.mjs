@@ -2,6 +2,7 @@ import express from 'express'
 import path from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { EcadEasyEdaModelSourceClient } from './core/ecad/EcadEasyEdaModelSourceClient.mjs'
 import { ServerAssetVersioner } from './ServerAssetVersioner.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -193,6 +194,67 @@ app.get(['/api/app-meta', '/api/app-meta.php'], async (_req, res) => {
     res.json({ version })
 })
 
+app.get('/api/component-source/search', async (req, res) => {
+    const query = ServerRuntime.sanitizeSearchTerm(req.query.q)
+    if (!query) {
+        res.status(400).json({ error: 'Search query is required.' })
+        return
+    }
+
+    try {
+        const rows =
+            await ServerRuntime.componentSourceClient().searchComponents(
+                query,
+                {
+                    limit: ServerRuntime.sanitizeSearchLimit(req.query.limit)
+                }
+            )
+        res.setHeader('Cache-Control', noStoreCacheControl)
+        res.json({ results: rows })
+    } catch (_error) {
+        res.status(502).json({ error: 'Component source request failed.' })
+    }
+})
+
+app.get('/api/component-source/components/:id', async (req, res) => {
+    const sourceId = ServerRuntime.sanitizeSourceId(req.params.id)
+    if (!sourceId) {
+        res.status(400).json({ error: 'Invalid component id.' })
+        return
+    }
+
+    try {
+        const bundle =
+            await ServerRuntime.componentSourceClient().fetchComponentBundle(
+                sourceId
+            )
+        res.setHeader('Cache-Control', noStoreCacheControl)
+        res.json(bundle)
+    } catch (_error) {
+        res.status(502).json({ error: 'Component source request failed.' })
+    }
+})
+
+app.get('/api/component-source/models/:id.step', async (req, res) => {
+    const sourceId = ServerRuntime.sanitizeSourceId(req.params.id)
+    if (!sourceId) {
+        res.status(400).json({ error: 'Invalid model id.' })
+        return
+    }
+
+    try {
+        const bytes =
+            await ServerRuntime.componentSourceClient().fetchBinaryAsset(
+                'models/' + sourceId + '.step'
+            )
+        res.setHeader('Cache-Control', noStoreCacheControl)
+        res.type('model/step')
+        res.send(Buffer.from(bytes))
+    } catch (_error) {
+        res.status(502).json({ error: 'Component source request failed.' })
+    }
+})
+
 app.use((req, res) => {
     const hasFileExtension = /\.[a-z0-9]+$/i.test(req.path)
     if (hasFileExtension) {
@@ -210,6 +272,9 @@ app.use((req, res) => {
  * Server bootstrap helpers for metadata and configuration.
  */
 class ServerRuntime {
+    /** @type {EcadEasyEdaModelSourceClient | null} */
+    static #componentSourceClient = null
+
     /**
      * Applies headers required for document-scoped WebMCP registration.
      * @param {import('express').Response} res
@@ -231,6 +296,72 @@ class ServerRuntime {
             return parsed
         }
         return 3000
+    }
+
+    /**
+     * Returns the shared component source client.
+     * @returns {EcadEasyEdaModelSourceClient}
+     */
+    static componentSourceClient() {
+        if (!ServerRuntime.#componentSourceClient) {
+            ServerRuntime.#componentSourceClient =
+                new EcadEasyEdaModelSourceClient({
+                    fetcher: globalThis.fetch.bind(globalThis),
+                    searchApi: process.env.ECAD_FORGE_EASYEDA_SEARCH_API,
+                    componentApi: process.env.ECAD_FORGE_EASYEDA_COMPONENT_API,
+                    stepApi: process.env.ECAD_FORGE_EASYEDA_STEP_API,
+                    requestTimeoutMs:
+                        ServerRuntime.parsePositiveNumber(
+                            process.env.ECAD_FORGE_COMPONENT_SOURCE_TIMEOUT_MS
+                        ) || 5000
+                })
+        }
+
+        return ServerRuntime.#componentSourceClient
+    }
+
+    /**
+     * Parses a positive number from environment input.
+     * @param {string | undefined} value Raw value.
+     * @returns {number}
+     */
+    static parsePositiveNumber(value) {
+        const parsed = Number(value)
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    }
+
+    /**
+     * Sanitizes a component source search term.
+     * @param {unknown} value Raw value.
+     * @returns {string}
+     */
+    static sanitizeSearchTerm(value) {
+        return String(value || '')
+            .trim()
+            .slice(0, 120)
+    }
+
+    /**
+     * Sanitizes a component source result limit.
+     * @param {unknown} value Raw value.
+     * @returns {number}
+     */
+    static sanitizeSearchLimit(value) {
+        const parsed = Number.parseInt(String(value || ''), 10)
+        if (!Number.isInteger(parsed)) {
+            return 5
+        }
+        return Math.min(20, Math.max(1, parsed))
+    }
+
+    /**
+     * Sanitizes a source id passed through same-origin routes.
+     * @param {unknown} value Raw value.
+     * @returns {string}
+     */
+    static sanitizeSourceId(value) {
+        const normalized = String(value || '').trim()
+        return /^[A-Za-z0-9_-]{1,128}$/u.test(normalized) ? normalized : ''
     }
 
     /**

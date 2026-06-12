@@ -26,6 +26,18 @@ export class LazyScene3dController {
     /** @type {string} */
     #selectedComponentKey
 
+    /** @type {boolean} */
+    #hasAdjustmentHost
+
+    /** @type {HTMLElement | null} */
+    #adjustmentHostNode
+
+    /** @type {boolean} */
+    #hasAutoSearchMissingModels
+
+    /** @type {boolean} */
+    #autoSearchMissingModels
+
     /**
      * @param {HTMLElement} viewportNode 3D viewport mount.
      * @param {any} documentModel Active document model.
@@ -41,6 +53,10 @@ export class LazyScene3dController {
         this.#isDisposed = false
         this.#hasSelectedComponent = false
         this.#selectedComponentKey = ''
+        this.#hasAdjustmentHost = false
+        this.#adjustmentHostNode = null
+        this.#hasAutoSearchMissingModels = false
+        this.#autoSearchMissingModels = false
 
         this.#mountController()
     }
@@ -65,6 +81,31 @@ export class LazyScene3dController {
     }
 
     /**
+     * Queues or forwards the app-owned transform control host.
+     * @param {HTMLElement | null} hostNode 3D adjustment controls host.
+     * @returns {void}
+     */
+    setAdjustmentHost(hostNode) {
+        this.#hasAdjustmentHost = true
+        this.#adjustmentHostNode =
+            hostNode && typeof hostNode === 'object' ? hostNode : null
+        this.#controller?.setAdjustmentHost?.(this.#adjustmentHostNode)
+    }
+
+    /**
+     * Queues or forwards app-discovered model visibility changes.
+     * @param {boolean} enabled Whether app-discovered models should be shown.
+     * @returns {void}
+     */
+    setAutoSearchMissingModels(enabled) {
+        this.#hasAutoSearchMissingModels = true
+        this.#autoSearchMissingModels = enabled === true
+        this.#controller?.setAutoSearchMissingModels?.(
+            this.#autoSearchMissingModels
+        )
+    }
+
+    /**
      * Disposes the loaded runtime, or prevents mounting if loading is pending.
      * @returns {void}
      */
@@ -74,6 +115,8 @@ export class LazyScene3dController {
         this.#controller = null
         this.#viewportNode = null
         this.#documentModel = null
+        this.#adjustmentHostNode = null
+        this.#hasAutoSearchMissingModels = false
     }
 
     /**
@@ -95,6 +138,14 @@ export class LazyScene3dController {
             if (this.#hasSelectedComponent) {
                 this.#controller?.setSelectedComponent?.(
                     this.#selectedComponentKey
+                )
+            }
+            if (this.#hasAdjustmentHost) {
+                this.#controller?.setAdjustmentHost?.(this.#adjustmentHostNode)
+            }
+            if (this.#hasAutoSearchMissingModels) {
+                this.#controller?.setAutoSearchMissingModels?.(
+                    this.#autoSearchMissingModels
                 )
             }
         } catch (error) {

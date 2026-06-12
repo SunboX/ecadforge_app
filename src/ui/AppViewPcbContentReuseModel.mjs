@@ -80,6 +80,7 @@ export class AppViewPcbContentReuseModel {
             selectedComponentKey: String(
                 snapshot?.selectedPcbComponents?.[documentId] || ''
             ),
+            selectedNetName: String(snapshot?.selectedNets?.[documentId] || ''),
             side: side === 'bottom' ? 'bottom' : 'top'
         }
     }
@@ -101,6 +102,7 @@ export class AppViewPcbContentReuseModel {
             previous?.objectOpacityKey === next.objectOpacityKey &&
             previous?.parseStatus === next.parseStatus &&
             previous?.selectedComponentKey === next.selectedComponentKey &&
+            previous?.selectedNetName === next.selectedNetName &&
             previous?.side === next.side
         )
     }

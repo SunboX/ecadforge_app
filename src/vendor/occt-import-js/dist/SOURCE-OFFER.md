@@ -7,23 +7,27 @@ ECAD Forge ships the following browser runtime assets in this directory:
 - `occt-import-js.wasm`
 
 These assets provide STEP, BREP, and IGES import support in the browser. They
-are based on `occt-import-js@0.0.23` and Open CASCADE Technology (OCCT).
+are based on `@sunbox/occt-import-js@0.0.25` and Open CASCADE Technology
+(OCCT).
 
 ## Upstream sources
 
-- `occt-import-js` npm package: `occt-import-js@0.0.23`
-- npm tarball: `https://registry.npmjs.org/occt-import-js/-/occt-import-js-0.0.23.tgz`
-- npm integrity: `sha512-RFfYQXYFX5C1mB1Aywm0ShcUKzXOr/VzTnlzhBSDJOR6YCAPt1HYCzeXWg1vwwjn/cUxwqRNhhtf1dlewoZYCQ==`
-- npm shasum: `1916aacd5b228e92da5de631ae048ca152281778`
-- repository: `https://github.com/kovacsv/occt-import-js`
-- release tag: `0.0.23`
-- release commit: `c2148e54b456b571238d35cac037d304053d64b2`
-- included source archive in this repository: `../../../../occt-import-js-0.0.23.tgz`
+- `occt-import-js` npm package: `@sunbox/occt-import-js@0.0.25`
+- npm tarball: `https://registry.npmjs.org/@sunbox/occt-import-js/-/occt-import-js-0.0.25.tgz`
+- npm integrity: `sha512-Vq+oRZXo6bXRk+ooa4zC9J+L8xqOSxuEEzswh4z8ydc13iZVAzEwlxdFYCFMPnIqKMFmxNm2mW0DxAArqyMyaw==`
+- npm shasum: `bc2ef1fd2b193933d9daf068b7fc765ce7e3a7c9`
+- repository metadata: `https://github.com/kovacsv/occt-import-js`
+- package source commit used for the vendored runtime assets:
+  `af7c78e33f3b85f8f84c0243c72b857aa3689ee7`
+- included source archive in this repository: `../../../../occt-import-js-0.0.25.tgz`
+- included source archive SHA-256:
+  `26fc1c5c712fac1c35b98b985aeced6761f2ec8c589818031b1546ac6f27037e`
 
-The `occt-import-js@0.0.23` release records OCCT as a submodule:
+The `@sunbox/occt-import-js@0.0.25` package source records OCCT as a
+submodule:
 
 - OCCT repository: `https://git.dev.opencascade.org/repos/occt.git`
-- OCCT submodule commit: `d2abb6d844231cb8f29be6894440874a4700e4a5`
+- OCCT submodule commit: `d3056ef80c9668f395da40f5fd7be186cae4501f`
 
 ## Licenses
 
@@ -38,14 +42,16 @@ The ECAD Forge vendored assets currently have these SHA-256 hashes:
 
 - `occt-import-js.js`: `942df5f04d8253858ba559332afe45ea40e3fb1141998950b9d631f53def0f21`
 - `occt-import-js-worker.js`: `d3acf79d58f3235b92faa4f69c4210aede38eeb9d856166f8e347eae52367756`
-- `occt-import-js.wasm`: `7f77463673868e4999abd1c932946912584acc50888d5ce58b95df332db3e93e`
+- `occt-import-js.wasm`: `e8fcc9e9ec4a45395611504ecf130d991a08d2a09504315206865aa18f015f2d`
 
 ## Rebuild and replacement notes
 
-To rebuild the upstream importer, check out `occt-import-js` commit
-`c2148e54b456b571238d35cac037d304053d64b2`, initialize the `occt` submodule
-at commit `d2abb6d844231cb8f29be6894440874a4700e4a5`, and follow the upstream
-Emscripten/CMake build flow. The Windows helper scripts in that release are:
+To rebuild the importer, unpack the included source archive or check out the
+package source tree at commit
+`af7c78e33f3b85f8f84c0243c72b857aa3689ee7`, initialize the `occt` submodule
+at commit `d3056ef80c9668f395da40f5fd7be186cae4501f`, and follow the upstream
+Emscripten/CMake build flow. The Windows helper scripts in that source tree
+are:
 
 - `tools\setup_emscripten_win.bat`
 - `tools\build_wasm_win_release.bat`

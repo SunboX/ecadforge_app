@@ -6,6 +6,28 @@ import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
  */
 export class HeroPreviewDemoLoader {
     /**
+     * Schedules landing-preview parsing after immediate startup work.
+     * @param {{ setHeroPreviewDocuments?: (documentModels: any[]) => void }} view App view.
+     * @param {{ fetcher?: (url: string) => Promise<Response>, parser?: { parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object } }} [options] Loader options.
+     * @returns {boolean}
+     */
+    static schedule(view, options = {}) {
+        const runLoad = () => HeroPreviewDemoLoader.load(view, options)
+        if (typeof globalThis.requestIdleCallback === 'function') {
+            globalThis.requestIdleCallback(runLoad, { timeout: 1500 })
+            return true
+        }
+
+        if (typeof globalThis.setTimeout === 'function') {
+            globalThis.setTimeout(runLoad, 250)
+            return true
+        }
+
+        void runLoad()
+        return true
+    }
+
+    /**
      * Parses the local KiCad demo and forwards the documents to the view.
      * @param {{ setHeroPreviewDocuments?: (documentModels: any[]) => void }} view App view.
      * @param {{ fetcher?: (url: string) => Promise<Response>, parser?: { parseEntries?: (entries: { name: string, buffer: ArrayBuffer }[]) => Promise<object> | object } }} [options] Loader options.
