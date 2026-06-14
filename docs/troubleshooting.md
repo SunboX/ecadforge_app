@@ -14,7 +14,7 @@ PORT=3100 npm start
 - Verify `src/main.mjs` exists and matches the script tag in `src/index.html`.
 - Confirm the browser supports module workers.
 - If the console reports `Failed to resolve module specifier "fflate"`, confirm the import map in `src/index.html` includes `fflate`, the deployed site serves `/node_modules/fflate/esm/browser.js`, and the local server is rewriting toolkit worker modules when testing through `npm start`.
-- If the console reports `Failed to resolve module specifier "altium-toolkit"` or `kicad-toolkit`, confirm `npm install` has installed both toolkit packages and the deployed site serves their `/node_modules/altium-toolkit/` and `/node_modules/kicad-toolkit/` trees. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
+- If the console reports `Failed to resolve module specifier "altium-toolkit"`, `kicad-toolkit`, `gerber-toolkit`, or `circuitjson-toolkit`, confirm `npm install` has installed the toolkit packages and the deployed site serves their `/node_modules/` trees. Parser worker failures should fall back to direct parsing instead of leaving the viewer in a permanent loading state.
 
 ## LIVE works locally but not after deployment
 
@@ -41,19 +41,19 @@ PORT=3100 npm start
 ## Native file shows little or no geometry
 
 - Open the `Diagnostics` tab and inspect recovered record counts.
-- Some Altium constructs are still parsed through printable-record recovery only, and unsupported advanced KiCad S-expression items are emitted as diagnostics where possible.
-- Start by checking whether the file still yields component placements, layer stack data, or text records.
+- Some Altium constructs are still parsed through printable-record recovery only, unsupported advanced KiCad S-expression items are emitted as diagnostics where possible, and Gerber archives need matching fabrication layers to form a useful composite view.
+- Start by checking whether the file still yields component placements, layer stack data, fabrication layers, or text records.
 
 ## Drag-and-drop does nothing
 
-- Confirm the file extension is `.SchDoc`, `.PcbDoc`, `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, or `.zip`.
+- Confirm the file extension is `.SchDoc`, `.PcbDoc`, `.json`, `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, `.gbr`, `.gtl`, `.gbl`, `.gto`, `.gbo`, `.gts`, `.gbs`, `.drl`, `.xln`, or `.zip`.
 - Try the explicit file picker in the header.
 - Check the browser console for worker or module-loading errors.
 
 ## GitHub folder URL reports an API rate limit
 
 - GitHub tree folder URLs need a public GitHub API folder listing before the app can discover the supported ECAD file.
-- If the public API quota is exhausted, wait for the reset time shown in the app or paste a direct GitHub blob/raw URL for the `.SchDoc`, `.PcbDoc`, `.kicad_pro`, `.kicad_sch`, or `.kicad_pcb` file.
+- If the public API quota is exhausted, wait for the reset time shown in the app or paste a direct GitHub blob/raw URL for the `.SchDoc`, `.PcbDoc`, `.json`, `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, Gerber, or Excellon file.
 - Direct raw/blob file URLs do not need the folder listing step.
 
 ## Tests fail after refactor

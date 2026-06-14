@@ -6,6 +6,7 @@ import { ViewerSidebarComponentRenderer } from './ViewerSidebarComponentRenderer
 import { ViewerSidebarLayerRenderer } from './ViewerSidebarLayerRenderer.mjs'
 import { ViewerSidebarNetRenderer } from './ViewerSidebarNetRenderer.mjs'
 import { ViewerSidebarOverviewRenderer } from './ViewerSidebarOverviewRenderer.mjs'
+import { ViewerSidebarGerberRenderer } from './ViewerSidebarGerberRenderer.mjs'
 
 const SIDEBAR_TABS = [
     { id: 'project', icon: 'folder', labelKey: 'sidebar.project' },
@@ -31,7 +32,7 @@ const SIDEBAR_TABS = [
 export class ViewerSidebarRenderer {
     /**
      * Renders the full sidebar for one app snapshot.
-     * @param {{ activeSidebarTab?: string, activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeSidebarTab?: string, activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any, gerberRenderSelections?: { [documentId: string]: { renderMode?: string, layerId?: string } } }} snapshot Viewer snapshot.
      * @param {((key: string) => string) | null} [translate] Translation lookup.
      * @returns {string}
      */
@@ -163,7 +164,7 @@ export class ViewerSidebarRenderer {
 
     /**
      * Renders the active sidebar panel.
-     * @param {{ activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeView?: string, activeDocumentId?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], documentModel?: any, gerberRenderSelections?: { [documentId: string]: { renderMode?: string, layerId?: string } } }} snapshot Viewer snapshot.
      * @param {string} activeTab Active tab id.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
@@ -231,7 +232,7 @@ export class ViewerSidebarRenderer {
 
     /**
      * Renders the project document list.
-     * @param {{ activeView?: string, activeDocumentId?: string, documents?: { id: string, documentModel: any }[], sessionAssets?: any[] }} snapshot Viewer snapshot.
+     * @param {{ activeView?: string, activeDocumentId?: string, documents?: { id: string, documentModel: any }[], sessionAssets?: any[], gerberRenderSelections?: { [documentId: string]: { renderMode?: string, layerId?: string } } }} snapshot Viewer snapshot.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -251,7 +252,8 @@ export class ViewerSidebarRenderer {
             ViewerSidebarRenderer.#renderDocumentListSection(
                 visibleDocuments,
                 snapshot.activeDocumentId,
-                translate
+                translate,
+                snapshot
             ) + ViewerSidebarRenderer.#renderAssetList(assets, translate)
         )
     }
@@ -261,9 +263,15 @@ export class ViewerSidebarRenderer {
      * @param {{ id: string, documentModel: any }[]} documents Session documents.
      * @param {string | undefined} activeDocumentId Active document id.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ activeView?: string, gerberRenderSelections?: { [documentId: string]: { renderMode?: string, layerId?: string } } }} snapshot Viewer snapshot.
      * @returns {string}
      */
-    static #renderDocumentListSection(documents, activeDocumentId, translate) {
+    static #renderDocumentListSection(
+        documents,
+        activeDocumentId,
+        translate,
+        snapshot
+    ) {
         return (
             ViewerSidebarRenderer.#renderPanelHeader(
                 translate('sidebar.openDocuments')
@@ -272,10 +280,11 @@ export class ViewerSidebarRenderer {
             (documents.length
                 ? documents
                       .map((entry) =>
-                          ViewerSidebarRenderer.#renderDocumentButton(
+                          ViewerSidebarRenderer.#renderDocumentEntry(
                               entry,
                               activeDocumentId,
-                              translate
+                              translate,
+                              snapshot
                           )
                       )
                       .join('')
@@ -283,6 +292,29 @@ export class ViewerSidebarRenderer {
                       translate('sidebar.noDocuments')
                   )) +
             '</div>'
+        )
+    }
+
+    /**
+     * Renders one document row and its active nested controls.
+     * @param {{ id: string, documentModel: any }} entry Document entry.
+     * @param {string | undefined} activeDocumentId Active document id.
+     * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ activeView?: string, gerberRenderSelections?: { [documentId: string]: { renderMode?: string, layerId?: string } } }} snapshot Viewer snapshot.
+     * @returns {string}
+     */
+    static #renderDocumentEntry(entry, activeDocumentId, translate, snapshot) {
+        return (
+            ViewerSidebarRenderer.#renderDocumentButton(
+                entry,
+                activeDocumentId,
+                translate
+            ) +
+            ViewerSidebarGerberRenderer.renderFileRows(
+                entry,
+                activeDocumentId,
+                snapshot
+            )
         )
     }
 

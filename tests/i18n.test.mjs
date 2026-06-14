@@ -156,7 +156,7 @@ test('German locale uses native umlauts in visible app copy', async () => {
 
     assert.equal(
         germanMessages['app.subtitle'],
-        'Privater ECAD-Viewer für Altium & KiCad.'
+        'Privater ECAD-Viewer für Altium, KiCad, Gerber & CircuitJSON.'
     )
     assert.equal(germanMessages['app.open'], 'Lokale Dateien öffnen')
     assert.equal(germanMessages['app.openFolder'], 'Ordner öffnen')
@@ -493,7 +493,7 @@ test('dynamic viewer renderers use provided translations', () => {
     const translations = {
         'empty.title': '将设计文件拖到这里，或从示例项目开始',
         'empty.copy':
-            '支持 .SchDoc、.PcbDoc、.PrjPcb、.kicad_pro 和 .kicad_pcb。你的文件保留在你的设备上。',
+            '支持 .SchDoc、.PcbDoc、.PrjPcb、.json、Gerber/Excellon 文件、制造 ZIP、.kicad_pro 和 .kicad_pcb。你的文件保留在你的设备上。',
         'action.tryKicad': '试用 KiCad 示例',
         'action.tryAltium': '试用 Altium 示例',
         'app.open': '打开本地文件',

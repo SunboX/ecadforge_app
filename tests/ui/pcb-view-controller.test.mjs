@@ -165,6 +165,24 @@ class FakePcbSideButton extends FakeNode {
 }
 
 /**
+ * Minimal Gerber composite toggle button.
+ */
+class FakeGerberCompositeButton extends FakeNode {
+    constructor() {
+        super()
+        this.setAttribute('data-pcb-view-gerber-composite', 'toggle')
+    }
+
+    /**
+     * @param {string} selector Selector.
+     * @returns {FakeGerberCompositeButton | null}
+     */
+    closest(selector) {
+        return selector === '[data-pcb-view-gerber-composite]' ? this : null
+    }
+}
+
+/**
  * Minimal content node that reparses rendered PCB view markup.
  */
 class FakeContentNode extends FakeEventTarget {
@@ -177,6 +195,9 @@ class FakeContentNode extends FakeEventTarget {
     /** @type {Map<string, FakePcbSideButton>} */
     #buttonsBySide
 
+    /** @type {FakeGerberCompositeButton | null} */
+    #gerberCompositeButton
+
     /**
      * @param {FakeDocument} ownerDocument Owner document.
      */
@@ -185,6 +206,7 @@ class FakeContentNode extends FakeEventTarget {
         this.#ownerDocument = ownerDocument
         this.#svg = null
         this.#buttonsBySide = new Map()
+        this.#gerberCompositeButton = null
         this._innerHTML = ''
         this.renderCount = 0
     }
@@ -197,6 +219,7 @@ class FakeContentNode extends FakeEventTarget {
         this._innerHTML = String(value)
         this.#svg = null
         this.#buttonsBySide = new Map()
+        this.#gerberCompositeButton = null
 
         const svgMatch = this._innerHTML.match(
             /<svg[^>]*class="[^"]*\bpcb-svg\b[^"]*"[^>]*viewBox="([^"]+)"/
@@ -212,6 +235,10 @@ class FakeContentNode extends FakeEventTarget {
                 match[1],
                 new FakePcbSideButton(match[1], match[2])
             )
+        }
+
+        if (this._innerHTML.includes('data-pcb-view-gerber-composite')) {
+            this.#gerberCompositeButton = new FakeGerberCompositeButton()
         }
     }
 
@@ -229,6 +256,10 @@ class FakeContentNode extends FakeEventTarget {
     querySelector(selector) {
         if (selector === '.pcb-svg') {
             return this.#svg
+        }
+
+        if (selector === '[data-pcb-view-gerber-composite]') {
+            return this.#gerberCompositeButton
         }
 
         const sideMatch = selector.match(/^\[data-pcb-view-side="([^"]+)"\]$/)
@@ -250,6 +281,21 @@ class FakeContentNode extends FakeEventTarget {
         }
 
         this.dispatch('click', { target: button, preventDefault() {} })
+    }
+
+    /**
+     * Clicks the Gerber composite toggle.
+     * @returns {void}
+     */
+    clickGerberCompositeToggle() {
+        if (!this.#gerberCompositeButton) {
+            return
+        }
+
+        this.dispatch('click', {
+            target: this.#gerberCompositeButton,
+            preventDefault() {}
+        })
     }
 
     /**
@@ -413,6 +459,71 @@ class PcbViewControllerFixture {
 
         return documentModel
     }
+
+    /**
+     * @returns {object}
+     */
+    static createGerberPcbDocument() {
+        return {
+            sourceFormat: 'gerber',
+            kind: 'pcb',
+            fileName: 'synthetic-fabrication',
+            pcb: {
+                bounds: { minX: 0, minY: 0, maxX: 4, maxY: 3 },
+                fabrication: {
+                    layers: [
+                        {
+                            id: 'gerber-top',
+                            fileName: 'sample-F_Cu.gtl',
+                            role: 'top-copper',
+                            side: 'top',
+                            primitives: [
+                                {
+                                    type: 'flash',
+                                    shape: 'circle',
+                                    x: 1,
+                                    y: 1,
+                                    diameter: 0.5
+                                }
+                            ],
+                            drills: []
+                        },
+                        {
+                            id: 'gerber-bottom',
+                            fileName: 'sample-B_Cu.gbl',
+                            role: 'bottom-copper',
+                            side: 'bottom',
+                            primitives: [
+                                {
+                                    type: 'flash',
+                                    shape: 'circle',
+                                    x: 2,
+                                    y: 2,
+                                    diameter: 0.5
+                                }
+                            ],
+                            drills: []
+                        }
+                    ]
+                }
+            },
+            bom: []
+        }
+    }
+
+    /**
+     * Parses a rendered SVG viewBox for fixture coordinate calculations.
+     * @param {string | null} value ViewBox attribute.
+     * @returns {{ minX: number, minY: number, width: number, height: number }}
+     */
+    static parseViewBox(value) {
+        const [minX, minY, width, height] = String(value || '')
+            .trim()
+            .split(/\s+/u)
+            .map(Number)
+
+        return { minX, minY, width, height }
+    }
 }
 
 /**
@@ -458,6 +569,42 @@ test('PcbViewController switches PCB sides from the toolbar', () => {
     controller.dispose()
 
     assert.equal(bottomSvg?.getListenerCount('wheel'), 0)
+})
+
+/**
+ * Verifies Gerber PCB hit testing uses fabrication-space coordinates after
+ * the renderer maps Y-up fabrication output into SVG space.
+ */
+test('PcbViewController maps Gerber visual hits back to fabrication coordinates', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const candidateChanges = []
+    const controller = new PcbViewController(
+        content,
+        PcbViewControllerFixture.createGerberPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onInteractionCandidatesChange: (change) => {
+                candidateChanges.push(change)
+            }
+        }
+    )
+
+    const viewBox = PcbViewControllerFixture.parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+    const clientX = ((2 - viewBox.minX) / viewBox.width) * 400
+    const visualY = viewBox.minY + (viewBox.minY + viewBox.height) - 2
+    const clientY = ((visualY - viewBox.minY) / viewBox.height) * 200
+
+    content.clickPcbBoard(clientX, clientY)
+
+    assert.equal(candidateChanges.length, 1)
+    assert.equal(Math.round(candidateChanges[0].point.x), 2)
+    assert.equal(Math.round(candidateChanges[0].point.y), 2)
+    assert.equal(candidateChanges[0].selectedCandidate.role, 'bottom-copper')
+
+    controller.dispose()
 })
 
 /**

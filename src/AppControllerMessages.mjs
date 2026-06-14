@@ -10,12 +10,12 @@ export class AppControllerMessages {
     static fallback(key) {
         const fallbackMap = {
             'status.ready':
-                'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.',
-            'status.loading': 'Parsing native ECAD files in the browser...',
+                'Drop .PcbDoc, .SchDoc, .kicad_pcb, Gerber/Excellon files, fabrication ZIPs, or KiCad project files here. Files are processed locally in your browser.',
+            'status.loading': 'Parsing ECAD files in the browser...',
             'status.loaded':
                 'Design loaded locally. Use the tabs to inspect PCB, schematic, 3D view, BOM and diagnostics.',
             'status.invalidFile':
-                'This file type is not supported yet. ECAD Forge currently supports selected Altium and KiCad design files. Try a sample project or open a supported board/schematic file.',
+                'This file type is not supported yet. ECAD Forge currently supports selected Altium, KiCad, Gerber, and CircuitJSON design files. Try a sample project or open a supported board, schematic, or fabrication file.',
             'status.assetsAdded':
                 'Companion 3D assets added to the current session.',
             'status.localeChanged': 'Language updated.',

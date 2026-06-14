@@ -91,10 +91,7 @@ test('core stylesheet keeps hidden elements visually suppressed', async () => {
 test('viewer preset toolbars reserve top space for hover lift', async () => {
     const sceneCss = await readStylesheet('30-scene3d.css')
 
-    assert.match(
-        sceneCss,
-        /\.scene-3d__toolbar\s*\{[\s\S]*padding-top:\s*1px;/
-    )
+    assert.match(sceneCss, /\.scene-3d__toolbar\s*\{[\s\S]*padding-top:\s*1px;/)
     assert.match(
         sceneCss,
         /\.scene-3d__preset:hover\s*\{[\s\S]*transform:\s*translateY\(-1px\);/
@@ -320,7 +317,7 @@ test('mobile viewer sidebar switches to compact stacked navigation', async () =>
     )
     assert.match(
         css,
-        /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*max-height:\s*18rem;/
+        /@media \(max-width: 760px\)[\s\S]*\.document-rail\s*\{[\s\S]*max-height:\s*36rem;/
     )
     assert.match(
         sceneCss,
@@ -585,6 +582,25 @@ test('viewer stylesheet rounds PCB board outline strokes', async () => {
     assert.ok(boardOutlineBlock)
     assert.match(boardOutlineBlock, /stroke-linejoin:\s*round;/)
     assert.match(boardOutlineBlock, /stroke-linecap:\s*round;/)
+})
+
+/**
+ * Verifies Gerber PCB SVGs use the same app palette override path as the
+ * normal PCB renderers.
+ */
+test('viewer stylesheet maps Gerber PCB output onto the app palette', async () => {
+    const css = await readStylesheet('25-kicad-pcb.css')
+
+    assert.match(css, /\.pcb-svg--gerber \.pcb-board/)
+    assert.match(css, /\.pcb-svg--gerber \.pcb-copper--surface \.pcb-track/)
+    assert.match(css, /\.pcb-svg--gerber \.pcb-copper--subsurface/)
+    assert.match(css, /\.pcb-svg--gerber \.pcb-pad/)
+    assert.match(css, /\.pcb-svg--gerber \.pcb-copper \.pcb-via/)
+    assert.match(css, /\.pcb-svg--gerber \.pcb-via-drill/)
+    assert.match(
+        css,
+        /\.pcb-svg--gerber \.gerber-layer \.gerber-polarity-clear/
+    )
 })
 
 /**

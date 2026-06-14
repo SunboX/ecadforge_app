@@ -201,8 +201,9 @@ test('package depends on intended ECAD toolkit package sources', async () => {
     const toolkitDependencies = [
         ['altium-toolkit', /^\^1\.1\.22$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
-        ['kicad-toolkit', /^\^1\.0\.10$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.2$/]
+        ['gerber-toolkit', /^\^0\.1\.18$/],
+        ['kicad-toolkit', /^\^1\.0\.11$/],
+        ['pcb-scene3d-viewer', /^\^1\.1\.10$/]
     ]
 
     for (const [dependencyName, versionPattern] of toolkitDependencies) {
@@ -231,7 +232,7 @@ test('app identity metadata uses the ECAD Forge name', async () => {
     assert.equal(pkg.name, 'ecadforge_app')
     assert.match(
         indexRaw,
-        /<title>\s*ECAD Forge .* Altium, KiCad & CircuitJSON Viewer in Your Browser\s*<\/title>/
+        /<title>\s*ECAD Forge .* Altium, KiCad, Gerber & CircuitJSON Viewer in Your\s+Browser\s*<\/title>/
     )
     assert.match(indexRaw, /<h1[^>]*>ECAD Forge<\/h1>/)
     assert.match(indexRaw, /<link[^>]+rel="icon"[^>]+href="\/favicon\.svg"/)
@@ -248,7 +249,10 @@ test('app shell exposes indexable search metadata', async () => {
     const robotsRaw = await readFile(new URL('src/robots.txt', root), 'utf8')
     const sitemapRaw = await readFile(new URL('src/sitemap.xml', root), 'utf8')
 
-    assert.match(indexRaw, /Altium, KiCad & CircuitJSON Viewer in Your Browser/)
+    assert.match(
+        indexRaw,
+        /Altium, KiCad, Gerber & CircuitJSON Viewer in Your Browser/
+    )
     assert.match(indexRaw, /<meta\s+name="description"/)
     assert.match(indexRaw, /property="og:image"/)
     assert.match(indexRaw, /application\/ld\+json/)
@@ -398,17 +402,37 @@ test('app shell exposes multi-file and project-folder intake', async () => {
     assert.match(indexRaw, /id="fileInput"/)
     assert.match(indexRaw, /type="file"/)
     assert.match(indexRaw, /multiple/)
+    const accept = indexRaw.match(
+        /id="fileInput"[\s\S]*?accept="([^"]+)"/u
+    )?.[1]
+    for (const extension of [
+        '.gbr',
+        '.gtl',
+        '.gbl',
+        '.gto',
+        '.gbo',
+        '.gts',
+        '.gbs',
+        '.gtp',
+        '.gbp',
+        '.gko',
+        '.gm1',
+        '.drl',
+        '.xln'
+    ]) {
+        assert.match(accept || '', new RegExp(extension.replace('.', '\\.')))
+    }
     assert.match(indexRaw, /id="folderInput"/)
     assert.match(indexRaw, /webkitdirectory/)
     assert.equal(englishMessages['app.dropHint'], 'Private · Local · No upload')
     assert.equal(germanMessages['app.dropHint'], 'Privat · Lokal · Kein Upload')
     assert.equal(
         englishMessages['status.ready'],
-        'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.'
+        'Drop .PcbDoc, .SchDoc, .kicad_pcb, Gerber/Excellon files, fabrication ZIPs, or KiCad project files here. Files are processed locally in your browser.'
     )
     assert.equal(
         germanMessages['status.ready'],
-        '.PcbDoc-, .SchDoc-, .kicad_pcb- oder KiCad-Projektdateien hier ablegen. Dateien werden lokal im Browser verarbeitet.'
+        '.PcbDoc-, .SchDoc-, .kicad_pcb-, Gerber-/Excellon-Dateien, Fertigungs-ZIPs oder KiCad-Projektdateien hier ablegen. Dateien werden lokal im Browser verarbeitet.'
     )
 })
 
@@ -441,7 +465,7 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /class="topbar__description"/)
     assert.match(
         indexRaw,
-        /Private ECAD viewer for Altium, KiCad &amp; CircuitJSON/
+        /Private ECAD viewer for Altium, KiCad, Gerber &amp;\s+CircuitJSON/
     )
     assert.match(indexRaw, /class="icon icon--upload"/)
     assert.match(indexRaw, /class="icon icon--folder"/)
@@ -449,8 +473,9 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /PRIVATE\s*&middot;\s*LOCAL\s*&middot;\s*NO UPLOAD/)
     assert.match(
         indexRaw,
-        /Open Altium, KiCad &amp; CircuitJSON designs locally/
+        /Open Altium, KiCad, Gerber &amp; CircuitJSON designs\s+locally/
     )
+    assert.match(indexRaw, /Gerber ZIP/)
     assert.doesNotMatch(indexRaw, /no tracking/)
     assert.match(indexRaw, /id="heroPreviewScreen"/)
     assert.match(indexRaw, /class="hero-proof__screen"/)
@@ -558,7 +583,7 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies ECAD libraries resolve through configured npm tarballs.
+ * Verifies ECAD libraries resolve through configured package sources.
  */
 test('ECAD libraries resolve through configured package sources', async () => {
     const packageRaw = await readFile(new URL('package.json', root), 'utf8')
@@ -575,12 +600,16 @@ test('ECAD libraries resolve through configured package sources', async () => {
             registryVersion: '1.0.3'
         },
         {
+            name: 'gerber-toolkit',
+            registryVersion: '0.1.18'
+        },
+        {
             name: 'kicad-toolkit',
-            registryVersion: '1.0.10'
+            registryVersion: '1.0.11'
         },
         {
             name: 'pcb-scene3d-viewer',
-            registryVersion: '1.1.2'
+            registryVersion: '1.1.10'
         }
     ]
 
@@ -644,6 +673,7 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
     assert.match(viewSource, /from ['"]altium-toolkit\/renderers['"]/)
+    assert.match(viewSource, /from ['"]gerber-toolkit\/renderers['"]/)
     assert.match(viewSource, /from ['"]kicad-toolkit\/renderers['"]/)
     assert.doesNotMatch(
         mainSource,
@@ -706,6 +736,22 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"kicad-toolkit\/scene3d"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/scene3d\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"gerber-toolkit"\s*:\s*"\/node_modules\/gerber-toolkit\/src\/index\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"gerber-toolkit\/parser"\s*:\s*"\/node_modules\/gerber-toolkit\/src\/parser\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"gerber-toolkit\/renderers"\s*:\s*"\/node_modules\/gerber-toolkit\/src\/renderers\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"gerber-toolkit\/scene3d"\s*:\s*"\/node_modules\/gerber-toolkit\/src\/scene3d\.mjs"/
     )
     assert.match(
         indexRaw,

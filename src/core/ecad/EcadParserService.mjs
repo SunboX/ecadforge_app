@@ -1,5 +1,6 @@
 import { AltiumParser } from 'altium-toolkit/parser'
 import { CircuitJsonParser } from 'circuitjson-toolkit'
+import { GerberParser, GerberProjectLoader } from 'gerber-toolkit/parser'
 import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
@@ -19,8 +20,14 @@ export class EcadParserService {
     /** @type {{ parseBytes: (bytes: ArrayBuffer | Uint8Array, options?: object) => object[] }} */
     #circuitJsonParser
 
+    /** @type {{ parseArrayBuffer: (fileName: string, buffer: ArrayBuffer, options?: object) => object }} */
+    #gerberParser
+
+    /** @type {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean, loadEntries: (entries: { name: string, bytes: Uint8Array }[], options?: object) => Promise<object> | object }} */
+    #gerberProjectLoader
+
     /**
-     * @param {{ altiumParser?: any, kicadParser?: any, kicadProjectLoader?: any, circuitJsonParser?: any }} [dependencies]
+     * @param {{ altiumParser?: any, kicadParser?: any, kicadProjectLoader?: any, circuitJsonParser?: any, gerberParser?: any, gerberProjectLoader?: any }} [dependencies]
      */
     constructor(dependencies = {}) {
         this.#altiumParser = dependencies.altiumParser || AltiumParser
@@ -29,6 +36,9 @@ export class EcadParserService {
             dependencies.kicadProjectLoader || KicadProjectLoader
         this.#circuitJsonParser =
             dependencies.circuitJsonParser || CircuitJsonParser
+        this.#gerberParser = dependencies.gerberParser || GerberParser
+        this.#gerberProjectLoader =
+            dependencies.gerberProjectLoader || GerberProjectLoader
     }
 
     /**
@@ -55,6 +65,12 @@ export class EcadParserService {
             )
         }
 
+        if (role.sourceFormat === 'gerber') {
+            return EcadParserService.#prepareAppDocument(
+                this.#gerberParser.parseArrayBuffer(fileName, buffer)
+            )
+        }
+
         return EcadParserService.#prepareAppDocument(
             this.#altiumParser.parseArrayBuffer(fileName, buffer)
         )
@@ -76,6 +92,13 @@ export class EcadParserService {
         const circuitJsonEntries = normalizedEntries.filter((entry) => {
             return entry.role?.sourceFormat === 'circuitjson'
         })
+        const gerberEntries = EcadParserService.#resolveGerberEntries(
+            normalizedEntries,
+            this.#gerberProjectLoader
+        )
+        const gerberEntryNames = new Set(
+            gerberEntries.map((entry) => entry.name)
+        )
         const documents = []
         const diagnostics = []
         const assets = []
@@ -108,24 +131,52 @@ export class EcadParserService {
             }
         }
 
+        if (gerberEntries.length) {
+            try {
+                const result = await this.#gerberProjectLoader.loadEntries(
+                    gerberEntries.map((entry) => ({
+                        name: entry.name,
+                        bytes: new Uint8Array(entry.buffer)
+                    }))
+                )
+                documents.push(
+                    ...EcadParserService.#documentsFromResult(result)
+                )
+                diagnostics.push(...(result.diagnostics || []))
+                assets.push(...(result.assets || []))
+                project = result.project || project
+            } catch (error) {
+                diagnostics.push(
+                    EcadParserService.#buildParseDiagnostic(
+                        gerberEntries[0]?.name || 'Gerber fabrication package',
+                        error
+                    )
+                )
+            }
+        }
+
+        const kicadParseEntries = kicadEntries.filter(
+            (entry) => !gerberEntryNames.has(entry.name)
+        )
+
         if (
-            kicadEntries.length === 1 &&
-            kicadEntries[0].role.fileType !== 'zip'
+            kicadParseEntries.length === 1 &&
+            kicadParseEntries[0].role.fileType !== 'zip'
         ) {
             documents.push(
                 this.#kicadParser.parseArrayBuffer(
-                    kicadEntries[0].name,
-                    kicadEntries[0].buffer
+                    kicadParseEntries[0].name,
+                    kicadParseEntries[0].buffer
                 )
             )
         }
 
         if (
-            kicadEntries.length > 1 ||
-            kicadEntries[0]?.role.fileType === 'zip'
+            kicadParseEntries.length > 1 ||
+            kicadParseEntries[0]?.role.fileType === 'zip'
         ) {
             const result = await this.#kicadProjectLoader.loadEntries(
-                kicadEntries.map((entry) => ({
+                kicadParseEntries.map((entry) => ({
                     name: entry.name,
                     bytes: new Uint8Array(entry.buffer)
                 }))
@@ -507,5 +558,48 @@ export class EcadParserService {
         }
 
         return []
+    }
+
+    /**
+     * Resolves entries that should be handled by the Gerber package loader.
+     * @param {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]} entries Normalized entries.
+     * @param {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean }} gerberProjectLoader Gerber project loader.
+     * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]}
+     */
+    static #resolveGerberEntries(entries, gerberProjectLoader) {
+        const directEntries = entries.filter(
+            (entry) => entry.role?.sourceFormat === 'gerber'
+        )
+        const zipEntries = entries.filter(
+            (entry) => entry.role?.fileType === 'zip'
+        )
+        const gerberZipEntries = zipEntries.filter((entry) =>
+            EcadParserService.#canLoadGerberEntries(gerberProjectLoader, [
+                entry
+            ])
+        )
+
+        return [...directEntries, ...gerberZipEntries]
+    }
+
+    /**
+     * Checks whether the Gerber loader accepts a set of entries.
+     * @param {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean }} gerberProjectLoader Gerber project loader.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Candidate entries.
+     * @returns {boolean}
+     */
+    static #canLoadGerberEntries(gerberProjectLoader, entries) {
+        if (typeof gerberProjectLoader?.canLoadEntries !== 'function') {
+            return false
+        }
+
+        return Boolean(
+            gerberProjectLoader.canLoadEntries(
+                entries.map((entry) => ({
+                    name: entry.name,
+                    bytes: new Uint8Array(entry.buffer)
+                }))
+            )
+        )
     }
 }

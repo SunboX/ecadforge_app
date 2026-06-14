@@ -126,6 +126,12 @@ class FakeButton {
         ) {
             return this
         }
+        if (
+            selector === '[data-gerber-render-mode]' &&
+            this.getAttribute('data-gerber-render-mode')
+        ) {
+            return this
+        }
         return null
     }
 }
@@ -387,6 +393,34 @@ test('ViewerSidebarEventBinder binds selected part export buttons', () => {
             documentId: 'doc-1',
             componentKey: 'U1',
             format: 'kicad'
+        }
+    ])
+    assert.equal(event.defaultPrevented, true)
+})
+
+/**
+ * Verifies Gerber file rows emit render mode and source-layer details.
+ */
+test('ViewerSidebarEventBinder binds Gerber render file rows', () => {
+    const mount = new FakeMount()
+    const selections = []
+    const button = new FakeButton({
+        'data-gerber-document-id': 'doc-1',
+        'data-gerber-render-mode': 'separated',
+        'data-gerber-layer-id': 'layer-bottom'
+    })
+
+    ViewerSidebarEventBinder.bindGerberRenderSelection(mount, (change) =>
+        selections.push(change)
+    )
+
+    const event = mount.click(button)
+
+    assert.deepEqual(selections, [
+        {
+            documentId: 'doc-1',
+            renderMode: 'separated',
+            layerId: 'layer-bottom'
         }
     ])
     assert.equal(event.defaultPrevented, true)

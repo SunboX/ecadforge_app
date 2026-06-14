@@ -3,6 +3,30 @@ import test from 'node:test'
 import { PcbScene3dBuilder } from '../../node_modules/kicad-toolkit/src/scene3d.mjs'
 
 /**
+ * Converts millimeters to mils.
+ * @param {number} value Millimeter value.
+ * @returns {number}
+ */
+function millimetersToMil(value) {
+    return (Number(value) * 1000) / 25.4
+}
+
+/**
+ * Samples the geometric endpoint represented by one arc row.
+ * @param {{ x: number, y: number, radius: number, startAngle: number, sweepAngle: number }} arc
+ * Arc row.
+ * @returns {{ x: number, y: number }}
+ */
+function sampleArcEndpoint(arc) {
+    const angle = ((arc.startAngle + arc.sweepAngle) * Math.PI) / 180
+
+    return {
+        x: arc.x + Math.cos(angle) * arc.radius,
+        y: arc.y + Math.sin(angle) * arc.radius
+    }
+}
+
+/**
  * Verifies KiCad 3D scene data carries drill cutouts for silkscreen artwork.
  */
 test('kicad-toolkit scene3d clips silkscreen fills around drilled pads and vias', () => {
@@ -83,6 +107,104 @@ test('kicad-toolkit scene3d clips silkscreen fills around drilled pads and vias'
         ),
         'Expected partially overlapping drill contours to stay out of fill holes'
     )
+})
+
+/**
+ * Verifies KiCad 3D scene data carries copper keepouts for silkscreen artwork.
+ */
+test('kicad-toolkit scene3d clips silkscreen around visible copper pads', () => {
+    const scene = PcbScene3dBuilder.build({
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 500,
+                heightMil: 400,
+                segments: []
+            },
+            pads: [
+                {
+                    x: 120,
+                    y: 82,
+                    sizeTopX: 80,
+                    sizeTopY: 80,
+                    shapeTop: 1,
+                    holeDiameter: 30
+                }
+            ],
+            vias: [],
+            kicadBoard: {
+                drawings: [
+                    {
+                        type: 'line',
+                        layer: 'F.SilkS',
+                        strokeWidth: 0.2,
+                        start: { x: 2, y: 2 },
+                        end: { x: 5, y: 2 }
+                    }
+                ],
+                texts: []
+            },
+            components: []
+        }
+    })
+    const keepout = scene.detail.silkscreen.top.copperCutouts[0]
+    const xs = keepout.map((point) => point.x)
+    const ys = keepout.map((point) => point.y)
+
+    assert.equal(scene.detail.silkscreen.top.drillCutouts.length, 1)
+    assert.equal(keepout.length, 32)
+    assert.equal(Math.round(Math.max(...xs) - Math.min(...xs)), 80)
+    assert.equal(Math.round(Math.max(...ys) - Math.min(...ys)), 80)
+})
+
+/**
+ * Verifies long KiCad footprint silkscreen arcs survive scene3d conversion.
+ */
+test('kicad-toolkit scene3d preserves long silkscreen arc sweeps', () => {
+    const scene = PcbScene3dBuilder.build({
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 500,
+                heightMil: 400,
+                segments: []
+            },
+            pads: [],
+            vias: [],
+            kicadBoard: {
+                drawings: [
+                    {
+                        type: 'arc',
+                        layer: 'B.SilkS',
+                        side: 'back',
+                        strokeWidth: 0.2,
+                        start: { x: -4, y: -2 },
+                        mid: { x: 8, y: 0 },
+                        end: { x: -4, y: 2 }
+                    }
+                ],
+                texts: []
+            },
+            components: []
+        }
+    })
+    const arc = scene.detail.silkscreen.bottom.arcs[0]
+    const endpoint = sampleArcEndpoint(arc)
+    const expectedEnd = {
+        x: millimetersToMil(-4),
+        y: scene.board.centerY * 2 - millimetersToMil(2)
+    }
+
+    assert.ok(arc)
+    assert.ok(Math.abs(arc.sweepAngle) > 180)
+    assert.ok(Math.abs(endpoint.x - expectedEnd.x) < 0.001)
+    assert.ok(Math.abs(endpoint.y - expectedEnd.y) < 0.001)
 })
 
 /**

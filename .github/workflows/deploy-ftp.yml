@@ -36,15 +36,6 @@ jobs:
                   node-version: 20
                   cache: npm
 
-            - name: Checkout local toolkit dependencies
-              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
-              run: |
-                  rm -rf ../altium-toolkit ../kicad-toolkit ../circuitjson-toolkit ../pcb-scene3d-viewer
-                  git clone --depth 1 https://github.com/SunboX/altium-toolkit.git ../altium-toolkit
-                  git clone --depth 1 https://github.com/SunboX/kicad-toolkit.git ../kicad-toolkit
-                  git clone --depth 1 https://github.com/SunboX/circuitjson-toolkit.git ../circuitjson-toolkit
-                  git clone --depth 1 https://github.com/SunboX/pcb-scene3d-viewer.git ../pcb-scene3d-viewer
-
             - name: Install frontend build dependencies
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               run: npm ci

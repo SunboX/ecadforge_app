@@ -14,7 +14,18 @@
     stroke-width: 0.54;
 }
 
+.pcb-svg--gerber .pcb-board {
+    fill: var(--pcb-board-fill);
+    stroke: var(--pcb-board-stroke);
+    stroke-width: 0.54;
+}
+
 .pcb-svg--kicad .pcb-zone {
+    fill: var(--pcb-surface-fill);
+    stroke: none;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-region {
     fill: var(--pcb-surface-fill);
     stroke: none;
 }
@@ -29,13 +40,31 @@
     opacity: 0.94;
 }
 
+.pcb-svg--gerber .pcb-copper--surface .pcb-track {
+    stroke: var(--pcb-surface-track-color);
+    opacity: 0.94;
+}
+
 .pcb-svg--kicad .pcb-zone[data-layer='B.Cu'] {
+    fill: var(--pcb-subsurface-fill);
+}
+
+.pcb-svg--gerber .pcb-copper--subsurface {
+    opacity: 1;
+}
+
+.pcb-svg--gerber .pcb-copper--subsurface .pcb-region {
     fill: var(--pcb-subsurface-fill);
 }
 
 .pcb-svg--kicad line.pcb-segment[data-layer='B.Cu'],
 .pcb-svg--kicad path.pcb-arc[data-layer='B.Cu'],
 .pcb-svg--kicad .pcb-drawing--copper[data-layer='B.Cu'] {
+    stroke: var(--pcb-subsurface-track-color);
+    opacity: 0.78;
+}
+
+.pcb-svg--gerber .pcb-copper--subsurface .pcb-track {
     stroke: var(--pcb-subsurface-track-color);
     opacity: 0.78;
 }
@@ -51,10 +80,32 @@
     opacity: 0.82;
 }
 
+.pcb-svg--gerber .pcb-drawing--silk {
+    fill: rgba(66, 93, 112, 0.1);
+    stroke: rgba(66, 93, 112, 0.72);
+    opacity: 0.82;
+}
+
 .pcb-svg--kicad :is(circle, rect).pcb-pad {
     fill: var(--pcb-copper-solid-fill);
     stroke: var(--pcb-surface-track-color);
     opacity: 0.96;
+}
+
+.pcb-svg--gerber .pcb-pad {
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-pad {
+    fill: var(--pcb-copper-solid-fill);
+    stroke: var(--pcb-surface-track-color);
+    opacity: 0.96;
+}
+
+.pcb-svg--gerber .pcb-copper--subsurface .pcb-pad {
+    fill: var(--pcb-subsurface-track-color);
+    stroke: var(--pcb-subsurface-track-color);
+    opacity: 0.72;
 }
 
 .pcb-svg--kicad circle.pcb-via {
@@ -62,9 +113,27 @@
     stroke: var(--pcb-surface-track-color);
 }
 
+.pcb-svg--gerber .pcb-copper .pcb-via {
+    fill: var(--pcb-via-ring-fill);
+    stroke: var(--pcb-surface-track-color);
+    opacity: 1;
+}
+
 .pcb-svg--kicad :is(.pcb-via-drill, .pcb-pad-drill) {
     fill: var(--pcb-via-hole-fill);
     stroke: rgba(255, 255, 255, 0.72);
+}
+
+.pcb-svg--gerber .pcb-via-drill {
+    fill: var(--pcb-via-hole-fill);
+    stroke: rgba(255, 255, 255, 0.72);
+}
+
+.pcb-svg--gerber .gerber-layer .gerber-polarity-clear,
+.pcb-svg--gerber .gerber-layer .gerber-exposure-clear {
+    fill: var(--canvas, #f8f5ef);
+    stroke: var(--canvas, #f8f5ef);
+    opacity: 1;
 }
 
 .pcb-svg--kicad .pcb-label {

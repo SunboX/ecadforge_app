@@ -1,4 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
@@ -23,6 +24,7 @@ export class PcbViewRenderer {
      * @param {string} [selectedComponentKey] Selected component key.
      * @param {{ [objectKey: string]: number }} [objectOpacities] Object opacity map.
      * @param {string} [selectedNetName] Selected net name.
+     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[] }} [viewerOptions] Format-specific PCB view options.
      * @returns {string}
      */
     static render(
@@ -33,14 +35,21 @@ export class PcbViewRenderer {
         hiddenObjects = [],
         selectedComponentKey = '',
         objectOpacities = {},
-        selectedNetName = ''
+        selectedNetName = '',
+        viewerOptions = {}
     ) {
         const t = UiText.createTranslator(translate)
         const normalizedSide = PcbViewRenderer.#normalizeSide(side)
+        const gerberOptions = PcbViewRenderer.#resolveGerberOptions(
+            documentModel,
+            viewerOptions
+        )
 
         return (
             '<section class="pcb-view" data-pcb-view-active-side="' +
             normalizedSide +
+            '" data-pcb-view-gerber-render-mode="' +
+            PcbViewRenderer.#escapeHtml(gerberOptions.renderMode) +
             '">' +
             '<div class="scene-3d__toolbar pcb-view__toolbar" aria-label="' +
             PcbViewRenderer.#escapeHtml(t('pcbView.boardSideAria')) +
@@ -56,7 +65,8 @@ export class PcbViewRenderer {
                 hiddenObjects,
                 selectedComponentKey,
                 objectOpacities,
-                selectedNetName
+                selectedNetName,
+                gerberOptions
             ) +
             '</div>' +
             '</section>'
@@ -85,6 +95,7 @@ export class PcbViewRenderer {
      * @param {string} selectedComponentKey Selected component key.
      * @param {{ [objectKey: string]: number }} objectOpacities Object opacity map.
      * @param {string} selectedNetName Selected net name.
+     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
      * @returns {string}
      */
     static #renderPcbSvg(
@@ -94,11 +105,13 @@ export class PcbViewRenderer {
         hiddenObjects,
         selectedComponentKey,
         objectOpacities,
-        selectedNetName
+        selectedNetName,
+        gerberOptions
     ) {
         const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
             documentModel,
-            side
+            side,
+            gerberOptions
         )
         const layerTargets = PcbViewRenderer.#resolveLayerVisibilityTargets(
             documentModel,
@@ -137,11 +150,16 @@ export class PcbViewRenderer {
      * Renders or reuses the state-independent PCB SVG for one document side.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
+     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
      * @returns {string}
      */
-    static #renderBasePcbSvg(documentModel, side) {
+    static #renderBasePcbSvg(documentModel, side, gerberOptions) {
         if (!PcbViewRenderer.#canCacheDocument(documentModel)) {
-            return PcbViewRenderer.#createBasePcbSvg(documentModel, side)
+            return PcbViewRenderer.#createBasePcbSvg(
+                documentModel,
+                side,
+                gerberOptions
+            )
         }
 
         let sideCache = PcbViewRenderer.#sideSvgCache.get(documentModel)
@@ -150,11 +168,16 @@ export class PcbViewRenderer {
             PcbViewRenderer.#sideSvgCache.set(documentModel, sideCache)
         }
 
-        const cachedMarkup = sideCache.get(side)
+        const cacheKey = PcbViewRenderer.#baseSvgCacheKey(side, gerberOptions)
+        const cachedMarkup = sideCache.get(cacheKey)
         if (cachedMarkup !== undefined) return cachedMarkup
 
-        const markup = PcbViewRenderer.#createBasePcbSvg(documentModel, side)
-        sideCache.set(side, markup)
+        const markup = PcbViewRenderer.#createBasePcbSvg(
+            documentModel,
+            side,
+            gerberOptions
+        )
+        sideCache.set(cacheKey, markup)
         return markup
     }
 
@@ -162,10 +185,16 @@ export class PcbViewRenderer {
      * Creates the state-independent PCB SVG for one document side.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
+     * @param {{ renderMode: string, layerId: string }} gerberOptions Gerber render options.
      * @returns {string}
      */
-    static #createBasePcbSvg(documentModel, side) {
-        const markup = EcadRendererService.renderPcb(documentModel, { side })
+    static #createBasePcbSvg(documentModel, side, gerberOptions) {
+        const markup = EcadRendererService.renderPcb(documentModel, {
+            side,
+            renderMode: gerberOptions.renderMode,
+            layerId: gerberOptions.layerId,
+            layerIds: gerberOptions.layerIds
+        })
         const netMarkup = PcbViewRenderer.#tagNetElements(markup)
         const componentMarkup = PcbViewRenderer.#tagComponentGroups(
             netMarkup,
@@ -279,6 +308,14 @@ export class PcbViewRenderer {
      */
     static #resolveRenderedLayerSelectors(layer, layerKey, side) {
         const text = PcbViewRenderer.#layerSearchText(layer, layerKey)
+        if (layer?.sourceFormat === 'gerber') {
+            return [
+                "[data-layer-id='" +
+                    PcbViewRenderer.#escapeCssString(layer?.id || layerKey) +
+                    "']"
+            ]
+        }
+
         if (PcbViewRenderer.#isFootprintLayer(layer, text)) {
             return ['.pcb-footprints', '.pcb-texts']
         }
@@ -570,6 +607,78 @@ export class PcbViewRenderer {
             PcbViewRenderer.#escapeHtml(label) +
             '</button>'
         )
+    }
+
+    /**
+     * Resolves Gerber render options from the document and caller options.
+     * @param {object} documentModel Document model.
+     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[] }} viewerOptions View options.
+     * @returns {{ renderMode: string, layerId: string, layerIds: string[] }}
+     */
+    static #resolveGerberOptions(documentModel, viewerOptions) {
+        if (!PcbViewRenderer.#isGerberDocument(documentModel)) {
+            return { renderMode: '', layerId: '', layerIds: [] }
+        }
+
+        const layers = PcbViewRenderer.#gerberLayers(documentModel)
+        const requestedLayerIds = Array.isArray(viewerOptions.gerberLayerIds)
+            ? viewerOptions.gerberLayerIds.map(String).filter(Boolean)
+            : []
+        const requestedLayerId = String(viewerOptions.gerberLayerId || '')
+        if (!requestedLayerIds.length && requestedLayerId) {
+            requestedLayerIds.push(requestedLayerId)
+        }
+        const validLayerIds = requestedLayerIds.filter((layerId) =>
+            layers.some((layer) => String(layer?.id || '') === layerId)
+        )
+        const layerIds = validLayerIds.length
+            ? validLayerIds
+            : [String(layers[0]?.id || '')].filter(Boolean)
+        const layerId = layerIds[0] || ''
+        const renderMode =
+            viewerOptions.gerberRenderMode === 'separated' && layerIds.length
+                ? 'separated'
+                : 'composite'
+
+        return { renderMode, layerId, layerIds }
+    }
+
+    /**
+     * Resolves Gerber source layers.
+     * @param {object} documentModel Document model.
+     * @returns {object[]}
+     */
+    static #gerberLayers(documentModel) {
+        return Array.isArray(documentModel?.pcb?.fabrication?.layers)
+            ? documentModel.pcb.fabrication.layers
+            : []
+    }
+
+    /**
+     * Returns true when a document is a Gerber fabrication document.
+     * @param {object} documentModel Document model.
+     * @returns {boolean}
+     */
+    static #isGerberDocument(documentModel) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'gerber'
+        )
+    }
+
+    /**
+     * Builds a cache key for base PCB SVG markup.
+     * @param {'top' | 'bottom'} side Active side.
+     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
+     * @returns {string}
+     */
+    static #baseSvgCacheKey(side, gerberOptions) {
+        return [
+            side,
+            String(gerberOptions.renderMode || ''),
+            String(gerberOptions.layerId || ''),
+            (gerberOptions.layerIds || []).join(',')
+        ].join('|')
     }
 
     /**

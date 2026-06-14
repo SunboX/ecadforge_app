@@ -8,7 +8,7 @@
 - `src/AnalyticsTrackerLoader.mjs`: deployed-origin analytics tracker loader that disables production-key analytics on local/private dev origins
 - `src/StartupSourceResolver.mjs`: route and query-string startup source detection
 - `src/DemoProjectRegistry.mjs`: bundled demo metadata, source URLs, and license metadata
-- `src/GitHubSourceLoader.mjs`: GitHub raw/blob/tree URL normalization, folder discovery, browser fetch handling, and project-local KiCad model asset discovery
+- `src/GitHubSourceLoader.mjs`: GitHub raw/blob/tree URL normalization, folder discovery, browser fetch handling, Gerber/CircuitJSON direct-source handling, and project-local KiCad model asset discovery
 - `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation events without file names, raw URLs, or contents
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
@@ -21,6 +21,10 @@
 - `kicad-toolkit/renderers`: deterministic KiCad schematic SVG, PCB SVG, and BOM HTML renderers
 - `kicad-toolkit/netlist-query`: normalized KiCad netlist extraction, search validation, component grouping, and traversal rules
 - `kicad-toolkit/scene3d`: complete data-only KiCad PCB 3D scene-description builders, external placement metadata, copper text detail, and model registry logic
+- `gerber-toolkit/parser`: Gerber/Excellon project loading, fabrication ZIP expansion, source-layer classification, and normalized fabrication models
+- `gerber-toolkit/renderers`: deterministic Gerber PCB SVG rendering and PCB interaction helpers
+- `gerber-toolkit/scene3d`: bare-board Gerber 3D scene-description builders from outline, copper, pad, and drill fabrication geometry
+- `circuitjson-toolkit`: CircuitJSON parsing for standards-native board and assembly data
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
@@ -35,9 +39,9 @@
 
 The current parser is intentionally pragmatic:
 
-1. Load native Altium files, KiCad files, or KiCad project bundles in the browser
-2. Extract long printable runs from Altium binary documents or read KiCad project entries
-3. Parse pipe-delimited Altium-style key/value records from those runs or KiCad 9 S-expressions from project entries
+1. Load native Altium files, KiCad files, Gerber/Excellon fabrication data, CircuitJSON documents, or project bundles in the browser
+2. Extract long printable runs from Altium binary documents, read KiCad project entries, expand Gerber ZIP archives, or parse standalone CircuitJSON JSON
+3. Parse pipe-delimited Altium-style key/value records, KiCad 9 S-expressions, Gerber/Excellon commands, or CircuitJSON objects from those sources
 4. Normalize the recovered data into one shared viewer model with `sourceFormat` as an additive discriminator
 5. Build additive schematic hierarchy, embedded-image, BOM, and connectivity metadata where supported
 6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model
@@ -46,13 +50,13 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 
 ## Data Flow
 
-1. User selects or drops Altium files, KiCad files, a KiCad project folder/ZIP, or companion model files
-2. `AppController` stores any companion 3D assets in session state and posts native design files to the parser worker
-3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium or KiCad toolkit
+1. User selects or drops Altium files, KiCad files, Gerber/Excellon files, fabrication ZIPs, CircuitJSON JSON, a KiCad project folder/ZIP, or companion model files
+2. `AppController` stores any companion 3D assets in session state and posts supported design or fabrication files to the parser worker
+3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium, KiCad, Gerber, or CircuitJSON toolkit
 4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
 5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
 6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, and mounts the interactive 3D controller when needed
-7. The app uses `EcadScene3dService` only to choose the Altium or KiCad toolkit scene-description builder; the local 3D runtime then resolves embedded STEP payloads from the normalized PCB model first, falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy.
+7. The app uses `EcadScene3dService` to choose the Altium, KiCad, Gerber, or CircuitJSON scene-description path. Gerber documents render as fabrication-derived bare boards without component bodies. The local 3D runtime resolves embedded STEP payloads from the normalized PCB model first, falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy.
 8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, and never read local paths directly
 9. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
@@ -107,7 +111,7 @@ schematic connectivity is unavailable.
 - `GET /api/component-source.php?path=...`: PHP/shared-hosting alias for the same component-source proxy paths; the upstream timeout defaults to 5 seconds and can be tuned with `ECAD_FORGE_COMPONENT_SOURCE_TIMEOUT_SECONDS`
 - `GET /robots.txt`: crawler policy that allows public app crawling and points to the production sitemap
 - `GET /sitemap.xml`: production sitemap for the app shell and crawlable view URLs
-- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Altium and KiCad Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
 
 ## Static Deployment
 

@@ -194,6 +194,28 @@ export class ViewerSidebarEventBinder {
     }
 
     /**
+     * Binds Gerber composite and source-file render selections.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {(change: { documentId: string, renderMode: string, layerId: string }) => void} callback Selection callback.
+     * @returns {void}
+     */
+    static bindGerberRenderSelection(mount, callback) {
+        ViewerSidebarEventBinder.#bindAttribute(
+            mount,
+            '[data-gerber-render-mode]',
+            (button) =>
+                callback({
+                    documentId:
+                        button.getAttribute('data-gerber-document-id') || '',
+                    renderMode:
+                        button.getAttribute('data-gerber-render-mode') ||
+                        'composite',
+                    layerId: button.getAttribute('data-gerber-layer-id') || ''
+                })
+        )
+    }
+
+    /**
      * Binds full-model ZIP export button clicks.
      * @param {HTMLElement | null} mount Sidebar mount node.
      * @param {() => void} callback Export callback.

@@ -39,6 +39,15 @@ export class PcbViewController {
     /** @type {string} */
     #selectedNetName
 
+    /** @type {'composite' | 'separated'} */
+    #gerberRenderMode
+
+    /** @type {string} */
+    #gerberLayerId
+
+    /** @type {string[]} */
+    #gerberLayerIds
+
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #onComponentSelectionChange
 
@@ -61,6 +70,9 @@ export class PcbViewController {
     #handleClick
 
     /** @type {(event: Event) => void} */
+    #handleChange
+
+    /** @type {(event: Event) => void} */
     #handlePointerMove
 
     /** @type {() => void} */
@@ -69,7 +81,7 @@ export class PcbViewController {
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
      * @param {object} documentModel Document model.
-     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, selectedNetName?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onNetSelectionChange?: ((change: { documentId: string, netName: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
+     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, selectedNetName?: string, gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onNetSelectionChange?: ((change: { documentId: string, netName: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
      */
     constructor(contentNode, documentModel, options = {}) {
         this.#contentNode = contentNode
@@ -77,6 +89,16 @@ export class PcbViewController {
         this.#documentId = String(options.documentId || '')
         this.#selectedComponentKey = String(options.selectedComponentKey || '')
         this.#selectedNetName = String(options.selectedNetName || '')
+        this.#gerberLayerIds = PcbViewController.#resolveGerberLayerIds(
+            documentModel,
+            options.gerberLayerIds,
+            options.gerberLayerId
+        )
+        this.#gerberLayerId = this.#gerberLayerIds[0] || ''
+        this.#gerberRenderMode = PcbViewController.#resolveGerberRenderMode(
+            options.gerberRenderMode,
+            this.#gerberLayerIds
+        )
         this.#side = PcbViewController.#resolveInitialSide(
             documentModel,
             options.side,
@@ -111,10 +133,12 @@ export class PcbViewController {
         this.#renderGeneration = 0
         this.#fontRefreshCompleted = false
         this.#handleClick = (event) => this.#handleClickEvent(event)
+        this.#handleChange = (event) => this.#handleChangeEvent(event)
         this.#handlePointerMove = (event) => this.#handlePointerMoveEvent(event)
         this.#handlePointerLeave = () => this.#clearClickableCursor()
 
         this.#contentNode.addEventListener('click', this.#handleClick)
+        this.#contentNode.addEventListener('change', this.#handleChange)
         this.#contentNode.addEventListener('mousemove', this.#handlePointerMove)
         this.#contentNode.addEventListener(
             'mouseleave',
@@ -132,12 +156,53 @@ export class PcbViewController {
     }
 
     /**
+     * Applies Gerber stack/file selection from external viewer chrome.
+     * @param {{ renderMode?: string, layerId?: string, layerIds?: string[] }} selection Selection details.
+     * @returns {void}
+     */
+    setGerberRenderSelection(selection = {}) {
+        if (!PcbViewController.#isGerberDocument(this.#documentModel)) {
+            return
+        }
+
+        const requestedLayerIds =
+            selection.layerIds === undefined && selection.layerId === undefined
+                ? this.#gerberLayerIds
+                : selection.layerIds
+        const nextLayerIds = PcbViewController.#resolveGerberLayerIds(
+            this.#documentModel,
+            requestedLayerIds,
+            selection.layerId
+        )
+        const nextLayerId = nextLayerIds[0] || ''
+        const nextRenderMode = PcbViewController.#resolveGerberRenderMode(
+            selection.renderMode,
+            nextLayerIds
+        )
+        if (
+            nextRenderMode === this.#gerberRenderMode &&
+            PcbViewController.#sameStringList(
+                nextLayerIds,
+                this.#gerberLayerIds
+            )
+        ) {
+            return
+        }
+
+        this.#gerberLayerId = nextLayerId
+        this.#gerberLayerIds = nextLayerIds
+        this.#gerberRenderMode = nextRenderMode
+        this.#renderSide(this.#side, { preserveViewport: true })
+    }
+
+    /**
      * Disposes current event and SVG viewport bindings.
      * @returns {void}
      */
     dispose() {
         this.#preserveCurrentViewport()
         this.#contentNode.removeEventListener('click', this.#handleClick)
+        this.#contentNode.removeEventListener('change', this.#handleChange)
         this.#contentNode.removeEventListener(
             'mousemove',
             this.#handlePointerMove
@@ -161,7 +226,20 @@ export class PcbViewController {
             return
         }
 
+        if (this.#handleGerberCompositeSelection(event)) {
+            return
+        }
+
         this.#handleBoardClick(event)
+    }
+
+    /**
+     * Handles PCB panel change events.
+     * @param {Event} event Change event.
+     * @returns {void}
+     */
+    #handleChangeEvent(event) {
+        this.#handleGerberLayerSelection(event)
     }
 
     /**
@@ -191,6 +269,60 @@ export class PcbViewController {
         }
 
         this.#renderSide(nextSide)
+        return true
+    }
+
+    /**
+     * Handles Gerber composite toggle clicks.
+     * @param {Event} event Click event.
+     * @returns {boolean}
+     */
+    #handleGerberCompositeSelection(event) {
+        const target = event.target
+        const button =
+            target &&
+            typeof target === 'object' &&
+            typeof target.closest === 'function'
+                ? target.closest('[data-pcb-view-gerber-composite]')
+                : null
+
+        if (!button || typeof button.getAttribute !== 'function') {
+            return false
+        }
+
+        event.preventDefault?.()
+        this.setGerberRenderSelection({
+            renderMode:
+                this.#gerberRenderMode === 'separated'
+                    ? 'composite'
+                    : 'separated'
+        })
+        return true
+    }
+
+    /**
+     * Handles Gerber source-layer select changes.
+     * @param {Event} event Change event.
+     * @returns {boolean}
+     */
+    #handleGerberLayerSelection(event) {
+        const target = event.target
+        const select =
+            target &&
+            typeof target === 'object' &&
+            typeof target.closest === 'function'
+                ? target.closest('[data-pcb-view-gerber-layer-select]')
+                : null
+
+        if (!select || typeof select.value !== 'string') {
+            return false
+        }
+
+        event.preventDefault?.()
+        this.setGerberRenderSelection({
+            renderMode: 'separated',
+            layerId: select.value
+        })
         return true
     }
 
@@ -249,20 +381,60 @@ export class PcbViewController {
         if (!point) {
             return null
         }
+        const hitPoint = this.#resolveHitTestPoint(svgNode, point)
 
         return {
             svgNode,
-            point,
+            point: hitPoint,
             candidates: EcadRendererService.hitTestPcb(
                 this.#documentModel,
-                point,
+                hitPoint,
                 {
                     side: this.#side,
                     hiddenLayers: this.#hiddenLayers,
-                    hiddenObjects: this.#hiddenObjects
+                    hiddenObjects: this.#hiddenObjects,
+                    renderMode: this.#gerberRenderMode,
+                    layerId: this.#gerberLayerId,
+                    layerIds: this.#gerberLayerIds
                 }
             )
         }
+    }
+
+    /**
+     * Converts rendered SVG coordinates to the document's hit-test space.
+     * @param {SVGSVGElement | HTMLElement} svgNode SVG node.
+     * @param {{ x: number, y: number }} point SVG root coordinate.
+     * @returns {{ x: number, y: number }}
+     */
+    #resolveHitTestPoint(svgNode, point) {
+        if (this.#documentModel?.sourceFormat !== 'gerber') {
+            return point
+        }
+        const viewBox = PcbViewController.#parseViewBox(
+            svgNode.getAttribute?.('viewBox')
+        )
+        const bounds = viewBox || this.#documentModel?.pcb?.bounds || {}
+        const minY = Number(bounds.minY)
+        const minX = Number(bounds.minX)
+        const maxX = Number(
+            viewBox ? viewBox.minX + viewBox.width : bounds.maxX
+        )
+        const maxY = Number(
+            viewBox ? viewBox.minY + viewBox.height : bounds.maxY
+        )
+        if (!Number.isFinite(minY) || !Number.isFinite(maxY)) {
+            return point
+        }
+
+        const x =
+            this.#side === 'bottom' &&
+            Number.isFinite(minX) &&
+            Number.isFinite(maxX)
+                ? minX + maxX - point.x
+                : point.x
+
+        return { x, y: minY + maxY - point.y }
     }
 
     /**
@@ -543,7 +715,12 @@ export class PcbViewController {
             this.#hiddenObjects,
             this.#selectedComponentKey,
             this.#objectOpacities,
-            this.#selectedNetName
+            this.#selectedNetName,
+            {
+                gerberRenderMode: this.#gerberRenderMode,
+                gerberLayerId: this.#gerberLayerId,
+                gerberLayerIds: this.#gerberLayerIds
+            }
         )
         if (!this.#restorePreservedViewport()) {
             this.#applyViewBox(preservedViewBox)
@@ -727,5 +904,87 @@ export class PcbViewController {
      */
     static #normalizeSide(side) {
         return side === 'bottom' ? 'bottom' : 'top'
+    }
+
+    /**
+     * Resolves the first source-layer id from a Gerber document.
+     * @param {object} documentModel PCB document model.
+     * @returns {string}
+     */
+    static #firstGerberLayerId(documentModel) {
+        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
+            ? documentModel.pcb.fabrication.layers
+            : []
+
+        return String(layers[0]?.id || '')
+    }
+
+    /**
+     * Returns true when the document carries fabrication source layers.
+     * @param {object} documentModel PCB document model.
+     * @returns {boolean}
+     */
+    static #isGerberDocument(documentModel) {
+        return (
+            documentModel?.sourceFormat === 'gerber' ||
+            Array.isArray(documentModel?.pcb?.fabrication?.layers)
+        )
+    }
+
+    /**
+     * Resolves a safe source-layer id for Gerber single-file rendering.
+     * @param {object} documentModel PCB document model.
+     * @param {unknown} requestedLayerId Requested layer id.
+     * @returns {string}
+     */
+    static #resolveGerberLayerIds(
+        documentModel,
+        requestedLayerIds,
+        fallbackLayerId = ''
+    ) {
+        const requested = Array.isArray(requestedLayerIds)
+            ? requestedLayerIds.map(String).filter(Boolean)
+            : []
+        const fallback = String(fallbackLayerId || '')
+        if (!requested.length && fallback) {
+            requested.push(fallback)
+        }
+        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
+            ? documentModel.pcb.fabrication.layers
+            : []
+        const availableIds = new Set(
+            layers.map((layer) => String(layer?.id || '')).filter(Boolean)
+        )
+        const selectedIds = requested.filter((id) => availableIds.has(id))
+        return selectedIds.length
+            ? selectedIds
+            : [PcbViewController.#firstGerberLayerId(documentModel)].filter(
+                  Boolean
+              )
+    }
+
+    /**
+     * Resolves whether Gerber rendering should show the full stack or one file.
+     * @param {unknown} requestedRenderMode Requested render mode.
+     * @param {string[]} layerIds Resolved source-layer ids.
+     * @returns {'composite' | 'separated'}
+     */
+    static #resolveGerberRenderMode(requestedRenderMode, layerIds) {
+        return requestedRenderMode === 'separated' && layerIds.length
+            ? 'separated'
+            : 'composite'
+    }
+
+    /**
+     * Compares two string lists by ordered value.
+     * @param {string[]} left First list.
+     * @param {string[]} right Second list.
+     * @returns {boolean}
+     */
+    static #sameStringList(left, right) {
+        return (
+            left.length === right.length &&
+            left.every((value, index) => value === right[index])
+        )
     }
 }

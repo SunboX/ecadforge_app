@@ -70,14 +70,11 @@ test('ftp workflow deploys the static frontend build artifact', async () => {
 })
 
 /**
- * Verifies the FTP workflow prepares local file dependencies before the static
- * deploy builder copies browser toolkit modules out of node_modules.
+ * Verifies the FTP workflow installs npm package dependencies before the
+ * static deploy builder copies browser toolkit modules out of node_modules.
  */
 test('ftp workflow installs browser build dependencies before static build', async () => {
     const workflow = await readFile(workflowPath, 'utf8')
-    const toolkitCheckoutIndex = workflow.indexOf(
-        'name: Checkout local toolkit dependencies'
-    )
     const installIndex = workflow.indexOf(
         'name: Install frontend build dependencies'
     )
@@ -85,25 +82,10 @@ test('ftp workflow installs browser build dependencies before static build', asy
         'name: Build static frontend deployment'
     )
 
-    assert.ok(toolkitCheckoutIndex > -1)
-    assert.ok(installIndex > toolkitCheckoutIndex)
+    assert.ok(installIndex > -1)
     assert.ok(buildIndex > installIndex)
-    assert.match(
-        workflow,
-        /git clone --depth 1 https:\/\/github\.com\/SunboX\/altium-toolkit\.git \.\.\/altium-toolkit/
-    )
-    assert.match(
-        workflow,
-        /git clone --depth 1 https:\/\/github\.com\/SunboX\/kicad-toolkit\.git \.\.\/kicad-toolkit/
-    )
-    assert.match(
-        workflow,
-        /git clone --depth 1 https:\/\/github\.com\/SunboX\/circuitjson-toolkit\.git \.\.\/circuitjson-toolkit/
-    )
-    assert.match(
-        workflow,
-        /git clone --depth 1 https:\/\/github\.com\/SunboX\/pcb-scene3d-viewer\.git \.\.\/pcb-scene3d-viewer/
-    )
+    assert.doesNotMatch(workflow, /Checkout local toolkit dependencies/)
+    assert.doesNotMatch(workflow, /git clone --depth 1/)
     assert.match(
         workflow,
         /name: Install frontend build dependencies[\s\S]*?run: npm ci/

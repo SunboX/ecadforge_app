@@ -72,6 +72,9 @@ export class AppViewPcbContentReuseModel {
             hiddenObjectKey: AppViewPcbContentReuseModel.#stringListKey(
                 snapshot?.hiddenPcbObjects?.[documentId]
             ),
+            gerberSelectionKey: AppViewPcbContentReuseModel.#stringObjectKey(
+                snapshot?.gerberRenderSelections?.[documentId]
+            ),
             locale: String(snapshot?.locale || ''),
             objectOpacityKey: AppViewPcbContentReuseModel.#objectKey(
                 snapshot?.pcbObjectOpacities?.[documentId]
@@ -98,6 +101,7 @@ export class AppViewPcbContentReuseModel {
             previous?.documentModel === next.documentModel &&
             previous?.hiddenLayerKey === next.hiddenLayerKey &&
             previous?.hiddenObjectKey === next.hiddenObjectKey &&
+            previous?.gerberSelectionKey === next.gerberSelectionKey &&
             previous?.locale === next.locale &&
             previous?.objectOpacityKey === next.objectOpacityKey &&
             previous?.parseStatus === next.parseStatus &&
@@ -129,6 +133,23 @@ export class AppViewPcbContentReuseModel {
         return JSON.stringify(
             Object.entries(value)
                 .map(([key, entryValue]) => [String(key), Number(entryValue)])
+                .sort(([left], [right]) => left.localeCompare(right))
+        )
+    }
+
+    /**
+     * Serializes a string object map in stable key order.
+     * @param {unknown} value Raw object map.
+     * @returns {string}
+     */
+    static #stringObjectKey(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return '[]'
+        }
+
+        return JSON.stringify(
+            Object.entries(value)
+                .map(([key, entryValue]) => [String(key), String(entryValue)])
                 .sort(([left], [right]) => left.localeCompare(right))
         )
     }

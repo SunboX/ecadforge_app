@@ -410,6 +410,20 @@ body.is-viewer-mode.is-viewer-report .viewer-stage {
     align-items: center;
 }
 
+.pcb-view__gerber-layer-select {
+    min-width: min(18rem, 100%);
+    border: 1px solid rgba(95, 112, 124, 0.18);
+    border-radius: 999px;
+    padding: 0.52rem 2rem 0.52rem 0.85rem;
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--text);
+}
+
+.pcb-view__gerber-layer-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .pcb-view__content {
     min-width: 0;
     min-height: 0;

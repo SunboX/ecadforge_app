@@ -535,6 +535,29 @@ body.is-viewer-mode.is-viewer-report
     cursor: default;
 }
 
+.viewer-sidebar__gerber-files {
+    display: grid;
+    gap: 0.26rem;
+    margin: 0.12rem 0 0.45rem 0.55rem;
+    padding-left: 0.7rem;
+    border-left: 2px solid rgba(15, 116, 108, 0.18);
+}
+
+.viewer-sidebar__row--gerber-file {
+    min-height: 2.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.56rem;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.viewer-sidebar__row--gerber-file.is-active {
+    box-shadow: inset 0.2rem 0 0 #0f746c;
+}
+
+.viewer-sidebar__row--gerber-file strong {
+    font-size: 0.82rem;
+}
+
 .viewer-sidebar__row--button:hover,
 .viewer-sidebar__row--button.is-active,
 .viewer-sidebar__row--layer:hover,

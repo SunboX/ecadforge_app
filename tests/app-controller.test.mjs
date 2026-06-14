@@ -670,7 +670,7 @@ test('AppController rejects invalid files without clearing the open session', as
     assert.equal(snapshot.activeFileName, 'board.PcbDoc')
     assert.equal(
         snapshot.statusMessage,
-        'This file type is not supported yet. ECAD Forge currently supports selected Altium and KiCad design files. Try a sample project or open a supported board/schematic file.'
+        'This file type is not supported yet. ECAD Forge currently supports selected Altium, KiCad, Gerber, and CircuitJSON design files. Try a sample project or open a supported board, schematic, or fabrication file.'
     )
 })
 

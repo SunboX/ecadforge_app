@@ -8,6 +8,10 @@ import {
     PcbScene3dModelRegistry as KicadScene3dModelRegistry,
     PcbScene3dScenePreparator as KicadScene3dScenePreparator
 } from 'kicad-toolkit/scene3d'
+import {
+    PcbScene3dBuilder as GerberScene3dBuilder,
+    PcbScene3dScenePreparator as GerberScene3dScenePreparator
+} from 'gerber-toolkit/scene3d'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
@@ -23,6 +27,10 @@ export class EcadScene3dService {
     static build(documentModel, options = {}) {
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return documentModel
+        }
+
+        if (EcadScene3dService.#isGerber(documentModel)) {
+            return GerberScene3dBuilder.build(documentModel, options)
         }
 
         return EcadScene3dService.#isKiCad(documentModel)
@@ -41,6 +49,10 @@ export class EcadScene3dService {
             return documentModel
         }
 
+        if (EcadScene3dService.#isGerber(documentModel)) {
+            return GerberScene3dScenePreparator.prepare(documentModel, options)
+        }
+
         return EcadScene3dService.#isKiCad(documentModel)
             ? KicadScene3dScenePreparator.prepare(documentModel, options)
             : AltiumScene3dScenePreparator.prepare(documentModel, options)
@@ -54,6 +66,10 @@ export class EcadScene3dService {
      */
     static createModelRegistry(documentModel, sessionAssets) {
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
+            return null
+        }
+
+        if (EcadScene3dService.#isGerber(documentModel)) {
             return null
         }
 
@@ -90,6 +106,18 @@ export class EcadScene3dService {
         return (
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'circuitjson'
+        )
+    }
+
+    /**
+     * Returns true for Gerber fabrication document models.
+     * @param {object} documentModel Document model.
+     * @returns {boolean}
+     */
+    static #isGerber(documentModel) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'gerber'
         )
     }
 }

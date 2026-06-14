@@ -208,7 +208,10 @@ export class PcbLayerVisibilityModel {
         const aliases = new Set(hidden)
         PcbLayerVisibilityModel.resolveLayers(documentModel).forEach(
             (layer, index) => {
-                const key = PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+                const key = PcbLayerVisibilityModel.resolveLayerKey(
+                    layer,
+                    index
+                )
                 if (!hidden.has(key)) {
                     return
                 }
@@ -240,7 +243,7 @@ export class PcbLayerVisibilityModel {
             return PcbLayerVisibilityModel.#isCopperLayer(text)
         }
         if (preset === 'drawings') {
-            return !PcbLayerVisibilityModel.#isCopperLayer(text)
+            return PcbLayerVisibilityModel.#isDrawingLayer(text)
         }
         return true
     }
@@ -333,7 +336,11 @@ export class PcbLayerVisibilityModel {
             layer?.layer,
             layer?.type,
             layer?.kind,
-            layer?.side
+            layer?.side,
+            layer?.role,
+            layer?.id,
+            layer?.fileName,
+            layer?.sourceFormat
         ]
             .filter(Boolean)
             .join(' ')
@@ -366,9 +373,32 @@ export class PcbLayerVisibilityModel {
     static #isCopperLayer(text) {
         return (
             /\b(cu|copper)\b/.test(text) ||
+            /(^|[._\-\s])cu($|[._\-\s])/.test(text) ||
             /\b(top|bottom)\s+layer\b/.test(text) ||
             /\bmid[-\s]?layer\b/.test(text) ||
             /\binternal\s+plane\b/.test(text)
+        )
+    }
+
+    /**
+     * Returns true for documentation or board drawing layers.
+     * @param {string} text Search text.
+     * @returns {boolean}
+     */
+    static #isDrawingLayer(text) {
+        if (
+            /\b(mask|soldermask|solder\s+mask|paste|drill|drl)\b/.test(text) &&
+            !/\b(drill|drl)[-_\s]?map\b/.test(text)
+        ) {
+            return false
+        }
+
+        return (
+            /\b(silk|silkscreen|overlay|legend)\b/.test(text) ||
+            /\b(edge|edge[-_\s]?cuts|outline|profile|dimension)\b/.test(text) ||
+            /\b(drawing|drawings|dwg|mechanical|mech)\b/.test(text) ||
+            /\b(fab|assembly|courtyard|crtyd)\b/.test(text) ||
+            /\b(drill|drl)[-_\s]?map\b/.test(text)
         )
     }
 }

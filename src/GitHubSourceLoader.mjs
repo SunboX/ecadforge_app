@@ -548,7 +548,7 @@ export class GitHubSourceLoader {
 
         if (!role) {
             throw new Error(
-                'This GitHub file type is not supported yet. ECAD Forge supports selected Altium, KiCad, and CircuitJSON design files.'
+                'This GitHub file type is not supported yet. ECAD Forge supports selected Altium, KiCad, Gerber, and CircuitJSON design files.'
             )
         }
 
@@ -648,10 +648,16 @@ export class GitHubSourceLoader {
      * @returns {{ rawUrl: string, fileName: string }[]}
      */
     static #resolveProjectFiles(resolved) {
-        if (Array.isArray(resolved.projectFiles) && resolved.projectFiles.length) {
+        if (
+            Array.isArray(resolved.projectFiles) &&
+            resolved.projectFiles.length
+        ) {
             const sourceFiles = resolved.projectFiles
             return resolved.fileType === 'prjpcb'
-                ? [{ rawUrl: resolved.rawUrl, fileName: resolved.fileName }, ...sourceFiles]
+                ? [
+                      { rawUrl: resolved.rawUrl, fileName: resolved.fileName },
+                      ...sourceFiles
+                  ]
                 : sourceFiles
         }
 
@@ -973,10 +979,8 @@ export class GitHubSourceLoader {
      */
     static #resolveBoardUrl(resolved) {
         const projectBoard = (resolved.projectFiles || []).find((file) => {
-            return (
-                EcadFormatRegistry.resolveNativeRole(file?.fileName)
-                    ?.fileType === 'pcbdoc'
-            )
+            const role = EcadFormatRegistry.resolveNativeRole(file?.fileName)
+            return role?.fileType === 'pcbdoc'
         })
         if (projectBoard) {
             return projectBoard.rawUrl
@@ -986,13 +990,8 @@ export class GitHubSourceLoader {
             return resolved.rawUrl.replace(/\.kicad_pro$/i, '.kicad_pcb')
         }
 
-        if (
-            resolved.fileType === 'kicad_pcb' ||
-            resolved.fileType === 'pcbdoc'
-        ) {
-            return resolved.rawUrl
-        }
-
-        return ''
+        return ['kicad_pcb', 'pcbdoc'].includes(resolved.fileType)
+            ? resolved.rawUrl
+            : ''
     }
 }

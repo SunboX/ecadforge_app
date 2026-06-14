@@ -26,6 +26,11 @@ export class AppViewPcbControllerBinder {
     }) {
         const documentId = String(snapshot?.activeDocumentId || '')
         const objectOpacities = snapshot?.pcbObjectOpacities?.[documentId]
+        const gerberSelection =
+            AppViewPcbControllerBinder.#resolveGerberRenderSelection(
+                snapshot,
+                documentId
+            )
         const controller = new PcbViewController(
             contentNode,
             snapshot.documentModel,
@@ -52,6 +57,9 @@ export class AppViewPcbControllerBinder {
                 selectedNetName: String(
                     snapshot?.selectedNets?.[documentId] || ''
                 ),
+                gerberRenderMode: gerberSelection.renderMode,
+                gerberLayerId: gerberSelection.layerId,
+                gerberLayerIds: gerberSelection.layerIds,
                 onComponentSelectionChange,
                 onNetSelectionChange,
                 translate
@@ -81,5 +89,31 @@ export class AppViewPcbControllerBinder {
         const documentId = String(snapshot?.activeDocumentId || '')
         const hiddenObjects = snapshot?.hiddenPcbObjects?.[documentId]
         return Array.isArray(hiddenObjects) ? hiddenObjects : []
+    }
+
+    /**
+     * Resolves the active Gerber render selection for a document.
+     * @param {object} snapshot Viewer snapshot.
+     * @param {string} documentId Active document id.
+     * @returns {{ renderMode: string, layerId: string, layerIds: string[] }}
+     */
+    static #resolveGerberRenderSelection(snapshot, documentId) {
+        const selection = snapshot?.gerberRenderSelections?.[documentId]
+        if (!selection || typeof selection !== 'object') {
+            return { renderMode: '', layerId: '', layerIds: [] }
+        }
+        const layerIds = Array.isArray(selection.layerIds)
+            ? selection.layerIds.map(String).filter(Boolean)
+            : []
+        const layerId = String(selection.layerId || layerIds[0] || '')
+
+        return {
+            renderMode:
+                selection.renderMode === 'separated'
+                    ? 'separated'
+                    : 'composite',
+            layerId,
+            layerIds
+        }
     }
 }

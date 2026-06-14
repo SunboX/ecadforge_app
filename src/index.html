@@ -9,18 +9,18 @@
         />
         <meta
             name="description"
-            content="Open Altium, KiCad and CircuitJSON designs locally in your browser. View schematics, PCB layouts, 3D boards, BOMs and diagnostics without uploading your files."
+            content="Open Altium, KiCad, Gerber and CircuitJSON designs locally in your browser. View schematics, PCB layouts, fabrication layers, 3D boards, BOMs and diagnostics without uploading your files."
             data-i18n-attr="content:app.metaDescription"
         />
         <meta name="robots" content="index,follow" />
         <meta
             property="og:title"
-            content="ECAD Forge – Altium, KiCad & CircuitJSON Viewer in Your Browser"
+            content="ECAD Forge – Altium, KiCad, Gerber & CircuitJSON Viewer in Your Browser"
             data-i18n-attr="content:app.ogTitle"
         />
         <meta
             property="og:description"
-            content="View native Altium, KiCad and CircuitJSON designs locally in your browser — no upload, no account, no installation."
+            content="View Altium, KiCad, Gerber and CircuitJSON designs locally in your browser — no upload, no account, no installation."
             data-i18n-attr="content:app.ogDescription"
         />
         <meta
@@ -30,7 +30,8 @@
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://ecadforge.app/" />
         <title>
-            ECAD Forge - Altium, KiCad & CircuitJSON Viewer in Your Browser
+            ECAD Forge - Altium, KiCad, Gerber & CircuitJSON Viewer in Your
+            Browser
         </title>
         <link rel="canonical" href="https://ecadforge.app/" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -41,7 +42,7 @@
                 "name": "ECAD Forge",
                 "applicationCategory": "DesignApplication",
                 "operatingSystem": "Any",
-                "description": "Open Altium, KiCad and CircuitJSON designs locally in your browser. View schematics, PCB layouts, 3D boards, BOMs and diagnostics without uploading your files.",
+                "description": "Open Altium, KiCad, Gerber and CircuitJSON designs locally in your browser. View schematics, PCB layouts, fabrication layers, 3D boards, BOMs and diagnostics without uploading your files.",
                 "url": "https://ecadforge.app/",
                 "offers": {
                     "@type": "Offer",
@@ -63,6 +64,10 @@
                     "kicad-toolkit/netlist-query": "/node_modules/kicad-toolkit/src/netlist-query.mjs",
                     "kicad-toolkit/renderers": "/node_modules/kicad-toolkit/src/renderers.mjs",
                     "kicad-toolkit/scene3d": "/node_modules/kicad-toolkit/src/scene3d.mjs",
+                    "gerber-toolkit": "/node_modules/gerber-toolkit/src/index.mjs",
+                    "gerber-toolkit/parser": "/node_modules/gerber-toolkit/src/parser.mjs",
+                    "gerber-toolkit/renderers": "/node_modules/gerber-toolkit/src/renderers.mjs",
+                    "gerber-toolkit/scene3d": "/node_modules/gerber-toolkit/src/scene3d.mjs",
                     "circuitjson-toolkit": "/node_modules/circuitjson-toolkit/src/index.mjs",
                     "pcb-scene3d-viewer": "/node_modules/pcb-scene3d-viewer/src/index.mjs",
                     "pcb-scene3d-viewer/scene3d": "/node_modules/pcb-scene3d-viewer/src/scene3d.mjs",
@@ -93,7 +98,8 @@
                     <h1 data-i18n="app.title">ECAD Forge</h1>
                 </a>
                 <p class="topbar__description" data-i18n="app.subtitle">
-                    Private ECAD viewer for Altium, KiCad &amp; CircuitJSON.
+                    Private ECAD viewer for Altium, KiCad, Gerber &amp;
+                    CircuitJSON.
                 </p>
                 <div class="toolbar">
                     <label class="file-pill" for="fileInput" data-local-open>
@@ -115,7 +121,7 @@
                         class="sr-only"
                         type="file"
                         multiple
-                        accept=".SchDoc,.PcbDoc,.PrjPcb,.json,.kicad_pro,.kicad_sch,.kicad_pcb,.zip,.wrl,.vrml,.step,.stp"
+                        accept=".SchDoc,.PcbDoc,.PrjPcb,.json,.kicad_pro,.kicad_sch,.kicad_pcb,.gbr,.gtl,.gbl,.gto,.gbo,.gts,.gbs,.gtp,.gbp,.gko,.gm1,.drl,.xln,.zip,.wrl,.vrml,.step,.stp"
                     />
                     <label
                         class="file-pill file-pill--secondary"
@@ -187,7 +193,8 @@
                         PRIVATE &middot; LOCAL &middot; NO UPLOAD
                     </p>
                     <h2 data-i18n="app.dropTitle">
-                        Open Altium, KiCad &amp; CircuitJSON designs locally
+                        Open Altium, KiCad, Gerber &amp; CircuitJSON designs
+                        locally
                     </h2>
                     <p class="dropzone__copy" data-i18n="app.dropCopy">
                         View schematics, PCB layouts, 3D boards, BOMs and
@@ -460,6 +467,17 @@
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
                             >
+                                <path d="M6 5h12v14H6z" />
+                                <path d="M9 8h6M9 12h6M9 16h3" />
+                            </svg>
+                            Gerber ZIP
+                        </span>
+                        <span class="dropzone__tag">
+                            <svg
+                                class="support-tag__icon support-tag__icon--board"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
                                 <path d="M6 4h9l3 3v13H6z" />
                                 <path d="M15 4v4h4M9 12h6M9 16h4" />
                             </svg>
@@ -553,8 +571,9 @@
                         id="statusMessage"
                         data-i18n="status.ready"
                     >
-                        Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files
-                        here. Files are processed locally in your browser.
+                        Drop .PcbDoc, .SchDoc, .kicad_pcb, Gerber/Excellon
+                        files, fabrication ZIPs, or KiCad project files here.
+                        Files are processed locally in your browser.
                     </p>
                 </div>
             </section>

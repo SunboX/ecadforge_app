@@ -646,9 +646,17 @@ test('server serves versioned HTML and module imports', async (t) => {
 
     assert.equal(parserServiceResponse.ok, true)
     assert.doesNotMatch(parserServiceSource, /from ['"]circuitjson-toolkit['"]/)
+    assert.doesNotMatch(
+        parserServiceSource,
+        /from ['"]gerber-toolkit\/parser['"]/
+    )
     assert.match(
         parserServiceSource,
         /from ['"]\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=/
+    )
+    assert.match(
+        parserServiceSource,
+        /from ['"]\/node_modules\/gerber-toolkit\/src\/parser\.mjs\?v=/
     )
 
     assert.equal(sceneWorkerResponse.ok, true)

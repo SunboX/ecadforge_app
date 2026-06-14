@@ -3,7 +3,7 @@
 ## Local-First Defaults
 
 - Static app and metadata endpoints run locally
-- Native Altium and KiCad files are parsed in the browser and are not uploaded anywhere by this app
+- Altium, KiCad, Gerber/Excellon, and CircuitJSON files are parsed in the browser and are not uploaded anywhere by this app
 - Keep sensitive configuration in `.env` and out of Git
 
 ## Input Handling
@@ -22,4 +22,4 @@
 
 - The browser app does not make outbound network calls unless the user enables the optional 3D missing-model search checkbox
 - The only runtime HTTP requests are local calls to `/api/app-meta`, with `/api/app-meta.php` as a PHP-host fallback for version metadata
-- When 3D missing-model search is enabled, KiCad standard-library model paths can be fetched from the public KiCad 3D package library. If an exact KiCad package filename is missing, the app can read the same public package directory index and try a close same-folder package match. Component lookup terms/model ids can also be sent through the same-origin `/api/component-source/*` proxy to the configured component source; native design files are not uploaded
+- When 3D missing-model search is enabled, KiCad standard-library model paths can be fetched from the public KiCad 3D package library. If an exact KiCad package filename is missing, the app can read the same public package directory index and try a close same-folder package match. Component lookup terms/model ids can also be sent through the same-origin `/api/component-source/*` proxy to the configured component source; native design and fabrication files are not uploaded

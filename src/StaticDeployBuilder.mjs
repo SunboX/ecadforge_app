@@ -19,6 +19,10 @@ const browserDependencyAssets = [
         outputParts: ['node_modules', 'circuitjson-toolkit', 'src']
     },
     {
+        sourceParts: ['node_modules', 'gerber-toolkit', 'src'],
+        outputParts: ['node_modules', 'gerber-toolkit', 'src']
+    },
+    {
         sourceParts: ['node_modules', 'pcb-scene3d-viewer', 'src'],
         outputParts: ['node_modules', 'pcb-scene3d-viewer', 'src']
     },

@@ -528,7 +528,6 @@ class FakeSidebarNode extends FakeNode {
         if (button) this.dispatch('click', { target: button })
     }
 
-
     /**
      * @param {string} presetName
      * @returns {void}
@@ -881,9 +880,9 @@ test('AppView binds PCB component selection clicks', () => {
 
     const rail = fakeDocument.querySelector('#documentRail')
     rail.clickComponent('R1')
-    const selectedRow = rail.querySelectorAll('[data-pcb-component-key]').find(
-        (row) => row.getAttribute('data-pcb-component-key') === 'R1'
-    )
+    const selectedRow = rail
+        .querySelectorAll('[data-pcb-component-key]')
+        .find((row) => row.getAttribute('data-pcb-component-key') === 'R1')
 
     assert.deepEqual(received, [
         {

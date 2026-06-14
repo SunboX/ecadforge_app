@@ -1,7 +1,7 @@
 {
     "name": "ecadforge_app",
-    "version": "1.6.0",
-    "description": "Browser-based viewer for native Altium and KiCad schematics, PCB files, and KiCad projects",
+    "version": "1.7.0",
+    "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
     "license": "AGPL-3.0-or-later",
     "type": "module",
@@ -18,8 +18,9 @@
         "circuitjson-toolkit": "^1.0.3",
         "express": "^5.1.0",
         "fflate": "^0.8.2",
-        "kicad-toolkit": "^1.0.10",
-        "pcb-scene3d-viewer": "^1.1.2",
+        "gerber-toolkit": "^0.1.18",
+        "kicad-toolkit": "^1.0.11",
+        "pcb-scene3d-viewer": "^1.1.10",
         "three": "^0.183.2"
     },
     "devDependencies": {

@@ -112,6 +112,10 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/circuitjson-toolkit/src/index.mjs'
     )
+    const gerberToolkitSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/gerber-toolkit/src/parser.mjs'
+    )
     const scene3dViewerSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
@@ -182,6 +186,11 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         'node_modules/circuitjson-toolkit/src/index.mjs'
     )
     assert.match(circuitJsonToolkitSource, /CircuitJsonParser/)
+    assertNotHtmlShell(
+        gerberToolkitSource,
+        'node_modules/gerber-toolkit/src/parser.mjs'
+    )
+    assert.match(gerberToolkitSource, /GerberProjectLoader/)
     assertNotHtmlShell(
         scene3dViewerSource,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'

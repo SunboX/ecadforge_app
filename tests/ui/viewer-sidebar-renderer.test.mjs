@@ -57,6 +57,40 @@ function createBoardDocument() {
 }
 
 /**
+ * Builds a compact fabrication document with source files.
+ * @returns {object}
+ */
+function createFabricationDocument() {
+    return {
+        sourceFormat: 'gerber',
+        fileName: 'fabrication.zip',
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {
+            title: 'Fabrication package',
+            layerCount: 2
+        },
+        pcb: {
+            fabrication: {
+                layers: [
+                    {
+                        id: 'layer-top',
+                        fileName: 'fabrication/top-copper.gtl',
+                        role: 'top-copper'
+                    },
+                    {
+                        id: 'layer-bottom',
+                        fileName: 'fabrication/bottom-copper.gbl',
+                        role: 'bottom-copper'
+                    }
+                ]
+            }
+        },
+        bom: []
+    }
+}
+
+/**
  * Builds a compact schematic model for sidebar rendering tests.
  * @returns {object}
  */
@@ -354,7 +388,10 @@ test('ViewerSidebarRenderer renders layer visibility actions on the row end', ()
 
     assert.match(html, /data-layer-filter/)
     assert.match(html, /aria-label="Search layers"/)
-    assert.match(html, /viewer-sidebar__component-list viewer-sidebar__layer-list/)
+    assert.match(
+        html,
+        /viewer-sidebar__component-list viewer-sidebar__layer-list/
+    )
     assert.match(
         html,
         /data-layer-group="front"><h4>Front<\/h4>[\s\S]+data-pcb-layer-key="Top Layer"/
@@ -586,6 +623,43 @@ test('ViewerSidebarRenderer filters project documents by active view', () => {
     assert.doesNotMatch(pcbHtml, /demo-sheet\.SchDoc/)
     assert.match(sceneHtml, /demo-board\.PcbDoc/)
     assert.doesNotMatch(sceneHtml, /demo-sheet\.SchDoc/)
+})
+
+/**
+ * Verifies Gerber source files are rendered as selectable rows under the
+ * active package document.
+ */
+test('ViewerSidebarRenderer renders Gerber file rows in the project panel', () => {
+    const documentModel = createFabricationDocument()
+    const html = ViewerSidebarRenderer.render({
+        activeSidebarTab: 'project',
+        activeView: 'pcb',
+        activeDocumentId: 'doc-1',
+        documents: [{ id: 'doc-1', documentModel }],
+        documentModel,
+        gerberRenderSelections: {
+            'doc-1': {
+                renderMode: 'separated',
+                layerId: 'layer-top',
+                layerIds: ['layer-top', 'layer-bottom']
+            }
+        }
+    })
+
+    assert.match(html, /fabrication\.zip/)
+    assert.match(html, /data-gerber-render-mode="composite"/)
+    assert.match(html, /data-gerber-layer-id="layer-top"/)
+    assert.match(html, /data-gerber-layer-id="layer-bottom"/)
+    assert.match(html, /fabrication\/top-copper\.gtl/)
+    assert.match(html, /fabrication\/bottom-copper\.gbl/)
+    assert.match(
+        html,
+        /data-gerber-layer-id="layer-top"[\s\S]*?aria-pressed="true"/
+    )
+    assert.match(
+        html,
+        /data-gerber-layer-id="layer-bottom"[\s\S]*?aria-pressed="true"/
+    )
 })
 
 /**

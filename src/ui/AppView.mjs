@@ -8,9 +8,11 @@ import { AppViewDownloadHelper } from './AppViewDownloadHelper.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
+import { AppViewGerberRenderSelectionStore } from './AppViewGerberRenderSelectionStore.mjs'
 import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.mjs'
 import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
 import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
+import { AppViewSidebarScrollState } from './AppViewSidebarScrollState.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
@@ -60,6 +62,12 @@ export class AppView {
 
     /** @type {string} */
     #expandedSidebarMarkup
+
+    /** @type {object | null} */
+    #lastSnapshot
+
+    /** @type {AppViewGerberRenderSelectionStore} */
+    #gerberRenderSelections
 
     /** @type {HTMLElement | null} */
     #contentNode
@@ -125,6 +133,8 @@ export class AppView {
         this.#documentRailNode = this.#document.querySelector('#documentRail')
         this.#sidebarCollapsed = false
         this.#expandedSidebarMarkup = ''
+        this.#lastSnapshot = null
+        this.#gerberRenderSelections = new AppViewGerberRenderSelectionStore()
         this.#contentNode = this.#document.querySelector('#viewContent')
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#githubOpenForm = this.#document.querySelector('#githubOpenForm')
@@ -174,6 +184,10 @@ export class AppView {
             this.#documentRailNode,
             () => this.#scene3dPanelController.triggerModelArchiveExport()
         )
+        ViewerSidebarEventBinder.bindGerberRenderSelection(
+            this.#documentRailNode,
+            (change) => this.#handleGerberRenderSelection(change)
+        )
     }
 
     /**
@@ -181,16 +195,21 @@ export class AppView {
      * @param {{ activeView: string, activeSidebarTab?: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
      */
     render(snapshot) {
-        LandingStatusRenderer.renderPersistentStatus(this.#statusNode, snapshot)
+        const renderSnapshot = this.#withGerberRenderSelections(snapshot)
+        this.#lastSnapshot = renderSnapshot
+        LandingStatusRenderer.renderPersistentStatus(
+            this.#statusNode,
+            renderSnapshot
+        )
         LandingStatusRenderer.render(
             this.#document.querySelector('#landingStatusMessage'),
-            snapshot
+            renderSnapshot
         )
-        this.setLocale(snapshot.locale)
-        ViewerModeClassRenderer.render(this.#document.body, snapshot)
-        this.#renderTabs(snapshot.activeView)
-        this.#renderDocumentRail(snapshot)
-        this.#renderContent(snapshot)
+        this.setLocale(renderSnapshot.locale)
+        ViewerModeClassRenderer.render(this.#document.body, renderSnapshot)
+        this.#renderTabs(renderSnapshot.activeView)
+        this.#renderDocumentRail(renderSnapshot)
+        this.#renderContent(renderSnapshot)
     }
 
     /**
@@ -553,6 +572,44 @@ export class AppView {
     }
 
     /**
+     * Applies Gerber stack/file selection from the project sidebar.
+     * @param {{ documentId?: string, renderMode?: string, layerId?: string }} change Selection change.
+     * @returns {void}
+     */
+    #handleGerberRenderSelection(change) {
+        const result = this.#gerberRenderSelections.apply(
+            change,
+            this.#lastSnapshot
+        )
+        if (!result) {
+            return
+        }
+
+        if (
+            result.documentId ===
+            String(this.#lastSnapshot?.activeDocumentId || '')
+        ) {
+            this.#pcbViewController?.setGerberRenderSelection(result.selection)
+        }
+
+        if (this.#lastSnapshot) {
+            this.#lastSnapshot = this.#withGerberRenderSelections(
+                this.#lastSnapshot
+            )
+            this.#renderDocumentRail(this.#lastSnapshot)
+        }
+    }
+
+    /**
+     * Adds locally remembered Gerber render selections to an app snapshot.
+     * @param {object} snapshot App state snapshot.
+     * @returns {object}
+     */
+    #withGerberRenderSelections(snapshot) {
+        return this.#gerberRenderSelections.withSelections(snapshot)
+    }
+
+    /**
      * Updates the tab selected state.
      * @param {string} activeView
      */
@@ -608,7 +665,7 @@ export class AppView {
             return
         }
 
-        const scrollState = AppView.#captureSidebarScroll(
+        const scrollState = AppViewSidebarScrollState.capture(
             this.#documentRailNode
         )
         this.#expandedSidebarMarkup = ViewerSidebarRenderer.render(
@@ -628,7 +685,10 @@ export class AppView {
             this.#documentRailNode
         )
         if (!this.#sidebarCollapsed) {
-            AppView.#restoreSidebarScroll(this.#documentRailNode, scrollState)
+            AppViewSidebarScrollState.restore(
+                this.#documentRailNode,
+                scrollState
+            )
             AppViewPcbComponentScroller.scrollSelectedIntoView(
                 this.#documentRailNode,
                 snapshot,
@@ -869,58 +929,6 @@ export class AppView {
                 documentModel: snapshot.documentModel
             }
         ]
-    }
-
-    /**
-     * Captures scroll state for the active sidebar panel before a re-render.
-     * @param {HTMLElement | null} sidebarMount Sidebar mount node.
-     * @returns {{ activeTab: string, activeDocumentId: string, scrollTop: number, scrollLeft: number } | null}
-     */
-    static #captureSidebarScroll(sidebarMount) {
-        const sidebar = sidebarMount?.querySelector?.('.viewer-sidebar')
-        const panel = sidebarMount?.querySelector?.('.viewer-sidebar__panel')
-        if (!sidebar || !panel) {
-            return null
-        }
-
-        return {
-            activeTab: sidebar.getAttribute('data-active-sidebar-tab') || '',
-            activeDocumentId:
-                sidebar.getAttribute('data-active-document-id') || '',
-            scrollTop: Number(panel.scrollTop || 0),
-            scrollLeft: Number(panel.scrollLeft || 0)
-        }
-    }
-
-    /**
-     * Restores sidebar panel scroll when the same panel was re-rendered.
-     * @param {HTMLElement | null} sidebarMount Sidebar mount node.
-     * @param {{ activeTab: string, activeDocumentId: string, scrollTop: number, scrollLeft: number } | null} scrollState Captured scroll state.
-     * @returns {void}
-     */
-    static #restoreSidebarScroll(sidebarMount, scrollState) {
-        if (!scrollState) {
-            return
-        }
-
-        const sidebar = sidebarMount?.querySelector?.('.viewer-sidebar')
-        const panel = sidebarMount?.querySelector?.('.viewer-sidebar__panel')
-        if (!sidebar || !panel) {
-            return
-        }
-
-        const activeTab = sidebar.getAttribute('data-active-sidebar-tab') || ''
-        const activeDocumentId =
-            sidebar.getAttribute('data-active-document-id') || ''
-        if (
-            activeTab !== scrollState.activeTab ||
-            activeDocumentId !== scrollState.activeDocumentId
-        ) {
-            return
-        }
-
-        panel.scrollTop = scrollState.scrollTop
-        panel.scrollLeft = scrollState.scrollLeft
     }
 
     /**

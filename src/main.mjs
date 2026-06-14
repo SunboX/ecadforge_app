@@ -29,7 +29,7 @@ async function bootstrap() {
         parseStatus: 'idle',
         statusMessage: i18n
             ? i18n.translate('status.ready')
-            : 'Drop .PcbDoc, .SchDoc, .kicad_pcb or KiCad project files here. Files are processed locally in your browser.'
+            : 'Drop .PcbDoc, .SchDoc, .kicad_pcb, Gerber/Excellon files, fabrication ZIPs, or KiCad project files here. Files are processed locally in your browser.'
     })
 
     const parserWorkerUrl = WorkerUrlBuilder.buildParserWorkerUrl(

@@ -48,6 +48,14 @@ export class EcadFormatRegistry {
             return { sourceFormat: 'kicad', fileType: 'kicad_pcb' }
         }
 
+        if (EcadFormatRegistry.#isGerberFileName(normalized)) {
+            return { sourceFormat: 'gerber', fileType: 'gerber' }
+        }
+
+        if (EcadFormatRegistry.#isDrillFileName(normalized)) {
+            return { sourceFormat: 'gerber', fileType: 'drill' }
+        }
+
         if (normalized.endsWith('.zip')) {
             return { sourceFormat: 'kicad', fileType: 'zip' }
         }
@@ -96,5 +104,25 @@ export class EcadFormatRegistry {
      */
     static sourceFormatForDocument(documentModel) {
         return String(documentModel?.sourceFormat || 'altium')
+    }
+
+    /**
+     * Returns true for common Gerber layer file names.
+     * @param {string} normalized Lowercase file name.
+     * @returns {boolean}
+     */
+    static #isGerberFileName(normalized) {
+        return /\.(?:gbr|gtl|gbl|gto|gbo|gts|gbs|gtp|gbp|gko|gm1)$/u.test(
+            normalized
+        )
+    }
+
+    /**
+     * Returns true for common Excellon drill file names.
+     * @param {string} normalized Lowercase file name.
+     * @returns {boolean}
+     */
+    static #isDrillFileName(normalized) {
+        return /\.(?:drl|xln)$/u.test(normalized)
     }
 }

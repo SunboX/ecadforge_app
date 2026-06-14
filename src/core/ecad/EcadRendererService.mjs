@@ -13,6 +13,11 @@ import {
     PcbSvgRenderer as KicadPcbSvgRenderer,
     SchematicSvgRenderer as KicadSchematicSvgRenderer
 } from 'kicad-toolkit/renderers'
+import {
+    GerberPcbSvgRenderer,
+    PcbInteractionIndex as GerberPcbInteractionIndex,
+    PcbInteractionLayerModel as GerberPcbInteractionLayerModel
+} from 'gerber-toolkit/renderers'
 import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
@@ -63,20 +68,30 @@ export class EcadRendererService {
     /**
      * Renders a PCB document.
      * @param {object} documentModel Document model.
-     * @param {{ side?: 'top' | 'bottom' }} [options] PCB render options.
+     * @param {{ side?: 'top' | 'bottom', renderMode?: string, layerId?: string, layerIds?: string[] }} [options] PCB render options.
      * @returns {string}
      */
     static renderPcb(documentModel, options = {}) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
+        const renderKey = EcadRendererService.#pcbRenderCacheKey(side, options)
         return EcadRendererService.#renderCached(
             EcadRendererService.#pcbSvgCache,
             documentModel,
-            side,
+            renderKey,
             () =>
-                EcadRendererService.#isKiCad(documentModel)
-                    ? EcadRendererService.#renderKicadPcb(documentModel, side)
-                    : EcadRendererService.#renderAltiumPcb(documentModel, side)
+                EcadRendererService.#isGerber(documentModel)
+                    ? EcadRendererService.#renderGerberPcb(
+                          documentModel,
+                          options,
+                          side
+                      )
+                    : EcadRendererService.#isKiCad(documentModel)
+                      ? EcadRendererService.#renderKicadPcb(documentModel, side)
+                      : EcadRendererService.#renderAltiumPcb(
+                            documentModel,
+                            side
+                        )
         )
     }
 
@@ -84,13 +99,24 @@ export class EcadRendererService {
      * Returns prioritized PCB interaction candidates for a board-space point.
      * @param {object} documentModel Document model.
      * @param {{ x?: unknown, y?: unknown }} point Board-space point.
-     * @param {{ side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], tolerance?: number }} [options] Hit-test options.
+     * @param {{ side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], tolerance?: number, renderMode?: string, layerId?: string, layerIds?: string[] }} [options] Hit-test options.
      * @returns {object[]}
      */
     static hitTestPcb(documentModel, point, options = {}) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
+        if (EcadRendererService.#isGerber(documentModel)) {
+            return GerberPcbInteractionIndex.hitTestItems(
+                EcadRendererService.#pcbInteractionItems(
+                    documentModel,
+                    GerberPcbInteractionIndex
+                ),
+                point,
+                options
+            )
+        }
+
         const interactionIndex = isKiCad
             ? KicadPcbInteractionIndex
             : AltiumPcbInteractionIndex
@@ -121,6 +147,10 @@ export class EcadRendererService {
      */
     static resolvePcbInteractionLayers(documentModel) {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
+        if (EcadRendererService.#isGerber(documentModel)) {
+            return GerberPcbInteractionLayerModel.resolve(documentModel)
+        }
+
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadPcbInteractionLayerModel.resolve(documentModel)
             : AltiumPcbInteractionLayerModel.resolve(documentModel)
@@ -157,6 +187,18 @@ export class EcadRendererService {
         return (
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
+        )
+    }
+
+    /**
+     * Returns true for Gerber document models.
+     * @param {object} documentModel Document model.
+     * @returns {boolean}
+     */
+    static #isGerber(documentModel) {
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'gerber'
         )
     }
 
@@ -520,6 +562,26 @@ export class EcadRendererService {
     }
 
     /**
+     * Renders Gerber PCB SVG through the fabrication renderer.
+     * @param {object} documentModel Document model.
+     * @param {{ renderMode?: string, layerId?: string, layerIds?: string[] }} options Render options.
+     * @param {'top' | 'bottom'} side PCB side.
+     * @returns {string}
+     */
+    static #renderGerberPcb(documentModel, options, side) {
+        return EcadRendererService.#withPcbSvgClasses(
+            GerberPcbSvgRenderer.render(documentModel, {
+                renderMode: options.renderMode,
+                layerId: options.layerId,
+                layerIds: options.layerIds,
+                side
+            }),
+            'pcb-svg--app-palette',
+            'pcb-svg--gerber'
+        )
+    }
+
+    /**
      * Returns a KiCad document model with bounds acceptable to the native SVG renderer.
      * @param {object} documentModel Document model.
      * @returns {object | null}
@@ -606,9 +668,30 @@ export class EcadRendererService {
         const classes = classNames.filter(Boolean).join(' ')
 
         return String(markup).replace(
-            'class="pcb-svg"',
-            'class="pcb-svg ' + classes + '"'
+            /class="([^"]*\bpcb-svg\b[^"]*)"/,
+            (_match, existingClasses) =>
+                'class="' +
+                existingClasses +
+                (classes ? ' ' + classes : '') +
+                '"'
         )
+    }
+
+    /**
+     * Builds a PCB render cache key from side and format-specific options.
+     * @param {'top' | 'bottom'} side PCB side.
+     * @param {{ renderMode?: string, layerId?: string, layerIds?: string[] }} options Render options.
+     * @returns {string}
+     */
+    static #pcbRenderCacheKey(side, options) {
+        return [
+            side,
+            String(options.renderMode || ''),
+            String(options.layerId || ''),
+            (Array.isArray(options.layerIds) ? options.layerIds : [])
+                .map(String)
+                .join(',')
+        ].join('|')
     }
 
     /**
