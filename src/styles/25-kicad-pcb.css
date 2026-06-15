@@ -8,6 +8,14 @@
     --pcb-footprint-track-color: rgba(66, 93, 112, 0.72);
 }
 
+.pcb-svg--app-palette.pcb-svg--bottom {
+    --pcb-surface-fill: rgba(15, 116, 108, 0.18);
+    --pcb-surface-track-color: rgba(15, 116, 108, 0.56);
+    --pcb-subsurface-fill: rgba(199, 109, 61, 0.12);
+    --pcb-subsurface-track-color: rgba(199, 82, 45, 0.92);
+    --pcb-copper-solid-fill: rgba(15, 116, 108, 0.56);
+}
+
 .pcb-svg--kicad .pcb-board {
     fill: var(--pcb-board-fill);
     stroke: var(--pcb-board-stroke);

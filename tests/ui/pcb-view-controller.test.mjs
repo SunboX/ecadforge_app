@@ -664,6 +664,31 @@ test('PcbViewController preserves PCB viewport when remounted for the same side'
 })
 
 /**
+ * Verifies selecting a component from outside the board pans the preserved PCB
+ * viewport to the selected footprint marker.
+ */
+test('PcbViewController centers selected component after remounting a preserved viewport', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const documentModel =
+        PcbViewControllerFixture.createSelectableAltiumPcbDocument()
+    const controller = new PcbViewController(content, documentModel)
+    const firstSvg = content.querySelector('.pcb-svg')
+
+    firstSvg?.setAttribute('viewBox', '0 0 20 20')
+    controller.dispose()
+
+    const remountedController = new PcbViewController(content, documentModel, {
+        selectedComponentKey: 'U1'
+    })
+    const remountedSvg = content.querySelector('.pcb-svg')
+
+    assert.equal(remountedSvg?.getAttribute('viewBox'), '40 40 20 20')
+
+    remountedController.dispose()
+})
+
+/**
  * Verifies the initial PCB side is refreshed after embedded browser fonts are
  * ready so first paint converges to the same metrics as later side renders.
  */
@@ -801,6 +826,7 @@ test('PcbViewController selects a net-backed PCB click candidate', () => {
         PcbViewControllerFixture.createSelectableAltiumPcbDocument(),
         {
             documentId: 'doc-1',
+            hiddenObjects: ['components'],
             onNetSelectionChange: (change) => {
                 selections.push(change)
             }
@@ -809,7 +835,7 @@ test('PcbViewController selects a net-backed PCB click candidate', () => {
     const svg = content.querySelector('.pcb-svg')
 
     svg?.setAttribute('viewBox', '0 0 100 100')
-    content.clickPcbBoard(200, 100)
+    content.clickPcbBoard(40, 100)
 
     assert.deepEqual(selections, [
         {

@@ -18,6 +18,7 @@ import {
     PcbInteractionIndex as GerberPcbInteractionIndex,
     PcbInteractionLayerModel as GerberPcbInteractionLayerModel
 } from 'gerber-toolkit/renderers'
+import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
 import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
@@ -107,13 +108,16 @@ export class EcadRendererService {
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
         if (EcadRendererService.#isGerber(documentModel)) {
-            return GerberPcbInteractionIndex.hitTestItems(
-                EcadRendererService.#pcbInteractionItems(
-                    documentModel,
-                    GerberPcbInteractionIndex
-                ),
-                point,
-                options
+            return EcadRendererService.#withResolvedPcbComponentKeys(
+                documentModel,
+                GerberPcbInteractionIndex.hitTestItems(
+                    EcadRendererService.#pcbInteractionItems(
+                        documentModel,
+                        GerberPcbInteractionIndex
+                    ),
+                    point,
+                    options
+                )
             )
         }
 
@@ -130,13 +134,16 @@ export class EcadRendererService {
                   side
               }
 
-        return interactionIndex.hitTestItems(
-            EcadRendererService.#pcbInteractionItems(
-                documentModel,
-                interactionIndex
-            ),
-            point,
-            hitTestOptions
+        return EcadRendererService.#withResolvedPcbComponentKeys(
+            documentModel,
+            interactionIndex.hitTestItems(
+                EcadRendererService.#pcbInteractionItems(
+                    documentModel,
+                    interactionIndex
+                ),
+                point,
+                hitTestOptions
+            )
         )
     }
 
@@ -159,17 +166,22 @@ export class EcadRendererService {
     /**
      * Renders BOM rows.
      * @param {object} documentModel Document model.
-     * @param {{ translate?: ((key: string) => string) | null }} [options] BOM render options.
+     * @param {{ selectedComponentKey?: string, translate?: ((key: string) => string) | null }} [options] BOM render options.
      * @returns {string}
      */
     static renderBom(documentModel, options = {}) {
         const rows = documentModel?.bom || []
         const translate = options.translate || null
+        const selectedComponentKey =
+            EcadRendererService.#normalizeBomSelectionKey(
+                options.selectedComponentKey
+            )
         if (typeof translate === 'function') {
             return EcadRendererService.#renderLocalizedBom(
                 documentModel,
                 rows,
-                translate
+                translate,
+                selectedComponentKey
             )
         }
 
@@ -259,6 +271,92 @@ export class EcadRendererService {
     }
 
     /**
+     * Restores component keys for toolkit candidates backed by owned primitives.
+     * @param {object} documentModel Document model.
+     * @param {object[]} candidates Hit-test candidates.
+     * @returns {object[]}
+     */
+    static #withResolvedPcbComponentKeys(documentModel, candidates) {
+        const components = Array.isArray(documentModel?.pcb?.components)
+            ? documentModel.pcb.components
+            : []
+        if (!components.length || !Array.isArray(candidates)) {
+            return candidates
+        }
+
+        return candidates.map((candidate) => {
+            if (EcadRendererService.#candidateComponentKey(candidate)) {
+                return candidate
+            }
+
+            const component = EcadRendererService.#componentForPcbPrimitive(
+                candidate?.source,
+                components
+            )
+            if (!component) return candidate
+
+            const componentIndex = components.indexOf(component)
+            const componentKey = PcbComponentSelectionModel.resolveComponentKey(
+                component,
+                componentIndex
+            )
+            if (!componentKey) return candidate
+
+            return {
+                ...candidate,
+                componentKey,
+                componentId: componentKey
+            }
+        })
+    }
+
+    /**
+     * Returns an existing component key from one hit-test candidate.
+     * @param {object | null | undefined} candidate Hit-test candidate.
+     * @returns {string}
+     */
+    static #candidateComponentKey(candidate) {
+        return String(
+            candidate?.componentKey ?? candidate?.componentId ?? ''
+        ).trim()
+    }
+
+    /**
+     * Resolves the component that owns one PCB primitive.
+     * @param {object | null | undefined} primitive Source primitive.
+     * @param {object[]} components PCB components.
+     * @returns {object | null}
+     */
+    static #componentForPcbPrimitive(primitive, components) {
+        const rawComponentIndex =
+            primitive?.componentIndex ?? primitive?.ownerIndex
+        if (
+            rawComponentIndex === undefined ||
+            rawComponentIndex === null ||
+            rawComponentIndex === ''
+        ) {
+            return null
+        }
+
+        const componentIndex = Number(rawComponentIndex)
+        if (!Number.isInteger(componentIndex)) return null
+
+        return (
+            components.find((component) => {
+                const rawIndex = component?.componentIndex
+                return (
+                    rawIndex !== undefined &&
+                    rawIndex !== null &&
+                    rawIndex !== '' &&
+                    Number(rawIndex) === componentIndex
+                )
+            }) ||
+            components[componentIndex] ||
+            null
+        )
+    }
+
+    /**
      * Renders or returns cached renderer output for one document/key pair.
      * @param {WeakMap<object, Map<string, string>>} cache Renderer output cache.
      * @param {object} documentModel Parsed document model.
@@ -303,9 +401,15 @@ export class EcadRendererService {
      * @param {object} documentModel Document model.
      * @param {object[]} rows BOM rows.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {string} selectedComponentKey Selected component key.
      * @returns {string}
      */
-    static #renderLocalizedBom(documentModel, rows, translate) {
+    static #renderLocalizedBom(
+        documentModel,
+        rows,
+        translate,
+        selectedComponentKey
+    ) {
         const normalizedRows = Array.isArray(rows) ? rows : []
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
 
@@ -319,7 +423,8 @@ export class EcadRendererService {
         const tableMarkup = EcadRendererService.#renderLocalizedBomTable(
             normalizedRows,
             EcadRendererService.#resolveBomColumnKeys(isKiCad),
-            translate
+            translate,
+            selectedComponentKey
         )
 
         if (isKiCad) {
@@ -371,9 +476,15 @@ export class EcadRendererService {
      * @param {object[]} rows BOM rows.
      * @param {string[]} columnKeys Ordered column keys.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {string} selectedComponentKey Selected component key.
      * @returns {string}
      */
-    static #renderLocalizedBomTable(rows, columnKeys, translate) {
+    static #renderLocalizedBomTable(
+        rows,
+        columnKeys,
+        translate,
+        selectedComponentKey
+    ) {
         let headerMarkup = ''
         let bodyMarkup = ''
 
@@ -387,7 +498,8 @@ export class EcadRendererService {
         for (const row of rows) {
             bodyMarkup += EcadRendererService.#renderLocalizedBomRow(
                 row,
-                columnKeys
+                columnKeys,
+                selectedComponentKey
             )
         }
 
@@ -420,21 +532,125 @@ export class EcadRendererService {
      * Renders one BOM row using the requested column order.
      * @param {object} row BOM row.
      * @param {string[]} columnKeys Ordered column keys.
+     * @param {string} selectedComponentKey Selected component key.
      * @returns {string}
      */
-    static #renderLocalizedBomRow(row, columnKeys) {
+    static #renderLocalizedBomRow(row, columnKeys, selectedComponentKey) {
         let cellMarkup = ''
+        const selected = EcadRendererService.#bomRowHasDesignator(
+            row,
+            selectedComponentKey
+        )
 
         for (const columnKey of columnKeys) {
-            cellMarkup +=
-                '<td>' +
-                EcadRendererService.#escapeHtml(
-                    EcadRendererService.#readBomCellValue(row, columnKey)
-                ) +
-                '</td>'
+            cellMarkup += EcadRendererService.#renderLocalizedBomCell(
+                row,
+                columnKey,
+                selectedComponentKey
+            )
         }
 
-        return '<tr>' + cellMarkup + '</tr>'
+        if (!selected) {
+            return '<tr>' + cellMarkup + '</tr>'
+        }
+
+        return (
+            '<tr class="bom-table__row--selected" data-bom-selected-component-key="' +
+            EcadRendererService.#escapeHtml(selectedComponentKey) +
+            '">' +
+            cellMarkup +
+            '</tr>'
+        )
+    }
+
+    /**
+     * Renders one localized BOM cell.
+     * @param {object} row BOM row.
+     * @param {string} columnKey BOM column key.
+     * @param {string} selectedComponentKey Selected component key.
+     * @returns {string}
+     */
+    static #renderLocalizedBomCell(row, columnKey, selectedComponentKey) {
+        if (columnKey === 'designators') {
+            return (
+                '<td>' +
+                EcadRendererService.#renderLocalizedBomDesignators(
+                    row,
+                    selectedComponentKey
+                ) +
+                '</td>'
+            )
+        }
+
+        return (
+            '<td>' +
+            EcadRendererService.#escapeHtml(
+                EcadRendererService.#readBomCellValue(row, columnKey)
+            ) +
+            '</td>'
+        )
+    }
+
+    /**
+     * Renders BOM designators with the selected component emphasized.
+     * @param {object} row BOM row.
+     * @param {string} selectedComponentKey Selected component key.
+     * @returns {string}
+     */
+    static #renderLocalizedBomDesignators(row, selectedComponentKey) {
+        const designators = EcadRendererService.#bomDesignators(row)
+        if (!designators.length) {
+            return EcadRendererService.#escapeHtml(
+                EcadRendererService.#readBomCellValue(row, 'designators')
+            )
+        }
+
+        return designators
+            .map((designator) =>
+                designator === selectedComponentKey
+                    ? '<mark class="bom-table__selected-designator">' +
+                      EcadRendererService.#escapeHtml(designator) +
+                      '</mark>'
+                    : EcadRendererService.#escapeHtml(designator)
+            )
+            .join(', ')
+    }
+
+    /**
+     * Returns true when a BOM row includes one exact designator.
+     * @param {object} row BOM row.
+     * @param {string} selectedComponentKey Selected component key.
+     * @returns {boolean}
+     */
+    static #bomRowHasDesignator(row, selectedComponentKey) {
+        return Boolean(
+            selectedComponentKey &&
+            EcadRendererService.#bomDesignators(row).includes(
+                selectedComponentKey
+            )
+        )
+    }
+
+    /**
+     * Returns normalized BOM row designators.
+     * @param {object} row BOM row.
+     * @returns {string[]}
+     */
+    static #bomDesignators(row) {
+        if (!Array.isArray(row?.designators)) {
+            return []
+        }
+
+        return row.designators.map((designator) => String(designator).trim())
+    }
+
+    /**
+     * Normalizes one selected component key.
+     * @param {unknown} value Selected component candidate.
+     * @returns {string}
+     */
+    static #normalizeBomSelectionKey(value) {
+        return String(value || '').trim()
     }
 
     /**

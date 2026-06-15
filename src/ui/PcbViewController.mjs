@@ -1,7 +1,12 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { PcbBoardClickGuard } from './PcbBoardClickGuard.mjs'
+import { PcbGerberRenderSelectionModel } from './PcbGerberRenderSelectionModel.mjs'
+import { PcbHitTestPointResolver } from './PcbHitTestPointResolver.mjs'
+import { PcbSelectionMarkerBoundsResolver } from './PcbSelectionMarkerBoundsResolver.mjs'
 import { PcbViewRenderer } from './PcbViewRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
+import { SvgViewBoxParser } from './SvgViewBoxParser.mjs'
 
 const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
 
@@ -11,70 +16,50 @@ const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
 export class PcbViewController {
     /** @type {HTMLElement} */
     #contentNode
-
     /** @type {object} */
     #documentModel
-
     /** @type {string} */
     #documentId
-
     /** @type {'top' | 'bottom'} */
     #side
-
     /** @type {((key: string) => string) | null} */
     #translate
-
     /** @type {string[]} */
     #hiddenLayers
-
     /** @type {string[]} */
     #hiddenObjects
-
     /** @type {{ [objectKey: string]: number }} */
     #objectOpacities
-
     /** @type {string} */
     #selectedComponentKey
-
     /** @type {string} */
     #selectedNetName
-
     /** @type {'composite' | 'separated'} */
     #gerberRenderMode
-
     /** @type {string} */
     #gerberLayerId
-
     /** @type {string[]} */
     #gerberLayerIds
-
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #onComponentSelectionChange
-
     /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
     #onNetSelectionChange
-
     /** @type {((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null} */
     #onInteractionCandidatesChange
-
     /** @type {SchematicViewportController | null} */
     #svgViewportController
-
+    /** @type {PcbBoardClickGuard} */
+    #boardClickGuard
     /** @type {number} */
     #renderGeneration
-
     /** @type {boolean} */
     #fontRefreshCompleted
-
     /** @type {(event: Event) => void} */
     #handleClick
-
     /** @type {(event: Event) => void} */
     #handleChange
-
     /** @type {(event: Event) => void} */
     #handlePointerMove
-
     /** @type {() => void} */
     #handlePointerLeave
 
@@ -89,13 +74,13 @@ export class PcbViewController {
         this.#documentId = String(options.documentId || '')
         this.#selectedComponentKey = String(options.selectedComponentKey || '')
         this.#selectedNetName = String(options.selectedNetName || '')
-        this.#gerberLayerIds = PcbViewController.#resolveGerberLayerIds(
+        this.#gerberLayerIds = PcbGerberRenderSelectionModel.resolveLayerIds(
             documentModel,
             options.gerberLayerIds,
             options.gerberLayerId
         )
         this.#gerberLayerId = this.#gerberLayerIds[0] || ''
-        this.#gerberRenderMode = PcbViewController.#resolveGerberRenderMode(
+        this.#gerberRenderMode = PcbGerberRenderSelectionModel.resolveRenderMode(
             options.gerberRenderMode,
             this.#gerberLayerIds
         )
@@ -130,6 +115,9 @@ export class PcbViewController {
                 : null
         this.#translate = options.translate || null
         this.#svgViewportController = null
+        this.#boardClickGuard = new PcbBoardClickGuard((target) =>
+            this.#resolvePcbSvgNode(target)
+        )
         this.#renderGeneration = 0
         this.#fontRefreshCompleted = false
         this.#handleClick = (event) => this.#handleClickEvent(event)
@@ -139,6 +127,10 @@ export class PcbViewController {
 
         this.#contentNode.addEventListener('click', this.#handleClick)
         this.#contentNode.addEventListener('change', this.#handleChange)
+        this.#contentNode.addEventListener(
+            'mousedown',
+            this.#boardClickGuard.handleMouseDown
+        )
         this.#contentNode.addEventListener('mousemove', this.#handlePointerMove)
         this.#contentNode.addEventListener(
             'mouseleave',
@@ -161,7 +153,11 @@ export class PcbViewController {
      * @returns {void}
      */
     setGerberRenderSelection(selection = {}) {
-        if (!PcbViewController.#isGerberDocument(this.#documentModel)) {
+        if (
+            !PcbGerberRenderSelectionModel.isGerberDocument(
+                this.#documentModel
+            )
+        ) {
             return
         }
 
@@ -169,19 +165,19 @@ export class PcbViewController {
             selection.layerIds === undefined && selection.layerId === undefined
                 ? this.#gerberLayerIds
                 : selection.layerIds
-        const nextLayerIds = PcbViewController.#resolveGerberLayerIds(
+        const nextLayerIds = PcbGerberRenderSelectionModel.resolveLayerIds(
             this.#documentModel,
             requestedLayerIds,
             selection.layerId
         )
         const nextLayerId = nextLayerIds[0] || ''
-        const nextRenderMode = PcbViewController.#resolveGerberRenderMode(
+        const nextRenderMode = PcbGerberRenderSelectionModel.resolveRenderMode(
             selection.renderMode,
             nextLayerIds
         )
         if (
             nextRenderMode === this.#gerberRenderMode &&
-            PcbViewController.#sameStringList(
+            PcbGerberRenderSelectionModel.sameStringList(
                 nextLayerIds,
                 this.#gerberLayerIds
             )
@@ -204,6 +200,10 @@ export class PcbViewController {
         this.#contentNode.removeEventListener('click', this.#handleClick)
         this.#contentNode.removeEventListener('change', this.#handleChange)
         this.#contentNode.removeEventListener(
+            'mousedown',
+            this.#boardClickGuard.handleMouseDown
+        )
+        this.#contentNode.removeEventListener(
             'mousemove',
             this.#handlePointerMove
         )
@@ -212,6 +212,7 @@ export class PcbViewController {
             this.#handlePointerLeave
         )
         this.#clearClickableCursor()
+        this.#boardClickGuard.reset()
         this.#renderGeneration += 1
         this.#disposeSvgViewportController()
     }
@@ -332,21 +333,28 @@ export class PcbViewController {
      * @returns {void}
      */
     #handleBoardClick(event) {
+        if (this.#boardClickGuard.shouldSuppressClick(event)) {
+            return
+        }
+
         const hit = this.#resolveBoardHit(event)
         if (!hit) {
             return
         }
 
-        const selectedCandidate = hit.candidates[0] || null
+        const componentCandidate = PcbViewController.#componentCandidate(
+            hit.candidates
+        )
+        const netCandidate = PcbViewController.#netCandidate(hit.candidates)
+        const selectedCandidate =
+            componentCandidate || netCandidate || hit.candidates[0] || null
         this.#emitInteractionCandidates(
             hit.point,
             hit.candidates,
             selectedCandidate
         )
-        this.#emitComponentSelection(
-            PcbViewController.#componentCandidate(hit.candidates)
-        )
-        this.#emitNetSelection(PcbViewController.#netCandidate(hit.candidates))
+        this.#emitComponentSelection(componentCandidate)
+        this.#emitNetSelection(componentCandidate ? null : netCandidate)
     }
 
     /**
@@ -408,33 +416,12 @@ export class PcbViewController {
      * @returns {{ x: number, y: number }}
      */
     #resolveHitTestPoint(svgNode, point) {
-        if (this.#documentModel?.sourceFormat !== 'gerber') {
-            return point
-        }
-        const viewBox = PcbViewController.#parseViewBox(
-            svgNode.getAttribute?.('viewBox')
+        return PcbHitTestPointResolver.resolve(
+            this.#documentModel,
+            svgNode,
+            point,
+            this.#side
         )
-        const bounds = viewBox || this.#documentModel?.pcb?.bounds || {}
-        const minY = Number(bounds.minY)
-        const minX = Number(bounds.minX)
-        const maxX = Number(
-            viewBox ? viewBox.minX + viewBox.width : bounds.maxX
-        )
-        const maxY = Number(
-            viewBox ? viewBox.minY + viewBox.height : bounds.maxY
-        )
-        if (!Number.isFinite(minY) || !Number.isFinite(maxY)) {
-            return point
-        }
-
-        const x =
-            this.#side === 'bottom' &&
-            Number.isFinite(minX) &&
-            Number.isFinite(maxX)
-                ? minX + maxX - point.x
-                : point.x
-
-        return { x, y: minY + maxY - point.y }
     }
 
     /**
@@ -488,6 +475,7 @@ export class PcbViewController {
         const componentKey = String(
             selectedCandidate?.componentKey || ''
         ).trim()
+        this.#selectedComponentKey = componentKey
         if (!this.#onComponentSelectionChange) {
             return
         }
@@ -612,7 +600,7 @@ export class PcbViewController {
         }
 
         const rect = svgNode.getBoundingClientRect()
-        const viewBox = PcbViewController.#parseViewBox(
+        const viewBox = SvgViewBoxParser.parse(
             svgNode.getAttribute?.('viewBox')
         )
         if (!viewBox || !rect.width || !rect.height) {
@@ -628,31 +616,6 @@ export class PcbViewController {
                 viewBox.minY +
                 ((Number(event.clientY) || 0) - rect.top) *
                     (viewBox.height / rect.height)
-        }
-    }
-
-    /**
-     * Parses an SVG viewBox string.
-     * @param {unknown} value Raw viewBox value.
-     * @returns {{ minX: number, minY: number, width: number, height: number } | null}
-     */
-    static #parseViewBox(value) {
-        const parts = String(value || '')
-            .trim()
-            .split(/[\s,]+/)
-            .map(Number)
-        if (
-            parts.length !== 4 ||
-            parts.some((part) => !Number.isFinite(part))
-        ) {
-            return null
-        }
-
-        return {
-            minX: parts[0],
-            minY: parts[1],
-            width: parts[2],
-            height: parts[3]
         }
     }
 
@@ -722,10 +685,13 @@ export class PcbViewController {
                 gerberLayerIds: this.#gerberLayerIds
             }
         )
-        if (!this.#restorePreservedViewport()) {
+        const renderedDefaultViewBox = this.#readCurrentViewBox()
+        const restoredViewport = this.#restorePreservedViewport()
+        if (!restoredViewport.restored) {
             this.#applyViewBox(preservedViewBox)
         }
-        this.#attachSvgViewportController()
+        this.#attachSvgViewportController(renderedDefaultViewBox)
+        this.#centerSelectedComponent(restoredViewport.selectedComponentKey)
 
         if (options.refreshFonts !== false && !this.#fontRefreshCompleted) {
             this.#refreshAfterFontsReady(generation)
@@ -784,13 +750,37 @@ export class PcbViewController {
      * Attaches pan and zoom to the active PCB SVG.
      * @returns {void}
      */
-    #attachSvgViewportController() {
+    #attachSvgViewportController(defaultViewBox = '') {
         const svgNode = this.#contentNode.querySelector('.pcb-svg')
         if (!PcbViewController.#isInteractiveSvg(svgNode)) {
             return
         }
 
-        this.#svgViewportController = new SchematicViewportController(svgNode)
+        this.#svgViewportController = new SchematicViewportController(svgNode, {
+            defaultViewBox
+        })
+    }
+
+    /**
+     * Centers the active PCB viewport on a newly selected component marker.
+     * @param {string} previousSelectedComponentKey Component key from the preserved viewport.
+     * @returns {void}
+     */
+    #centerSelectedComponent(previousSelectedComponentKey) {
+        const selectedKey = String(this.#selectedComponentKey || '').trim()
+        if (
+            !selectedKey ||
+            selectedKey === String(previousSelectedComponentKey || '').trim()
+        ) {
+            return
+        }
+
+        this.#svgViewportController?.centerBounds(
+            PcbSelectionMarkerBoundsResolver.resolve(
+                this.#contentNode.innerHTML,
+                selectedKey
+            )
+        )
     }
 
     /**
@@ -804,13 +794,14 @@ export class PcbViewController {
         this.#contentNode[PRESERVED_VIEWPORT_KEY] = {
             documentModel: this.#documentModel,
             side: this.#side,
+            selectedComponentKey: this.#selectedComponentKey,
             viewBox
         }
     }
 
     /**
      * Restores a previously stored viewBox when remounting the same PCB side.
-     * @returns {boolean}
+     * @returns {{ restored: boolean, selectedComponentKey: string }}
      */
     #restorePreservedViewport() {
         const preserved = this.#contentNode[PRESERVED_VIEWPORT_KEY]
@@ -820,10 +811,13 @@ export class PcbViewController {
             preserved.documentModel !== this.#documentModel ||
             preserved.side !== this.#side
         ) {
-            return false
+            return { restored: false, selectedComponentKey: '' }
         }
 
-        return this.#applyViewBox(preserved.viewBox)
+        return {
+            restored: this.#applyViewBox(preserved.viewBox),
+            selectedComponentKey: String(preserved.selectedComponentKey || '')
+        }
     }
 
     /**
@@ -906,85 +900,4 @@ export class PcbViewController {
         return side === 'bottom' ? 'bottom' : 'top'
     }
 
-    /**
-     * Resolves the first source-layer id from a Gerber document.
-     * @param {object} documentModel PCB document model.
-     * @returns {string}
-     */
-    static #firstGerberLayerId(documentModel) {
-        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
-
-        return String(layers[0]?.id || '')
-    }
-
-    /**
-     * Returns true when the document carries fabrication source layers.
-     * @param {object} documentModel PCB document model.
-     * @returns {boolean}
-     */
-    static #isGerberDocument(documentModel) {
-        return (
-            documentModel?.sourceFormat === 'gerber' ||
-            Array.isArray(documentModel?.pcb?.fabrication?.layers)
-        )
-    }
-
-    /**
-     * Resolves a safe source-layer id for Gerber single-file rendering.
-     * @param {object} documentModel PCB document model.
-     * @param {unknown} requestedLayerId Requested layer id.
-     * @returns {string}
-     */
-    static #resolveGerberLayerIds(
-        documentModel,
-        requestedLayerIds,
-        fallbackLayerId = ''
-    ) {
-        const requested = Array.isArray(requestedLayerIds)
-            ? requestedLayerIds.map(String).filter(Boolean)
-            : []
-        const fallback = String(fallbackLayerId || '')
-        if (!requested.length && fallback) {
-            requested.push(fallback)
-        }
-        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
-        const availableIds = new Set(
-            layers.map((layer) => String(layer?.id || '')).filter(Boolean)
-        )
-        const selectedIds = requested.filter((id) => availableIds.has(id))
-        return selectedIds.length
-            ? selectedIds
-            : [PcbViewController.#firstGerberLayerId(documentModel)].filter(
-                  Boolean
-              )
-    }
-
-    /**
-     * Resolves whether Gerber rendering should show the full stack or one file.
-     * @param {unknown} requestedRenderMode Requested render mode.
-     * @param {string[]} layerIds Resolved source-layer ids.
-     * @returns {'composite' | 'separated'}
-     */
-    static #resolveGerberRenderMode(requestedRenderMode, layerIds) {
-        return requestedRenderMode === 'separated' && layerIds.length
-            ? 'separated'
-            : 'composite'
-    }
-
-    /**
-     * Compares two string lists by ordered value.
-     * @param {string[]} left First list.
-     * @param {string[]} right Second list.
-     * @returns {boolean}
-     */
-    static #sameStringList(left, right) {
-        return (
-            left.length === right.length &&
-            left.every((value, index) => value === right[index])
-        )
-    }
 }

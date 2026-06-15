@@ -193,17 +193,17 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
 
 /**
  * Verifies reusable ECAD parser, renderer, and 3D cores resolve from the
- * intended npm package sources.
+ * intended package sources.
  */
 test('package depends on intended ECAD toolkit package sources', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const toolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.22$/],
+        ['altium-toolkit', /^\^1\.1\.24$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
         ['gerber-toolkit', /^\^0\.1\.18$/],
-        ['kicad-toolkit', /^\^1\.0\.11$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.10$/]
+        ['kicad-toolkit', /^\^1\.0\.12$/],
+        ['pcb-scene3d-viewer', /^\^1\.1\.11$/]
     ]
 
     for (const [dependencyName, versionPattern] of toolkitDependencies) {
@@ -593,7 +593,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
     const toolkitDependencies = [
         {
             name: 'altium-toolkit',
-            registryVersion: '1.1.22'
+            registryVersion: '1.1.24'
         },
         {
             name: 'circuitjson-toolkit',
@@ -605,11 +605,11 @@ test('ECAD libraries resolve through configured package sources', async () => {
         },
         {
             name: 'kicad-toolkit',
-            registryVersion: '1.0.11'
+            registryVersion: '1.0.12'
         },
         {
             name: 'pcb-scene3d-viewer',
-            registryVersion: '1.1.10'
+            registryVersion: '1.1.11'
         }
     ]
 

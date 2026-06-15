@@ -37,8 +37,8 @@ export class PcbComponentSelectionModel {
         const layerId = Number(
             component?.layerId ?? component?.layerCode ?? component?.sideCode
         )
-        if (layerId === 32) return 'bottom'
-        if (layerId === 1) return 'top'
+        if (layerId === 32 || layerId === 34) return 'bottom'
+        if (layerId === 1 || layerId === 33) return 'top'
 
         const text = PcbComponentSelectionModel.#componentSearchText(component)
         if (/\b(bottom|back)\b|\bb[._-]/.test(text)) return 'bottom'
@@ -143,7 +143,7 @@ export class PcbComponentSelectionModel {
             if (
                 entryDocumentId &&
                 (entryDocumentId === targetDocumentId ||
-                    PcbComponentSelectionModel.#documentHasComponentKey(
+                    PcbComponentSelectionModel.documentHasComponentKey(
                         entry?.documentModel,
                         normalizedComponentKey
                     ))
@@ -179,7 +179,7 @@ export class PcbComponentSelectionModel {
      * @param {string} componentKey Component key.
      * @returns {boolean}
      */
-    static #documentHasComponentKey(documentModel, componentKey) {
+    static documentHasComponentKey(documentModel, componentKey) {
         const components = [
             ...(documentModel?.schematic?.components || []),
             ...(documentModel?.pcb?.components || [])

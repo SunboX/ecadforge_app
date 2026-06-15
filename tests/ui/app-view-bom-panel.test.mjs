@@ -124,14 +124,14 @@ class FakeDocument {
 /**
  * Builds a minimal BOM snapshot for one source format.
  * @param {string} sourceFormat
+ * @param {{ bom?: object[], selectedComponentKey?: string }} [options]
  * @returns {any}
  */
-function createBomSnapshot(sourceFormat) {
+function createBomSnapshot(sourceFormat, options = {}) {
     const documentModel = {
         sourceFormat,
         kind: 'pcb',
-        fileName:
-            sourceFormat === 'kicad' ? 'demo.kicad_pcb' : 'demo.PcbDoc',
+        fileName: sourceFormat === 'kicad' ? 'demo.kicad_pcb' : 'demo.PcbDoc',
         diagnostics: [],
         summary: {
             bomRowCount: 1,
@@ -145,7 +145,7 @@ function createBomSnapshot(sourceFormat) {
             boardOutline: { widthMil: 1000, heightMil: 500 },
             components: [{ designator: 'U1' }]
         },
-        bom: [
+        bom: options.bom || [
             {
                 designators: ['U1'],
                 quantity: 1,
@@ -164,14 +164,17 @@ function createBomSnapshot(sourceFormat) {
         activeFileName: documentModel.fileName,
         documentModel,
         documents: [{ id: 'doc-1', documentModel }],
-        activeDocumentId: 'doc-1'
+        activeDocumentId: 'doc-1',
+        selectedPcbComponents: options.selectedComponentKey
+            ? { 'doc-1': options.selectedComponentKey }
+            : {}
     }
 }
 
 /**
  * Renders a BOM view and returns the content node markup.
  * @param {string} sourceFormat
- * @param {{ translate?: (key: string) => string }} [options]
+ * @param {{ bom?: object[], selectedComponentKey?: string, translate?: (key: string) => string }} [options]
  * @returns {string}
  */
 function renderBomMarkup(sourceFormat, options = {}) {
@@ -180,7 +183,7 @@ function renderBomMarkup(sourceFormat, options = {}) {
         translate: options.translate || null
     })
 
-    view.render(createBomSnapshot(sourceFormat))
+    view.render(createBomSnapshot(sourceFormat, options))
 
     return fakeDocument.querySelector('#viewContent').innerHTML
 }
@@ -226,4 +229,42 @@ test('AppView translates BOM table headings', () => {
     assert.match(markup, /<th>Lokale Quelle<\/th>/)
     assert.doesNotMatch(markup, /<th>Designators<\/th>/)
     assert.doesNotMatch(markup, /<th>Qty<\/th>/)
+})
+
+/**
+ * Verifies selected component state highlights the matching BOM row only.
+ */
+test('AppView highlights the selected BOM row by exact designator', () => {
+    const markup = renderBomMarkup('kicad', {
+        selectedComponentKey: 'R10',
+        bom: [
+            {
+                designators: ['R1', 'R10', 'R12'],
+                quantity: 3,
+                value: '470',
+                pattern: 'SMT_R_0402',
+                source: 'Device:R'
+            },
+            {
+                designators: ['R11'],
+                quantity: 1,
+                value: '100k',
+                pattern: 'SMT_R_0402',
+                source: 'Device:R'
+            }
+        ]
+    })
+
+    assert.match(
+        markup,
+        /<tr class="bom-table__row--selected" data-bom-selected-component-key="R10">/
+    )
+    assert.match(
+        markup,
+        /R1, <mark class="bom-table__selected-designator">R10<\/mark>, R12/
+    )
+    assert.doesNotMatch(
+        markup,
+        /<mark class="bom-table__selected-designator">R1<\/mark>/
+    )
 })

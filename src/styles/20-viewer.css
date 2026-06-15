@@ -633,6 +633,22 @@ body.is-viewer-mode.is-viewer-pcb .pcb-svg {
     letter-spacing: 0.05em;
 }
 
+.bom-table tr.bom-table__row--selected {
+    background: rgba(227, 84, 23, 0.1);
+}
+
+.bom-table tr.bom-table__row--selected td:first-child {
+    box-shadow: inset 0.22rem 0 0 #e35417;
+}
+
+.bom-table__selected-designator {
+    padding: 0.03rem 0.18rem;
+    border-radius: 0.22rem;
+    background: rgba(227, 84, 23, 0.16);
+    color: var(--brand-strong);
+    font-weight: 700;
+}
+
 .diagnostics-list {
     list-style: none;
     margin: 0;

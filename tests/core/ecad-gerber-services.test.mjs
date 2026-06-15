@@ -88,6 +88,69 @@ function createTwoSideGerberDocument() {
 }
 
 /**
+ * Builds a synthetic Gerber document with silkscreen artwork crossing round and
+ * obround copper features.
+ * @returns {object}
+ */
+function createGerberSilkscreenCutoutDocument() {
+    return {
+        sourceFormat: 'gerber',
+        kind: 'pcb',
+        fileName: 'fabrication',
+        pcb: {
+            bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 },
+            fabrication: {
+                layers: [
+                    {
+                        id: 'gerber-top',
+                        fileName: 'sample-F_Cu.gtl',
+                        role: 'top-copper',
+                        side: 'top',
+                        primitives: [
+                            {
+                                type: 'flash',
+                                shape: 'circle',
+                                x: 4,
+                                y: 4,
+                                diameter: 1
+                            },
+                            {
+                                type: 'flash',
+                                shape: 'obround',
+                                x: 6,
+                                y: 4,
+                                width: 1.4,
+                                height: 0.7
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'gerber-top-silkscreen',
+                        fileName: 'sample-F_SilkS.gto',
+                        role: 'top-silkscreen',
+                        side: 'top',
+                        primitives: [
+                            {
+                                type: 'region',
+                                points: [
+                                    { x: 2, y: 2 },
+                                    { x: 8, y: 2 },
+                                    { x: 8, y: 6 },
+                                    { x: 2, y: 6 }
+                                ]
+                            }
+                        ],
+                        drills: []
+                    }
+                ]
+            }
+        },
+        bom: []
+    }
+}
+
+/**
  * Verifies the format registry detects Gerber and drill sources.
  */
 test('EcadFormatRegistry detects Gerber and drill sources', () => {
@@ -276,6 +339,32 @@ test('ECAD renderer services accept Gerber fabrication document models', () => {
     assert.equal(scene.board.heightMil, 157.480315)
     assert.equal(scene.components.length, 0)
     assert.equal(scene.detail.pads.length, 1)
+})
+
+/**
+ * Verifies Gerber silkscreen keepouts use dense curved contours before the
+ * viewer triangulates the fill mesh.
+ */
+test('EcadScene3dService smooths Gerber curved silkscreen cutouts', () => {
+    const scene = EcadScene3dService.build(
+        createGerberSilkscreenCutoutDocument()
+    )
+    const topSilkscreen = scene.detail.silkscreen.top
+    const circularCutout = topSilkscreen.drillCutouts.find(
+        (cutout) => cutout.length > 80
+    )
+    const obroundCutout = topSilkscreen.drillCutouts.find(
+        (cutout) => cutout.length > 50 && cutout.length < 90
+    )
+
+    assert.ok(
+        circularCutout,
+        'Expected Gerber circular copper keepout to use a dense contour'
+    )
+    assert.ok(
+        obroundCutout,
+        'Expected Gerber obround copper keepout to use dense rounded caps'
+    )
 })
 
 /**

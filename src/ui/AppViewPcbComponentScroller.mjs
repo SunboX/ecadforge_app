@@ -41,6 +41,37 @@ export class AppViewPcbComponentScroller {
     }
 
     /**
+     * Scrolls the selected BOM row into view in the active BOM panel.
+     * @param {HTMLElement | null} contentNode Viewer content node.
+     * @param {{ activeView?: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string } }} snapshot
+     * @param {{ suppressScroll?: boolean }} [options] Scroll behavior options.
+     * @returns {void}
+     */
+    static scrollSelectedBomRowIntoView(contentNode, snapshot, options = {}) {
+        if (options?.suppressScroll) return
+        if (snapshot?.activeView !== 'bom') return
+
+        const documentId = String(snapshot?.activeDocumentId || '')
+        const selectedKey = String(
+            snapshot?.selectedPcbComponents?.[documentId] || ''
+        )
+        if (!selectedKey) return
+
+        const row = AppViewPcbComponentScroller.#findRow(
+            contentNode,
+            '[data-bom-selected-component-key]',
+            'data-bom-selected-component-key',
+            selectedKey
+        )
+        if (typeof row?.scrollIntoView !== 'function') return
+
+        row.scrollIntoView({
+            block: 'center',
+            inline: 'nearest'
+        })
+    }
+
+    /**
      * Scrolls one selected sidebar row into view.
      * @param {HTMLElement | null} railNode Sidebar rail node.
      * @param {{ activeSidebarTab?: string, activeDocumentId?: string }} snapshot State snapshot.

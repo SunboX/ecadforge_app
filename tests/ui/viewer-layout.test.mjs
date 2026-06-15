@@ -604,6 +604,31 @@ test('viewer stylesheet maps Gerber PCB output onto the app palette', async () =
 })
 
 /**
+ * Verifies bottom-side PCB renders keep physical bottom layers on the same
+ * blue-green palette shown by the layer sidebar.
+ */
+test('viewer stylesheet maps bottom-side PCB surface output to bottom layer colors', async () => {
+    const css = await readStylesheet('25-kicad-pcb.css')
+    const bottomPaletteBlock =
+        css.match(
+            /\.pcb-svg--app-palette\.pcb-svg--bottom\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(
+        bottomPaletteBlock,
+        /--pcb-surface-track-color:\s*rgba\(15,\s*116,\s*108,\s*0\.56\);/
+    )
+    assert.match(
+        bottomPaletteBlock,
+        /--pcb-copper-solid-fill:\s*rgba\(15,\s*116,\s*108,\s*0\.56\);/
+    )
+    assert.match(
+        bottomPaletteBlock,
+        /--pcb-subsurface-track-color:\s*rgba\(199,\s*82,\s*45,\s*0\.92\);/
+    )
+})
+
+/**
  * Verifies the GitHub URL intake starts below the sample CTAs with enough
  * breathing room for the landing-page action cluster.
  */

@@ -251,9 +251,12 @@ class FakeDocument {
  * Creates a schematic document model.
  * @param {string} fileName File name.
  * @param {string} designator Component designator.
+ * @param {{ x?: number, y?: number }} [options] Component position.
  * @returns {object}
  */
-function createSchematicDocument(fileName, designator) {
+function createSchematicDocument(fileName, designator, options = {}) {
+    const x = Number(options.x ?? 20)
+    const y = Number(options.y ?? 20)
     return {
         sourceFormat: 'kicad',
         kind: 'schematic',
@@ -261,12 +264,14 @@ function createSchematicDocument(fileName, designator) {
         summary: { title: fileName },
         schematic: {
             sheet: { width: 80, height: 60 },
-            components: [{ ownerIndex: `owner-${designator}`, designator }],
+            components: [
+                { ownerIndex: `owner-${designator}`, designator, x, y }
+            ],
             rectangles: [
                 {
                     ownerIndex: `owner-${designator}`,
-                    x: 20,
-                    y: 20,
+                    x,
+                    y,
                     width: 12,
                     height: 10
                 }
@@ -274,8 +279,8 @@ function createSchematicDocument(fileName, designator) {
             texts: [
                 {
                     ownerIndex: `owner-${designator}`,
-                    x: 20,
-                    y: 18,
+                    x,
+                    y: y - 2,
                     value: designator
                 }
             ],
@@ -333,4 +338,30 @@ test('AppView keeps active schematic content mounted when documents append', () 
     )
 
     assert.equal(content.renderCount, 1)
+})
+
+/**
+ * Verifies opening a schematic with an existing component selection pans the
+ * selected symbol marker into the active viewport.
+ */
+test('AppView centers selected schematic component on first schematic mount', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const content = fakeDocument.querySelector('#viewContent')
+    const activeDocument = createSchematicDocument(
+        'active-fake.kicad_sch',
+        'U2',
+        { x: 70, y: 50 }
+    )
+    const snapshot = createSnapshot(activeDocument, [
+        { id: 'doc-1', documentModel: activeDocument }
+    ])
+    snapshot.selectedPcbComponents = { 'doc-1': 'U2' }
+
+    view.render(snapshot)
+
+    assert.notEqual(
+        content.querySelector('.schematic-svg')?.getAttribute('viewBox'),
+        '0 0 80 60'
+    )
 })

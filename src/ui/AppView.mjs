@@ -1,6 +1,6 @@
-import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { Scene3dControllerFactory } from '../Scene3dControllerFactory.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
+import { AppViewBomPanelRenderer } from './AppViewBomPanelRenderer.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
@@ -13,8 +13,10 @@ import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.m
 import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
 import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
 import { AppViewSidebarScrollState } from './AppViewSidebarScrollState.mjs'
+import { AppViewSidebarFilterState } from './AppViewSidebarFilterState.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
+import { SchematicSelectionMarkerBoundsResolver } from './SchematicSelectionMarkerBoundsResolver.mjs'
 import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
 import { SchematicViewportPreserver } from './SchematicViewportPreserver.mjs'
 import { UiText } from './UiText.mjs'
@@ -68,6 +70,9 @@ export class AppView {
 
     /** @type {AppViewGerberRenderSelectionStore} */
     #gerberRenderSelections
+
+    /** @type {AppViewSidebarFilterState} */
+    #sidebarFilterState
 
     /** @type {HTMLElement | null} */
     #contentNode
@@ -135,6 +140,7 @@ export class AppView {
         this.#expandedSidebarMarkup = ''
         this.#lastSnapshot = null
         this.#gerberRenderSelections = new AppViewGerberRenderSelectionStore()
+        this.#sidebarFilterState = new AppViewSidebarFilterState()
         this.#contentNode = this.#document.querySelector('#viewContent')
         this.#tabsNode = this.#document.querySelector('#viewTabs')
         this.#githubOpenForm = this.#document.querySelector('#githubOpenForm')
@@ -177,7 +183,10 @@ export class AppView {
             (collapsed) => this.#setSidebarCollapsed(collapsed)
         )
         ViewerSidebarEventBinder.bindComponentDetailCopy(this.#documentRailNode)
-        ViewerSidebarEventBinder.bindComponentFilter(this.#documentRailNode)
+        this.#sidebarFilterState.bindComponentFilter(
+            this.#documentRailNode,
+            () => this.#lastSnapshot
+        )
         ViewerSidebarEventBinder.bindLayerFilter(this.#documentRailNode)
         ViewerSidebarEventBinder.bindNetFilter(this.#documentRailNode)
         ViewerSidebarEventBinder.bindScene3dModelZipExport(
@@ -685,6 +694,10 @@ export class AppView {
             this.#documentRailNode
         )
         if (!this.#sidebarCollapsed) {
+            this.#sidebarFilterState.restoreComponentFilter(
+                this.#documentRailNode,
+                snapshot
+            )
             AppViewSidebarScrollState.restore(
                 this.#documentRailNode,
                 scrollState
@@ -717,6 +730,12 @@ export class AppView {
         this.#scene3dPanelController.setAdjustmentHostFromRail(
             this.#documentRailNode
         )
+        if (!this.#sidebarCollapsed) {
+            this.#sidebarFilterState.restoreComponentFilter(
+                this.#documentRailNode,
+                this.#lastSnapshot
+            )
+        }
     }
 
     /**
@@ -786,15 +805,19 @@ export class AppView {
 
         if (snapshot.activeView === 'schematic') {
             const documentId = String(snapshot?.activeDocumentId || '')
+            const selectedComponentKey = String(
+                snapshot?.selectedPcbComponents?.[documentId] || ''
+            )
             this.#contentNode.innerHTML = SchematicViewRenderer.render(
                 snapshot.documentModel,
-                String(snapshot?.selectedPcbComponents?.[documentId] || ''),
+                selectedComponentKey,
                 String(snapshot?.selectedNets?.[documentId] || '')
             )
-            SchematicViewportPreserver.restore(
-                this.#contentNode,
-                preservedSchematicViewBox
-            )
+            const restoredSchematicViewport =
+                SchematicViewportPreserver.restore(
+                    this.#contentNode,
+                    preservedSchematicViewBox
+                )
             SchematicViewportPreserver.remember(
                 this.#contentNode,
                 documentId,
@@ -805,6 +828,12 @@ export class AppView {
                 snapshot
             )
             this.#attachSvgViewportController('.schematic-svg')
+            SchematicSelectionMarkerBoundsResolver.centerViewport(
+                this.#svgViewportController,
+                this.#contentNode.innerHTML,
+                selectedComponentKey,
+                restoredSchematicViewport
+            )
             SchematicComponentSelectionBinder.bind(
                 this.#contentNode.querySelector('.schematic-svg'),
                 documentId,
@@ -851,17 +880,11 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'bom') {
-            const bomMarkup = EcadRendererService.renderBom(
-                snapshot.documentModel,
-                {
-                    translate: this.#translate
-                }
+            AppViewBomPanelRenderer.render(
+                this.#contentNode,
+                snapshot,
+                this.#translate
             )
-            this.#contentNode.innerHTML = bomMarkup.includes(
-                'class="bom-panel"'
-            )
-                ? bomMarkup
-                : '<div class="bom-panel">' + bomMarkup + '</div>'
             return
         }
 
@@ -881,7 +904,14 @@ export class AppView {
         if (!this.#contentNode) return
 
         const svgNode = this.#contentNode.querySelector(selector)
-        if (!AppView.#isInteractiveSvg(svgNode)) {
+        if (
+            !svgNode ||
+            typeof svgNode.getAttribute !== 'function' ||
+            typeof svgNode.setAttribute !== 'function' ||
+            typeof svgNode.getBoundingClientRect !== 'function' ||
+            typeof svgNode.addEventListener !== 'function' ||
+            typeof svgNode.removeEventListener !== 'function'
+        ) {
             return
         }
 
@@ -929,24 +959,6 @@ export class AppView {
                 documentModel: snapshot.documentModel
             }
         ]
-    }
-
-    /**
-     * Returns true when the queried node exposes the methods required by the
-     * shared SVG viewport controller.
-     * @param {unknown} node
-     * @returns {boolean}
-     */
-    static #isInteractiveSvg(node) {
-        return Boolean(
-            node &&
-            typeof node === 'object' &&
-            typeof node.getAttribute === 'function' &&
-            typeof node.setAttribute === 'function' &&
-            typeof node.getBoundingClientRect === 'function' &&
-            typeof node.addEventListener === 'function' &&
-            typeof node.removeEventListener === 'function'
-        )
     }
 
     /**

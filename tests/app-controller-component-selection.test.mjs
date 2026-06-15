@@ -97,17 +97,24 @@ class FakeView {
 
 /**
  * Builds a schematic document with one shared component designator.
+ * @param {string[]} [nets] Schematic net names.
+ * @param {string} [designator] Component designator.
+ * @param {string} [fileName] Document file name.
  * @returns {object}
  */
-function createSchematicDocument(nets = ['SENSE_A']) {
+function createSchematicDocument(
+    nets = ['SENSE_A'],
+    designator = 'U1',
+    fileName = 'demo.SchDoc'
+) {
     return {
-        fileName: 'demo.SchDoc',
+        fileName,
         kind: 'schematic',
         diagnostics: [],
-        summary: { title: 'demo.SchDoc' },
+        summary: { title: fileName },
         schematic: {
             sheet: { width: 200, height: 100 },
-            components: [{ designator: 'U1', libraryReference: 'MCU' }],
+            components: [{ designator, libraryReference: 'MCU' }],
             pins: [],
             ports: [],
             nets: nets.map((name) => ({ name }))
@@ -117,10 +124,11 @@ function createSchematicDocument(nets = ['SENSE_A']) {
 }
 
 /**
- * Builds a PCB document with one shared component designator.
+ * Builds a PCB document with shared component designators.
+ * @param {string[]} [designators] Component designators.
  * @returns {object}
  */
-function createPcbDocument() {
+function createPcbDocument(designators = ['U1']) {
     return {
         fileName: 'demo.PcbDoc',
         kind: 'pcb',
@@ -128,7 +136,10 @@ function createPcbDocument() {
         summary: { title: 'demo.PcbDoc' },
         pcb: {
             boardOutline: { widthMil: 1000, heightMil: 500 },
-            components: [{ designator: 'U1', pattern: 'SOP-16' }],
+            components: designators.map((designator) => ({
+                designator,
+                pattern: 'SOP-16'
+            })),
             nets: [{ name: 'SENSE_A' }]
         },
         bom: []
@@ -202,6 +213,50 @@ test('AppController preserves selected component when switching schematic, PCB, 
     })
 
     assert.deepEqual(state.getSnapshot().selectedPcbComponents, {})
+})
+
+test('AppController opens the schematic document containing a PCB-selected component', async () => {
+    const state = new AppState({
+        activeView: 'pcb',
+        documents: [
+            {
+                id: 'sheet-a',
+                documentModel: createSchematicDocument(
+                    ['SENSE_A'],
+                    'U1',
+                    'sheet-a.SchDoc'
+                )
+            },
+            {
+                id: 'sheet-b',
+                documentModel: createSchematicDocument(
+                    ['SENSE_A'],
+                    'U2',
+                    'sheet-b.SchDoc'
+                )
+            },
+            { id: 'pcb-doc', documentModel: createPcbDocument(['U1', 'U2']) }
+        ],
+        activeDocumentId: 'pcb-doc'
+    })
+    const view = new FakeView()
+    const controller = new AppController({
+        state,
+        view,
+        parser: {}
+    })
+
+    await controller.init()
+    view.selectComponent({
+        documentId: 'pcb-doc',
+        componentKey: 'U2',
+        source: 'pcb-board'
+    })
+    view.changeView('schematic')
+
+    const snapshot = state.getSnapshot()
+    assert.equal(snapshot.activeDocumentId, 'sheet-b')
+    assert.equal(snapshot.selectedPcbComponents['sheet-b'], 'U2')
 })
 
 test('AppController restores startup selected component state', async () => {

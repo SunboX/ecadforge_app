@@ -912,7 +912,7 @@ test('AppView wires zoom and drag onto the rendered pcb svg', () => {
         preventDefault() {}
     })
 
-    assert.equal(svg.getAttribute('viewBox'), '-228.9 -232.65 1435.6 950.6')
+    assert.equal(svg.getAttribute('viewBox'), '-232.5 -232.65 1435.6 950.6')
 
     svg.dispatch('mousedown', {
         button: 0,
@@ -928,7 +928,7 @@ test('AppView wires zoom and drag onto the rendered pcb svg', () => {
         preventDefault() {}
     })
 
-    assert.equal(svg.getAttribute('viewBox'), '-372.46 -327.71 1435.6 950.6')
+    assert.equal(svg.getAttribute('viewBox'), '-422.62 -327.71 1435.6 950.6')
 })
 
 /**

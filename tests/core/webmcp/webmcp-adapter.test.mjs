@@ -96,6 +96,79 @@ function createLegacyModelContext(options = {}) {
 }
 
 /**
+ * Builds a fake four-argument legacy model context.
+ * @param {{ throwFor?: string }} [options] Options.
+ * @returns {{ calls: object[], modelContext: { registerTool: (name: string, description: string, inputSchema: object, handler: Function) => void } }}
+ */
+function createLegacyPositionalModelContext(options = {}) {
+    const calls = []
+    return {
+        calls,
+        modelContext: {
+            registerTool(name, description, inputSchema, handler) {
+                if (name === options.throwFor) {
+                    throw new Error('registration failed')
+                }
+                calls.push({
+                    name,
+                    description,
+                    inputSchema,
+                    handler
+                })
+            }
+        }
+    }
+}
+
+/**
+ * Builds a minimal registry for adapter instrumentation assertions.
+ * @param {{ name?: string, handler?: (args: object) => unknown }} [options] Options.
+ * @returns {{ getTools: () => object[] }}
+ */
+function createSingleToolRegistry(options = {}) {
+    return {
+        getTools() {
+            return [
+                {
+                    name: options.name || 'query_pcb_component',
+                    description: 'Return fake PCB component data.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {},
+                        additionalProperties: false
+                    },
+                    annotations: {
+                        readOnlyHint: true,
+                        untrustedContentHint: true
+                    },
+                    handler:
+                        options.handler ||
+                        (() => {
+                            return { component: 'fake' }
+                        })
+                }
+            ]
+        }
+    }
+}
+
+/**
+ * Builds an analytics recorder.
+ * @returns {{ events: object[], analytics: { track: (eventName: string, properties?: object) => void } }}
+ */
+function createAnalyticsRecorder() {
+    const events = []
+    return {
+        events,
+        analytics: {
+            track(eventName, properties = {}) {
+                events.push({ name: eventName, properties })
+            }
+        }
+    }
+}
+
+/**
  * Replaces one global object for the duration of one test.
  * @param {string} property Property name.
  * @param {unknown} value Replacement value.
@@ -179,6 +252,105 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
 })
 
 /**
+ * Verifies supported WebMCP registration emits availability analytics.
+ */
+test('WebMcpAdapter tracks WebMCP availability after registration', () => {
+    const fake = createObjectModelContext()
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+
+    const result = adapter.initialize()
+
+    assert.deepEqual(result, {
+        available: true,
+        registered: 1,
+        failed: 0
+    })
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_available',
+            properties: {
+                apiForm: 'object',
+                resultStatus: 'success'
+            }
+        }
+    ])
+})
+
+/**
+ * Verifies object-form executions emit safe method-call analytics.
+ */
+test('WebMcpAdapter tracks successful object-form tool calls', async () => {
+    const fake = createObjectModelContext()
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+    adapter.initialize()
+    recorder.events.length = 0
+
+    const response = await fake.calls[0].tool.execute({
+        refdes: 'private-refdes'
+    })
+
+    assert.deepEqual(response, { component: 'fake' })
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_called',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'object',
+                resultStatus: 'success'
+            }
+        }
+    ])
+})
+
+/**
+ * Verifies rejected object-form executions preserve errors and track failures.
+ */
+test('WebMcpAdapter tracks failed object-form tool calls', async () => {
+    const fake = createObjectModelContext()
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry({
+            handler() {
+                throw new Error('query failed')
+            }
+        }),
+        analytics: recorder.analytics
+    })
+    adapter.initialize()
+    recorder.events.length = 0
+
+    await assert.rejects(
+        () => fake.calls[0].tool.execute({ refdes: 'private-refdes' }),
+        /query failed/
+    )
+
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_called',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'object',
+                resultStatus: 'error'
+            }
+        }
+    ])
+})
+
+/**
  * Verifies the adapter prefers the current document-scoped API when available.
  */
 test('WebMcpAdapter prefers document model context over deprecated navigator context', () => {
@@ -256,6 +428,74 @@ test('WebMcpAdapter supports legacy positional model context', async () => {
 })
 
 /**
+ * Verifies legacy descriptor executions emit safe method-call analytics.
+ */
+test('WebMcpAdapter tracks successful legacy descriptor tool calls', async () => {
+    const fake = createLegacyModelContext()
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+    adapter.initialize()
+    recorder.events.length = 0
+
+    const response = await fake.calls[0].handler({
+        refdes: 'private-refdes'
+    })
+
+    assert.deepEqual(response, {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify({ component: 'fake' }, null, 2)
+            }
+        ]
+    })
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_called',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'legacy_descriptor',
+                resultStatus: 'success'
+            }
+        }
+    ])
+})
+
+/**
+ * Verifies four-argument legacy executions report the positional API form.
+ */
+test('WebMcpAdapter tracks successful legacy positional tool calls', async () => {
+    const fake = createLegacyPositionalModelContext()
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+    adapter.initialize()
+    recorder.events.length = 0
+
+    await fake.calls[0].handler({})
+
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_called',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'legacy_positional',
+                resultStatus: 'success'
+            }
+        }
+    ])
+})
+
+/**
  * Verifies one failed tool registration does not block the rest.
  */
 test('WebMcpAdapter continues after one registration failure', () => {
@@ -274,4 +514,43 @@ test('WebMcpAdapter continues after one registration failure', () => {
         fake.calls.some((call) => call.tool.name === 'query_component'),
         true
     )
+})
+
+/**
+ * Verifies failed registrations emit safe failure analytics.
+ */
+test('WebMcpAdapter tracks failed tool registrations', () => {
+    const fake = createObjectModelContext({ throwFor: 'query_pcb_component' })
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+
+    const result = adapter.initialize()
+
+    assert.deepEqual(result, {
+        available: true,
+        registered: 0,
+        failed: 1
+    })
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_registration_failed',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'object',
+                resultStatus: 'error'
+            }
+        },
+        {
+            name: 'webmcp_available',
+            properties: {
+                apiForm: 'object',
+                resultStatus: 'error'
+            }
+        }
+    ])
 })

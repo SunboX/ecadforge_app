@@ -9,6 +9,7 @@ import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
 import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
 import { AppView } from './ui/AppView.mjs'
 import { I18nService } from './I18n.mjs'
+import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 import { StartupSourceResolver } from './StartupSourceResolver.mjs'
 import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 
@@ -48,16 +49,19 @@ async function bootstrap() {
     })
     view.setVersion(loadedVersion)
     const startupSource = StartupSourceResolver.resolve(window.location.href)
+    const analytics = PrivacySafeAnalytics.fromWindow()
     const controller = new AppController({
         state,
         view,
         i18n,
         workerFactory: () => new Worker(parserWorkerUrl, { type: 'module' }),
         modelSearchService,
-        startupSource
+        startupSource,
+        analytics
     })
     const webMcpAdapter = new WebMcpAdapter({
-        getSnapshot: () => state.getSnapshot()
+        getSnapshot: () => state.getSnapshot(),
+        analytics
     })
 
     await controller.init()

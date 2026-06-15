@@ -1,4 +1,5 @@
 import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
+import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
 
 /**
  * Resolves active view/document choices for controller state updates.
@@ -74,7 +75,7 @@ export class AppControllerDocumentSelection {
      * Builds the active-view patch while keeping the active document
      * compatible with the selected view whenever possible.
      * @param {string} viewName Requested view.
-     * @param {{ activeDocumentId: string, documents: { id: string, documentModel: object }[] }} snapshot Current state snapshot.
+     * @param {{ activeDocumentId: string, documents: { id: string, documentModel: object }[], selectedPcbComponents?: { [documentId: string]: string } }} snapshot Current state snapshot.
      * @returns {{ activeView: string, activeDocumentId?: string }}
      */
     static buildCompatibleViewPatch(viewName, snapshot) {
@@ -82,6 +83,11 @@ export class AppControllerDocumentSelection {
             activeView: viewName
         }
         const compatibleDocumentId =
+            AppControllerDocumentSelection.#resolveSelectedComponentDocumentId(
+                snapshot.documents,
+                viewName,
+                snapshot
+            ) ||
             AppControllerDocumentSelection.resolveDocumentId(
                 snapshot.documents,
                 viewName,
@@ -93,6 +99,37 @@ export class AppControllerDocumentSelection {
         }
 
         return patch
+    }
+
+    /**
+     * Resolves a view-compatible document that contains the active selected component.
+     * @param {{ id: string, documentModel: object }[]} documents Loaded docs.
+     * @param {string} viewName Requested view.
+     * @param {{ activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string } }} snapshot Current state snapshot.
+     * @returns {string}
+     */
+    static #resolveSelectedComponentDocumentId(documents, viewName, snapshot) {
+        const selectedKey = PcbComponentSelectionModel.resolveSelectedKey(
+            snapshot?.selectedPcbComponents,
+            String(snapshot?.activeDocumentId || '')
+        )
+        if (!selectedKey) {
+            return ''
+        }
+
+        const matchedDocument = (documents || []).find(
+            (entry) =>
+                DocumentViewCompatibility.supportsView(
+                    entry?.documentModel,
+                    viewName
+                ) &&
+                PcbComponentSelectionModel.documentHasComponentKey(
+                    entry?.documentModel,
+                    selectedKey
+                )
+        )
+
+        return matchedDocument?.id || ''
     }
 
     /**

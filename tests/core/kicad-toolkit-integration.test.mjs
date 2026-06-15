@@ -208,6 +208,52 @@ test('kicad-toolkit scene3d preserves long silkscreen arc sweeps', () => {
 })
 
 /**
+ * Verifies mirrored bottom silkscreen text keeps KiCad's displayed rotation.
+ */
+test('kicad-toolkit scene3d keeps mirrored bottom text rotation upright', () => {
+    const scene = PcbScene3dBuilder.build({
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: []
+            },
+            pads: [],
+            vias: [],
+            components: [],
+            kicadBoard: {
+                drawings: [],
+                texts: [
+                    {
+                        value: '-',
+                        layer: 'B.SilkS',
+                        side: 'back',
+                        x: 10,
+                        y: 10,
+                        rotation: 28,
+                        mirrored: true,
+                        hAlign: 'center',
+                        vAlign: 'center',
+                        sizeX: 1,
+                        sizeY: 1,
+                        thickness: 0.15,
+                        visible: true
+                    }
+                ]
+            }
+        }
+    })
+    const track = scene.detail.silkscreen.bottom.tracks[0]
+
+    assert.ok(track.x2 - track.x1 < 0)
+    assert.ok(track.y2 - track.y1 > 0)
+})
+
+/**
  * Verifies KiCad footprint rotations stay in KiCad 3D renderer orientation.
  */
 test('kicad-toolkit scene3d keeps raw component rotations for 3D placements', () => {

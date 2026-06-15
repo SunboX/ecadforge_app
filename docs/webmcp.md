@@ -40,6 +40,19 @@ state and may summarize user-loaded ECAD data. Older positional browser APIs
 remain supported when exposed through `document.modelContext` and receive
 MCP-style JSON text content.
 
+## Analytics
+
+When the production analytics tracker is available, ECAD Forge records
+privacy-safe WebMCP usage events:
+
+- `webmcp_available`: native WebMCP support was detected and registration ran.
+- `webmcp_tool_registration_failed`: one tool registration failed.
+- `webmcp_tool_called`: one registered tool handler was called.
+
+Only coarse metadata is sent: `method_name`, `api_form`, and `result_status`.
+Tool arguments, tool results, loaded design names, file names, local paths, net
+names, component identifiers, and raw error details are not sent.
+
 ## Supported Tools
 
 | Tool                            | Purpose                                                      |

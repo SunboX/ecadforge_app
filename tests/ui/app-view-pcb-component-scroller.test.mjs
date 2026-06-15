@@ -204,3 +204,36 @@ test('AppViewPcbComponentScroller ignores inactive net panels', () => {
 
     assert.deepEqual(selectedRow.scrollIntoViewCalls, [])
 })
+
+/**
+ * Builds a fake selected BOM row.
+ * @param {string} key Component key.
+ * @returns {FakeSelectionRow}
+ */
+function createBomRow(key) {
+    return new FakeSelectionRow('data-bom-selected-component-key', key)
+}
+
+/**
+ * Verifies the selected BOM row is centered in the BOM panel.
+ */
+test('AppViewPcbComponentScroller centers selected BOM row', () => {
+    const selectedRow = createBomRow('R10')
+    const contentNode = new FakeRailNode(
+        [createBomRow('R1'), selectedRow],
+        '[data-bom-selected-component-key]'
+    )
+
+    AppViewPcbComponentScroller.scrollSelectedBomRowIntoView(contentNode, {
+        activeView: 'bom',
+        activeDocumentId: 'doc-1',
+        selectedPcbComponents: { 'doc-1': 'R10' }
+    })
+
+    assert.deepEqual(selectedRow.scrollIntoViewCalls, [
+        {
+            block: 'center',
+            inline: 'nearest'
+        }
+    ])
+})

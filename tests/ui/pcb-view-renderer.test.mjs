@@ -242,6 +242,76 @@ function createOwnerCollisionPcbDocument() {
 }
 
 /**
+ * Builds a compact Altium-like PCB model with one bottom-side component.
+ * @returns {object}
+ */
+function createBottomMirroredPcbDocument() {
+    return {
+        kind: 'pcb',
+        fileName: 'bottom-mirror-fake.PcbDoc',
+        summary: {
+            title: 'Bottom mirror fake'
+        },
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 1000,
+                heightMil: 500,
+                segments: [
+                    { type: 'line', x1: 0, y1: 0, x2: 1000, y2: 0 },
+                    { type: 'line', x1: 1000, y1: 0, x2: 1000, y2: 500 },
+                    { type: 'line', x1: 1000, y1: 500, x2: 0, y2: 500 },
+                    { type: 'line', x1: 0, y1: 500, x2: 0, y2: 0 }
+                ]
+            },
+            layers: [
+                { name: 'Bottom Layer', layerId: 32 },
+                { name: 'Bottom Overlay', layerId: 34 }
+            ],
+            primitiveLayers: [
+                { name: 'Bottom Layer', layerId: 32 },
+                { name: 'Bottom Overlay', layerId: 34 }
+            ],
+            components: [
+                {
+                    componentIndex: 4,
+                    designator: 'A1',
+                    layer: 'BOTTOM',
+                    pattern: '0603',
+                    x: 200,
+                    y: 100,
+                    rotation: 0
+                }
+            ],
+            pads: [
+                {
+                    componentIndex: 4,
+                    x: 190,
+                    y: 100,
+                    sizeBottomX: 20,
+                    sizeBottomY: 20,
+                    layerId: 32,
+                    rotation: 0
+                },
+                {
+                    componentIndex: 4,
+                    x: 210,
+                    y: 100,
+                    sizeBottomX: 20,
+                    sizeBottomY: 20,
+                    layerId: 32,
+                    rotation: 0
+                }
+            ],
+            tracks: [],
+            vias: []
+        },
+        bom: []
+    }
+}
+
+/**
  * Builds a compact Altium-like PCB model with primitive layer metadata.
  * @returns {object}
  */
@@ -796,6 +866,30 @@ test('PcbViewRenderer ignores row-index owner collisions for PCB selection marke
     assert.doesNotMatch(
         html,
         /pcb-component-selection-marker__fill" x="462" y="222" width="466"/
+    )
+})
+
+/**
+ * Verifies bottom-side Altium component markers share the mirrored SVG frame.
+ */
+test('PcbViewRenderer mirrors bottom-side PCB selection marker bounds', () => {
+    const html = PcbViewRenderer.render(
+        createBottomMirroredPcbDocument(),
+        'bottom',
+        null,
+        [],
+        [],
+        'A1'
+    )
+
+    assert.match(html, /data-component-key="A1"[^>]*translate\(800 100\)/)
+    assert.match(
+        html,
+        /pcb-component-selection-marker__fill" x="762" y="72" width="76" height="56"/
+    )
+    assert.doesNotMatch(
+        html,
+        /pcb-component-selection-marker__fill" x="162" y="72" width="76" height="56"/
     )
 })
 

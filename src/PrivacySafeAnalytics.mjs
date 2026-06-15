@@ -25,7 +25,7 @@ export class PrivacySafeAnalytics {
     /**
      * Emits one allowlisted event with only coarse, non-identifying fields.
      * @param {string} eventName Event name.
-     * @param {{ sourceType?: string, formatFamily?: string, errorBucket?: string, activeView?: string }} [properties]
+     * @param {{ sourceType?: string, formatFamily?: string, errorBucket?: string, activeView?: string, methodName?: string, apiForm?: string, resultStatus?: string }} [properties]
      * @returns {void}
      */
     track(eventName, properties = {}) {
@@ -54,8 +54,8 @@ export class PrivacySafeAnalytics {
 
     /**
      * Converts allowlisted property names and values to event payload fields.
-     * @param {{ sourceType?: string, formatFamily?: string, errorBucket?: string, activeView?: string }} properties Raw properties.
-     * @returns {{ source_type?: string, format_family?: string, error_bucket?: string, active_view?: string }}
+     * @param {{ sourceType?: string, formatFamily?: string, errorBucket?: string, activeView?: string, methodName?: string, apiForm?: string, resultStatus?: string }} properties Raw properties.
+     * @returns {{ source_type?: string, format_family?: string, error_bucket?: string, active_view?: string, method_name?: string, api_form?: string, result_status?: string }}
      */
     static #buildSafeProperties(properties) {
         const safeProperties = {}
@@ -111,7 +111,10 @@ export class PrivacySafeAnalytics {
         'view_3d_opened',
         'view_bom_opened',
         'view_diagnostics_opened',
-        'crosslink_pcb_styler_clicked'
+        'crosslink_pcb_styler_clicked',
+        'webmcp_available',
+        'webmcp_tool_registration_failed',
+        'webmcp_tool_called'
     ])
 
     /** @type {Map<string, string>} */
@@ -119,6 +122,9 @@ export class PrivacySafeAnalytics {
         ['sourceType', 'source_type'],
         ['formatFamily', 'format_family'],
         ['errorBucket', 'error_bucket'],
-        ['activeView', 'active_view']
+        ['activeView', 'active_view'],
+        ['methodName', 'method_name'],
+        ['apiForm', 'api_form'],
+        ['resultStatus', 'result_status']
     ])
 }

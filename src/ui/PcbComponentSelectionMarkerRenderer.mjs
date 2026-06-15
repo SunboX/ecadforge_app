@@ -32,10 +32,17 @@ export class PcbComponentSelectionMarkerRenderer {
                   side
               )
             : null
-        if (
-            primitiveBounds &&
-            PcbRenderedFootprintBoundsResolver.boundsOverlapViewBox(
+        const visualPrimitiveBounds =
+            PcbComponentSelectionMarkerRenderer.#resolveVisualPrimitiveMarkerBounds(
+                markup,
+                documentModel,
                 primitiveBounds,
+                side
+            )
+        if (
+            visualPrimitiveBounds &&
+            PcbRenderedFootprintBoundsResolver.boundsOverlapViewBox(
+                visualPrimitiveBounds,
                 viewBox
             )
         ) {
@@ -43,7 +50,7 @@ export class PcbComponentSelectionMarkerRenderer {
                 /<\/svg>/,
                 PcbComponentSelectionMarkerRenderer.#renderBoundsMarker(
                     key,
-                    primitiveBounds
+                    visualPrimitiveBounds
                 ) + '</svg>'
             )
         }
@@ -69,7 +76,7 @@ export class PcbComponentSelectionMarkerRenderer {
                 /<\/svg>/,
                 PcbComponentSelectionMarkerRenderer.#renderBoundsMarker(
                     key,
-                    primitiveBounds
+                    visualPrimitiveBounds || primitiveBounds
                 ) + '</svg>'
             )
         }
@@ -298,6 +305,80 @@ export class PcbComponentSelectionMarkerRenderer {
             bounds,
             18
         )
+    }
+
+    /**
+     * Maps primitive-derived marker bounds into the rendered SVG frame.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @param {object} documentModel Document model.
+     * @param {{ x: number, y: number, width: number, height: number, rx: number } | null} bounds Primitive marker bounds.
+     * @param {'top' | 'bottom'} side Active board side.
+     * @returns {{ x: number, y: number, width: number, height: number, rx: number } | null}
+     */
+    static #resolveVisualPrimitiveMarkerBounds(
+        markup,
+        documentModel,
+        bounds,
+        side
+    ) {
+        if (!bounds) return null
+        if (
+            side !== 'bottom' ||
+            !/\bpcb-svg--altium\b/.test(String(markup))
+        ) {
+            return bounds
+        }
+
+        return PcbComponentSelectionMarkerRenderer.#mirrorBoundsX(
+            documentModel,
+            bounds
+        )
+    }
+
+    /**
+     * Mirrors marker bounds around the Altium bottom-view board X span.
+     * @param {object} documentModel Document model.
+     * @param {{ x: number, y: number, width: number, height: number, rx: number }} bounds Marker bounds.
+     * @returns {{ x: number, y: number, width: number, height: number, rx: number }}
+     */
+    static #mirrorBoundsX(documentModel, bounds) {
+        const mirrorAxis =
+            PcbComponentSelectionMarkerRenderer.#resolveBoardMirrorAxis(
+                documentModel
+            )
+        if (mirrorAxis === null) return bounds
+
+        return {
+            ...bounds,
+            x: mirrorAxis - bounds.x - bounds.width
+        }
+    }
+
+    /**
+     * Resolves the X-axis sum used by the bottom-side Altium renderer mirror.
+     * @param {object} documentModel Document model.
+     * @returns {number | null}
+     */
+    static #resolveBoardMirrorAxis(documentModel) {
+        const outline = documentModel?.pcb?.boardOutline
+        const minX = PcbComponentSelectionMarkerRenderer.#finiteNumber(
+            outline?.minX
+        )
+        if (minX === null) return null
+
+        const width = PcbComponentSelectionMarkerRenderer.#firstFiniteNumber([
+            outline?.widthMil,
+            outline?.width
+        ])
+        const maxX =
+            width === null
+                ? PcbComponentSelectionMarkerRenderer.#finiteNumber(
+                      outline?.maxX
+                  )
+                : minX + width
+        if (maxX === null) return null
+
+        return minX + maxX
     }
 
     /**

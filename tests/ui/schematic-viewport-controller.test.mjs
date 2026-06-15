@@ -202,6 +202,23 @@ test('SchematicViewportController clamps zoom-in to the minimum viewBox size', (
 })
 
 /**
+ * Verifies programmatic focus pans to SVG-space bounds without changing zoom.
+ */
+test('SchematicViewportController centers document bounds', () => {
+    const svg = new FakeSvgElement({
+        viewBox: '100 100 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 }
+    })
+    const controller = new SchematicViewportController(svg)
+
+    controller.centerBounds({ x: 20, y: 30, width: 10, height: 10 })
+
+    assert.equal(svg.getAttribute('viewBox'), '-75 -15 200 100')
+
+    controller.dispose()
+})
+
+/**
  * Verifies drag panning updates the viewBox and toggles the panning class.
  */
 test('SchematicViewportController pans while the primary mouse button is held', () => {
@@ -234,6 +251,38 @@ test('SchematicViewportController pans while the primary mouse button is held', 
     ownerDocument.dispatch('mouseup', { button: 0 })
 
     assert.equal(svg.classList.contains('is-panning'), false)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies fitted SVG content tracks the mouse by visual pixels even when
+ * preserveAspectRatio creates a letterboxed rendered area.
+ */
+test('SchematicViewportController pans fitted content at pointer speed', () => {
+    const ownerDocument = new FakeDocument()
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 400 },
+        ownerDocument
+    })
+    const controller = new SchematicViewportController(svg)
+
+    svg.dispatch('mousedown', {
+        button: 0,
+        clientX: 200,
+        clientY: 200,
+        preventDefault() {}
+    })
+
+    ownerDocument.dispatch('mousemove', {
+        buttons: 1,
+        clientX: 240,
+        clientY: 240,
+        preventDefault() {}
+    })
+
+    assert.equal(svg.getAttribute('viewBox'), '-20 -20 200 100')
 
     controller.dispose()
 })

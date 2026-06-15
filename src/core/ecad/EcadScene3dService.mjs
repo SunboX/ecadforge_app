@@ -13,6 +13,8 @@ import {
     PcbScene3dScenePreparator as GerberScene3dScenePreparator
 } from 'gerber-toolkit/scene3d'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+import { KicadScene3dCopperLayerAdapter } from './KicadScene3dCopperLayerAdapter.mjs'
+import { KicadScene3dSilkscreenSmoothingAdapter } from './KicadScene3dSilkscreenSmoothingAdapter.mjs'
 
 /**
  * Chooses format-specific 3D scene builders.
@@ -30,12 +32,18 @@ export class EcadScene3dService {
         }
 
         if (EcadScene3dService.#isGerber(documentModel)) {
-            return GerberScene3dBuilder.build(documentModel, options)
+            return KicadScene3dSilkscreenSmoothingAdapter.applyScene(
+                GerberScene3dBuilder.build(documentModel, options)
+            )
         }
 
-        return EcadScene3dService.#isKiCad(documentModel)
-            ? KicadScene3dBuilder.build(documentModel, options)
-            : AltiumScene3dBuilder.build(documentModel, options)
+        if (EcadScene3dService.#isKiCad(documentModel)) {
+            return KicadScene3dCopperLayerAdapter.apply(
+                KicadScene3dBuilder.build(documentModel, options)
+            )
+        }
+
+        return AltiumScene3dBuilder.build(documentModel, options)
     }
 
     /**
@@ -50,12 +58,24 @@ export class EcadScene3dService {
         }
 
         if (EcadScene3dService.#isGerber(documentModel)) {
-            return GerberScene3dScenePreparator.prepare(documentModel, options)
+            return KicadScene3dSilkscreenSmoothingAdapter.applyScene(
+                await GerberScene3dScenePreparator.prepare(
+                    documentModel,
+                    options
+                )
+            )
         }
 
-        return EcadScene3dService.#isKiCad(documentModel)
-            ? KicadScene3dScenePreparator.prepare(documentModel, options)
-            : AltiumScene3dScenePreparator.prepare(documentModel, options)
+        if (EcadScene3dService.#isKiCad(documentModel)) {
+            return KicadScene3dCopperLayerAdapter.apply(
+                await KicadScene3dScenePreparator.prepare(
+                    documentModel,
+                    options
+                )
+            )
+        }
+
+        return AltiumScene3dScenePreparator.prepare(documentModel, options)
     }
 
     /**

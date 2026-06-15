@@ -279,9 +279,10 @@ export class ViewerSidebarEventBinder {
     /**
      * Binds client-side component filtering.
      * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {((query: string) => void) | null} [callback] Query callback.
      * @returns {void}
      */
-    static bindComponentFilter(mount) {
+    static bindComponentFilter(mount, callback = null) {
         mount?.addEventListener('input', (event) => {
             const input = ViewerSidebarEventBinder.#closest(
                 event.target,
@@ -289,8 +290,19 @@ export class ViewerSidebarEventBinder {
             )
             if (!input || typeof input.value !== 'string') return
 
-            ViewerSidebarEventBinder.#applyComponentFilter(mount, input.value)
+            callback?.(input.value)
+            ViewerSidebarEventBinder.applyComponentFilter(mount, input.value)
         })
+    }
+
+    /**
+     * Applies the current component search query to rendered rows.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {string} rawQuery Search query.
+     * @returns {void}
+     */
+    static applyComponentFilter(mount, rawQuery) {
+        ViewerSidebarEventBinder.#applyComponentFilter(mount, rawQuery)
     }
 
     /**

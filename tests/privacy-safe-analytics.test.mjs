@@ -35,6 +35,37 @@ test('PrivacySafeAnalytics forwards only allowlisted event properties', () => {
     ])
 })
 
+test('PrivacySafeAnalytics forwards only safe WebMCP event properties', () => {
+    const calls = []
+    const analytics = new PrivacySafeAnalytics({
+        tracker: {
+            trackEvent(name, properties) {
+                calls.push({ name, properties })
+            }
+        }
+    })
+
+    analytics.track('webmcp_tool_called', {
+        methodName: 'query_pcb_component',
+        apiForm: 'object',
+        resultStatus: 'success',
+        arguments: { refdes: 'U1' },
+        result: { design: 'private-board.PcbDoc' },
+        rawError: 'Cannot read customer net'
+    })
+
+    assert.deepEqual(calls, [
+        {
+            name: 'webmcp_tool_called',
+            properties: {
+                method_name: 'query_pcb_component',
+                api_form: 'object',
+                result_status: 'success'
+            }
+        }
+    ])
+})
+
 test('PrivacySafeAnalytics ignores unsupported event names and missing trackers', () => {
     const analytics = new PrivacySafeAnalytics({ tracker: null })
 

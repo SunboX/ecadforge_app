@@ -45,11 +45,16 @@ export class SchematicViewportController {
 
     /**
      * @param {{ getAttribute: (name: string) => string | null, setAttribute: (name: string, value: string) => void, getBoundingClientRect: () => { left: number, top: number, width: number, height: number }, addEventListener: (type: string, listener: (event: any) => void, options?: any) => void, removeEventListener: (type: string, listener: (event: any) => void, options?: any) => void, classList?: { add: (...tokens: string[]) => void, remove: (...tokens: string[]) => void }, ownerDocument?: { addEventListener: (type: string, listener: (event: any) => void) => void, removeEventListener: (type: string, listener: (event: any) => void) => void, documentElement?: { classList?: { add: (...tokens: string[]) => void, remove: (...tokens: string[]) => void } } } }} svgElement
+     * @param {{ defaultViewBox?: string }} [options] Viewport options.
      */
-    constructor(svgElement) {
+    constructor(svgElement, options = {}) {
         this.#svg = svgElement
-        this.#defaultViewBox = this.#readViewBox()
-        this.#viewBox = { ...this.#defaultViewBox }
+        const initialViewBox = this.#readViewBox()
+        this.#defaultViewBox =
+            SchematicViewportController.#parseViewBox(
+                options.defaultViewBox
+            ) || initialViewBox
+        this.#viewBox = { ...initialViewBox }
         this.#dragState = null
         this.#touchState = null
         this.#boundWheel = (event) => this.#handleWheel(event)
@@ -71,6 +76,39 @@ export class SchematicViewportController {
         this.#unbindEvents()
         this.#stopDragging()
         this.#stopTouchGesture()
+    }
+
+    /**
+     * Centers the current viewport on document-space bounds without changing
+     * the current zoom level.
+     * @param {{ x?: number, y?: number, width?: number, height?: number } | null} bounds Bounds to center.
+     * @returns {boolean}
+     */
+    centerBounds(bounds) {
+        const x = Number(bounds?.x)
+        const y = Number(bounds?.y)
+        const width = Number(bounds?.width)
+        const height = Number(bounds?.height)
+        if (
+            !Number.isFinite(x) ||
+            !Number.isFinite(y) ||
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            width < 0 ||
+            height < 0
+        ) {
+            return false
+        }
+
+        this.#viewBox = {
+            x: x + width / 2 - this.#viewBox.width / 2,
+            y: y + height / 2 - this.#viewBox.height / 2,
+            width: this.#viewBox.width,
+            height: this.#viewBox.height
+        }
+        this.#applyViewBox()
+
+        return true
     }
 
     /**
@@ -185,19 +223,19 @@ export class SchematicViewportController {
             return
         }
 
-        const rect = this.#svg.getBoundingClientRect()
-        if (rect.width <= 0 || rect.height <= 0) return
+        const viewport = this.#resolveViewportGeometry(
+            this.#dragState.originViewBox
+        )
+        if (!viewport) return
 
         event?.preventDefault?.()
 
         const deltaX =
-            ((Number(event?.clientX || 0) - this.#dragState.startClientX) /
-                rect.width) *
-            this.#dragState.originViewBox.width
+            (Number(event?.clientX || 0) - this.#dragState.startClientX) /
+            viewport.scaleX
         const deltaY =
-            ((Number(event?.clientY || 0) - this.#dragState.startClientY) /
-                rect.height) *
-            this.#dragState.originViewBox.height
+            (Number(event?.clientY || 0) - this.#dragState.startClientY) /
+            viewport.scaleY
 
         this.#viewBox = {
             x: this.#dragState.originViewBox.x - deltaX,
@@ -340,17 +378,17 @@ export class SchematicViewportController {
     #moveTouchPan(touch, event) {
         if (!this.#touchState || this.#touchState.mode !== 'pan') return
 
-        const rect = this.#svg.getBoundingClientRect()
-        if (rect.width <= 0 || rect.height <= 0) return
+        const viewport = this.#resolveViewportGeometry(
+            this.#touchState.originViewBox
+        )
+        if (!viewport) return
 
         event?.preventDefault?.()
 
         const deltaX =
-            ((touch.clientX - this.#touchState.startClientX) / rect.width) *
-            this.#touchState.originViewBox.width
+            (touch.clientX - this.#touchState.startClientX) / viewport.scaleX
         const deltaY =
-            ((touch.clientY - this.#touchState.startClientY) / rect.height) *
-            this.#touchState.originViewBox.height
+            (touch.clientY - this.#touchState.startClientY) / viewport.scaleY
 
         this.#viewBox = {
             x: this.#touchState.originViewBox.x - deltaX,
@@ -461,17 +499,32 @@ export class SchematicViewportController {
      * @returns {{ x: number, y: number, width: number, height: number }}
      */
     #readViewBox() {
-        const rawValue = String(this.#svg.getAttribute('viewBox') || '')
+        return (
+            SchematicViewportController.#parseViewBox(
+                this.#svg.getAttribute('viewBox')
+            ) || { x: 0, y: 0, width: 100, height: 100 }
+        )
+    }
+
+    /**
+     * Parses one SVG viewBox string.
+     * @param {unknown} value Raw viewBox value.
+     * @returns {{ x: number, y: number, width: number, height: number } | null}
+     */
+    static #parseViewBox(value) {
+        const rawValue = String(value || '')
         const [x, y, width, height] = rawValue
             .trim()
             .split(/\s+/)
             .map((value) => Number(value))
+        if (!Number.isFinite(width) || width <= 0) return null
+        if (!Number.isFinite(height) || height <= 0) return null
 
         return {
             x: Number.isFinite(x) ? x : 0,
             y: Number.isFinite(y) ? y : 0,
-            width: Number.isFinite(width) && width > 0 ? width : 100,
-            height: Number.isFinite(height) && height > 0 ? height : 100
+            width,
+            height
         }
     }
 
@@ -482,17 +535,14 @@ export class SchematicViewportController {
      * @returns {{ x: number, y: number } | null}
      */
     #projectClientPointToDocument(clientX, clientY) {
-        const rect = this.#svg.getBoundingClientRect()
-        if (rect.width <= 0 || rect.height <= 0) {
+        const viewport = this.#resolveViewportGeometry()
+        if (!viewport) {
             return null
         }
 
-        const relativeX = (clientX - rect.left) / rect.width
-        const relativeY = (clientY - rect.top) / rect.height
-
         return {
-            x: this.#viewBox.x + relativeX * this.#viewBox.width,
-            y: this.#viewBox.y + relativeY * this.#viewBox.height
+            x: this.#viewBox.x + (clientX - viewport.left) / viewport.scaleX,
+            y: this.#viewBox.y + (clientY - viewport.top) / viewport.scaleY
         }
     }
 
@@ -513,15 +563,16 @@ export class SchematicViewportController {
         nextWidth,
         nextHeight
     ) {
-        const rect = this.#svg.getBoundingClientRect()
-        if (rect.width <= 0 || rect.height <= 0) return
-
-        const relativeX = (clientX - rect.left) / rect.width
-        const relativeY = (clientY - rect.top) / rect.height
+        const viewport = this.#resolveViewportGeometry({
+            ...this.#viewBox,
+            width: nextWidth,
+            height: nextHeight
+        })
+        if (!viewport) return
 
         this.#viewBox = {
-            x: anchorPoint.x - relativeX * nextWidth,
-            y: anchorPoint.y - relativeY * nextHeight,
+            x: anchorPoint.x - (clientX - viewport.left) / viewport.scaleX,
+            y: anchorPoint.y - (clientY - viewport.top) / viewport.scaleY,
             width: nextWidth,
             height: nextHeight
         }
@@ -552,6 +603,67 @@ export class SchematicViewportController {
     }
 
     /**
+     * Resolves the client-space geometry of the rendered SVG viewBox.
+     * @param {{ x: number, y: number, width: number, height: number }} [viewBox] ViewBox to measure.
+     * @returns {{ left: number, top: number, scaleX: number, scaleY: number } | null}
+     */
+    #resolveViewportGeometry(viewBox = this.#viewBox) {
+        const rect = this.#svg.getBoundingClientRect()
+        if (
+            rect.width <= 0 ||
+            rect.height <= 0 ||
+            viewBox.width <= 0 ||
+            viewBox.height <= 0
+        ) {
+            return null
+        }
+
+        const preserveAspectRatio =
+            SchematicViewportController.#parsePreserveAspectRatio(
+                this.#svg.getAttribute('preserveAspectRatio')
+            )
+        const scaleX = rect.width / viewBox.width
+        const scaleY = rect.height / viewBox.height
+
+        if (preserveAspectRatio.align === 'none') {
+            return {
+                left: rect.left,
+                top: rect.top,
+                scaleX,
+                scaleY
+            }
+        }
+
+        const scale =
+            preserveAspectRatio.meetOrSlice === 'slice'
+                ? Math.max(scaleX, scaleY)
+                : Math.min(scaleX, scaleY)
+        const renderedWidth = viewBox.width * scale
+        const renderedHeight = viewBox.height * scale
+
+        return {
+            left:
+                rect.left +
+                SchematicViewportController.#resolveAlignmentOffset(
+                    preserveAspectRatio.align,
+                    'x',
+                    rect.width,
+                    renderedWidth
+                ),
+            top:
+                rect.top +
+                SchematicViewportController.#resolveAlignmentOffset(
+                    preserveAspectRatio.align,
+                    'y',
+                    rect.height,
+                    renderedHeight
+                ),
+            scaleX: scale,
+            scaleY: scale
+        }
+    }
+
+    /**
      * Writes the current viewBox back to the SVG element.
      * @returns {void}
      */
@@ -574,6 +686,51 @@ export class SchematicViewportController {
      */
     static #formatNumber(value) {
         return String(Number(value.toFixed(4)))
+    }
+
+    /**
+     * Parses SVG preserveAspectRatio values used for client-space projection.
+     * @param {unknown} value Attribute value.
+     * @returns {{ align: string, meetOrSlice: 'meet' | 'slice' }}
+     */
+    static #parsePreserveAspectRatio(value) {
+        const tokens = String(value || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .filter((token) => token !== 'defer')
+        const align = tokens.find((token) =>
+            /^(?:none|x(?:Min|Mid|Max)Y(?:Min|Mid|Max))$/.test(token)
+        )
+        const meetOrSlice = tokens.includes('slice') ? 'slice' : 'meet'
+
+        return {
+            align: align || 'xMidYMid',
+            meetOrSlice
+        }
+    }
+
+    /**
+     * Resolves one axis offset from an SVG alignment keyword.
+     * @param {string} align SVG preserveAspectRatio alignment.
+     * @param {'x' | 'y'} axis Axis to resolve.
+     * @param {number} viewportSize SVG element client span.
+     * @param {number} renderedSize Rendered viewBox span.
+     * @returns {number}
+     */
+    static #resolveAlignmentOffset(align, axis, viewportSize, renderedSize) {
+        const maxSuffix = axis === 'x' ? 'xMax' : 'YMax'
+        const midSuffix = axis === 'x' ? 'xMid' : 'YMid'
+
+        if (align.includes(maxSuffix)) {
+            return viewportSize - renderedSize
+        }
+
+        if (align.includes(midSuffix)) {
+            return (viewportSize - renderedSize) / 2
+        }
+
+        return 0
     }
 
     /**

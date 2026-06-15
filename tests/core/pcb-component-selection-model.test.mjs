@@ -30,3 +30,23 @@ test('PcbComponentSelectionModel resolves component side from layer metadata', (
         ''
     )
 })
+
+/**
+ * Verifies Altium overlay layer ids identify component placement sides.
+ */
+test('PcbComponentSelectionModel resolves component side from overlay layer ids', () => {
+    assert.equal(
+        PcbComponentSelectionModel.resolveComponentSide({
+            designator: 'U1',
+            layerId: 33
+        }),
+        'top'
+    )
+    assert.equal(
+        PcbComponentSelectionModel.resolveComponentSide({
+            designator: 'U2',
+            layerCode: 34
+        }),
+        'bottom'
+    )
+})
