@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import * as THREE from 'three'
 import { PcbScene3dPadFactory } from 'pcb-scene3d-viewer/scene3d'
 import { EcadScene3dService } from '../../src/core/ecad/EcadScene3dService.mjs'
 
@@ -287,6 +288,44 @@ function createKicadPadShapeDocument() {
 }
 
 /**
+ * Builds overlapping pad faces that represent one authored contact area.
+ * @returns {object[]}
+ */
+function createOverlappingPadFaces() {
+    return [
+        {
+            number: 'A',
+            x: 100,
+            y: 100,
+            rotation: 0,
+            sizeTopX: 80,
+            sizeTopY: 80,
+            shapeTop: 1,
+            holeDiameter: 52
+        },
+        {
+            number: 'B',
+            x: 100,
+            y: 135,
+            rotation: 0,
+            sizeTopX: 80,
+            sizeTopY: 110,
+            shapeTop: 2
+        }
+    ]
+}
+
+/**
+ * Keeps test board coordinates in renderer units.
+ * @param {number} x Board X coordinate.
+ * @param {number} y Board Y coordinate.
+ * @returns {{ x: number, y: number }}
+ */
+function identityBoardPoint(x, y) {
+    return { x, y }
+}
+
+/**
  * Extracts one track's X endpoints.
  * @param {object} track Track scene detail.
  * @returns {number[]}
@@ -424,5 +463,26 @@ test('EcadScene3dService smooths KiCad curved silkscreen cutouts', () => {
         topSilkscreen.fills[0].holes?.length || 0,
         0,
         'Expected generated keepouts to stay as side cutouts for shape holes'
+    )
+})
+
+/**
+ * Verifies overlapping KiCad pad faces keep drilled annular rings visible.
+ */
+test('PcbScene3dPadFactory stacks drilled KiCad pads above SMD contacts', () => {
+    const group = PcbScene3dPadFactory.buildGroup(
+        THREE,
+        createOverlappingPadFaces(),
+        10,
+        identityBoardPoint,
+        { side: 'top' }
+    )
+    const meshZPositions = group.children.map((root) =>
+        Number(root.children[0]?.position?.z || 0)
+    )
+
+    assert.ok(
+        meshZPositions[0] > meshZPositions[1],
+        'Expected the drilled annular ring to render above the overlapping SMD contact'
     )
 })
