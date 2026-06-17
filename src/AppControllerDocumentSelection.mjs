@@ -1,4 +1,5 @@
 import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
+import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
 
 /**
@@ -23,10 +24,9 @@ export class AppControllerDocumentSelection {
         }
 
         if (options?.adoptPreferredView) {
-            return AppControllerDocumentSelection.resolveDocumentId(
+            return AppControllerDocumentSelection.#resolveBestLoadedDocumentId(
                 appendedDocuments,
-                activeView,
-                ''
+                activeView
             )
         }
 
@@ -130,6 +130,84 @@ export class AppControllerDocumentSelection {
         )
 
         return matchedDocument?.id || ''
+    }
+
+    /**
+     * Resolves the highest-value document for a freshly loaded compatible view.
+     * @param {{ id: string, documentModel: object }[]} documents Loaded docs.
+     * @param {string} viewName Requested view.
+     * @returns {string}
+     */
+    static #resolveBestLoadedDocumentId(documents, viewName) {
+        const rankedDocuments = (documents || [])
+            .map((entry, index) => ({
+                entry,
+                index,
+                score: AppControllerDocumentSelection.#scoreLoadedDocument(
+                    entry?.documentModel,
+                    viewName
+                )
+            }))
+            .filter((ranked) => Number.isFinite(ranked.score))
+            .sort((left, right) => {
+                return right.score - left.score || left.index - right.index
+            })
+
+        return rankedDocuments[0]?.entry?.id || ''
+    }
+
+    /**
+     * Scores a freshly loaded document for automatic initial activation.
+     * @param {object} documentModel Parsed document model.
+     * @param {string} viewName Requested view.
+     * @returns {number}
+     */
+    static #scoreLoadedDocument(documentModel, viewName) {
+        if (!DocumentViewCompatibility.supportsView(documentModel, viewName)) {
+            return Number.NEGATIVE_INFINITY
+        }
+
+        const sourceFormat =
+            EcadFormatRegistry.sourceFormatForDocument(documentModel)
+        const fileName = String(documentModel?.fileName || '').toLowerCase()
+        let score =
+            AppControllerDocumentSelection.#scoreSourceFormat(sourceFormat)
+
+        if (/\.(kicad_pcb|pcbdoc|json)$/i.test(fileName)) {
+            score += 20
+        }
+
+        if (fileName.includes('/')) {
+            score += 5
+        }
+
+        if (/\.zip$/i.test(fileName)) {
+            score -= 20
+        }
+
+        return score
+    }
+
+    /**
+     * Scores source families for automatic load selection.
+     * @param {string} sourceFormat Parsed source family.
+     * @returns {number}
+     */
+    static #scoreSourceFormat(sourceFormat) {
+        const normalizedFormat = String(sourceFormat || '').toLowerCase()
+        if (normalizedFormat === 'kicad' || normalizedFormat === 'altium') {
+            return 400
+        }
+
+        if (normalizedFormat === 'circuitjson') {
+            return 300
+        }
+
+        if (normalizedFormat === 'gerber') {
+            return 100
+        }
+
+        return 200
     }
 
     /**

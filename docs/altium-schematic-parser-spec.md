@@ -67,6 +67,7 @@ For schematic embedded images, the parser also attempts OLE stream lookup when a
 
 - `34`: designator labels
 - `44`, `45`, `46`, `48`: multipart implementation ownership support
+- Hidden owner designator records remain available as component metadata but must not create synthesized schematic fallback labels.
 
 ## Implemented Semantics
 
@@ -90,6 +91,7 @@ For schematic embedded images, the parser also attempts OLE stream lookup when a
 
 - `RECORD=30` preserves placement bounds, file name, keep-aspect flag, and embedded/external intent.
 - If `EmbedImage` is set and the file is an OLE container, the parser attempts to resolve a stream whose leaf name matches the declared image file name.
+- If the direct stream lookup is unavailable, the app also checks same-container packed storage for a declared local image path.
 - If the embedded payload is found, the parser stores a MIME type and base64 payload.
 - If the embedded payload is missing or unreadable, the parser preserves the placement record and emits a warning diagnostic instead of failing the schematic parse.
 

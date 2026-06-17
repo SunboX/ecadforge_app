@@ -28,11 +28,17 @@ class FakeView {
     /** @type {((change: { documentId: string, componentKey: string, format: string }) => void | Promise<void>) | null} */
     #selectedPartExportCallback
 
+    /** @type {((change: { documentId: string, format: string }) => void | Promise<void>) | null} */
+    #pcbAssemblyExportCallback
+
     /** @type {{ fileName: string, bytes: Uint8Array, contentType?: string }[]} */
     downloadedArchives
 
     /** @type {string[]} */
     statuses
+
+    /** @type {object[]} */
+    exportProgressEvents
 
     constructor() {
         this.#fileSelectionCallback = null
@@ -42,8 +48,10 @@ class FakeView {
         this.#componentSelectionCallback = null
         this.#layerPresetCallback = null
         this.#selectedPartExportCallback = null
+        this.#pcbAssemblyExportCallback = null
         this.downloadedArchives = []
         this.statuses = []
+        this.exportProgressEvents = []
     }
 
     /**
@@ -115,6 +123,14 @@ class FakeView {
     }
 
     /**
+     * @param {(change: { documentId: string, format: string }) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindPcbAssemblyExport(callback) {
+        this.#pcbAssemblyExportCallback = callback
+    }
+
+    /**
      * @returns {boolean}
      */
     hasLocaleSelect() {
@@ -137,6 +153,29 @@ class FakeView {
      */
     downloadBytes(fileName, bytes, contentType) {
         this.downloadedArchives.push({ fileName, bytes, contentType })
+    }
+
+    /**
+     * @param {object} progress Initial export progress.
+     * @returns {void}
+     */
+    showExportProgress(progress) {
+        this.exportProgressEvents.push({ type: 'show', ...progress })
+    }
+
+    /**
+     * @param {object} progress Updated export progress.
+     * @returns {void}
+     */
+    updateExportProgress(progress) {
+        this.exportProgressEvents.push({ type: 'update', ...progress })
+    }
+
+    /**
+     * @returns {void}
+     */
+    hideExportProgress() {
+        this.exportProgressEvents.push({ type: 'hide' })
     }
 
     /**
@@ -199,6 +238,14 @@ class FakeView {
      */
     async exportSelectedPart(change) {
         await this.#selectedPartExportCallback?.(change)
+    }
+
+    /**
+     * @param {{ documentId: string, format: string }} change
+     * @returns {Promise<void>}
+     */
+    async exportPcbAssembly(change) {
+        await this.#pcbAssemblyExportCallback?.(change)
     }
 }
 
@@ -540,6 +587,91 @@ test('AppController exports the selected part from sidebar controls', async () =
         }
     ])
     assert.match(view.statuses.at(-1), /Exported U1-kicad-part\.zip/)
+})
+
+/**
+ * Verifies whole-PCB assembly export requests are resolved and downloaded.
+ */
+test('AppController exports the active PCB assembly from sidebar controls', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const exportRequests = []
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser(),
+        pcbAssemblyExportService: {
+            async export(options) {
+                exportRequests.push(options)
+                options.onProgress?.({
+                    value: 63,
+                    message: 'Writing STEP assembly'
+                })
+                return {
+                    fileName: 'alpha-assembly.step',
+                    bytes: new Uint8Array([4, 5, 6]),
+                    contentType: 'model/step',
+                    diagnostics: [
+                        {
+                            severity: 'warning',
+                            code: 'component_model_missing',
+                            message: 'No model.'
+                        }
+                    ]
+                }
+            }
+        }
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+    state.setValue('sessionAssets', [
+        {
+            name: 'body.wrl',
+            relativePath: 'parts/body.wrl',
+            file: new Uint8Array([1]),
+            format: 'wrl'
+        }
+    ])
+
+    await view.exportPcbAssembly({
+        documentId,
+        format: 'step'
+    })
+
+    assert.equal(exportRequests.length, 1)
+    assert.equal(exportRequests[0].format, 'step')
+    assert.equal(exportRequests[0].documentId, documentId)
+    assert.equal(exportRequests[0].documentModel.fileName, 'alpha.PcbDoc')
+    assert.equal(typeof exportRequests[0].onProgress, 'function')
+    assert.equal(
+        exportRequests[0].sessionAssets[0].relativePath,
+        'parts/body.wrl'
+    )
+    assert.deepEqual(view.downloadedArchives.at(-1), {
+        fileName: 'alpha-assembly.step',
+        bytes: new Uint8Array([4, 5, 6]),
+        contentType: 'model/step'
+    })
+    assert.match(
+        view.statuses.at(-1),
+        /Exported alpha-assembly\.step with 1 warning/
+    )
+    assert.deepEqual(view.exportProgressEvents, [
+        {
+            type: 'show',
+            value: 0,
+            message: 'Preparing PCB assembly export',
+            title: 'Exporting PCB assembly'
+        },
+        {
+            type: 'update',
+            value: 63,
+            message: 'Writing STEP assembly'
+        },
+        { type: 'hide' }
+    ])
 })
 
 /**

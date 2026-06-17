@@ -127,6 +127,12 @@ class FakeButton {
             return this
         }
         if (
+            selector === '[data-pcb-assembly-export-format]' &&
+            this.getAttribute('data-pcb-assembly-export-format')
+        ) {
+            return this
+        }
+        if (
             selector === '[data-gerber-render-mode]' &&
             this.getAttribute('data-gerber-render-mode')
         ) {
@@ -393,6 +399,33 @@ test('ViewerSidebarEventBinder binds selected part export buttons', () => {
             documentId: 'doc-1',
             componentKey: 'U1',
             format: 'kicad'
+        }
+    ])
+    assert.equal(event.defaultPrevented, true)
+})
+
+/**
+ * Verifies whole-board assembly export buttons emit document and format
+ * details.
+ */
+test('ViewerSidebarEventBinder binds PCB assembly export buttons', () => {
+    const mount = new FakeMount()
+    const exports = []
+    const button = new FakeButton({
+        'data-document-id': 'doc-1',
+        'data-pcb-assembly-export-format': 'step'
+    })
+
+    ViewerSidebarEventBinder.bindPcbAssemblyExport(mount, (change) =>
+        exports.push(change)
+    )
+
+    const event = mount.click(button)
+
+    assert.deepEqual(exports, [
+        {
+            documentId: 'doc-1',
+            format: 'step'
         }
     ])
     assert.equal(event.defaultPrevented, true)

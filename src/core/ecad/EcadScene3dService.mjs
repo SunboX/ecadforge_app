@@ -5,16 +5,23 @@ import {
 } from 'altium-toolkit/scene3d'
 import {
     PcbScene3dBuilder as KicadScene3dBuilder,
-    PcbScene3dModelRegistry as KicadScene3dModelRegistry,
     PcbScene3dScenePreparator as KicadScene3dScenePreparator
 } from 'kicad-toolkit/scene3d'
 import {
     PcbScene3dBuilder as GerberScene3dBuilder,
     PcbScene3dScenePreparator as GerberScene3dScenePreparator
 } from 'gerber-toolkit/scene3d'
+import { AltiumScene3dBoardOutlineAdapter } from './AltiumScene3dBoardOutlineAdapter.mjs'
+import { AltiumScene3dBottomPadRotationAdapter } from './AltiumScene3dBottomPadRotationAdapter.mjs'
+import { AltiumScene3dExternalPlacementAdapter } from './AltiumScene3dExternalPlacementAdapter.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 import { KicadScene3dCopperLayerAdapter } from './KicadScene3dCopperLayerAdapter.mjs'
+import { KicadScene3dBoardOutlineAdapter } from './KicadScene3dBoardOutlineAdapter.mjs'
+import { KicadScene3dModelRegistryAdapter } from './KicadScene3dModelRegistryAdapter.mjs'
 import { KicadScene3dSilkscreenSmoothingAdapter } from './KicadScene3dSilkscreenSmoothingAdapter.mjs'
+import { KicadScene3dWrlUnitScaleAdapter } from './KicadScene3dWrlUnitScaleAdapter.mjs'
+import { PcbFootprintPadAxisNormalizer } from './PcbFootprintPadAxisNormalizer.mjs'
+import { PcbScene3dModelBoundsPatch } from './PcbScene3dModelBoundsPatch.mjs'
 
 /**
  * Chooses format-specific 3D scene builders.
@@ -27,6 +34,8 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static build(documentModel, options = {}) {
+        PcbScene3dModelBoundsPatch.apply()
+
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return documentModel
         }
@@ -38,12 +47,31 @@ export class EcadScene3dService {
         }
 
         if (EcadScene3dService.#isKiCad(documentModel)) {
-            return KicadScene3dCopperLayerAdapter.apply(
-                KicadScene3dBuilder.build(documentModel, options)
+            const sceneDocumentModel =
+                PcbFootprintPadAxisNormalizer.apply(documentModel)
+            return KicadScene3dWrlUnitScaleAdapter.apply(
+                KicadScene3dCopperLayerAdapter.apply(
+                    KicadScene3dBuilder.build(
+                        KicadScene3dBoardOutlineAdapter.apply(
+                            sceneDocumentModel
+                        ),
+                        EcadScene3dService.#kicadSceneOptions(options)
+                    )
+                )
             )
         }
 
-        return AltiumScene3dBuilder.build(documentModel, options)
+        const sceneDocumentModel =
+            PcbFootprintPadAxisNormalizer.apply(documentModel)
+        return AltiumScene3dBottomPadRotationAdapter.apply(
+            AltiumScene3dExternalPlacementAdapter.apply(
+                AltiumScene3dBoardOutlineAdapter.apply(
+                    AltiumScene3dBuilder.build(sceneDocumentModel, options),
+                    sceneDocumentModel
+                ),
+                sceneDocumentModel
+            )
+        )
     }
 
     /**
@@ -53,6 +81,8 @@ export class EcadScene3dService {
      * @returns {Promise<object>}
      */
     static async prepare(documentModel, options = {}) {
+        PcbScene3dModelBoundsPatch.apply()
+
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return documentModel
         }
@@ -67,15 +97,34 @@ export class EcadScene3dService {
         }
 
         if (EcadScene3dService.#isKiCad(documentModel)) {
-            return KicadScene3dCopperLayerAdapter.apply(
-                await KicadScene3dScenePreparator.prepare(
-                    documentModel,
-                    options
+            const sceneDocumentModel =
+                PcbFootprintPadAxisNormalizer.apply(documentModel)
+            return KicadScene3dWrlUnitScaleAdapter.apply(
+                KicadScene3dCopperLayerAdapter.apply(
+                    await KicadScene3dScenePreparator.prepare(
+                        KicadScene3dBoardOutlineAdapter.apply(
+                            sceneDocumentModel
+                        ),
+                        EcadScene3dService.#kicadSceneOptions(options)
+                    )
                 )
             )
         }
 
-        return AltiumScene3dScenePreparator.prepare(documentModel, options)
+        const sceneDocumentModel =
+            PcbFootprintPadAxisNormalizer.apply(documentModel)
+        return AltiumScene3dBottomPadRotationAdapter.apply(
+            AltiumScene3dExternalPlacementAdapter.apply(
+                AltiumScene3dBoardOutlineAdapter.apply(
+                    await AltiumScene3dScenePreparator.prepare(
+                        sceneDocumentModel,
+                        options
+                    ),
+                    sceneDocumentModel
+                ),
+                sceneDocumentModel
+            )
+        )
     }
 
     /**
@@ -94,7 +143,7 @@ export class EcadScene3dService {
         }
 
         if (EcadScene3dService.#isKiCad(documentModel)) {
-            return KicadScene3dModelRegistry.create(sessionAssets || [])
+            return new KicadScene3dModelRegistryAdapter(sessionAssets || [])
         }
 
         return AltiumScene3dModelRegistry.create(
@@ -115,6 +164,22 @@ export class EcadScene3dService {
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'kicad'
         )
+    }
+
+    /**
+     * Builds KiCad scene options with the app's stricter model registry.
+     * @param {object} options Scene options.
+     * @returns {object}
+     */
+    static #kicadSceneOptions(options) {
+        return {
+            ...options,
+            modelRegistry:
+                options?.modelRegistry ||
+                new KicadScene3dModelRegistryAdapter(
+                    options?.sessionAssets || []
+                )
+        }
     }
 
     /**

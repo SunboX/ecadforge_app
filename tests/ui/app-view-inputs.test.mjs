@@ -58,9 +58,7 @@ class FakeDocument {
     #nodes
 
     constructor() {
-        this.#nodes = new Map([
-            ['#fileInput', new FakeNode()]
-        ])
+        this.#nodes = new Map([['#fileInput', new FakeNode()]])
     }
 
     /**
@@ -75,7 +73,7 @@ class FakeDocument {
 /**
  * Verifies AppView emits the selected file picker payload.
  */
-test('AppView binds the file picker and clears the element after selection', () => {
+test('AppView binds the file picker and clears the element after selection', async () => {
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
     const fileInput = fakeDocument.querySelector('#fileInput')
@@ -89,6 +87,7 @@ test('AppView binds the file picker and clears the element after selection', () 
     fileInput.files = pickedFiles
     fileInput.value = 'filled'
     fileInput.dispatch('change')
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     assert.deepEqual(received, [pickedFiles])
     assert.equal(fileInput.value, '')

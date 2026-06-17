@@ -2,6 +2,7 @@ import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 import { EcadMissingModelSearchService } from './core/ecad/EcadMissingModelSearchService.mjs'
 import { EcadModelSourceClient } from './core/ecad/EcadModelSourceClient.mjs'
 import { EcadKicadModelLibraryClient } from './core/ecad/EcadKicadModelLibraryClient.mjs'
+import { PcbScene3dModelBoundsPatch } from './core/ecad/PcbScene3dModelBoundsPatch.mjs'
 import { LazyScene3dController } from './ui/LazyScene3dController.mjs'
 
 /**
@@ -89,6 +90,7 @@ export class Scene3dControllerFactory {
             import('./core/ecad/EcadScene3dService.mjs'),
             import('altium-toolkit/parser')
         ])
+        PcbScene3dModelBoundsPatch.apply()
         const scene3dWorkerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
             entryModuleUrl,
             cacheKeyProvider()

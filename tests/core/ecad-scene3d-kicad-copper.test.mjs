@@ -288,6 +288,80 @@ function createKicadPadShapeDocument() {
 }
 
 /**
+ * Builds a KiCad PCB document with two rows of rectangular IC pads.
+ * @returns {object}
+ */
+function createKicadTwoRowPadAxisDocument() {
+    return {
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        pcb: {
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 2000,
+                heightMil: 2000,
+                segments: []
+            },
+            layers: [],
+            components: [
+                {
+                    componentIndex: 0,
+                    designator: 'X1',
+                    footprintId: 'footprint:X1:0',
+                    layer: 'TOP',
+                    pattern: 'FAKE_TWO_ROW',
+                    rotation: 90,
+                    x: 10,
+                    y: 10
+                }
+            ],
+            pads: [
+                createKicadTwoRowPad('1', 7, 8),
+                createKicadTwoRowPad('2', 9, 8),
+                createKicadTwoRowPad('3', 11, 8),
+                createKicadTwoRowPad('4', 13, 8),
+                createKicadTwoRowPad('5', 13, 12),
+                createKicadTwoRowPad('6', 11, 12),
+                createKicadTwoRowPad('7', 9, 12),
+                createKicadTwoRowPad('8', 7, 12)
+            ],
+            vias: [],
+            tracks: [],
+            arcs: []
+        }
+    }
+}
+
+/**
+ * Builds one fake rectangular KiCad surface pad.
+ * @param {string} number Pad number.
+ * @param {number} x Pad X coordinate.
+ * @param {number} y Pad Y coordinate.
+ * @returns {object}
+ */
+function createKicadTwoRowPad(number, x, y) {
+    return {
+        id: 'pad:X1:' + number,
+        footprintId: 'footprint:X1:0',
+        footprintReference: 'X1',
+        componentIndex: 0,
+        number,
+        type: 'smd',
+        x,
+        y,
+        rotation: 0,
+        width: 1.5,
+        height: 0.4,
+        sizeTopX: 60,
+        sizeTopY: 16,
+        shapeTop: 0,
+        layers: ['F.Cu'],
+        side: 'front'
+    }
+}
+
+/**
  * Builds overlapping pad faces that represent one authored contact area.
  * @returns {object[]}
  */
@@ -427,6 +501,15 @@ test('EcadScene3dService maps KiCad pad shape codes to renderer geometry', () =>
         ).length >= 2,
         'Expected oblong oval and roundrect pads to use rounded keepouts'
     )
+})
+
+/**
+ * Verifies KiCad row-parallel IC pads are rotated for the shared 3D renderer.
+ */
+test('EcadScene3dService turns KiCad two-row IC pad axes across the package', () => {
+    const scene = EcadScene3dService.build(createKicadTwoRowPadAxisDocument())
+
+    assert.equal(scene.detail.pads[0].rotation, 270)
 })
 
 /**

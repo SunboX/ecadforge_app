@@ -14,6 +14,7 @@ import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.m
 import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
 import { AppViewSidebarScrollState } from './AppViewSidebarScrollState.mjs'
 import { AppViewSidebarFilterState } from './AppViewSidebarFilterState.mjs'
+import { AppViewLocalFileBinder } from './AppViewLocalFileBinder.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
 import { SchematicSelectionMarkerBoundsResolver } from './SchematicSelectionMarkerBoundsResolver.mjs'
@@ -24,6 +25,8 @@ import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 import { ViewerSidebarEventBinder } from './ViewerSidebarEventBinder.mjs'
 import { ViewerSidebarRenderer } from './ViewerSidebarRenderer.mjs'
+import { AppViewExportProgressDialog } from './AppViewExportProgressDialog.mjs'
+import { AppViewSupport } from './AppViewSupport.mjs'
 
 /**
  * DOM rendering and event binding helper.
@@ -116,6 +119,9 @@ export class AppView {
     /** @type {AppViewPcbStylerTipController} */
     #pcbStylerTipController
 
+    /** @type {AppViewExportProgressDialog} */
+    #exportProgressDialog
+
     #heroPreviewController
 
     /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
@@ -147,7 +153,7 @@ export class AppView {
         this.#githubUrlInput = this.#document.querySelector('#githubUrlInput')
         this.#storage =
             options.storage === undefined
-                ? AppView.#resolveBrowserStorage(this.#document)
+                ? AppViewSupport.resolveBrowserStorage(this.#document)
                 : options.storage
         this.#translate = UiText.createTranslator(options.translate || null)
         this.#svgViewportController = null
@@ -164,6 +170,9 @@ export class AppView {
                 storage: this.#storage,
                 translate: this.#translate
             }
+        )
+        this.#exportProgressDialog = new AppViewExportProgressDialog(
+            this.#document
         )
         this.#createScene3dController =
             options.createScene3dController ||
@@ -267,15 +276,11 @@ export class AppView {
      * @param {(files: File[]) => void} callback
      */
     bindFileSelection(callback) {
-        this.#fileInput?.addEventListener('change', () => {
-            if (!this.#fileInput?.files?.length) return
-            callback([...this.#fileInput.files])
-            this.#fileInput.value = ''
-        })
-        this.#folderInput?.addEventListener('change', () => {
-            if (!this.#folderInput?.files?.length) return
-            callback([...this.#folderInput.files])
-            this.#folderInput.value = ''
+        AppViewLocalFileBinder.bind({
+            fileInput: this.#fileInput,
+            folderInput: this.#folderInput,
+            windowRef: this.#document.defaultView || globalThis,
+            callback
         })
     }
 
@@ -456,6 +461,18 @@ export class AppView {
     }
 
     /**
+     * Binds whole-PCB assembly export buttons.
+     * @param {(change: { documentId: string, format: string }) => void | Promise<void>} callback
+     * @returns {void}
+     */
+    bindPcbAssemblyExport(callback) {
+        ViewerSidebarEventBinder.bindPcbAssemblyExport(
+            this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
      * Downloads bytes through a temporary browser anchor.
      * @param {string} fileName Download file name.
      * @param {Uint8Array} bytes Download bytes.
@@ -469,6 +486,32 @@ export class AppView {
             bytes,
             contentType
         )
+    }
+
+    /**
+     * Opens the export progress dialog.
+     * @param {{ title?: string, message?: string, value?: number }} progress Initial progress state.
+     * @returns {void}
+     */
+    showExportProgress(progress) {
+        this.#exportProgressDialog.show(progress)
+    }
+
+    /**
+     * Updates the active export progress dialog.
+     * @param {{ title?: string, message?: string, value?: number }} progress Progress update.
+     * @returns {void}
+     */
+    updateExportProgress(progress) {
+        this.#exportProgressDialog.update(progress)
+    }
+
+    /**
+     * Closes the active export progress dialog.
+     * @returns {void}
+     */
+    hideExportProgress() {
+        this.#exportProgressDialog.hide()
     }
 
     /**
@@ -680,7 +723,7 @@ export class AppView {
         this.#expandedSidebarMarkup = ViewerSidebarRenderer.render(
             {
                 ...snapshot,
-                documents: AppView.#resolveSessionDocuments(snapshot)
+                documents: AppViewSupport.resolveSessionDocuments(snapshot)
             },
             this.#translate
         )
@@ -789,7 +832,7 @@ export class AppView {
             AppViewSchematicContentReuseModel.clear(this.#contentNode)
             this.#contentNode.innerHTML =
                 '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>' +
-                AppView.#escapeHtml(this.#translate('status.loading')) +
+                AppViewSupport.escapeHtml(this.#translate('status.loading')) +
                 '</p></section>'
             return
         }
@@ -937,53 +980,5 @@ export class AppView {
         this.#pcbViewController?.dispose()
         this.#pcbViewController = null
         AppViewPcbContentReuseModel.clear(this.#contentNode)
-    }
-
-    /**
-     * Resolves a normalized session document list from the render snapshot.
-     * @param {{ documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
-     * @returns {{ id: string, documentModel: any }[]}
-     */
-    static #resolveSessionDocuments(snapshot) {
-        if (Array.isArray(snapshot.documents)) {
-            return snapshot.documents
-        }
-
-        if (!snapshot.documentModel) {
-            return []
-        }
-
-        return [
-            {
-                id: String(snapshot.activeDocumentId || 'active-document'),
-                documentModel: snapshot.documentModel
-            }
-        ]
-    }
-
-    /**
-     * Resolves browser storage without throwing in restricted environments.
-     * @param {Document} documentRef Browser document.
-     * @returns {Storage | null}
-     */
-    static #resolveBrowserStorage(documentRef) {
-        try {
-            return documentRef.defaultView?.localStorage || null
-        } catch (_error) {
-            return null
-        }
-    }
-
-    /**
-     * Escapes user-facing markup.
-     * @param {string} value
-     * @returns {string}
-     */
-    static #escapeHtml(value) {
-        return String(value)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
     }
 }

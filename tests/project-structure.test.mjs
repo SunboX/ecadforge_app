@@ -199,10 +199,10 @@ test('package depends on intended ECAD toolkit package sources', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const toolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.25$/],
+        ['altium-toolkit', /^\^1\.1\.26$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
         ['gerber-toolkit', /^\^0\.1\.18$/],
-        ['kicad-toolkit', /^\^1\.0\.13$/],
+        ['kicad-toolkit', /^\^1\.0\.14$/],
         ['pcb-scene3d-viewer', /^\^1\.1\.18$/]
     ]
 
@@ -402,9 +402,17 @@ test('app shell exposes multi-file and project-folder intake', async () => {
     assert.match(indexRaw, /id="fileInput"/)
     assert.match(indexRaw, /type="file"/)
     assert.match(indexRaw, /multiple/)
+    const fileInputMarkup =
+        indexRaw.match(/<input[\s\S]*?id="fileInput"[\s\S]*?\/>/u)?.[0] || ''
+    assert.match(fileInputMarkup, /multiple/)
+    assert.doesNotMatch(fileInputMarkup, /webkitdirectory/)
     const accept = indexRaw.match(
         /id="fileInput"[\s\S]*?accept="([^"]+)"/u
     )?.[1]
+    assert.match(
+        accept || '',
+        /\.kicad_sym[\s\S]*\.kicad_mod[\s\S]*\.step[\s\S]*\.wrl/
+    )
     for (const extension of [
         '.gbr',
         '.gtl',
@@ -422,8 +430,9 @@ test('app shell exposes multi-file and project-folder intake', async () => {
     ]) {
         assert.match(accept || '', new RegExp(extension.replace('.', '\\.')))
     }
-    assert.match(indexRaw, /id="folderInput"/)
-    assert.match(indexRaw, /webkitdirectory/)
+    const folderInputMarkup =
+        indexRaw.match(/<input[\s\S]*?id="folderInput"[\s\S]*?\/>/u)?.[0] || ''
+    assert.match(folderInputMarkup, /webkitdirectory/)
     assert.equal(englishMessages['app.dropHint'], 'Private · Local · No upload')
     assert.equal(germanMessages['app.dropHint'], 'Privat · Lokal · Kein Upload')
     assert.equal(
@@ -593,7 +602,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
     const toolkitDependencies = [
         {
             name: 'altium-toolkit',
-            registryVersion: '1.1.25'
+            registryVersion: '1.1.26'
         },
         {
             name: 'circuitjson-toolkit',
@@ -605,7 +614,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
         },
         {
             name: 'kicad-toolkit',
-            registryVersion: '1.0.13'
+            registryVersion: '1.0.14'
         },
         {
             name: 'pcb-scene3d-viewer',

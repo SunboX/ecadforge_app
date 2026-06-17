@@ -58,6 +58,8 @@ const FALLBACK_MESSAGES = {
     'scene3d.downloaded': 'Downloaded',
     'scene3d.entries': 'entries',
     'scene3d.entry': 'entry',
+    'scene3d.exportAssemblyStep': 'Export STEP assembly',
+    'scene3d.exportAssemblyWrl': 'Export WRL assembly',
     'scene3d.exportFailed': 'Model ZIP export failed:',
     'scene3d.externalModel': 'External model',
     'scene3d.externalModels': 'External models',

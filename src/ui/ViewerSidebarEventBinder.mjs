@@ -230,6 +230,27 @@ export class ViewerSidebarEventBinder {
     }
 
     /**
+     * Binds whole-PCB assembly export button clicks.
+     * @param {HTMLElement | null} mount Sidebar mount node.
+     * @param {(change: { documentId: string, format: string }) => void | Promise<void>} callback Export callback.
+     * @returns {void}
+     */
+    static bindPcbAssemblyExport(mount, callback) {
+        ViewerSidebarEventBinder.#bindAttribute(
+            mount,
+            '[data-pcb-assembly-export-format]',
+            (button) =>
+                callback({
+                    documentId: button.getAttribute('data-document-id') || '',
+                    format:
+                        button.getAttribute(
+                            'data-pcb-assembly-export-format'
+                        ) || 'step'
+                })
+        )
+    }
+
+    /**
      * Binds component detail/name copy actions.
      * @param {HTMLElement | null} mount Sidebar mount node.
      * @param {{ writeText?: (value: string) => Promise<void> | void } | ((value: string) => Promise<void> | void) | null} [clipboardWriter] Clipboard writer override.

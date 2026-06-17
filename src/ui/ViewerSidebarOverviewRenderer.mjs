@@ -6,7 +6,7 @@ export class ViewerSidebarOverviewRenderer {
      * Renders the overview panel for the active document.
      * @param {any} documentModel Active document model.
      * @param {(key: string) => string} translate Translation lookup.
-     * @param {{ showModelZipExport?: boolean }} [options] Render options.
+     * @param {{ showModelZipExport?: boolean, documentId?: string }} [options] Render options.
      * @returns {string}
      */
     static render(documentModel, translate, options = {}) {
@@ -44,7 +44,7 @@ export class ViewerSidebarOverviewRenderer {
      * Renders document-level actions in the overview panel.
      * @param {any} documentModel Active document model.
      * @param {(key: string) => string} translate Translation lookup.
-     * @param {{ showModelZipExport?: boolean }} options Render options.
+     * @param {{ showModelZipExport?: boolean, documentId?: string }} options Render options.
      * @returns {string}
      */
     static #renderOverviewActions(documentModel, translate, options) {
@@ -52,16 +52,42 @@ export class ViewerSidebarOverviewRenderer {
             return ''
         }
 
+        const documentId = String(options?.documentId || '')
+        const actions = [
+            {
+                attribute: 'data-pcb-assembly-export-format="step"',
+                label: translate('scene3d.exportAssemblyStep')
+            },
+            {
+                attribute: 'data-pcb-assembly-export-format="wrl"',
+                label: translate('scene3d.exportAssemblyWrl')
+            },
+            {
+                attribute: 'data-scene-3d-export="models-zip"',
+                label: translate('scene3d.downloadModelsZip')
+            }
+        ]
+
         return (
             '<div class="viewer-sidebar__model-export viewer-sidebar__overview-actions">' +
             '<div class="viewer-sidebar__model-export-actions">' +
-            '<button class="viewer-sidebar__model-export-button viewer-sidebar__overview-action" type="button" data-scene-3d-export="models-zip">' +
-            ViewerSidebarOverviewRenderer.#renderOverviewActionIcon() +
-            '<span class="viewer-sidebar__model-export-label">' +
-            ViewerSidebarOverviewRenderer.#escapeHtml(
-                translate('scene3d.downloadModelsZip')
-            ) +
-            '</span></button></div></div>'
+            actions
+                .map(
+                    (action) =>
+                        '<button class="viewer-sidebar__model-export-button viewer-sidebar__overview-action" type="button" data-document-id="' +
+                        ViewerSidebarOverviewRenderer.#escapeHtml(documentId) +
+                        '" ' +
+                        action.attribute +
+                        '>' +
+                        ViewerSidebarOverviewRenderer.#renderOverviewActionIcon() +
+                        '<span class="viewer-sidebar__model-export-label">' +
+                        ViewerSidebarOverviewRenderer.#escapeHtml(
+                            action.label
+                        ) +
+                        '</span></button>'
+                )
+                .join('') +
+            '</div></div>'
         )
     }
 
@@ -402,7 +428,9 @@ export class ViewerSidebarOverviewRenderer {
      */
     static #formatPlacementCount(documentModel, translate) {
         return (
-            String(ViewerSidebarOverviewRenderer.#placementCount(documentModel)) +
+            String(
+                ViewerSidebarOverviewRenderer.#placementCount(documentModel)
+            ) +
             ' ' +
             translate('scene3d.componentsSuffix')
         )

@@ -6,13 +6,16 @@ import { AppControllerMessages } from './AppControllerMessages.mjs'
 import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { DemoProjectRegistry } from './DemoProjectRegistry.mjs'
 import { AppControllerParserData } from './AppControllerParserData.mjs'
+import { AppControllerLocalFileParserFiles } from './AppControllerLocalFileParserFiles.mjs'
 import { AppControllerDeepLinkState } from './AppControllerDeepLinkState.mjs'
 import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
 import { GitHubParsePlan } from './GitHubParsePlan.mjs'
 import { AppControllerPcbStateHandlers } from './AppControllerPcbStateHandlers.mjs'
 import { AppControllerSelectedPartExport } from './AppControllerSelectedPartExport.mjs'
+import { AppControllerPcbAssemblyExport } from './AppControllerPcbAssemblyExport.mjs'
 import { SelectedPartExportService } from './core/SelectedPartExportService.mjs'
+import { PcbAssemblyExportService } from './core/PcbAssemblyExportService.mjs'
 import { PcbStylerLinkState } from './PcbStylerLinkState.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 
@@ -55,6 +58,9 @@ export class AppController {
     /** @type {{ export: (options: object) => Promise<{ archiveName: string, archiveBytes: Uint8Array }> }} */
     #selectedPartExportService
 
+    /** @type {{ export: (options: object) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> }} */
+    #pcbAssemblyExportService
+
     /** @type {{ resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null} */
     #modelSearchService
 
@@ -72,6 +78,7 @@ export class AppController {
      * githubSourceLoader?: { loadUrl: (url: string) => Promise<object>, loadGitHubPath?: (path: string, ref?: string) => Promise<object> },
      * analytics?: { track: (eventName: string, properties?: object) => void },
      * selectedPartExportService?: { export: (options: object) => Promise<{ archiveName: string, archiveBytes: Uint8Array }> },
+     * pcbAssemblyExportService?: { export: (options: object) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> },
      * modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null,
      * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null
      * }} dependencies
@@ -99,6 +106,9 @@ export class AppController {
         this.#selectedPartExportService =
             dependencies.selectedPartExportService ||
             new SelectedPartExportService()
+        this.#pcbAssemblyExportService =
+            dependencies.pcbAssemblyExportService ||
+            new PcbAssemblyExportService()
         this.#modelSearchService = dependencies.modelSearchService || null
         this.#startupSource = dependencies.startupSource || null
     }
@@ -165,6 +175,15 @@ export class AppController {
                 state: this.#state,
                 view: this.#view,
                 selectedPartExportService: this.#selectedPartExportService,
+                modelSearchService: this.#modelSearchService
+            })
+        })
+        this.#view.bindPcbAssemblyExport?.((change) => {
+            return AppControllerPcbAssemblyExport.handle({
+                change,
+                state: this.#state,
+                view: this.#view,
+                pcbAssemblyExportService: this.#pcbAssemblyExportService,
                 modelSearchService: this.#modelSearchService
             })
         })
@@ -273,8 +292,12 @@ export class AppController {
         })
 
         try {
+            const parserFiles = AppControllerLocalFileParserFiles.resolve(
+                nativeFiles,
+                companionFiles
+            )
             const entries = await Promise.all(
-                nativeFiles.map((file) =>
+                parserFiles.map((file) =>
                     AppControllerParserData.buildParserEntry(file)
                 )
             )
@@ -290,6 +313,7 @@ export class AppController {
                     AppControllerParserData.resolveFormatFamily(entries)
             })
             this.#trackViewOpened(snapshotAfterLoad.activeView)
+            AppControllerDeepLinkState.sync(snapshotAfterLoad)
             PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))

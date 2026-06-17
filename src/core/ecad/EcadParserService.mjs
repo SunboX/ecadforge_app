@@ -1,8 +1,13 @@
 import { AltiumParser } from 'altium-toolkit/parser'
 import { CircuitJsonParser } from 'circuitjson-toolkit'
+import { unzipSync } from 'fflate'
 import { GerberParser, GerberProjectLoader } from 'gerber-toolkit/parser'
 import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
+import { AltiumSchematicArcAngleNormalizer } from './AltiumSchematicArcAngleNormalizer.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+import { AltiumSchematicFreeGraphicStrokeNormalizer } from './AltiumSchematicFreeGraphicStrokeNormalizer.mjs'
+import { AltiumSchematicHiddenDesignatorResolver } from './AltiumSchematicHiddenDesignatorResolver.mjs'
+import { AltiumSchematicPackedImageResolver } from './AltiumSchematicPackedImageResolver.mjs'
 
 /**
  * Dispatches ECAD source entries to the owned format toolkits.
@@ -72,7 +77,10 @@ export class EcadParserService {
         }
 
         return EcadParserService.#prepareAppDocument(
-            this.#altiumParser.parseArrayBuffer(fileName, buffer)
+            EcadParserService.#prepareAltiumSchematicDocument(
+                this.#altiumParser.parseArrayBuffer(fileName, buffer),
+                buffer
+            )
         )
     }
 
@@ -107,8 +115,11 @@ export class EcadParserService {
         for (const entry of altiumEntries) {
             try {
                 documents.push(
-                    this.#altiumParser.parseArrayBuffer(
-                        entry.name,
+                    EcadParserService.#prepareAltiumSchematicDocument(
+                        this.#altiumParser.parseArrayBuffer(
+                            entry.name,
+                            entry.buffer
+                        ),
                         entry.buffer
                     )
                 )
@@ -155,25 +166,30 @@ export class EcadParserService {
             }
         }
 
-        const kicadParseEntries = kicadEntries.filter(
-            (entry) => !gerberEntryNames.has(entry.name)
+        const kicadParseEntries = EcadParserService.#expandKicadArchiveEntries(
+            kicadEntries.filter((entry) => !gerberEntryNames.has(entry.name))
+        )
+        const kicadNativeEntries = kicadParseEntries.filter(
+            (entry) => entry.role?.sourceFormat === 'kicad'
         )
 
         if (
             kicadParseEntries.length === 1 &&
-            kicadParseEntries[0].role.fileType !== 'zip'
+            kicadNativeEntries.length === 1 &&
+            kicadNativeEntries[0].role.fileType !== 'zip'
         ) {
             documents.push(
                 this.#kicadParser.parseArrayBuffer(
-                    kicadParseEntries[0].name,
-                    kicadParseEntries[0].buffer
+                    kicadNativeEntries[0].name,
+                    kicadNativeEntries[0].buffer
                 )
             )
         }
 
         if (
             kicadParseEntries.length > 1 ||
-            kicadParseEntries[0]?.role.fileType === 'zip'
+            kicadNativeEntries.length > 1 ||
+            kicadParseEntries[0]?.role?.fileType === 'zip'
         ) {
             const result = await this.#kicadProjectLoader.loadEntries(
                 kicadParseEntries.map((entry) => ({
@@ -258,6 +274,26 @@ export class EcadParserService {
 
         EcadParserService.#stripRawPcbRecords(document)
         return document
+    }
+
+    /**
+     * Applies app-side Altium schematic post-processing.
+     * @param {object} document Parsed document model.
+     * @param {ArrayBuffer} buffer Source file buffer.
+     * @returns {object}
+     */
+    static #prepareAltiumSchematicDocument(document, buffer) {
+        return AltiumSchematicPackedImageResolver.hydrate(
+            AltiumSchematicFreeGraphicStrokeNormalizer.normalize(
+                AltiumSchematicArcAngleNormalizer.normalize(
+                    AltiumSchematicHiddenDesignatorResolver.annotate(
+                        document,
+                        buffer
+                    )
+                )
+            ),
+            buffer
+        )
     }
 
     /**
@@ -522,12 +558,18 @@ export class EcadParserService {
                 buffer: entry?.buffer,
                 role: EcadParserService.#resolveParserRole(entry?.name)
             }))
-            .filter((entry) => entry.name && entry.buffer && entry.role)
+            .filter(
+                (entry) =>
+                    entry.name &&
+                    entry.buffer &&
+                    entry.role &&
+                    EcadParserService.#isVisibleProjectPath(entry.name)
+            )
     }
 
     /**
-     * Resolves parser roles, including Altium project manifests that are also
-     * companion assets for UI intake.
+     * Resolves parser roles, including companion assets that provide project
+     * context during batch parsing.
      * @param {string} fileName Source file name.
      * @returns {{ sourceFormat: string, fileType: string } | null}
      */
@@ -537,10 +579,118 @@ export class EcadParserService {
             return nativeRole
         }
 
-        return EcadFormatRegistry.resolveCompanionFormat(fileName) ===
-            'altium-project'
-            ? { sourceFormat: 'altium', fileType: 'prjpcb' }
-            : null
+        const companionFormat =
+            EcadFormatRegistry.resolveCompanionFormat(fileName)
+        if (companionFormat === 'altium-project') {
+            return { sourceFormat: 'altium', fileType: 'prjpcb' }
+        }
+
+        if (companionFormat === 'kicad-library') {
+            return { sourceFormat: 'kicad', fileType: 'kicad-library' }
+        }
+
+        return null
+    }
+
+    /**
+     * Expands KiCad ZIP entries so hidden archive members can be filtered.
+     * @param {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]} entries KiCad candidate entries.
+     * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } | null }[]}
+     */
+    static #expandKicadArchiveEntries(entries) {
+        return (entries || []).flatMap((entry) => {
+            if (entry.role?.fileType !== 'zip') {
+                return [entry]
+            }
+
+            return EcadParserService.#expandKicadArchiveEntry(entry)
+        })
+    }
+
+    /**
+     * Expands one KiCad archive entry into visible project files and assets.
+     * @param {{ name: string, buffer: ArrayBuffer }} entry Archive entry.
+     * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } | null }[]}
+     */
+    static #expandKicadArchiveEntry(entry) {
+        const archiveEntries = unzipSync(new Uint8Array(entry.buffer))
+
+        return Object.entries(archiveEntries)
+            .filter(([name]) => EcadParserService.#isKicadArchiveEntry(name))
+            .map(([name, bytes]) => ({
+                name,
+                buffer: EcadParserService.#arrayBufferFromBytes(bytes),
+                role: EcadParserService.#resolveParserRole(name)
+            }))
+    }
+
+    /**
+     * Returns true when an archive member should be passed to KiCad loading.
+     * @param {string} fileName Archive member path.
+     * @returns {boolean}
+     */
+    static #isKicadArchiveEntry(fileName) {
+        if (!EcadParserService.#isVisibleProjectPath(fileName)) {
+            return false
+        }
+
+        const role = EcadParserService.#resolveParserRole(fileName)
+        if (role?.sourceFormat === 'kicad') {
+            return true
+        }
+
+        const companionFormat =
+            EcadFormatRegistry.resolveCompanionFormat(fileName)
+        if (['kicad-library', 'step', 'wrl'].includes(companionFormat)) {
+            return true
+        }
+
+        return EcadParserService.#isKicadContextFile(fileName)
+    }
+
+    /**
+     * Returns true for KiCad project context files.
+     * @param {string} fileName Source file name.
+     * @returns {boolean}
+     */
+    static #isKicadContextFile(fileName) {
+        const baseName = EcadParserService.#baseName(fileName).toLowerCase()
+        return baseName === 'fp-lib-table' || baseName === 'sym-lib-table'
+    }
+
+    /**
+     * Returns true when a project path is visible user source, not metadata.
+     * @param {string} fileName Source path.
+     * @returns {boolean}
+     */
+    static #isVisibleProjectPath(fileName) {
+        const parts = EcadParserService.#normalizePath(fileName)
+            .split('/')
+            .filter(Boolean)
+
+        if (!parts.length) {
+            return false
+        }
+
+        return !parts.some((part) => {
+            return (
+                part === '__MACOSX' ||
+                part.startsWith('.') ||
+                part.startsWith('._')
+            )
+        })
+    }
+
+    /**
+     * Copies a byte view into a standalone ArrayBuffer.
+     * @param {Uint8Array} bytes Byte view.
+     * @returns {ArrayBuffer}
+     */
+    static #arrayBufferFromBytes(bytes) {
+        return bytes.buffer.slice(
+            bytes.byteOffset,
+            bytes.byteOffset + bytes.byteLength
+        )
     }
 
     /**

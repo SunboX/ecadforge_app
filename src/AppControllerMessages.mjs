@@ -17,7 +17,7 @@ export class AppControllerMessages {
             'status.invalidFile':
                 'This file type is not supported yet. ECAD Forge currently supports selected Altium, KiCad, Gerber, and CircuitJSON design files. Try a sample project or open a supported board, schematic, or fabrication file.',
             'status.assetsAdded':
-                'Companion 3D assets added to the current session.',
+                'Companion libraries and 3D assets added to the current session.',
             'status.localeChanged': 'Language updated.',
             'status.unknownSample': 'Unknown sample project.',
             'status.loadingSample':

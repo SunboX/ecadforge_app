@@ -536,6 +536,72 @@ test('AppController accepts KiCad project batches with multiple returned documen
 })
 
 /**
+ * Verifies one local browser selection can include KiCad project documents,
+ * library files, and 3D assets without requiring a second companion load.
+ */
+test('AppController sends KiCad library files with one mixed local selection', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const schematicDocument = createSchematicDocument('Project/main.kicad_sch')
+    const pcbDocument = createPcbDocument('Project/main.kicad_pcb')
+    const parser = new BatchParser({
+        documents: [schematicDocument, pcbDocument],
+        assets: []
+    })
+    const controller = new AppController({ state, view, parser })
+
+    await controller.init()
+    await view.chooseFiles([
+        new FakeFile(
+            'main.kicad_pro',
+            new ArrayBuffer(1),
+            'Project/main.kicad_pro'
+        ),
+        new FakeFile(
+            'main.kicad_sch',
+            new ArrayBuffer(1),
+            'Project/main.kicad_sch'
+        ),
+        new FakeFile(
+            'main.kicad_pcb',
+            new ArrayBuffer(1),
+            'Project/main.kicad_pcb'
+        ),
+        new FakeFile(
+            'logic.kicad_sym',
+            new ArrayBuffer(1),
+            'Project/symbols/logic.kicad_sym'
+        ),
+        new FakeFile(
+            'QFN.kicad_mod',
+            new ArrayBuffer(1),
+            'Project/footprints/QFN.pretty/QFN.kicad_mod'
+        ),
+        new FakeFile(
+            'body.step',
+            new ArrayBuffer(1),
+            'Project/models/body.step'
+        )
+    ])
+
+    const snapshot = state.getSnapshot()
+
+    assert.deepEqual(parser.seenNames, [
+        'Project/main.kicad_pro',
+        'Project/main.kicad_sch',
+        'Project/main.kicad_pcb',
+        'Project/symbols/logic.kicad_sym',
+        'Project/footprints/QFN.pretty/QFN.kicad_mod'
+    ])
+    assert.equal(snapshot.documents.length, 2)
+    assert.equal(snapshot.sessionAssets.length, 3)
+    assert.equal(
+        snapshot.sessionAssets.at(-1).relativePath,
+        'Project/models/body.step'
+    )
+})
+
+/**
  * Verifies parser worker module failures fall back to direct parser execution
  * instead of leaving the UI in an unresolved loading state.
  */
@@ -768,7 +834,7 @@ test('AppController reports companion-only loads without creating documents', as
     assert.equal(snapshot.sessionAssets.length, 2)
     assert.equal(
         snapshot.statusMessage,
-        'Companion 3D assets added to the current session.'
+        'Companion libraries and 3D assets added to the current session.'
     )
 })
 

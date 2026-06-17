@@ -588,7 +588,8 @@ export class ViewerSidebarRenderer {
                 documentModel,
                 translate,
                 {
-                    showModelZipExport: snapshot?.activeView === '3d'
+                    showModelZipExport: snapshot?.activeView === '3d',
+                    documentId: snapshot?.activeDocumentId || ''
                 }
             )
         }

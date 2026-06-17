@@ -21,6 +21,8 @@ import {
 import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
 import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+import { KicadPcbRenderOutlineAdapter } from './KicadPcbRenderOutlineAdapter.mjs'
+import { PcbFootprintPadAxisNormalizer } from './PcbFootprintPadAxisNormalizer.mjs'
 
 const BOM_TRANSLATION_FALLBACKS = {
     'bom.designators': 'Designators',
@@ -58,7 +60,9 @@ export class EcadRendererService {
                 EcadRendererService.#isKiCad(documentModel)
                     ? KicadSchematicSvgRenderer.render(documentModel)
                     : AltiumSchematicSvgRenderer.render(
-                          documentModel,
+                          EcadRendererService.#altiumSchematicRenderDocument(
+                              documentModel
+                          ),
                           EcadRendererService.#altiumSchematicRenderOptions(
                               documentModel
                           )
@@ -76,6 +80,8 @@ export class EcadRendererService {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const renderKey = EcadRendererService.#pcbRenderCacheKey(side, options)
+        const renderDocumentModel =
+            PcbFootprintPadAxisNormalizer.apply(documentModel)
         return EcadRendererService.#renderCached(
             EcadRendererService.#pcbSvgCache,
             documentModel,
@@ -83,14 +89,17 @@ export class EcadRendererService {
             () =>
                 EcadRendererService.#isGerber(documentModel)
                     ? EcadRendererService.#renderGerberPcb(
-                          documentModel,
+                          renderDocumentModel,
                           options,
                           side
                       )
                     : EcadRendererService.#isKiCad(documentModel)
-                      ? EcadRendererService.#renderKicadPcb(documentModel, side)
+                      ? EcadRendererService.#renderKicadPcb(
+                            renderDocumentModel,
+                            side
+                        )
                       : EcadRendererService.#renderAltiumPcb(
-                            documentModel,
+                            renderDocumentModel,
                             side
                         )
         )
@@ -107,12 +116,14 @@ export class EcadRendererService {
         EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
+        const hitTestDocumentModel =
+            PcbFootprintPadAxisNormalizer.apply(documentModel)
         if (EcadRendererService.#isGerber(documentModel)) {
             return EcadRendererService.#withResolvedPcbComponentKeys(
-                documentModel,
+                hitTestDocumentModel,
                 GerberPcbInteractionIndex.hitTestItems(
                     EcadRendererService.#pcbInteractionItems(
-                        documentModel,
+                        hitTestDocumentModel,
                         GerberPcbInteractionIndex
                     ),
                     point,
@@ -135,10 +146,10 @@ export class EcadRendererService {
               }
 
         return EcadRendererService.#withResolvedPcbComponentKeys(
-            documentModel,
+            hitTestDocumentModel,
             interactionIndex.hitTestItems(
                 EcadRendererService.#pcbInteractionItems(
-                    documentModel,
+                    hitTestDocumentModel,
                     interactionIndex
                 ),
                 point,
@@ -212,6 +223,34 @@ export class EcadRendererService {
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'gerber'
         )
+    }
+
+    /**
+     * Returns a render-only Altium schematic model with hidden fallback labels suppressed.
+     * @param {object} documentModel Document model.
+     * @returns {object}
+     */
+    static #altiumSchematicRenderDocument(documentModel) {
+        const components = documentModel?.schematic?.components || []
+        if (
+            !components.some(
+                (component) => component?.schematicDesignatorVisible === false
+            )
+        ) {
+            return documentModel
+        }
+
+        return {
+            ...documentModel,
+            schematic: {
+                ...documentModel.schematic,
+                components: components.map((component) =>
+                    component?.schematicDesignatorVisible === false
+                        ? { ...component, designator: '' }
+                        : component
+                )
+            }
+        }
     }
 
     /**
@@ -706,12 +745,15 @@ export class EcadRendererService {
      * @returns {string}
      */
     static #renderKicadPcb(documentModel, side) {
-        const renderModel =
-            EcadRendererService.#withRenderableKicadBoardBounds(documentModel)
+        const normalizedDocument =
+            PcbFootprintPadAxisNormalizer.apply(documentModel)
+        const renderModel = EcadRendererService.#withRenderableKicadBoardBounds(
+            KicadPcbRenderOutlineAdapter.apply(normalizedDocument)
+        )
 
         if (!renderModel) {
             return EcadRendererService.#renderNormalizedPcb(
-                documentModel,
+                normalizedDocument,
                 side,
                 'pcb-svg--kicad'
             )

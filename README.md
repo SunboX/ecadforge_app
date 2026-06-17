@@ -14,7 +14,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Schematic SVG view derived from recovered record geometry, text, symbols, and highlightable nets
 - PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, and highlightable nets where available
 - BOM grouping from recovered component metadata
-- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup, and opt-in missing-model search
+- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup, opt-in missing-model search, and single-file PCB assembly export as STEP or WRL with board, copper, silkscreen, pads, vias, and resolved 3D components
 - Browser-native WebMCP tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback
 - Runtime language switching with browser detection and Brazilian Portuguese support
