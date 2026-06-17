@@ -75,3 +75,21 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
         /import\('\/node_modules\/pcb-scene3d-viewer\/src\/scene3d\.mjs\?v=1\.4\.153'\)/
     )
 })
+
+/**
+ * Verifies assembly export dependencies are resolvable in served browser
+ * modules that cannot rely on Node package exports.
+ */
+test('rewriteJavaScriptModule versions earcut imports', () => {
+    const source = "import earcut from 'earcut'"
+
+    const rewritten = ServerAssetVersioner.rewriteJavaScriptModule(
+        source,
+        '1.7.69'
+    )
+
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/earcut\/src\/earcut\.js\?v=1\.7\.69'/
+    )
+})

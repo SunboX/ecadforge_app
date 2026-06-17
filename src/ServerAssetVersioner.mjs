@@ -95,6 +95,7 @@ export class ServerAssetVersioner {
                 '/node_modules/pcb-scene3d-viewer/src/index.mjs',
             'pcb-scene3d-viewer/scene3d':
                 '/node_modules/pcb-scene3d-viewer/src/scene3d.mjs',
+            earcut: '/node_modules/earcut/src/earcut.js',
             fflate: '/node_modules/fflate/esm/browser.js'
         }
 
@@ -110,7 +111,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit|pcb-scene3d-viewer(?:\\/scene3d)?)|fflate)'
+            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
