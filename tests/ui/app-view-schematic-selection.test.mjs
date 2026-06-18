@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { AppView } from '../../src/ui/AppView.mjs'
+import { SchematicSelectionMarkerBoundsResolver } from '../../src/ui/SchematicSelectionMarkerBoundsResolver.mjs'
 
 /**
  * Minimal event target for AppView wiring tests.
@@ -293,7 +294,7 @@ class FakeDocument {
 }
 
 /**
- * Builds a schematic snapshot with one selected symbol.
+ * Builds a schematic snapshot with selectable symbols.
  * @returns {object}
  */
 function createSnapshot() {
@@ -304,11 +305,24 @@ function createSnapshot() {
         summary: { title: 'Symbol selection fake' },
         schematic: {
             sheet: { width: 80, height: 60 },
-            components: [{ ownerIndex: 'owner-u1', designator: 'U1' }],
-            rectangles: [
-                { ownerIndex: 'owner-u1', x: 20, y: 20, width: 12, height: 10 }
+            components: [
+                { ownerIndex: 'owner-u1', designator: 'U1' },
+                { ownerIndex: 'owner-u2', designator: 'U2' }
             ],
-            texts: [{ ownerIndex: 'owner-u1', x: 20, y: 18, value: 'U1' }],
+            rectangles: [
+                { ownerIndex: 'owner-u1', x: 20, y: 20, width: 12, height: 10 },
+                {
+                    ownerIndex: 'owner-u2',
+                    x: 1220,
+                    y: 20,
+                    width: 12,
+                    height: 10
+                }
+            ],
+            texts: [
+                { ownerIndex: 'owner-u1', x: 20, y: 18, value: 'U1' },
+                { ownerIndex: 'owner-u2', x: 1220, y: 18, value: 'U2' }
+            ],
             pins: [],
             lines: [],
             nets: [
@@ -386,6 +400,45 @@ test('AppView emits schematic component clicks from the rendered svg', () => {
         .dispatch('click', {
             target: new FakeSchematicComponentTarget('U1')
         })
+
+    assert.deepEqual(received, [
+        {
+            documentId: 'doc-1',
+            componentKey: 'U1',
+            source: 'schematic'
+        }
+    ])
+})
+
+/**
+ * Verifies mobile touch taps emit the same schematic component selection as
+ * desktop clicks, even when no synthetic click event follows the touch.
+ */
+test('AppView emits schematic component touch taps from the rendered svg', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+    const target = new FakeSchematicComponentTarget('U1')
+
+    view.bindPcbComponentSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    const svg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+    svg.dispatch('touchstart', {
+        target,
+        touches: [{ clientX: 120, clientY: 80 }],
+        changedTouches: [{ clientX: 120, clientY: 80 }],
+        preventDefault() {}
+    })
+    svg.dispatch('touchend', {
+        target,
+        touches: [],
+        changedTouches: [{ clientX: 120, clientY: 80 }]
+    })
 
     assert.deepEqual(received, [
         {
@@ -498,4 +551,65 @@ test('AppView preserves schematic viewport across selection rerenders', () => {
         contentNode.querySelector('.schematic-svg').getAttribute('viewBox'),
         movedViewBox
     )
+})
+
+/**
+ * Verifies selecting an off-screen schematic symbol moves the schematic
+ * viewport to the selected marker.
+ */
+test('AppView moves off-screen selected schematic symbols into view', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const snapshot = createSnapshot()
+
+    view.render(snapshot)
+
+    const contentNode = fakeDocument.querySelector('#viewContent')
+    const u1ViewBox = contentNode
+        .querySelector('.schematic-svg')
+        .getAttribute('viewBox')
+
+    view.render({
+        ...snapshot,
+        selectedPcbComponents: { 'doc-1': 'U2' }
+    })
+
+    const u2ViewBox = contentNode
+        .querySelector('.schematic-svg')
+        .getAttribute('viewBox')
+    const [u2ViewBoxX] = String(u2ViewBox)
+        .split(/\s+/)
+        .map((value) => Number(value))
+
+    assert.notEqual(u2ViewBox, u1ViewBox)
+    assert.ok(u2ViewBoxX > 700)
+})
+
+/**
+ * Verifies first schematic mount with an existing selection focuses close
+ * enough for the selected symbol to be visible.
+ */
+test('AppView focuses selected schematic symbols on first mount', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const snapshot = createSnapshot()
+
+    view.render({
+        ...snapshot,
+        selectedPcbComponents: { 'doc-1': 'U2' }
+    })
+
+    const html = fakeDocument.querySelector('#viewContent').innerHTML
+    const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+        .getAttribute('viewBox')
+        .split(/\s+/)
+        .map((value) => Number(value))
+    const bounds = SchematicSelectionMarkerBoundsResolver.resolve(html, 'U2')
+
+    assert.ok(bounds.x >= viewBoxX)
+    assert.ok(bounds.y >= viewBoxY)
+    assert.ok(bounds.x + bounds.width <= viewBoxX + viewBoxWidth)
+    assert.ok(bounds.y + bounds.height <= viewBoxY + viewBoxHeight)
 })

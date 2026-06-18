@@ -199,11 +199,11 @@ test('package depends on intended ECAD toolkit package sources', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const toolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.26$/],
+        ['altium-toolkit', /^\^1\.1\.30$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
         ['gerber-toolkit', /^\^0\.1\.18$/],
         ['kicad-toolkit', /^\^1\.0\.14$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.18$/]
+        ['pcb-scene3d-viewer', /^\^1\.1\.19$/]
     ]
 
     for (const [dependencyName, versionPattern] of toolkitDependencies) {
@@ -602,7 +602,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
     const toolkitDependencies = [
         {
             name: 'altium-toolkit',
-            registryVersion: '1.1.26'
+            registryVersion: '1.1.30'
         },
         {
             name: 'circuitjson-toolkit',
@@ -618,7 +618,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
         },
         {
             name: 'pcb-scene3d-viewer',
-            registryVersion: '1.1.18'
+            registryVersion: '1.1.19'
         }
     ]
 
@@ -628,17 +628,26 @@ test('ECAD libraries resolve through configured package sources', async () => {
             lock.packages['']?.dependencies?.[dependency.name]
         const dependencyPackage =
             lock.packages[`node_modules/${dependency.name}`]
+        if (dependency.localPath) {
+            const linkedPackage = lock.packages[dependency.localPath]
 
-        assert.equal(packageDependency, `^${dependency.registryVersion}`)
-        assert.equal(lockedDependency, `^${dependency.registryVersion}`)
-        assert.equal(dependencyPackage?.version, dependency.registryVersion)
-        assert.match(
-            dependencyPackage?.resolved ?? '',
-            new RegExp(
-                `^https://registry\\.npmjs\\.org/${dependency.name}/-/${dependency.name}-${dependency.registryVersion}\\.tgz$`
+            assert.equal(packageDependency, `file:${dependency.localPath}`)
+            assert.equal(lockedDependency, `file:${dependency.localPath}`)
+            assert.equal(linkedPackage?.version, dependency.registryVersion)
+            assert.equal(dependencyPackage?.resolved, dependency.localPath)
+            assert.equal(dependencyPackage?.link, true)
+        } else {
+            assert.equal(packageDependency, `^${dependency.registryVersion}`)
+            assert.equal(lockedDependency, `^${dependency.registryVersion}`)
+            assert.equal(dependencyPackage?.version, dependency.registryVersion)
+            assert.match(
+                dependencyPackage?.resolved ?? '',
+                new RegExp(
+                    `^https://registry\\.npmjs\\.org/${dependency.name}/-/${dependency.name}-${dependency.registryVersion}\\.tgz$`
+                )
             )
-        )
-        assert.notEqual(dependencyPackage?.link, true)
+            assert.notEqual(dependencyPackage?.link, true)
+        }
     }
 })
 

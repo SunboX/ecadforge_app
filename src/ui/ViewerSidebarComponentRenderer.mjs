@@ -6,7 +6,7 @@ import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.m
 export class ViewerSidebarComponentRenderer {
     /**
      * Renders component rows for one viewer snapshot.
-     * @param {{ activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, documents?: { id: string, documentModel: any }[], documentModel?: any }} snapshot Viewer snapshot.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -48,7 +48,7 @@ export class ViewerSidebarComponentRenderer {
 
     /**
      * Renders the searchable component browser.
-     * @param {{ activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, documentModel?: any }} snapshot Viewer snapshot.
+     * @param {{ activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, documents?: { id: string, documentModel: any }[], documentModel?: any }} snapshot Viewer snapshot.
      * @param {any[]} components Component metadata.
      * @param {string} title Panel title.
      * @param {(key: string) => string} translate Translation lookup.
@@ -67,7 +67,8 @@ export class ViewerSidebarComponentRenderer {
                 index,
                 documentModel,
                 documentId,
-                selectedKey
+                selectedKey,
+                snapshot?.documents || []
             )
         )
         const renderedRows = documentModel?.schematic
@@ -92,54 +93,439 @@ export class ViewerSidebarComponentRenderer {
      * @param {any} documentModel Active document model.
      * @param {string} documentId Active document id.
      * @param {string} selectedKey Selected component key.
-     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }}
+     * @param {{ id: string, documentModel: any }[]} sessionDocuments Loaded session documents.
+     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }}
      */
     static #buildComponentRow(
         component,
         index,
         documentModel,
         documentId,
-        selectedKey
+        selectedKey,
+        sessionDocuments
     ) {
+        const isPcb = Boolean(documentModel?.pcb)
         const key = PcbComponentSelectionModel.resolveComponentKey(
             component,
             index
         )
         const detail = ViewerSidebarComponentRenderer.#resolveDetail(
             component,
-            Boolean(documentModel?.pcb)
+            isPcb
         )
-        const search = [
+        const value = isPcb
+            ? ViewerSidebarComponentRenderer.#resolvePcbValue(
+                  component,
+                  documentModel,
+                  sessionDocuments,
+                  key,
+                  detail
+              )
+            : ViewerSidebarComponentRenderer.#resolveSchematicValue(
+                  component,
+                  documentModel,
+                  key,
+                  detail
+              )
+        const searchableText = [
             key,
             detail,
+            value,
+            component?.source,
             component?.pattern,
             component?.footprint,
+            component?.footprintName,
             component?.layer,
             component?.side,
             component?.mountSide
         ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase()
+        const search = searchableText.filter(Boolean).join(' ').toLowerCase()
 
         return {
             component,
             detail,
             documentId,
-            group: documentModel?.pcb
+            group: isPcb
                 ? ViewerSidebarComponentRenderer.#resolveBoardSide(component)
                 : 'symbols',
             key,
             label: key || 'Component',
             search,
-            selected: Boolean(selectedKey && key === selectedKey)
+            selected: Boolean(selectedKey && key === selectedKey),
+            value
         }
     }
 
     /**
+     * Resolves the package/source row detail with PCB and schematic-specific priority.
+     * @param {any} component Component metadata.
+     * @param {boolean} isPcb Whether the component belongs to a PCB.
+     * @returns {string}
+     */
+    static #resolveDetail(component, isPcb) {
+        const keys = isPcb
+            ? [
+                  'source',
+                  'pattern',
+                  'footprint',
+                  'footprintName',
+                  'package',
+                  'libReference',
+                  'libraryReference',
+                  'description',
+                  'comment',
+                  'value'
+              ]
+            : ['libReference', 'value', 'comment', 'footprint', 'pattern']
+        return (
+            ViewerSidebarComponentRenderer.#firstValue(component, keys) || '-'
+        )
+    }
+
+    /**
+     * Resolves the electrical value shown at the row end for PCB components.
+     * @param {any} component Component metadata.
+     * @param {any} documentModel Active document model.
+     * @param {{ id: string, documentModel: any }[]} sessionDocuments Loaded session documents.
+     * @param {string} componentKey Row component key.
+     * @param {string} detail Row package/source detail.
+     * @returns {string}
+     */
+    static #resolvePcbValue(
+        component,
+        documentModel,
+        sessionDocuments,
+        componentKey,
+        detail
+    ) {
+        const rejectedTexts =
+            ViewerSidebarComponentRenderer.#pcbValueRejectedTexts(
+                component,
+                detail
+            )
+        const sessionBomValue =
+            ViewerSidebarComponentRenderer.#resolveSessionBomValue(
+                documentModel,
+                sessionDocuments,
+                componentKey,
+                rejectedTexts
+            )
+        if (sessionBomValue) {
+            return sessionBomValue
+        }
+
+        const componentValue = ViewerSidebarComponentRenderer.#firstValue(
+            component,
+            ['value']
+        )
+        if (
+            ViewerSidebarComponentRenderer.#isDisplayableComponentValue(
+                componentValue,
+                rejectedTexts,
+                true
+            )
+        ) {
+            return componentValue
+        }
+
+        const bomValue = ViewerSidebarComponentRenderer.#resolveBomValue(
+            documentModel,
+            componentKey,
+            rejectedTexts
+        )
+        if (bomValue) {
+            return bomValue
+        }
+
+        return ''
+    }
+
+    /**
+     * Resolves the electrical value shown at the row end for schematic symbols.
+     * @param {any} component Component metadata.
+     * @param {any} documentModel Active document model.
+     * @param {string} componentKey Row component key.
+     * @param {string} detail Row symbol/library detail.
+     * @returns {string}
+     */
+    static #resolveSchematicValue(
+        component,
+        documentModel,
+        componentKey,
+        detail
+    ) {
+        const rejectedTexts =
+            ViewerSidebarComponentRenderer.#schematicValueRejectedTexts(
+                component,
+                detail
+            )
+        const bomValue = ViewerSidebarComponentRenderer.#resolveBomValue(
+            documentModel,
+            componentKey,
+            rejectedTexts
+        )
+        if (bomValue) {
+            return bomValue
+        }
+
+        const componentValue = ViewerSidebarComponentRenderer.#firstValue(
+            component,
+            ['value', 'comment']
+        )
+        if (
+            ViewerSidebarComponentRenderer.#isDisplayableComponentValue(
+                componentValue,
+                rejectedTexts,
+                false
+            )
+        ) {
+            return componentValue
+        }
+
+        return ''
+    }
+
+    /**
+     * Resolves a value from sibling session BOMs before the active PCB BOM.
+     * @param {any} activeDocumentModel Active document model.
+     * @param {{ id: string, documentModel: any }[]} sessionDocuments Loaded session documents.
+     * @param {string} componentKey Component designator.
+     * @param {Set<string>} rejectedTexts Text values that are package/source metadata.
+     * @returns {string}
+     */
+    static #resolveSessionBomValue(
+        activeDocumentModel,
+        sessionDocuments,
+        componentKey,
+        rejectedTexts
+    ) {
+        const documentModels =
+            ViewerSidebarComponentRenderer.#orderedBomDocuments(
+                activeDocumentModel,
+                sessionDocuments
+            )
+        for (const documentModel of documentModels) {
+            const value = ViewerSidebarComponentRenderer.#resolveBomValue(
+                documentModel,
+                componentKey,
+                rejectedTexts
+            )
+            if (value) {
+                return value
+            }
+        }
+
+        return ''
+    }
+
+    /**
+     * Returns BOM-bearing documents with sibling docs before the active PCB.
+     * @param {any} activeDocumentModel Active document model.
+     * @param {{ id: string, documentModel: any }[]} sessionDocuments Loaded session documents.
+     * @returns {any[]}
+     */
+    static #orderedBomDocuments(activeDocumentModel, sessionDocuments) {
+        const documentModels = (
+            Array.isArray(sessionDocuments) ? sessionDocuments : []
+        )
+            .map((entry) => entry?.documentModel)
+            .filter(Boolean)
+
+        if (
+            activeDocumentModel &&
+            !documentModels.includes(activeDocumentModel)
+        ) {
+            documentModels.push(activeDocumentModel)
+        }
+
+        return [
+            ...documentModels.filter(
+                (documentModel) => documentModel !== activeDocumentModel
+            ),
+            ...documentModels.filter(
+                (documentModel) => documentModel === activeDocumentModel
+            )
+        ]
+    }
+
+    /**
+     * Resolves a BOM value for one component designator.
+     * @param {any} documentModel Active document model.
+     * @param {string} componentKey Component designator.
+     * @param {Set<string>} rejectedTexts Text values that are package/source metadata.
+     * @returns {string}
+     */
+    static #resolveBomValue(documentModel, componentKey, rejectedTexts) {
+        const key = String(componentKey || '').trim()
+        if (!key || !Array.isArray(documentModel?.bom)) {
+            return ''
+        }
+
+        for (const row of documentModel.bom) {
+            if (
+                ViewerSidebarComponentRenderer.#bomDesignators(row).includes(
+                    key
+                )
+            ) {
+                const value = ViewerSidebarComponentRenderer.#firstValue(row, [
+                    'value'
+                ])
+                if (
+                    ViewerSidebarComponentRenderer.#isDisplayableComponentValue(
+                        value,
+                        rejectedTexts,
+                        Boolean(documentModel?.pcb && !documentModel?.schematic)
+                    )
+                ) {
+                    return value
+                }
+            }
+        }
+
+        return ''
+    }
+
+    /**
+     * Builds source/package text values that should not be shown as BOM values.
+     * @param {any} component Component metadata.
+     * @param {string} detail Row package/source detail.
+     * @returns {Set<string>}
+     */
+    static #pcbValueRejectedTexts(component, detail) {
+        return new Set(
+            [
+                detail,
+                component?.source,
+                component?.pattern,
+                component?.footprint,
+                component?.footprintName,
+                component?.package,
+                component?.libReference,
+                component?.libraryReference
+            ]
+                .map((value) =>
+                    ViewerSidebarComponentRenderer.#normalizeCompareText(value)
+                )
+                .filter(Boolean)
+        )
+    }
+
+    /**
+     * Builds symbol text values that should not be repeated as component values.
+     * @param {any} component Component metadata.
+     * @param {string} detail Row symbol/library detail.
+     * @returns {Set<string>}
+     */
+    static #schematicValueRejectedTexts(component, detail) {
+        return new Set(
+            [
+                detail,
+                component?.source,
+                component?.pattern,
+                component?.footprint,
+                component?.footprintName,
+                component?.package,
+                component?.libReference,
+                component?.libraryReference
+            ]
+                .map((value) =>
+                    ViewerSidebarComponentRenderer.#normalizeCompareText(value)
+                )
+                .filter(Boolean)
+        )
+    }
+
+    /**
+     * Returns whether a component value is distinct from row metadata.
+     * @param {unknown} value Candidate value.
+     * @param {Set<string>} rejectedTexts Text values that are already shown as row metadata.
+     * @param {boolean} rejectDescriptions Whether prose PCB descriptions should be rejected.
+     * @returns {boolean}
+     */
+    static #isDisplayableComponentValue(
+        value,
+        rejectedTexts,
+        rejectDescriptions
+    ) {
+        const text = String(value ?? '').trim()
+        if (!text) {
+            return false
+        }
+
+        const normalized =
+            ViewerSidebarComponentRenderer.#normalizeCompareText(text)
+        if (rejectedTexts.has(normalized)) {
+            return false
+        }
+
+        return !(
+            rejectDescriptions &&
+            ViewerSidebarComponentRenderer.#looksLikePcbDescription(text)
+        )
+    }
+
+    /**
+     * Returns whether a candidate value looks like package description prose.
+     * @param {string} value Candidate value.
+     * @returns {boolean}
+     */
+    static #looksLikePcbDescription(value) {
+        const text = value.toLowerCase()
+        if (/\bsurface\s+mount(?:ed)?\b/.test(text)) {
+            return true
+        }
+
+        if (/\bs(?:m|mt)d?\b/.test(text) && /\s/.test(text)) {
+            return true
+        }
+
+        return (
+            /\b(capacitor|resistor|diode|connector|transistor|switch)\b/.test(
+                text
+            ) &&
+            text.split(/\s+/).length > 2 &&
+            !/\d/.test(text)
+        )
+    }
+
+    /**
+     * Normalizes text for source/value comparison.
+     * @param {unknown} value Candidate text.
+     * @returns {string}
+     */
+    static #normalizeCompareText(value) {
+        return String(value ?? '')
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLowerCase()
+    }
+
+    /**
+     * Returns normalized designators from one BOM row.
+     * @param {any} row BOM row.
+     * @returns {string[]}
+     */
+    static #bomDesignators(row) {
+        if (Array.isArray(row?.designators)) {
+            return row.designators
+                .map((designator) => String(designator).trim())
+                .filter(Boolean)
+        }
+
+        return ViewerSidebarComponentRenderer.#firstValue(row, [
+            'designator',
+            'refdes',
+            'reference'
+        ])
+            .split(',')
+            .map((designator) => designator.trim())
+            .filter(Boolean)
+    }
+
+    /**
      * Keeps one sidebar row per shared schematic component key.
-     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]} rows Component rows.
-     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]}
+     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }[]} rows Component rows.
+     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }[]}
      */
     static #deduplicateRowsByKey(rows) {
         const rowsByKey = new Map()
@@ -152,6 +538,7 @@ export class ViewerSidebarComponentRenderer {
                     .filter(Boolean)
                     .join(' ')
                 existing.selected = existing.selected || row.selected
+                existing.value = existing.value || row.value
                 continue
             }
 
@@ -160,21 +547,6 @@ export class ViewerSidebarComponentRenderer {
             uniqueRows.push(nextRow)
         }
         return uniqueRows
-    }
-
-    /**
-     * Resolves the row detail with PCB and schematic-specific priority.
-     * @param {any} component Component metadata.
-     * @param {boolean} isPcb Whether the component belongs to a PCB.
-     * @returns {string}
-     */
-    static #resolveDetail(component, isPcb) {
-        const keys = isPcb
-            ? ['value', 'comment', 'pattern', 'footprint', 'libReference']
-            : ['libReference', 'value', 'comment', 'footprint', 'pattern']
-        return (
-            ViewerSidebarComponentRenderer.#firstValue(component, keys) || '-'
-        )
     }
 
     /**
@@ -206,7 +578,7 @@ export class ViewerSidebarComponentRenderer {
 
     /**
      * Renders component rows grouped by side.
-     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]} rows Component rows.
+     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }[]} rows Component rows.
      * @param {boolean} isPcb Whether rows belong to a PCB.
      * @param {string} title Panel title.
      * @param {(key: string) => string} translate Translation lookup.
@@ -237,7 +609,7 @@ export class ViewerSidebarComponentRenderer {
      * Renders one side group.
      * @param {string} groupKey Group key.
      * @param {string} groupLabel Group label.
-     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean }[]} rows Component rows.
+     * @param {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }[]} rows Component rows.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -272,12 +644,20 @@ export class ViewerSidebarComponentRenderer {
 
     /**
      * Renders one footprint row.
-     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }} row Component row.
+     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean, value: string }} row Component row.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
     static #renderComponentRow(row, translate) {
         const copyLabel = translate('sidebar.copyComponentName')
+        const titleText = [row.label, row.detail, row.value]
+            .filter(Boolean)
+            .join(' ')
+        const valueMarkup = row.value
+            ? '<span class="viewer-sidebar__component-value">' +
+              ViewerSidebarComponentRenderer.#escapeHtml(row.value) +
+              '</span>'
+            : ''
         return (
             '<div class="viewer-sidebar__component-row-shell' +
             (row.selected ? ' is-active' : '') +
@@ -292,14 +672,14 @@ export class ViewerSidebarComponentRenderer {
             '" aria-pressed="' +
             (row.selected ? 'true' : 'false') +
             '" title="' +
-            ViewerSidebarComponentRenderer.#escapeHtml(
-                row.label + ' ' + row.detail
-            ) +
+            ViewerSidebarComponentRenderer.#escapeHtml(titleText) +
             '"><span class="viewer-sidebar__component-ref">' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.label) +
             '</span><span class="viewer-sidebar__component-detail">' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.detail) +
-            '</span></button><button class="viewer-sidebar__component-copy" type="button" data-component-detail-copy="true" data-component-copy-text="' +
+            '</span>' +
+            valueMarkup +
+            '</button><button class="viewer-sidebar__component-copy" type="button" data-component-detail-copy="true" data-component-copy-text="' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.detail) +
             '" title="' +
             ViewerSidebarComponentRenderer.#escapeHtml(copyLabel) +

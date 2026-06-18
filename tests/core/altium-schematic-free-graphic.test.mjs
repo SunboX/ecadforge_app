@@ -30,6 +30,28 @@ function createNeutralFreeGraphicSchematicBuffer() {
 }
 
 /**
+ * Creates a neutral schematic with one in-sheet free graphic and one
+ * ownerless free graphic outside the declared source sheet bounds.
+ * @returns {ArrayBuffer}
+ */
+function createNeutralOffSheetFreeGraphicSchematicBuffer() {
+    const source = new TextEncoder().encode(
+        [
+            '|HEADER=Schematic Document',
+            '|RECORD=31|CustomX=100|CustomY=80|VisibleGridSize=10|SnapGridSize=1' +
+                '|BorderOn=T|TitleBlockOn=F|CustomMarginWidth=5|CustomXZones=2|CustomYZones=2' +
+                '|FontIdCount=1|Size1=10|FontName1=Times New Roman|Bold1=F|Rotation1=0',
+            '|RECORD=6|IndexInSheet=1|OwnerPartID=-1|LineWidth=1|Color=0|LocationCount=2' +
+                '|X1=10|Y1=10|X2=90|Y2=10',
+            '|RECORD=6|IndexInSheet=2|OwnerPartID=-1|LineWidth=2|Color=255|LocationCount=2' +
+                '|X1=120|Y1=10|X2=180|Y2=50'
+        ].join('\u0000')
+    )
+
+    return source.buffer
+}
+
+/**
  * Verifies free schematic graphics keep their arc and pie stack while using
  * the app schematic color tokens.
  */
@@ -54,4 +76,29 @@ test('EcadRendererService preserves Altium free graphic pie and lower arc', () =
         /<path class="schematic-pie"[^>]+fill="var\(--schematic-alert-color\)"/
     )
     assert.doesNotMatch(markup, /#ff0000/i)
+})
+
+/**
+ * Verifies ownerless free graphics outside the declared sheet do not stretch
+ * the rendered sheet or appear as stray overlay artifacts.
+ */
+test('EcadParserService drops off-sheet ownerless Altium free graphic lines', () => {
+    const documentModel = EcadParserService.parseArrayBuffer(
+        'neutral-off-sheet-free-graphic.SchDoc',
+        createNeutralOffSheetFreeGraphicSchematicBuffer()
+    )
+    const markup = EcadRendererService.renderSchematic(documentModel)
+
+    assert.deepEqual(
+        documentModel.schematic.lines.map((line) => [
+            line.x1,
+            line.y1,
+            line.x2,
+            line.y2
+        ]),
+        [[10, 10, 90, 10]]
+    )
+    assert.doesNotMatch(markup, /x2="180"/)
+    assert.doesNotMatch(markup, /#ff0000/i)
+    assert.match(markup, /viewBox="0 0 130 100"/)
 })

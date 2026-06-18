@@ -2,7 +2,6 @@ import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 import { EcadMissingModelSearchService } from './core/ecad/EcadMissingModelSearchService.mjs'
 import { EcadModelSourceClient } from './core/ecad/EcadModelSourceClient.mjs'
 import { EcadKicadModelLibraryClient } from './core/ecad/EcadKicadModelLibraryClient.mjs'
-import { PcbScene3dModelBoundsPatch } from './core/ecad/PcbScene3dModelBoundsPatch.mjs'
 import { LazyScene3dController } from './ui/LazyScene3dController.mjs'
 
 /**
@@ -81,21 +80,19 @@ export class Scene3dControllerFactory {
         cacheKeyProvider,
         factoryOptions
     ) {
-        const [
-            { PcbScene3dController, PcbScene3dWorkerClient },
-            sceneModule,
-            toolkitModule
-        ] = await Promise.all([
-            import('pcb-scene3d-viewer'),
-            import('./core/ecad/EcadScene3dService.mjs'),
-            import('altium-toolkit/parser')
-        ])
-        PcbScene3dModelBoundsPatch.apply()
+        const [sceneRuntimeModule, sceneModule, toolkitModule] =
+            await Promise.all([
+                import('pcb-scene3d-viewer'),
+                import('./core/ecad/EcadScene3dService.mjs'),
+                import('altium-toolkit/parser')
+            ])
         const scene3dWorkerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
             entryModuleUrl,
             cacheKeyProvider()
         )
         const { EcadScene3dService } = sceneModule
+        const { PcbScene3dController, PcbScene3dWorkerClient } =
+            sceneRuntimeModule
         const modelSearchService =
             Scene3dControllerFactory.#resolveModelSearchService(
                 factoryOptions,

@@ -787,7 +787,7 @@ test('viewer sidebar document list has horizontal inset', async () => {
 })
 
 /**
- * Verifies component rows reserve stable space for the copy icon action.
+ * Verifies component rows reserve stable space for values and the copy action.
  */
 test('viewer sidebar component rows reserve copy action space', async () => {
     const sidebarCss = await readSidebarStylesheet()
@@ -798,7 +798,11 @@ test('viewer sidebar component rows reserve copy action space', async () => {
     )
     assert.match(
         sidebarCss,
-        /\.viewer-sidebar__component-row\s*\{[\s\S]*grid-template-columns:\s*max-content minmax\(0,\s*1fr\);/
+        /\.viewer-sidebar__component-row\s*\{[\s\S]*grid-template-columns:\s*max-content minmax\(0,\s*1fr\) max-content;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__component-value\s*\{[\s\S]*justify-self:\s*end;[\s\S]*max-width:\s*7rem;[\s\S]*text-align:\s*right;/
     )
     assert.match(
         sidebarCss,

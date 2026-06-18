@@ -34,8 +34,8 @@
 
 .viewer-sidebar__component-row {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.72rem;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    gap: 0.55rem;
     align-items: center;
     min-height: 2.55rem;
     padding: 0.58rem 1.1rem;
@@ -76,7 +76,8 @@
 }
 
 .viewer-sidebar__component-ref,
-.viewer-sidebar__component-detail {
+.viewer-sidebar__component-detail,
+.viewer-sidebar__component-value {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -89,6 +90,15 @@
 
 .viewer-sidebar__component-detail {
     color: var(--muted);
+}
+
+.viewer-sidebar__component-value {
+    justify-self: end;
+    max-width: 7rem;
+    color: var(--text);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
 }
 
 .viewer-sidebar__component-copy {

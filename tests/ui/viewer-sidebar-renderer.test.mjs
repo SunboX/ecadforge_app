@@ -52,7 +52,22 @@ function createBoardDocument() {
             fills: [{}],
             nets: [{ name: 'VBUS' }, { name: 'GND' }]
         },
-        bom: [{ quantity: 1 }, { quantity: 1 }]
+        bom: [
+            {
+                designators: ['U1'],
+                quantity: 1,
+                pattern: 'QFN',
+                source: 'QFN',
+                value: 'MCU'
+            },
+            {
+                designators: ['R1'],
+                quantity: 1,
+                pattern: '0603',
+                source: '0603',
+                value: '10k'
+            }
+        ]
     }
 }
 
@@ -462,8 +477,151 @@ test('ViewerSidebarRenderer renders grouped footprint selection rows', () => {
         /data-pcb-component-key="R1"[^>]*aria-pressed="true"/
     )
     assert.match(boardHtml, /viewer-sidebar__component-ref">U1/)
-    assert.match(boardHtml, /viewer-sidebar__component-detail">MCU/)
-    assert.match(boardHtml, /viewer-sidebar__component-detail">10k/)
+    assert.match(boardHtml, /viewer-sidebar__component-detail">QFN/)
+    assert.match(boardHtml, /viewer-sidebar__component-detail">0603/)
+    assert.match(boardHtml, /viewer-sidebar__component-value">MCU/)
+    assert.match(boardHtml, /viewer-sidebar__component-value">10k/)
+})
+
+/**
+ * Verifies PCB footprint rows can read electrical values from matching BOM
+ * groups when the placement metadata only carries package/source text.
+ */
+test('ViewerSidebarRenderer renders PCB BOM values beside footprint rows', () => {
+    const documentModel = createBoardDocument()
+    delete documentModel.pcb.components[1].value
+    documentModel.bom[1] = {
+        designators: ['R1', 'R2'],
+        quantity: 2,
+        pattern: '0603',
+        source: '0603',
+        value: '10k'
+    }
+
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'components')
+    )
+
+    assert.match(
+        html,
+        /data-pcb-component-key="R1"[\s\S]*viewer-sidebar__component-detail">0603[\s\S]*viewer-sidebar__component-value">10k/
+    )
+    assert.match(html, /data-component-search="[^"]*\b10k\b[^"]*"/)
+})
+
+/**
+ * Verifies PCB BOM values are still shown when a placement description carries
+ * the same electrical value text.
+ */
+test('ViewerSidebarRenderer keeps PCB BOM values mirrored in placement descriptions', () => {
+    const documentModel = createBoardDocument()
+    documentModel.pcb.components[0] = {
+        designator: 'C3',
+        source: 'PKG_A_0402',
+        pattern: 'PKGA0402',
+        description: '100pF, 50V',
+        layer: 'TOP'
+    }
+    documentModel.bom = [
+        {
+            designators: ['C3'],
+            quantity: 1,
+            pattern: 'PKGA0402',
+            source: 'PKG_A_0402',
+            value: '100pF, 50V'
+        }
+    ]
+
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'components')
+    )
+
+    assert.match(
+        html,
+        /data-pcb-component-key="C3"[\s\S]*viewer-sidebar__component-detail">PKG_A_0402[\s\S]*viewer-sidebar__component-value">100pF, 50V/
+    )
+})
+
+/**
+ * Verifies PCB rows prefer session schematic BOM values over PCB-derived
+ * footprint descriptions.
+ */
+test('ViewerSidebarRenderer prefers schematic BOM values for PCB footprint rows', () => {
+    const boardDocument = createBoardDocument()
+    const schematicDocument = createSchematicDocument()
+    boardDocument.pcb.components[0] = {
+        designator: 'C7',
+        source: 'SMT_C_0402',
+        pattern: 'SMT_C_0402',
+        layer: 'TOP'
+    }
+    boardDocument.bom = [
+        {
+            designators: ['C7'],
+            quantity: 1,
+            pattern: 'SMT_C_0402',
+            source: 'SMT_C_0402',
+            value: 'Surface mount ceramic capacitor'
+        }
+    ]
+    schematicDocument.bom = [
+        {
+            designators: ['C7', 'C11'],
+            quantity: 2,
+            pattern: 'SMT_C_0402',
+            source: 'SMT_C_0402',
+            value: '10uF'
+        }
+    ]
+
+    const html = ViewerSidebarRenderer.render({
+        ...createSnapshot(boardDocument, 'components'),
+        activeDocumentId: 'doc-pcb',
+        documents: [
+            { id: 'doc-sch', documentModel: schematicDocument },
+            { id: 'doc-pcb', documentModel: boardDocument }
+        ],
+        documentModel: boardDocument
+    })
+
+    assert.match(
+        html,
+        /data-pcb-component-key="C7"[\s\S]*viewer-sidebar__component-detail">SMT_C_0402[\s\S]*viewer-sidebar__component-value">10uF/
+    )
+    assert.doesNotMatch(html, /viewer-sidebar__component-value">Surface mount/)
+})
+
+/**
+ * Verifies PCB-derived package descriptions are not rendered as electrical
+ * values when no matching schematic/project BOM row is available.
+ */
+test('ViewerSidebarRenderer suppresses descriptive PCB values', () => {
+    const documentModel = createBoardDocument()
+    documentModel.pcb.components[0] = {
+        designator: 'C7',
+        source: 'SMT_C_0402',
+        pattern: 'SMT_C_0402',
+        layer: 'TOP'
+    }
+    documentModel.bom = [
+        {
+            designators: ['C7'],
+            quantity: 1,
+            pattern: 'SMT_C_0402',
+            source: 'SMT_C_0402',
+            value: 'Surface mount ceramic capacitor'
+        }
+    ]
+
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'components')
+    )
+
+    assert.match(
+        html,
+        /data-pcb-component-key="C7"[\s\S]*viewer-sidebar__component-detail">SMT_C_0402/
+    )
+    assert.doesNotMatch(html, /viewer-sidebar__component-value">Surface mount/)
 })
 
 /**
@@ -518,8 +676,8 @@ test('ViewerSidebarRenderer keeps schematic net pin counts', () => {
 })
 
 /**
- * Verifies component rows expose an icon action that copies only the full
- * detail/name text instead of the designator.
+ * Verifies component rows expose an icon action that copies only the visible
+ * package/detail text instead of the designator or electrical value.
  */
 test('ViewerSidebarRenderer renders component detail copy buttons', () => {
     const documentModel = createBoardDocument()
@@ -532,11 +690,12 @@ test('ViewerSidebarRenderer renders component detail copy buttons', () => {
 
     assert.match(html, /viewer-sidebar__component-copy/)
     assert.match(html, /aria-label="Copy component name"/)
-    assert.match(
+    assert.match(html, /data-component-copy-text="QFN"/)
+    assert.doesNotMatch(html, /data-component-copy-text="U1 /)
+    assert.doesNotMatch(
         html,
         /data-component-copy-text="RP2040_minimal:USB_Micro-B_A &amp; full detail"/
     )
-    assert.doesNotMatch(html, /data-component-copy-text="U1 /)
     assert.match(html, /<rect x="9" y="9" width="13" height="13"/)
 })
 
@@ -551,6 +710,40 @@ test('ViewerSidebarRenderer adapts the components panel label', () => {
     assert.match(schematicHtml, /<h3>Symbols<\/h3>/)
     assert.match(schematicHtml, /U2/)
     assert.match(schematicHtml, /Device:Logic/)
+})
+
+/**
+ * Verifies schematic symbol rows can read electrical values from matching
+ * BOM groups while keeping the symbol/library text as the row detail.
+ */
+test('ViewerSidebarRenderer renders schematic BOM values beside symbol rows', () => {
+    const documentModel = createSchematicDocument()
+    documentModel.schematic.components = [
+        {
+            designator: 'C7',
+            libReference: 'Device:Capacitor',
+            footprint: 'SMT_C_0402'
+        }
+    ]
+    documentModel.bom = [
+        {
+            designators: ['C7', 'C11'],
+            quantity: 2,
+            pattern: 'SMT_C_0402',
+            source: 'SMT_C_0402',
+            value: '10uF'
+        }
+    ]
+
+    const schematicHtml = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'components')
+    )
+
+    assert.match(
+        schematicHtml,
+        /data-pcb-component-key="C7"[\s\S]*viewer-sidebar__component-detail">Device:Capacitor[\s\S]*viewer-sidebar__component-value">10uF/
+    )
+    assert.match(schematicHtml, /data-component-search="[^"]*\b10uf\b[^"]*"/)
 })
 
 /**

@@ -2,6 +2,7 @@ const ZOOM_IN_FACTOR = 0.97
 const ZOOM_OUT_FACTOR = 1 / ZOOM_IN_FACTOR
 const MIN_SCALE_RATIO = 0.05
 const MAX_SCALE_RATIO = 4
+const FOCUS_BOUNDS_PADDING_FACTOR = 8
 
 /**
  * Controls schematic SVG pan and zoom through direct viewBox updates.
@@ -51,9 +52,8 @@ export class SchematicViewportController {
         this.#svg = svgElement
         const initialViewBox = this.#readViewBox()
         this.#defaultViewBox =
-            SchematicViewportController.#parseViewBox(
-                options.defaultViewBox
-            ) || initialViewBox
+            SchematicViewportController.#parseViewBox(options.defaultViewBox) ||
+            initialViewBox
         this.#viewBox = { ...initialViewBox }
         this.#dragState = null
         this.#touchState = null
@@ -85,30 +85,65 @@ export class SchematicViewportController {
      * @returns {boolean}
      */
     centerBounds(bounds) {
-        const x = Number(bounds?.x)
-        const y = Number(bounds?.y)
-        const width = Number(bounds?.width)
-        const height = Number(bounds?.height)
-        if (
-            !Number.isFinite(x) ||
-            !Number.isFinite(y) ||
-            !Number.isFinite(width) ||
-            !Number.isFinite(height) ||
-            width < 0 ||
-            height < 0
-        ) {
+        const normalizedBounds =
+            SchematicViewportController.#normalizeBounds(bounds)
+        if (!normalizedBounds) {
             return false
         }
 
-        this.#viewBox = {
-            x: x + width / 2 - this.#viewBox.width / 2,
-            y: y + height / 2 - this.#viewBox.height / 2,
-            width: this.#viewBox.width,
-            height: this.#viewBox.height
-        }
-        this.#applyViewBox()
+        this.#centerBoundsWithSize(
+            normalizedBounds,
+            this.#viewBox.width,
+            this.#viewBox.height
+        )
 
         return true
+    }
+
+    /**
+     * Centers document-space bounds and zooms to a readable detail scale.
+     * @param {{ x?: number, y?: number, width?: number, height?: number } | null} bounds Bounds to focus.
+     * @returns {boolean}
+     */
+    focusBounds(bounds) {
+        const normalizedBounds =
+            SchematicViewportController.#normalizeBounds(bounds)
+        if (!normalizedBounds) {
+            return false
+        }
+
+        const aspectRatio = this.#viewBox.width / this.#viewBox.height
+        const paddedWidth = Math.max(
+            normalizedBounds.width * FOCUS_BOUNDS_PADDING_FACTOR,
+            normalizedBounds.height * FOCUS_BOUNDS_PADDING_FACTOR * aspectRatio,
+            this.#defaultViewBox.width * MIN_SCALE_RATIO
+        )
+        const nextWidth = this.#clampWidth(paddedWidth)
+        const nextHeight = this.#clampHeight(nextWidth / aspectRatio)
+
+        this.#centerBoundsWithSize(normalizedBounds, nextWidth, nextHeight)
+
+        return true
+    }
+
+    /**
+     * Centers document-space bounds only when they are outside the current
+     * viewport.
+     * @param {{ x?: number, y?: number, width?: number, height?: number } | null} bounds Bounds to reveal.
+     * @returns {boolean}
+     */
+    centerBoundsIfOutsideViewport(bounds) {
+        const normalizedBounds =
+            SchematicViewportController.#normalizeBounds(bounds)
+        if (!normalizedBounds) {
+            return false
+        }
+
+        if (this.#containsBounds(normalizedBounds)) {
+            return false
+        }
+
+        return this.centerBounds(normalizedBounds)
     }
 
     /**
@@ -526,6 +561,61 @@ export class SchematicViewportController {
             width,
             height
         }
+    }
+
+    /**
+     * Normalizes candidate document-space bounds.
+     * @param {{ x?: number, y?: number, width?: number, height?: number } | null} bounds Bounds to normalize.
+     * @returns {{ x: number, y: number, width: number, height: number } | null}
+     */
+    static #normalizeBounds(bounds) {
+        const x = Number(bounds?.x)
+        const y = Number(bounds?.y)
+        const width = Number(bounds?.width)
+        const height = Number(bounds?.height)
+        if (
+            !Number.isFinite(x) ||
+            !Number.isFinite(y) ||
+            !Number.isFinite(width) ||
+            !Number.isFinite(height) ||
+            width < 0 ||
+            height < 0
+        ) {
+            return null
+        }
+
+        return { x, y, width, height }
+    }
+
+    /**
+     * Returns whether bounds are fully inside the current viewBox.
+     * @param {{ x: number, y: number, width: number, height: number }} bounds Bounds to test.
+     * @returns {boolean}
+     */
+    #containsBounds(bounds) {
+        return (
+            bounds.x >= this.#viewBox.x &&
+            bounds.y >= this.#viewBox.y &&
+            bounds.x + bounds.width <= this.#viewBox.x + this.#viewBox.width &&
+            bounds.y + bounds.height <= this.#viewBox.y + this.#viewBox.height
+        )
+    }
+
+    /**
+     * Centers bounds with a caller-supplied viewport size.
+     * @param {{ x: number, y: number, width: number, height: number }} bounds Bounds to center.
+     * @param {number} width Viewport width.
+     * @param {number} height Viewport height.
+     * @returns {void}
+     */
+    #centerBoundsWithSize(bounds, width, height) {
+        this.#viewBox = {
+            x: bounds.x + bounds.width / 2 - width / 2,
+            y: bounds.y + bounds.height / 2 - height / 2,
+            width,
+            height
+        }
+        this.#applyViewBox()
     }
 
     /**

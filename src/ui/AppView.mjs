@@ -5,6 +5,7 @@ import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
 import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
 import { AppViewDownloadHelper } from './AppViewDownloadHelper.mjs'
+import { AppViewComponentSelectionScrollGuard } from './AppViewComponentSelectionScrollGuard.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
@@ -107,8 +108,8 @@ export class AppView {
     /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
     #pcbNetSelectionCallback
 
-    /** @type {boolean} */
-    #suppressNextComponentScroll
+    /** @type {AppViewComponentSelectionScrollGuard} */
+    #componentSelectionScrollGuard
 
     /** @type {boolean} */
     #suppressNextNetScroll
@@ -160,7 +161,8 @@ export class AppView {
         this.#pcbViewController = null
         this.#pcbComponentSelectionCallback = null
         this.#pcbNetSelectionCallback = null
-        this.#suppressNextComponentScroll = false
+        this.#componentSelectionScrollGuard =
+            new AppViewComponentSelectionScrollGuard()
         this.#suppressNextNetScroll = false
         this.#scene3dPanelController = new AppViewScene3dPanelController()
         this.#pcbStylerTipController = new AppViewPcbStylerTipController(
@@ -405,12 +407,10 @@ export class AppView {
         ViewerSidebarEventBinder.bindPcbComponentSelectionChange(
             this.#documentRailNode,
             (change) => {
-                this.#suppressNextComponentScroll = true
-                try {
-                    this.#pcbComponentSelectionCallback?.(change)
-                } finally {
-                    this.#suppressNextComponentScroll = false
-                }
+                this.#componentSelectionScrollGuard.runSidebarSelection(
+                    change,
+                    this.#pcbComponentSelectionCallback
+                )
             }
         )
     }
@@ -470,6 +470,16 @@ export class AppView {
             this.#documentRailNode,
             callback
         )
+    }
+
+    /**
+     * Emits a rendered-view component selection and clears sidebar scroll memory.
+     * @param {{ documentId?: string, componentKey?: string, source?: string }} change Selection event.
+     * @returns {void}
+     */
+    #handleRenderedComponentSelection(change) {
+        this.#componentSelectionScrollGuard.clearSidebarSelection()
+        this.#pcbComponentSelectionCallback?.(change)
     }
 
     /**
@@ -745,10 +755,12 @@ export class AppView {
                 this.#documentRailNode,
                 scrollState
             )
+            const suppressComponentScroll =
+                this.#componentSelectionScrollGuard.shouldSuppress(snapshot)
             AppViewPcbComponentScroller.scrollSelectedIntoView(
                 this.#documentRailNode,
                 snapshot,
-                { suppressScroll: this.#suppressNextComponentScroll }
+                { suppressScroll: suppressComponentScroll }
             )
             AppViewPcbComponentScroller.scrollSelectedNetIntoView(
                 this.#documentRailNode,
@@ -880,7 +892,7 @@ export class AppView {
             SchematicComponentSelectionBinder.bind(
                 this.#contentNode.querySelector('.schematic-svg'),
                 documentId,
-                this.#pcbComponentSelectionCallback,
+                (change) => this.#handleRenderedComponentSelection(change),
                 this.#pcbNetSelectionCallback
             )
             return
@@ -894,7 +906,8 @@ export class AppView {
                 contentNode: this.#contentNode,
                 snapshot,
                 side: previousPcbSide,
-                onComponentSelectionChange: this.#pcbComponentSelectionCallback,
+                onComponentSelectionChange: (change) =>
+                    this.#handleRenderedComponentSelection(change),
                 onNetSelectionChange: this.#pcbNetSelectionCallback,
                 translate: this.#translate
             })
@@ -915,7 +928,8 @@ export class AppView {
                     snapshot.autoSearchMissingModels === true,
                 renderAdjustmentControlsInSelection: false,
                 selectedComponentKey: selectedKey,
-                onComponentSelectionChange: this.#pcbComponentSelectionCallback,
+                onComponentSelectionChange: (change) =>
+                    this.#handleRenderedComponentSelection(change),
                 translate: this.#translate,
                 createScene3dController: this.#createScene3dController
             })

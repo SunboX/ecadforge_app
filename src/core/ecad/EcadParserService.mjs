@@ -8,6 +8,7 @@ import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 import { AltiumSchematicFreeGraphicStrokeNormalizer } from './AltiumSchematicFreeGraphicStrokeNormalizer.mjs'
 import { AltiumSchematicHiddenDesignatorResolver } from './AltiumSchematicHiddenDesignatorResolver.mjs'
 import { AltiumSchematicPackedImageResolver } from './AltiumSchematicPackedImageResolver.mjs'
+import { AltiumSchematicSheetBoundsNormalizer } from './AltiumSchematicSheetBoundsNormalizer.mjs'
 
 /**
  * Dispatches ECAD source entries to the owned format toolkits.
@@ -285,10 +286,12 @@ export class EcadParserService {
     static #prepareAltiumSchematicDocument(document, buffer) {
         return AltiumSchematicPackedImageResolver.hydrate(
             AltiumSchematicFreeGraphicStrokeNormalizer.normalize(
-                AltiumSchematicArcAngleNormalizer.normalize(
-                    AltiumSchematicHiddenDesignatorResolver.annotate(
-                        document,
-                        buffer
+                AltiumSchematicSheetBoundsNormalizer.normalize(
+                    AltiumSchematicArcAngleNormalizer.normalize(
+                        AltiumSchematicHiddenDesignatorResolver.annotate(
+                            document,
+                            buffer
+                        )
                     )
                 )
             ),

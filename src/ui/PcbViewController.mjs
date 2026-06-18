@@ -7,6 +7,7 @@ import { PcbSelectionMarkerBoundsResolver } from './PcbSelectionMarkerBoundsReso
 import { PcbViewRenderer } from './PcbViewRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SvgViewBoxParser } from './SvgViewBoxParser.mjs'
+import { TouchTapSelectionGuard } from './TouchTapSelectionGuard.mjs'
 
 const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
 
@@ -50,6 +51,8 @@ export class PcbViewController {
     #svgViewportController
     /** @type {PcbBoardClickGuard} */
     #boardClickGuard
+    /** @type {TouchTapSelectionGuard} */
+    #touchTapGuard
     /** @type {number} */
     #renderGeneration
     /** @type {boolean} */
@@ -62,6 +65,12 @@ export class PcbViewController {
     #handlePointerMove
     /** @type {() => void} */
     #handlePointerLeave
+    /** @type {(event: Event) => void} */
+    #handleTouchStart
+    /** @type {(event: Event) => void} */
+    #handleTouchMove
+    /** @type {(event: Event) => void} */
+    #handleTouchEnd
 
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
@@ -80,10 +89,11 @@ export class PcbViewController {
             options.gerberLayerId
         )
         this.#gerberLayerId = this.#gerberLayerIds[0] || ''
-        this.#gerberRenderMode = PcbGerberRenderSelectionModel.resolveRenderMode(
-            options.gerberRenderMode,
-            this.#gerberLayerIds
-        )
+        this.#gerberRenderMode =
+            PcbGerberRenderSelectionModel.resolveRenderMode(
+                options.gerberRenderMode,
+                this.#gerberLayerIds
+            )
         this.#side = PcbViewController.#resolveInitialSide(
             documentModel,
             options.side,
@@ -118,12 +128,18 @@ export class PcbViewController {
         this.#boardClickGuard = new PcbBoardClickGuard((target) =>
             this.#resolvePcbSvgNode(target)
         )
+        this.#touchTapGuard = new TouchTapSelectionGuard({
+            readState: () => this.#readActiveSvgViewBox()
+        })
         this.#renderGeneration = 0
         this.#fontRefreshCompleted = false
         this.#handleClick = (event) => this.#handleClickEvent(event)
         this.#handleChange = (event) => this.#handleChangeEvent(event)
         this.#handlePointerMove = (event) => this.#handlePointerMoveEvent(event)
         this.#handlePointerLeave = () => this.#clearClickableCursor()
+        this.#handleTouchStart = (event) => this.#handleTouchStartEvent(event)
+        this.#handleTouchMove = (event) => this.#touchTapGuard.move(event)
+        this.#handleTouchEnd = (event) => this.#handleTouchEndEvent(event)
 
         this.#contentNode.addEventListener('click', this.#handleClick)
         this.#contentNode.addEventListener('change', this.#handleChange)
@@ -136,6 +152,10 @@ export class PcbViewController {
             'mouseleave',
             this.#handlePointerLeave
         )
+        this.#contentNode.addEventListener('touchstart', this.#handleTouchStart)
+        this.#contentNode.addEventListener('touchmove', this.#handleTouchMove)
+        this.#contentNode.addEventListener('touchend', this.#handleTouchEnd)
+        this.#contentNode.addEventListener('touchcancel', this.#handleTouchEnd)
         this.#renderSide(this.#side)
     }
 
@@ -154,9 +174,7 @@ export class PcbViewController {
      */
     setGerberRenderSelection(selection = {}) {
         if (
-            !PcbGerberRenderSelectionModel.isGerberDocument(
-                this.#documentModel
-            )
+            !PcbGerberRenderSelectionModel.isGerberDocument(this.#documentModel)
         ) {
             return
         }
@@ -211,8 +229,22 @@ export class PcbViewController {
             'mouseleave',
             this.#handlePointerLeave
         )
+        this.#contentNode.removeEventListener(
+            'touchstart',
+            this.#handleTouchStart
+        )
+        this.#contentNode.removeEventListener(
+            'touchmove',
+            this.#handleTouchMove
+        )
+        this.#contentNode.removeEventListener('touchend', this.#handleTouchEnd)
+        this.#contentNode.removeEventListener(
+            'touchcancel',
+            this.#handleTouchEnd
+        )
         this.#clearClickableCursor()
         this.#boardClickGuard.reset()
+        this.#touchTapGuard.reset()
         this.#renderGeneration += 1
         this.#disposeSvgViewportController()
     }
@@ -337,6 +369,48 @@ export class PcbViewController {
             return
         }
 
+        this.#selectBoardHit(event)
+    }
+
+    /**
+     * Starts tracking a possible mobile board tap.
+     * @param {Event} event Touch event.
+     * @returns {void}
+     */
+    #handleTouchStartEvent(event) {
+        if (!this.#resolvePcbSvgNode(event.target)) {
+            this.#touchTapGuard.reset()
+            return
+        }
+
+        this.#touchTapGuard.start(event)
+    }
+
+    /**
+     * Selects board content from a completed stationary mobile tap.
+     * @param {Event} event Touch event.
+     * @returns {void}
+     */
+    #handleTouchEndEvent(event) {
+        if (event.type === 'touchcancel') {
+            this.#touchTapGuard.reset()
+            return
+        }
+
+        const tap = this.#touchTapGuard.end(event)
+        if (!tap) {
+            return
+        }
+
+        this.#selectBoardHit(tap)
+    }
+
+    /**
+     * Selects the highest-priority PCB hit candidate for one event point.
+     * @param {Event | { target?: unknown, clientX?: number, clientY?: number }} event Selection event.
+     * @returns {void}
+     */
+    #selectBoardHit(event) {
         const hit = this.#resolveBoardHit(event)
         if (!hit) {
             return
@@ -444,6 +518,15 @@ export class PcbViewController {
      */
     #clearClickableCursor() {
         this.#setClickableCursor(false)
+    }
+
+    /**
+     * Reads the active PCB SVG viewBox for tap invalidation.
+     * @returns {string}
+     */
+    #readActiveSvgViewBox() {
+        const svgNode = this.#contentNode.querySelector('.pcb-svg')
+        return String(svgNode?.getAttribute?.('viewBox') || '')
     }
 
     /**
@@ -899,5 +982,4 @@ export class PcbViewController {
     static #normalizeSide(side) {
         return side === 'bottom' ? 'bottom' : 'top'
     }
-
 }

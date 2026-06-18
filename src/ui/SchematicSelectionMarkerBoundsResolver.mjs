@@ -4,7 +4,7 @@
 export class SchematicSelectionMarkerBoundsResolver {
     /**
      * Centers an SVG viewport on the selected schematic marker when appropriate.
-     * @param {{ centerBounds?: (bounds: { x: number, y: number, width: number, height: number } | null) => boolean } | null} viewportController Active viewport controller.
+     * @param {{ centerBounds?: (bounds: { x: number, y: number, width: number, height: number } | null) => boolean, centerBoundsIfOutsideViewport?: (bounds: { x: number, y: number, width: number, height: number } | null) => boolean, focusBounds?: (bounds: { x: number, y: number, width: number, height: number } | null) => boolean } | null} viewportController Active viewport controller.
      * @param {string} markup Rendered schematic view markup.
      * @param {string} selectedComponentKey Selected component key.
      * @param {boolean} restoredSchematicViewport Whether a preserved viewBox was restored.
@@ -17,13 +17,25 @@ export class SchematicSelectionMarkerBoundsResolver {
         restoredSchematicViewport
     ) {
         const key = String(selectedComponentKey || '').trim()
-        if (!key || restoredSchematicViewport) {
+        if (!key) {
             return
         }
 
-        viewportController?.centerBounds(
-            SchematicSelectionMarkerBoundsResolver.resolve(markup, key)
+        const bounds = SchematicSelectionMarkerBoundsResolver.resolve(
+            markup,
+            key
         )
+        if (restoredSchematicViewport) {
+            viewportController?.centerBoundsIfOutsideViewport?.(bounds)
+            return
+        }
+
+        if (typeof viewportController?.focusBounds === 'function') {
+            viewportController.focusBounds(bounds)
+            return
+        }
+
+        viewportController?.centerBounds(bounds)
     }
 
     /**
@@ -38,14 +50,13 @@ export class SchematicSelectionMarkerBoundsResolver {
                 selectedComponentKey
             )
         )
-        const groupMatch = String(markup).match(
-            new RegExp(
-                '<g\\b(?=[^>]*\\bclass="[^"]*\\bschematic-symbol-highlight\\b[^"]*")' +
-                    '(?=[^>]*\\bdata-schematic-component-key="' +
-                    key +
-                    '")[^>]*>([\\s\\S]*?)<\\/g>'
-            )
+        const groupPattern = new RegExp(
+            '<g\\b(?=[^>]*\\bclass="[^"]*\\bschematic-symbol-highlight\\b[^"]*")' +
+                '(?=[^>]*\\bdata-schematic-component-key="' +
+                key +
+                '")[^>]*>([\\s\\S]*?)<\\/g>'
         )
+        const groupMatch = groupPattern.exec(String(markup))
         if (!groupMatch) return null
 
         const rectMatch = groupMatch[1].match(
@@ -75,7 +86,72 @@ export class SchematicSelectionMarkerBoundsResolver {
             return null
         }
 
-        return { x, y, width, height }
+        return SchematicSelectionMarkerBoundsResolver.#applySceneScale(
+            String(markup),
+            groupMatch.index,
+            { x, y, width, height }
+        )
+    }
+
+    /**
+     * Applies an ancestor schematic-scene scale to marker-local bounds.
+     * @param {string} markup Rendered schematic view markup.
+     * @param {number} markerIndex Marker group start index.
+     * @param {{ x: number, y: number, width: number, height: number }} bounds Marker-local bounds.
+     * @returns {{ x: number, y: number, width: number, height: number }}
+     */
+    static #applySceneScale(markup, markerIndex, bounds) {
+        const scale = SchematicSelectionMarkerBoundsResolver.#resolveSceneScale(
+            markup,
+            markerIndex
+        )
+
+        return {
+            x: bounds.x * scale.x,
+            y: bounds.y * scale.y,
+            width: bounds.width * scale.x,
+            height: bounds.height * scale.y
+        }
+    }
+
+    /**
+     * Resolves the active schematic scene scale before a marker.
+     * @param {string} markup Rendered schematic view markup.
+     * @param {number} markerIndex Marker group start index.
+     * @returns {{ x: number, y: number }}
+     */
+    static #resolveSceneScale(markup, markerIndex) {
+        const scenePattern =
+            /<g\b(?=[^>]*\bclass="[^"]*\bschematic-scene\b[^"]*")([^>]*)>/gi
+        let sceneMatch = scenePattern.exec(markup)
+        let transform = ''
+        while (sceneMatch && sceneMatch.index < markerIndex) {
+            transform = SchematicSelectionMarkerBoundsResolver.#svgAttribute(
+                sceneMatch[1],
+                'transform'
+            )
+            sceneMatch = scenePattern.exec(markup)
+        }
+
+        return SchematicSelectionMarkerBoundsResolver.#parseScale(transform)
+    }
+
+    /**
+     * Parses an SVG scale transform.
+     * @param {string} transform Transform attribute value.
+     * @returns {{ x: number, y: number }}
+     */
+    static #parseScale(transform) {
+        const match = String(transform || '').match(
+            /\bscale\(\s*([+-]?(?:\d+\.?\d*|\.\d+))(?:[\s,]+([+-]?(?:\d+\.?\d*|\.\d+)))?\s*\)/i
+        )
+        const scaleX = Number(match?.[1])
+        const scaleY = Number(match?.[2] ?? match?.[1])
+        if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) {
+            return { x: 1, y: 1 }
+        }
+
+        return { x: scaleX, y: scaleY }
     }
 
     /**
