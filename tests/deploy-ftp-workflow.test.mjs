@@ -112,8 +112,27 @@ test('ftp workflow includes static browser node_modules in frontend deploy', asy
 })
 
 /**
- * Verifies production dependency installs can use the committed lockfile in
- * the FTP deployment workflow.
+ * Verifies dependency refreshes do not overwrite rewritten static browser
+ * modules with raw package sources.
+ */
+test('ftp workflow deploys processed browser node_modules after static build', async () => {
+    const workflow = await readFile(workflowPath, 'utf8')
+    const deployBlock = workflow.match(
+        /name: Deploy node_modules to \.\/node_modules\/[\s\S]*?state-name: \.ftp-deploy-nm-state\.json/
+    )?.[0]
+    const retryBlock = workflow.match(
+        /name: Retry deploy node_modules to \.\/node_modules\/[\s\S]*?state-name: \.ftp-deploy-nm-state\.json/
+    )?.[0]
+
+    assert.ok(deployBlock)
+    assert.ok(retryBlock)
+    assert.match(deployBlock, /local-dir: \.\/\.deploy-src\/node_modules\//)
+    assert.match(retryBlock, /local-dir: \.\/\.deploy-src\/node_modules\//)
+    assert.doesNotMatch(workflow, /run: npm ci --omit=dev/)
+})
+
+/**
+ * Verifies dependency metadata stays aligned for the FTP deployment workflow.
  */
 test('package lock root dependencies match package manifest', async () => {
     const packageRaw = await readFile(

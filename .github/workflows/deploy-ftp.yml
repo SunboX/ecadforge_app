@@ -233,10 +233,6 @@ jobs:
               if: steps.deploy_docs.outcome == 'failure' && steps.deploy_docs_retry.outcome == 'failure'
               run: exit 1
 
-            - name: Install production dependencies
-              if: steps.changes.outputs.deps == 'true'
-              run: npm ci --omit=dev
-
             - name: Deploy node_modules to ./node_modules/
               id: deploy_node_modules
               if: steps.changes.outputs.deps == 'true'
@@ -247,7 +243,7 @@ jobs:
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
-                  local-dir: ./node_modules/
+                  local-dir: ./.deploy-src/node_modules/
                   server-dir: ./node_modules/
                   timeout: 60000
                   exclude: |
@@ -268,7 +264,7 @@ jobs:
                   username: ${{ secrets.FTP_USERNAME }}
                   password: ${{ secrets.FTP_PASSWORD }}
                   protocol: ftp
-                  local-dir: ./node_modules/
+                  local-dir: ./.deploy-src/node_modules/
                   server-dir: ./node_modules/
                   timeout: 60000
                   exclude: |
