@@ -1,6 +1,6 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
-import { PcbScene3dShellRenderer as Scene3dRenderer } from '../../node_modules/pcb-scene3d-viewer/src/PcbScene3dShellRenderer.mjs'
+import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { UiText } from './UiText.mjs'
 
 /**

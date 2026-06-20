@@ -199,11 +199,11 @@ test('package depends on intended ECAD toolkit package sources', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
     const toolkitDependencies = [
-        ['altium-toolkit', /^\^1\.1\.30$/],
+        ['altium-toolkit', /^\^1\.1\.31$/],
         ['circuitjson-toolkit', /^\^1\.0\.3$/],
         ['gerber-toolkit', /^\^0\.1\.18$/],
-        ['kicad-toolkit', /^\^1\.0\.14$/],
-        ['pcb-scene3d-viewer', /^\^1\.1\.19$/]
+        ['kicad-toolkit', /^\^1\.0\.15$/],
+        ['pcb-scene3d-viewer', /^\^1\.1\.20$/]
     ]
 
     for (const [dependencyName, versionPattern] of toolkitDependencies) {
@@ -602,7 +602,7 @@ test('ECAD libraries resolve through configured package sources', async () => {
     const toolkitDependencies = [
         {
             name: 'altium-toolkit',
-            registryVersion: '1.1.30'
+            registryVersion: '1.1.31'
         },
         {
             name: 'circuitjson-toolkit',
@@ -614,11 +614,11 @@ test('ECAD libraries resolve through configured package sources', async () => {
         },
         {
             name: 'kicad-toolkit',
-            registryVersion: '1.0.14'
+            registryVersion: '1.0.15'
         },
         {
             name: 'pcb-scene3d-viewer',
-            registryVersion: '1.1.19'
+            registryVersion: '1.1.20'
         }
     ]
 
@@ -701,8 +701,16 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         appViewSource,
         /from ['"](?:pcb-scene3d-viewer|\.\.\/core\/ecad\/EcadScene3dService\.mjs)['"]/
     )
-    assert.doesNotMatch(sceneShellSource, /from ['"]pcb-scene3d-viewer['"]/)
-    assert.doesNotMatch(heroPreviewSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.match(sceneShellSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.match(heroPreviewSource, /from ['"]pcb-scene3d-viewer['"]/)
+    assert.doesNotMatch(
+        sceneShellSource,
+        /node_modules\/pcb-scene3d-viewer\/src/
+    )
+    assert.doesNotMatch(
+        heroPreviewSource,
+        /node_modules\/pcb-scene3d-viewer\/src/
+    )
     assert.doesNotMatch(appViewSource, /from ['"]\.\/Scene3dRenderer\.mjs['"]/)
 })
 

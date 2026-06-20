@@ -1,6 +1,8 @@
 import {
     BomTableRenderer as AltiumBomTableRenderer,
     preparePcbSideResolvedRenderModel as prepareAltiumPcbSideResolvedRenderModel,
+    AltiumPcbBottomViewMirror,
+    PcbFootprintPadAxisNormalizer as AltiumPcbFootprintPadAxisNormalizer,
     PcbInteractionIndex as AltiumPcbInteractionIndex,
     PcbInteractionLayerModel as AltiumPcbInteractionLayerModel,
     PcbSvgRenderer as AltiumPcbSvgRenderer,
@@ -8,6 +10,8 @@ import {
 } from 'altium-toolkit/renderers'
 import {
     BomTableRenderer as KicadBomTableRenderer,
+    KicadPcbRenderOutlineAdapter,
+    PcbFootprintPadAxisNormalizer as KicadPcbFootprintPadAxisNormalizer,
     PcbInteractionIndex as KicadPcbInteractionIndex,
     PcbInteractionLayerModel as KicadPcbInteractionLayerModel,
     PcbSvgRenderer as KicadPcbSvgRenderer,
@@ -19,10 +23,7 @@ import {
     PcbInteractionLayerModel as GerberPcbInteractionLayerModel
 } from 'gerber-toolkit/renderers'
 import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
-import { AltiumPcbBottomViewMirror } from './AltiumPcbBottomViewMirror.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
-import { KicadPcbRenderOutlineAdapter } from './KicadPcbRenderOutlineAdapter.mjs'
-import { PcbFootprintPadAxisNormalizer } from './PcbFootprintPadAxisNormalizer.mjs'
 
 const BOM_TRANSLATION_FALLBACKS = {
     'bom.designators': 'Designators',
@@ -81,7 +82,7 @@ export class EcadRendererService {
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const renderKey = EcadRendererService.#pcbRenderCacheKey(side, options)
         const renderDocumentModel =
-            PcbFootprintPadAxisNormalizer.apply(documentModel)
+            EcadRendererService.#normalizePcbPadAxes(documentModel)
         return EcadRendererService.#renderCached(
             EcadRendererService.#pcbSvgCache,
             documentModel,
@@ -117,7 +118,7 @@ export class EcadRendererService {
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
         const hitTestDocumentModel =
-            PcbFootprintPadAxisNormalizer.apply(documentModel)
+            EcadRendererService.#normalizePcbPadAxes(documentModel)
         if (EcadRendererService.#isGerber(documentModel)) {
             return EcadRendererService.#withResolvedPcbComponentKeys(
                 hitTestDocumentModel,
@@ -223,6 +224,17 @@ export class EcadRendererService {
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
             'gerber'
         )
+    }
+
+    /**
+     * Applies the format-owned rectangular pad axis normalization.
+     * @param {object} documentModel Document model.
+     * @returns {object}
+     */
+    static #normalizePcbPadAxes(documentModel) {
+        return EcadRendererService.#isKiCad(documentModel)
+            ? KicadPcbFootprintPadAxisNormalizer.apply(documentModel)
+            : AltiumPcbFootprintPadAxisNormalizer.apply(documentModel)
     }
 
     /**
@@ -746,7 +758,7 @@ export class EcadRendererService {
      */
     static #renderKicadPcb(documentModel, side) {
         const normalizedDocument =
-            PcbFootprintPadAxisNormalizer.apply(documentModel)
+            EcadRendererService.#normalizePcbPadAxes(documentModel)
         const renderModel = EcadRendererService.#withRenderableKicadBoardBounds(
             KicadPcbRenderOutlineAdapter.apply(normalizedDocument)
         )

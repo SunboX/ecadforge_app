@@ -1,4 +1,4 @@
-import { PcbScene3dShellRenderer as Scene3dRenderer } from '../../node_modules/pcb-scene3d-viewer/src/PcbScene3dShellRenderer.mjs'
+import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 
 /**

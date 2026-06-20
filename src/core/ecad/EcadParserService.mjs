@@ -3,12 +3,7 @@ import { CircuitJsonParser } from 'circuitjson-toolkit'
 import { unzipSync } from 'fflate'
 import { GerberParser, GerberProjectLoader } from 'gerber-toolkit/parser'
 import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
-import { AltiumSchematicArcAngleNormalizer } from './AltiumSchematicArcAngleNormalizer.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
-import { AltiumSchematicFreeGraphicStrokeNormalizer } from './AltiumSchematicFreeGraphicStrokeNormalizer.mjs'
-import { AltiumSchematicHiddenDesignatorResolver } from './AltiumSchematicHiddenDesignatorResolver.mjs'
-import { AltiumSchematicPackedImageResolver } from './AltiumSchematicPackedImageResolver.mjs'
-import { AltiumSchematicSheetBoundsNormalizer } from './AltiumSchematicSheetBoundsNormalizer.mjs'
 
 /**
  * Dispatches ECAD source entries to the owned format toolkits.
@@ -78,10 +73,7 @@ export class EcadParserService {
         }
 
         return EcadParserService.#prepareAppDocument(
-            EcadParserService.#prepareAltiumSchematicDocument(
-                this.#altiumParser.parseArrayBuffer(fileName, buffer),
-                buffer
-            )
+            this.#altiumParser.parseArrayBuffer(fileName, buffer)
         )
     }
 
@@ -116,11 +108,8 @@ export class EcadParserService {
         for (const entry of altiumEntries) {
             try {
                 documents.push(
-                    EcadParserService.#prepareAltiumSchematicDocument(
-                        this.#altiumParser.parseArrayBuffer(
-                            entry.name,
-                            entry.buffer
-                        ),
+                    this.#altiumParser.parseArrayBuffer(
+                        entry.name,
                         entry.buffer
                     )
                 )
@@ -275,28 +264,6 @@ export class EcadParserService {
 
         EcadParserService.#stripRawPcbRecords(document)
         return document
-    }
-
-    /**
-     * Applies app-side Altium schematic post-processing.
-     * @param {object} document Parsed document model.
-     * @param {ArrayBuffer} buffer Source file buffer.
-     * @returns {object}
-     */
-    static #prepareAltiumSchematicDocument(document, buffer) {
-        return AltiumSchematicPackedImageResolver.hydrate(
-            AltiumSchematicFreeGraphicStrokeNormalizer.normalize(
-                AltiumSchematicSheetBoundsNormalizer.normalize(
-                    AltiumSchematicArcAngleNormalizer.normalize(
-                        AltiumSchematicHiddenDesignatorResolver.annotate(
-                            document,
-                            buffer
-                        )
-                    )
-                )
-            ),
-            buffer
-        )
     }
 
     /**

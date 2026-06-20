@@ -1,9 +1,11 @@
 import { EcadScene3dService } from './ecad/EcadScene3dService.mjs'
-import { PcbAssemblyGeometryBuildProgress } from './assembly/PcbAssemblyGeometryBuildProgress.mjs'
-import { PcbAssemblyGeometryBuilder } from './assembly/PcbAssemblyGeometryBuilder.mjs'
-import { PcbAssemblyModelMeshLoader } from './assembly/PcbAssemblyModelMeshLoader.mjs'
-import { PcbAssemblyStepWriter } from './assembly/PcbAssemblyStepWriter.mjs'
-import { PcbAssemblyWrlWriter } from './assembly/PcbAssemblyWrlWriter.mjs'
+import {
+    PcbAssemblyGeometryBuildProgress,
+    PcbAssemblyGeometryBuilder,
+    PcbAssemblyModelMeshLoader,
+    PcbAssemblyStepWriter,
+    PcbAssemblyWrlWriter
+} from 'pcb-scene3d-viewer/scene3d'
 
 /**
  * Builds whole-PCB assembly exports from prepared 3D scene data.

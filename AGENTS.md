@@ -15,6 +15,12 @@
 - Open: `http://localhost:3000/`
 - Test: `npm test`
 
+## Local Library Development
+
+- Local sibling libraries used by the app, such as `../gerber-toolkit`, `../circuitjson-toolkit`, `../altium-toolkit`, `../kicad-toolkit`, and `../pcb-scene3d-viewer`, are editable project source when they are available locally.
+- When a change belongs in one of those libraries, change the library directly instead of adding app-side workarounds, overrides, adapters, or duplicated behavior.
+- After changing a local library, run its repo-owned tests and the relevant app tests before reporting completion.
+
 ## Coding Style & Naming Conventions
 
 - Prettier settings are in `.prettierrc.json`: 4-space indent, single quotes, no semicolons, no trailing commas.
