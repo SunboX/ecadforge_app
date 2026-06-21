@@ -397,6 +397,27 @@ test('3D toggle checkboxes keep a fixed flex size', async () => {
 })
 
 /**
+ * Verifies the selected-component inspector reserves space for the hide/show
+ * action and draws its icon through the app-owned 3D stylesheet.
+ */
+test('3D component inspector styles the selected component eye toggle', async () => {
+    const sceneCss = await readStylesheet('30-scene3d.css')
+
+    assert.match(
+        sceneCss,
+        /\.scene-3d__selection-header\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) 2\.1rem;/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d__selection-visibility\s*\{[\s\S]*display:\s*inline-flex;[\s\S]*width:\s*2\.1rem;[\s\S]*height:\s*2\.1rem;/
+    )
+    assert.match(
+        sceneCss,
+        /\.scene-3d__selection-eye-icon \.icon path,[\s\S]*\.scene-3d__selection-eye-icon \.icon circle\s*\{[\s\S]*stroke:\s*currentColor;/
+    )
+})
+
+/**
  * Verifies the landing page gives the empty drop area the remaining viewport
  * space instead of leaving it as a shallow fixed panel.
  */

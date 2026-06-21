@@ -200,9 +200,57 @@ body.is-viewer-mode.is-viewer-3d .viewer-stage.is-sidebar-visible .viewer-main {
     border: 1px solid rgba(95, 112, 124, 0.12);
 }
 
+.scene-3d__selection-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.1rem;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .scene-3d__selection-title {
     margin: 0;
     font-size: 0.9rem;
+}
+
+.scene-3d__selection-visibility {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 1px solid rgba(95, 112, 124, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.78);
+    color: #425d70;
+    cursor: pointer;
+}
+
+.scene-3d__selection-visibility:hover,
+.scene-3d__selection-visibility[aria-pressed='true'] {
+    border-color: rgba(184, 90, 37, 0.34);
+    color: var(--accent);
+}
+
+.scene-3d__selection-eye-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scene-3d__selection-eye-icon .icon {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.scene-3d__selection-eye-icon .icon path,
+.scene-3d__selection-eye-icon .icon circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .scene-3d__selection-empty {
