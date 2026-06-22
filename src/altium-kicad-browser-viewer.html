@@ -22,11 +22,114 @@
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
-                "@type": "SoftwareApplication",
-                "name": "ECAD Forge",
-                "applicationCategory": "DesignApplication",
-                "operatingSystem": "Any",
-                "url": "https://ecadforge.app/"
+                "@graph": [
+                    {
+                        "@type": "Person",
+                        "@id": "https://ecadforge.app/#publisher",
+                        "name": "André Fiedler",
+                        "url": "https://github.com/SunboX",
+                        "sameAs": [
+                            "https://github.com/SunboX/ecadforge_app",
+                            "https://mastodon.social/@sonnenkiste"
+                        ]
+                    },
+                    {
+                        "@type": "WebSite",
+                        "@id": "https://ecadforge.app/#website",
+                        "name": "ECAD Forge",
+                        "url": "https://ecadforge.app/"
+                    },
+                    {
+                        "@type": "ImageObject",
+                        "@id": "https://ecadforge.app/#primary-image",
+                        "url": "https://ecadforge.app/og/ecadforge-viewer-pcb.png",
+                        "caption": "ECAD Forge PCB, schematic, 3D and BOM viewer",
+                        "width": 1200,
+                        "height": 630
+                    },
+                    {
+                        "@type": "SoftwareApplication",
+                        "@id": "https://ecadforge.app/#app",
+                        "name": "ECAD Forge",
+                        "url": "https://ecadforge.app/",
+                        "description": "Open Altium, KiCad, Gerber and CircuitJSON designs locally in your browser. View schematics, PCB layouts, fabrication layers, 3D boards, BOMs and diagnostics without uploading your files.",
+                        "applicationCategory": "DesignApplication",
+                        "operatingSystem": "Any",
+                        "runtimePlatform": "Modern browser with JavaScript enabled",
+                        "isAccessibleForFree": true,
+                        "featureList": [
+                            "Local browser parsing with no upload",
+                            "Altium SchDoc and PcbDoc viewing",
+                            "KiCad project, schematic and PCB viewing",
+                            "Gerber and Excellon fabrication viewing",
+                            "CircuitJSON design viewing",
+                            "Interactive PCB layout, schematic, 3D, BOM and diagnostics views"
+                        ],
+                        "screenshot": {
+                            "@id": "https://ecadforge.app/#primary-image"
+                        },
+                        "image": {
+                            "@id": "https://ecadforge.app/#primary-image"
+                        },
+                        "creator": {
+                            "@id": "https://ecadforge.app/#publisher"
+                        },
+                        "publisher": {
+                            "@id": "https://ecadforge.app/#publisher"
+                        },
+                        "copyrightHolder": {
+                            "@id": "https://ecadforge.app/#publisher"
+                        },
+                        "sameAs": [
+                            "https://github.com/SunboX/ecadforge_app"
+                        ],
+                        "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+                        "offers": {
+                            "@type": "Offer",
+                            "price": 0,
+                            "priceCurrency": "EUR"
+                        },
+                        "softwareVersion": "1.8.16"
+                    },
+                    {
+                        "@type": "WebPage",
+                        "@id": "https://ecadforge.app/altium-kicad-browser-viewer#webpage",
+                        "url": "https://ecadforge.app/altium-kicad-browser-viewer",
+                        "name": "Altium, KiCad, Gerber and CircuitJSON Browser Viewer",
+                        "description": "View Altium, KiCad, Gerber and CircuitJSON designs in one browser app. Open schematics, PCB layouts, fabrication layers, 3D boards, BOMs and diagnostics with no upload.",
+                        "inLanguage": "en",
+                        "isPartOf": {
+                            "@id": "https://ecadforge.app/#website"
+                        },
+                        "mainEntity": {
+                            "@id": "https://ecadforge.app/#app"
+                        },
+                        "breadcrumb": {
+                            "@id": "https://ecadforge.app/altium-kicad-browser-viewer#breadcrumb"
+                        },
+                        "primaryImageOfPage": {
+                            "@id": "https://ecadforge.app/#primary-image"
+                        }
+                    },
+                    {
+                        "@type": "BreadcrumbList",
+                        "@id": "https://ecadforge.app/altium-kicad-browser-viewer#breadcrumb",
+                        "itemListElement": [
+                            {
+                                "@type": "ListItem",
+                                "position": 1,
+                                "name": "ECAD Forge",
+                                "item": "https://ecadforge.app/"
+                            },
+                            {
+                                "@type": "ListItem",
+                                "position": 2,
+                                "name": "Altium, KiCad, Gerber and CircuitJSON Browser Viewer",
+                                "item": "https://ecadforge.app/altium-kicad-browser-viewer"
+                            }
+                        ]
+                    }
+                ]
             }
         </script>
     </head>

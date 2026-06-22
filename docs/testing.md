@@ -10,6 +10,7 @@
 
 ```bash
 npm test
+npm run check:structured-data
 ```
 
 ## Current Coverage
@@ -20,6 +21,7 @@ npm test
 - `tests/php-app-meta-endpoint.test.mjs`: deployable PHP metadata endpoint payloads
 - `tests/static-deploy-builder.test.mjs`: static Apache artifact cache-busting coverage
 - `tests/deploy-ftp-workflow.test.mjs`: FTP workflow deployment coverage for static frontend, `api/`, and metadata
+- `tests/seo-pages.test.mjs`: canonical SEO page metadata, JSON-LD graph shape, and structured-data drift tooling
 - `tests/project-structure.test.mjs`: required file presence
 - `tests/mjs-line-limit.test.mjs`: source and test file length guard
 

@@ -78,17 +78,26 @@ test('ftp workflow installs browser build dependencies before static build', asy
     const installIndex = workflow.indexOf(
         'name: Install frontend build dependencies'
     )
+    const structuredDataCheckIndex = workflow.indexOf(
+        'name: Check structured data freshness'
+    )
     const buildIndex = workflow.indexOf(
         'name: Build static frontend deployment'
     )
 
     assert.ok(installIndex > -1)
+    assert.ok(structuredDataCheckIndex > installIndex)
+    assert.ok(buildIndex > structuredDataCheckIndex)
     assert.ok(buildIndex > installIndex)
     assert.doesNotMatch(workflow, /Checkout local toolkit dependencies/)
     assert.doesNotMatch(workflow, /git clone --depth 1/)
     assert.match(
         workflow,
         /name: Install frontend build dependencies[\s\S]*?run: npm ci/
+    )
+    assert.match(
+        workflow,
+        /name: Check structured data freshness[\s\S]*?run: npm run check:structured-data/
     )
 })
 

@@ -40,6 +40,10 @@ jobs:
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               run: npm ci
 
+            - name: Check structured data freshness
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
+              run: npm run check:structured-data
+
             - name: Build static frontend deployment
               if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               run: npm run build:static

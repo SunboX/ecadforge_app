@@ -5,15 +5,29 @@ import {
     SourceBundleExporter
 } from 'altium-toolkit/parser'
 import { KicadSelectedPartExporter } from 'kicad-toolkit/parser'
+import { SelectedPartKicadExportAdapter } from './SelectedPartKicadExportAdapter.mjs'
 import { SelectedPartResolver } from './SelectedPartResolver.mjs'
+import { SelectedPartStitchedModelExporter } from './SelectedPartStitchedModelExporter.mjs'
 
 /**
  * Builds downloadable ZIP archives for the currently selected component.
  */
 export class SelectedPartExportService {
+    /** @type {SelectedPartStitchedModelExporter} */
+    #stitchedModelExporter
+
+    /**
+     * @param {{ sceneService?: { prepare?: (documentModel: object, options?: object) => Promise<object> }, modelMeshLoader?: object | ((placement: object) => Promise<object | object[]> | object | object[]) }} [options] Service options.
+     */
+    constructor(options = {}) {
+        this.#stitchedModelExporter = new SelectedPartStitchedModelExporter(
+            options
+        )
+    }
+
     /**
      * Exports one selected component into a target-format ZIP.
-     * @param {{ format?: string, documentId?: string, selectedComponentKey?: string, documentModel?: object, documents?: { documentModel?: object }[], sessionAssets?: object[] }} options Export options.
+     * @param {{ format?: string, documentId?: string, selectedComponentKey?: string, documentModel?: object, documents?: { documentModel?: object }[], sessionAssets?: object[], sceneDescription?: object }} options Export options.
      * @returns {Promise<{ archiveName: string, archiveBytes: Uint8Array, entries: object[], manifest: object }>}
      */
     async export(options = {}) {
@@ -22,9 +36,9 @@ export class SelectedPartExportService {
         )
         const selectedPart = SelectedPartResolver.resolve(options)
         const partName = SelectedPartExportService.#partExportName(selectedPart)
-        const modelBundle = await SelectedPartExportService.#buildModelBundle(
+        const modelBundle = await this.#buildModelBundle(
             selectedPart,
-            options.sessionAssets,
+            options,
             partName
         )
         const targetEntries =
@@ -65,6 +79,14 @@ export class SelectedPartExportService {
             entries,
             manifest
         }
+    }
+
+    /**
+     * Releases owned mesh-loader resources.
+     * @returns {void}
+     */
+    dispose() {
+        this.#stitchedModelExporter.dispose()
     }
 
     /**
@@ -112,7 +134,12 @@ export class SelectedPartExportService {
      * @returns {{ path: string, bytes: Uint8Array, contentType: string }[]}
      */
     static #buildKicadEntries(selectedPart, partName) {
-        return KicadSelectedPartExporter.export(selectedPart, {
+        const kicadPart = SelectedPartKicadExportAdapter.adapt(
+            selectedPart,
+            partName
+        )
+
+        return KicadSelectedPartExporter.export(kicadPart, {
             partName
         }).entries
     }
@@ -237,7 +264,9 @@ export class SelectedPartExportService {
                     selectedPart.designator ||
                     'Selected part',
                 pins: selectedPart.symbol?.pins || [],
-                primitives: [],
+                primitives: SelectedPartExportService.#symbolPrimitives(
+                    selectedPart.symbol
+                ),
                 raw: selectedPart.symbol?.raw || {}
             },
             footprint: {
@@ -246,10 +275,10 @@ export class SelectedPartExportService {
                     selectedPart.designator ||
                     'Selected part',
                 pads: selectedPart.footprint?.pads || [],
-                tracks: [],
-                arcs: [],
-                fills: [],
-                texts: [],
+                tracks: selectedPart.footprint?.tracks || [],
+                arcs: selectedPart.footprint?.arcs || [],
+                fills: selectedPart.footprint?.fills || [],
+                texts: selectedPart.footprint?.texts || [],
                 primitives: [],
                 raw: selectedPart.footprint?.raw || {}
             },
@@ -258,6 +287,45 @@ export class SelectedPartExportService {
                 selectedPart
             }
         }
+    }
+
+    /**
+     * Builds Altium schematic primitive rows from the selected symbol.
+     * @param {object} symbol Selected symbol.
+     * @returns {object[]}
+     */
+    static #symbolPrimitives(symbol = {}) {
+        return [
+            ...SelectedPartExportService.#typedPrimitives(
+                symbol.rectangles,
+                'rectangle'
+            ),
+            ...SelectedPartExportService.#typedPrimitives(symbol.lines, 'line'),
+            ...SelectedPartExportService.#typedPrimitives(symbol.arcs, 'arc'),
+            ...SelectedPartExportService.#typedPrimitives(
+                symbol.ellipses,
+                'ellipse'
+            ),
+            ...SelectedPartExportService.#typedPrimitives(
+                symbol.polygons,
+                'polygon'
+            )
+        ]
+    }
+
+    /**
+     * Adds a primitive type to each entry.
+     * @param {unknown} primitives Primitive candidates.
+     * @param {string} type Primitive type.
+     * @returns {object[]}
+     */
+    static #typedPrimitives(primitives, type) {
+        return SelectedPartExportService.#array(primitives).map(
+            (primitive) => ({
+                type,
+                ...primitive
+            })
+        )
     }
 
     /**
@@ -316,13 +384,42 @@ export class SelectedPartExportService {
     }
 
     /**
+     * Builds matched and generated 3D model assets for the selected part.
+     * @param {object} selectedPart Selected part data.
+     * @param {{ documentModel?: object, sceneDescription?: object, sessionAssets?: object[] }} options Export options.
+     * @param {string} partName Export artifact name.
+     * @returns {Promise<{ models: object[], entries: { path: string, bytes: Uint8Array, contentType: string }[], diagnostics: object[] }>}
+     */
+    async #buildModelBundle(selectedPart, options, partName) {
+        const modelBundle =
+            await SelectedPartExportService.#buildReferencedModelBundle(
+                selectedPart,
+                options.sessionAssets,
+                partName
+            )
+
+        await this.#stitchedModelExporter.append(
+            modelBundle,
+            selectedPart,
+            options,
+            partName
+        )
+
+        return modelBundle
+    }
+
+    /**
      * Builds matched 3D model assets and archive entries.
      * @param {object} selectedPart Selected part data.
      * @param {object[] | undefined} sessionAssets Session companion assets.
      * @param {string} partName Export artifact name.
      * @returns {Promise<{ models: object[], entries: { path: string, bytes: Uint8Array, contentType: string }[], diagnostics: object[] }>}
      */
-    static async #buildModelBundle(selectedPart, sessionAssets, partName) {
+    static async #buildReferencedModelBundle(
+        selectedPart,
+        sessionAssets,
+        partName
+    ) {
         const references =
             SelectedPartExportService.#modelReferences(selectedPart)
         const diagnostics = []

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { unzipSync } from 'fflate'
+import {
+    PcbLibModelParser,
+    PcbLibStreamExtractor,
+    SchLibModelParser,
+    SchLibStreamExtractor
+} from 'altium-toolkit/parser'
 import { SelectedPartExportService } from '../../src/core/SelectedPartExportService.mjs'
 
 /**
@@ -11,6 +17,18 @@ import { SelectedPartExportService } from '../../src/core/SelectedPartExportServ
  */
 function textEntry(zip, path) {
     return new TextDecoder().decode(zip[path])
+}
+
+/**
+ * Converts one byte view into an exact ArrayBuffer slice.
+ * @param {Uint8Array} bytes Bytes to convert.
+ * @returns {ArrayBuffer}
+ */
+function toArrayBuffer(bytes) {
+    return bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength
+    )
 }
 
 /**
@@ -55,6 +73,242 @@ function createDocumentModel(designator = 'U1') {
                     ]
                 }
             ]
+        }
+    }
+}
+
+/**
+ * Builds a compact fake scene containing two stitched component candidates.
+ * @returns {object}
+ */
+function createStitchedSceneDescription() {
+    return {
+        components: [
+            { designator: 'XO2', pattern: 'Package:Stacked_A' },
+            { designator: 'XO9', pattern: 'Package:Stacked_B' }
+        ],
+        staticBodyPlacements: [
+            {
+                designator: 'XO2',
+                mountSide: 'top',
+                positionMil: { x: 100, y: 200, z: 20 },
+                coLocatedVariantGroupKey: 'stack:a',
+                geometry: {
+                    kind: 'extruded-polygon',
+                    heightMil: 40,
+                    verticesMil: [
+                        { x: -20, y: -20 },
+                        { x: 20, y: -20 },
+                        { x: 20, y: 20 },
+                        { x: -20, y: 20 }
+                    ]
+                }
+            },
+            {
+                designator: 'XO9',
+                mountSide: 'top',
+                positionMil: { x: 300, y: 400, z: 20 },
+                coLocatedVariantGroupKey: 'stack:b',
+                geometry: {
+                    kind: 'extruded-polygon',
+                    heightMil: 40,
+                    verticesMil: [
+                        { x: -20, y: -20 },
+                        { x: 20, y: -20 },
+                        { x: 20, y: 20 },
+                        { x: -20, y: 20 }
+                    ]
+                }
+            }
+        ],
+        externalPlacements: [
+            {
+                designator: 'XO2',
+                mountSide: 'top',
+                positionMil: { x: 100, y: 200, z: 60 },
+                coLocatedVariantGroupKey: 'stack:a',
+                externalModel: {
+                    origin: 'embedded',
+                    name: 'selected-child.step',
+                    format: 'step',
+                    payloadText: 'ISO-10303-21;\nSELECTED',
+                    sourceStream: 'Models/selected'
+                }
+            },
+            {
+                designator: 'XO9',
+                mountSide: 'top',
+                positionMil: { x: 300, y: 400, z: 60 },
+                coLocatedVariantGroupKey: 'stack:b',
+                externalModel: {
+                    origin: 'embedded',
+                    name: 'other-child.step',
+                    format: 'step',
+                    payloadText: 'ISO-10303-21;\nOTHER',
+                    sourceStream: 'Models/other'
+                }
+            }
+        ]
+    }
+}
+
+/**
+ * Builds a deterministic fake mesh loader for selected external sub-models.
+ * @returns {(placement: object) => object}
+ */
+function createStitchedModelMeshLoader() {
+    return (placement) => ({
+        name: placement.externalModel.name,
+        vertices: [
+            [0, 0, 0],
+            [10, 0, 0],
+            [0, 10, 0],
+            [0, 0, 10]
+        ],
+        faces: [
+            [0, 2, 1],
+            [0, 1, 3],
+            [1, 2, 3],
+            [2, 0, 3]
+        ]
+    })
+}
+
+/**
+ * Builds fake sibling documents with owner-linked schematic and PCB primitives.
+ * @returns {{ boardDocument: object, schematicDocument: object }}
+ */
+function createOwnerLinkedSelectedPartDocuments() {
+    const designator = 'XK1'
+
+    return {
+        boardDocument: {
+            fileName: 'fake-owner-board.PcbDoc',
+            pcb: {
+                components: [
+                    {
+                        componentIndex: 17,
+                        designator,
+                        pattern: 'FakeLib:Owner_Linked_Device',
+                        x: 1000,
+                        y: 2000,
+                        rotation: 0
+                    }
+                ],
+                componentPrimitiveGroups: [
+                    {
+                        componentIndex: 17,
+                        designator,
+                        pads: [
+                            {
+                                number: '1',
+                                x: 990,
+                                y: 1990,
+                                sizeTopX: 20,
+                                sizeTopY: 30,
+                                shapeTopName: 'rectangular',
+                                rotation: 90,
+                                layerId: 1
+                            },
+                            {
+                                number: '2',
+                                x: 1010,
+                                y: 2010,
+                                sizeTopX: 20,
+                                sizeTopY: 30,
+                                shapeTopName: 'rectangular',
+                                rotation: 90,
+                                layerId: 1
+                            }
+                        ],
+                        tracks: [
+                            {
+                                x1: 970,
+                                y1: 1980,
+                                x2: 1030,
+                                y2: 1980,
+                                width: 4,
+                                layerId: 21
+                            }
+                        ],
+                        arcs: [
+                            {
+                                x: 1000,
+                                y: 2000,
+                                radius: 15,
+                                startAngle: 0,
+                                endAngle: 90,
+                                width: 3,
+                                layerId: 21
+                            }
+                        ],
+                        texts: [
+                            {
+                                text: 'XK1',
+                                x: 980,
+                                y: 1960,
+                                height: 8,
+                                rotation: 0,
+                                layerId: 21,
+                                visible: true
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        schematicDocument: {
+            fileName: 'fake-owner-sheet.SchDoc',
+            schematic: {
+                components: [
+                    {
+                        x: 50,
+                        y: 90,
+                        libReference: 'OwnerSymbol',
+                        designator,
+                        value: 'Owner linked value'
+                    }
+                ],
+                texts: [
+                    {
+                        x: 50,
+                        y: 98,
+                        text: designator,
+                        name: 'Designator',
+                        ownerIndex: '77',
+                        hidden: false
+                    }
+                ],
+                rectangles: [
+                    {
+                        x: 50,
+                        y: 70,
+                        width: 40,
+                        height: 30,
+                        ownerIndex: '77'
+                    }
+                ],
+                pins: [
+                    {
+                        x: 50,
+                        y: 80,
+                        length: 10,
+                        name: 'IN',
+                        designator: '1',
+                        orientation: 'left',
+                        ownerIndex: '77'
+                    },
+                    {
+                        x: 90,
+                        y: 80,
+                        length: 10,
+                        name: 'OUT',
+                        designator: '2',
+                        orientation: 'right',
+                        ownerIndex: '77'
+                    }
+                ]
+            }
         }
     }
 }
@@ -117,6 +371,83 @@ test('SelectedPartExportService exports KiCad and Altium ZIP entries', async () 
 })
 
 /**
+ * Verifies KiCad selected-part export keeps owner-linked symbol and footprint
+ * geometry from sibling schematic and PCB documents.
+ */
+test('SelectedPartExportService exports owner-linked KiCad symbol and footprint geometry', async () => {
+    const service = new SelectedPartExportService()
+    const { boardDocument, schematicDocument } =
+        createOwnerLinkedSelectedPartDocuments()
+
+    const result = await service.export({
+        format: 'kicad',
+        documentId: 'board',
+        selectedComponentKey: 'XK1',
+        documentModel: boardDocument,
+        documents: [
+            { id: 'board', documentModel: boardDocument },
+            { id: 'sheet', documentModel: schematicDocument }
+        ]
+    })
+    const zip = unzipSync(result.archiveBytes)
+    const symbolText = textEntry(zip, 'kicad/Owner_Linked_Device.kicad_sym')
+    const footprintText = textEntry(zip, 'kicad/Owner_Linked_Device.kicad_mod')
+
+    assert.match(symbolText, /\(pin passive line/)
+    assert.match(symbolText, /\(name "IN"/)
+    assert.match(symbolText, /\(number "1"/)
+    assert.match(symbolText, /\(name "OUT"/)
+    assert.match(footprintText, /\(pad "1" smd rect/)
+    assert.match(footprintText, /\(pad "2" smd rect/)
+    assert.match(footprintText, /\(fp_line/)
+    assert.match(footprintText, /\(fp_arc/)
+    assert.match(footprintText, /\(fp_text user "XK1"/)
+})
+
+/**
+ * Verifies Altium selected-part export keeps owner-linked symbol and footprint
+ * geometry from sibling schematic and PCB documents.
+ */
+test('SelectedPartExportService exports owner-linked Altium symbol and footprint geometry', async () => {
+    const service = new SelectedPartExportService()
+    const { boardDocument, schematicDocument } =
+        createOwnerLinkedSelectedPartDocuments()
+
+    const result = await service.export({
+        format: 'altium',
+        documentId: 'board',
+        selectedComponentKey: 'XK1',
+        documentModel: boardDocument,
+        documents: [
+            { id: 'board', documentModel: boardDocument },
+            { id: 'sheet', documentModel: schematicDocument }
+        ]
+    })
+    const zip = unzipSync(result.archiveBytes)
+    const schModel = SchLibModelParser.parse(
+        'Owner_Linked_Device.SchLib',
+        SchLibStreamExtractor.extractFromArrayBuffer(
+            toArrayBuffer(zip['altium/Owner_Linked_Device.SchLib'])
+        )
+    )
+    const pcbModel = PcbLibModelParser.parse(
+        'Owner_Linked_Device.PcbLib',
+        PcbLibStreamExtractor.extractFromArrayBuffer(
+            toArrayBuffer(zip['altium/Owner_Linked_Device.PcbLib'])
+        )
+    )
+    const symbol = schModel.schematicLibrary.symbols[0]
+    const footprint = pcbModel.pcbLibrary.footprints[0]
+
+    assert.equal(symbol.pins.length, 2)
+    assert.equal(symbol.primitives.length, 1)
+    assert.equal(footprint.pads.length, 2)
+    assert.equal(footprint.tracks.length, 1)
+    assert.equal(footprint.arcs.length, 1)
+    assert.equal(footprint.texts.length, 1)
+})
+
+/**
  * Verifies selected-part exports include a matched 3D model asset.
  */
 test('SelectedPartExportService includes the selected 3D model asset', async () => {
@@ -148,6 +479,42 @@ test('SelectedPartExportService includes the selected 3D model asset', async () 
     assert.deepEqual([...zip['models/QFN.step']], [9, 8, 7])
     assert.equal(manifest.status.model3d, 'exported')
     assert.ok(zip['source/manifest.json'])
+})
+
+/**
+ * Verifies selected-part exports include the generated stitched component
+ * model for the selected designator, without adding unrelated stitched parts.
+ */
+test('SelectedPartExportService includes the selected stitched component STEP', async () => {
+    const service = new SelectedPartExportService({
+        modelMeshLoader: createStitchedModelMeshLoader()
+    })
+    const documentModel = createDocumentModel('XO2')
+    documentModel.schematic.components[0].footprint = 'Package:Stacked_A'
+    documentModel.pcb.components[0].pattern = 'Package:Stacked_A'
+
+    for (const format of ['circuitjson', 'kicad', 'altium']) {
+        const result = await service.export({
+            format,
+            documentModel,
+            selectedComponentKey: 'XO2',
+            sceneDescription: createStitchedSceneDescription()
+        })
+        const zip = unzipSync(result.archiveBytes)
+        const manifest = JSON.parse(textEntry(zip, 'manifest.json'))
+        const stitchedText = textEntry(zip, 'models/Stacked_A-stitched.step')
+
+        assert.ok(zip['models/Stacked_A-stitched.step'], format)
+        assert.equal(zip['models/Stacked_B-stitched.step'], undefined, format)
+        assert.match(stitchedText, /ISO-10303-21/)
+        assert.match(stitchedText, /static-XO2/)
+        assert.match(stitchedText, /selected-child\.step/)
+        assert.equal(manifest.status.model3d, 'exported', format)
+        assert.ok(
+            manifest.files.includes('models/Stacked_A-stitched.step'),
+            format
+        )
+    }
 })
 
 /**

@@ -31,6 +31,13 @@ Search Console setup is manual: verify `ecadforge.app`, submit
 `https://ecadforge.app/sitemap.xml`, inspect the main URLs, and request
 indexing after deployment.
 
+Before deployment, run `npm run check:structured-data` to verify the generated
+JSON-LD blocks match the current page titles, descriptions, canonical URLs, and
+app version. After deployment, validate the live homepage and SEO landing pages
+with Google's Rich Results Test and the Schema.org Validator, because local
+tests only prove the committed markup shape and deployed validation proves the
+pages are crawlable.
+
 ## Analytics
 
 - The browser entrypoint loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js` only on deployed HTTP(S) origins. Localhost, file URLs, and private-network dev origins do not load the production tracker.
