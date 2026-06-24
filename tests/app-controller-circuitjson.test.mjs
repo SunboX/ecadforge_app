@@ -171,6 +171,7 @@ function createCircuitJsonDocument(fileName) {
         {
             type: 'pcb_board',
             pcb_board_id: 'board_1',
+            center: { x: 0, y: 0 },
             width: 10,
             height: 5
         }
@@ -193,9 +194,9 @@ function createCircuitJsonDocument(fileName) {
 }
 
 /**
- * Verifies standalone CircuitJSON files open on the standards-native 3D path.
+ * Verifies standalone CircuitJSON files open on the PCB path.
  */
-test('AppController opens standalone CircuitJSON documents in 3D', async () => {
+test('AppController opens standalone CircuitJSON documents in PCB view', async () => {
     const state = new AppState()
     const view = new CircuitJsonViewFake()
     const controller = new AppController({
@@ -213,6 +214,6 @@ test('AppController opens standalone CircuitJSON documents in 3D', async () => {
 
     assert.equal(snapshot.documents.length, 1)
     assert.equal(snapshot.activeFileName, 'board.json')
-    assert.equal(snapshot.activeView, '3d')
+    assert.equal(snapshot.activeView, 'pcb')
     assert.equal(snapshot.documentModel.sourceFormat, 'circuitjson')
 })

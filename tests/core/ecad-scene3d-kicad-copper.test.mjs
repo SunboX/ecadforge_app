@@ -109,7 +109,14 @@ function createKicadCopperCutoutDocument() {
                     shapeTop: 1
                 }
             ],
-            vias: [],
+            vias: [
+                {
+                    x: 200,
+                    y: 300,
+                    diameter: 60,
+                    holeDiameter: 40
+                }
+            ],
             tracks: [
                 {
                     x1: 100,
@@ -130,6 +137,16 @@ function createKicadCopperCutoutDocument() {
                     layerId: 0,
                     layerCode: 1,
                     netName: 'PAD_NET'
+                },
+                {
+                    x1: 100,
+                    y1: 300,
+                    x2: 300,
+                    y2: 300,
+                    width: 20,
+                    layerId: 0,
+                    layerCode: 1,
+                    netName: 'VIA_NET'
                 }
             ],
             arcs: []
@@ -429,15 +446,19 @@ test('EcadScene3dService maps KiCad outer copper routes to renderer layer ids', 
 })
 
 /**
- * Verifies KiCad tracks are split around drill and exposed pad geometry.
+ * Verifies KiCad tracks are split around real drill voids without retreating
+ * from exposed pads or plated via annuli.
  */
-test('EcadScene3dService cuts KiCad 3D traces around holes and exposed pads', () => {
+test('EcadScene3dService keeps KiCad 3D traces connected to pads and vias', () => {
     const scene = EcadScene3dService.build(createKicadCopperCutoutDocument())
     const drilledSegments = scene.detail.tracks.filter(
         (track) => track.netName === 'DRILLED_NET'
     )
     const padSegments = scene.detail.tracks.filter(
         (track) => track.netName === 'PAD_NET'
+    )
+    const viaSegments = scene.detail.tracks.filter(
+        (track) => track.netName === 'VIA_NET'
     )
 
     assert.deepEqual(drilledSegments.map(trackX), [
@@ -448,12 +469,15 @@ test('EcadScene3dService cuts KiCad 3D traces around holes and exposed pads', ()
     assert.equal(drilledSegments[0].capEndSideWall, false)
     assert.equal(drilledSegments[1].capStartRound, false)
     assert.equal(drilledSegments[1].capStartSideWall, false)
-    assert.deepEqual(padSegments.map(trackX), [
-        [100, 155],
-        [245, 300]
+    assert.deepEqual(padSegments.map(trackX), [[100, 300]])
+    assert.equal(padSegments[0].capStartRound, undefined)
+    assert.equal(padSegments[0].capEndRound, undefined)
+    assert.deepEqual(viaSegments.map(trackX), [
+        [100, 180],
+        [220, 300]
     ])
-    assert.equal(padSegments[0].capEndRound, false)
-    assert.equal(padSegments[1].capStartRound, false)
+    assert.equal(viaSegments[0].capEndRound, false)
+    assert.equal(viaSegments[1].capStartRound, false)
 })
 
 /**

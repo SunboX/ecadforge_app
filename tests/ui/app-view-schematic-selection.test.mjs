@@ -350,6 +350,40 @@ function createSnapshot() {
 }
 
 /**
+ * Drags a schematic SVG and dispatches the browser click that can follow release.
+ * @param {FakeSvgElement} svg Rendered schematic SVG.
+ * @param {FakeNode} target Synthetic click target.
+ * @returns {void}
+ */
+function dragSchematicAndClick(svg, target) {
+    svg.dispatch('mousedown', {
+        target,
+        button: 0,
+        clientX: 120,
+        clientY: 80,
+        preventDefault() {}
+    })
+    svg.dispatch('mousemove', {
+        target,
+        buttons: 1,
+        clientX: 160,
+        clientY: 96,
+        preventDefault() {}
+    })
+    svg.dispatch('mouseup', {
+        target,
+        button: 0,
+        clientX: 160,
+        clientY: 96
+    })
+    svg.dispatch('click', {
+        target,
+        clientX: 160,
+        clientY: 96
+    })
+}
+
+/**
  * Verifies schematic selection state reaches the schematic renderer.
  */
 test('AppView highlights the selected schematic symbol', () => {
@@ -408,6 +442,29 @@ test('AppView emits schematic component clicks from the rendered svg', () => {
             source: 'schematic'
         }
     ])
+})
+
+/**
+ * Verifies schematic drag panning that starts on a symbol does not select it.
+ */
+test('AppView ignores schematic component clicks after a drag pan', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindPcbComponentSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    const svg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+    const initialViewBox = svg.getAttribute('viewBox')
+    dragSchematicAndClick(svg, new FakeSchematicComponentTarget('U1'))
+
+    assert.notEqual(svg.getAttribute('viewBox'), initialViewBox)
+    assert.deepEqual(received, [])
 })
 
 /**
@@ -476,6 +533,29 @@ test('AppView emits schematic net clicks from the rendered svg', () => {
             source: 'schematic'
         }
     ])
+})
+
+/**
+ * Verifies schematic drag panning that starts on a net does not select it.
+ */
+test('AppView ignores schematic net clicks after a drag pan', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const received = []
+
+    view.bindPcbNetSelectionChange((change) => {
+        received.push(change)
+    })
+    view.render(createSnapshot())
+
+    const svg = fakeDocument
+        .querySelector('#viewContent')
+        .querySelector('.schematic-svg')
+    const initialViewBox = svg.getAttribute('viewBox')
+    dragSchematicAndClick(svg, new FakeSchematicNetTarget('SENSE_A'))
+
+    assert.notEqual(svg.getAttribute('viewBox'), initialViewBox)
+    assert.deepEqual(received, [])
 })
 
 /**

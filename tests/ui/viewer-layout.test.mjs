@@ -663,6 +663,32 @@ test('landing hero separates GitHub URL intake from sample CTAs', async () => {
 })
 
 /**
+ * Verifies the GitHub URL field draws focus on the outer control surface
+ * instead of on the inner text input.
+ */
+test('landing GitHub URL input uses wrapper focus styling', async () => {
+    const heroCss = await readStylesheet('15-hero.css')
+    const layoutCss = await readStylesheet('10-layout.css')
+    const focusBlock =
+        layoutCss.match(
+            /\.file-pill:focus-visible,[\s\S]*?\.icon-link:focus-visible\s*\{(?<rules>[\s\S]*?)\}/
+        )?.[0] || ''
+    const inputWrapFocusBlock =
+        heroCss.match(
+            /\.github-open__input-wrap:focus-within\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(focusBlock, /\.github-open__input-wrap:focus-within/)
+    assert.doesNotMatch(focusBlock, /\.github-open input:focus-visible/)
+    assert.match(focusBlock, /outline:\s*3px solid rgba\(15,\s*116,\s*108,\s*0\.22\);/)
+    assert.match(focusBlock, /outline-offset:\s*3px;/)
+    assert.match(
+        inputWrapFocusBlock,
+        /border-color:\s*rgba\(15,\s*116,\s*108,\s*0\.42\);/
+    )
+})
+
+/**
  * Verifies landing support chips stay compact and only style the outer pill.
  */
 test('landing support chips use compact vertical padding', async () => {

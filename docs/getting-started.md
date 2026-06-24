@@ -64,7 +64,7 @@ npm test
 4. Switch between `Schematic`, `PCB`, `3D`, `BOM`, and `Diagnostics`.
 5. Use `Diagnostics` to inspect parser recovery details when a document is only partially understood.
 6. In the `3D` view, Gerber/Excellon packages render as bare-board fabrication scenes. Enable missing-model search only when you want the app to fetch unresolved STEP or WRL models from known KiCad library paths, close same-folder KiCad package matches, or the configured component source.
-7. Use the `Info` sidebar actions in the `3D` view to export the whole PCB as one STEP or WRL assembly. The export includes board geometry, copper, silkscreen, pads, vias, and resolved component models; unresolved component models are skipped and reported. WRL-to-STEP export is faceted mesh geometry, not recovered analytic CAD surfaces.
+7. Use the `Info` sidebar actions in the `3D` view to export the whole PCB as one STEP, WRL, GLTF, or GLB assembly. The export includes board geometry, copper, silkscreen, pads, vias, resolved STEP, WRL, GLB, GLTF, STL, or OBJ component models, fallback component bodies for unresolved models, OBJ sidecar material colors, and translucent mesh materials; GLTF/GLB downloads also include rendered board-face artwork textures when PCB views are available. Mesh-derived exports preserve tessellated surfaces, not recovered analytic CAD surfaces.
 8. When a board view is available, use the PCB Styler crosslink to continue with board styling in the companion app.
 
 ## Sample Corpus

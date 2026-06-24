@@ -19,8 +19,8 @@ export class AppControllerSelectedPartExport {
             snapshot.documents.find((entry) => entry.id === documentId)
                 ?.documentModel || snapshot.documentModel
         const selectedComponentKey = String(
-            change?.componentKey ||
-                snapshot.selectedPcbComponents?.[documentId] ||
+            snapshot.selectedPcbComponents?.[documentId] ||
+                change?.componentKey ||
                 ''
         )
 

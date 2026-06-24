@@ -31,6 +31,9 @@ class FakeView {
     /** @type {((change: { documentId: string, format: string }) => void | Promise<void>) | null} */
     #pcbAssemblyExportCallback
 
+    /** @type {((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null} */
+    #sessionAssetsResolvedCallback
+
     /** @type {{ fileName: string, bytes: Uint8Array, contentType?: string }[]} */
     downloadedArchives
 
@@ -49,6 +52,7 @@ class FakeView {
         this.#layerPresetCallback = null
         this.#selectedPartExportCallback = null
         this.#pcbAssemblyExportCallback = null
+        this.#sessionAssetsResolvedCallback = null
         this.downloadedArchives = []
         this.statuses = []
         this.exportProgressEvents = []
@@ -128,6 +132,14 @@ class FakeView {
      */
     bindPcbAssemblyExport(callback) {
         this.#pcbAssemblyExportCallback = callback
+    }
+
+    /**
+     * @param {(change: { documentModel?: object, sessionAssets?: object[] }) => void} callback
+     * @returns {void}
+     */
+    bindSessionAssetsResolved(callback) {
+        this.#sessionAssetsResolvedCallback = callback
     }
 
     /**
@@ -246,6 +258,14 @@ class FakeView {
      */
     async exportPcbAssembly(change) {
         await this.#pcbAssemblyExportCallback?.(change)
+    }
+
+    /**
+     * @param {{ documentModel?: object, sessionAssets?: object[] }} change Resolved assets change.
+     * @returns {void}
+     */
+    resolveSessionAssets(change) {
+        this.#sessionAssetsResolvedCallback?.(change)
     }
 }
 
@@ -590,6 +610,48 @@ test('AppController exports the selected part from sidebar controls', async () =
 })
 
 /**
+ * Verifies selected-part export prefers the current shared component selection
+ * over stale button metadata from a previously rendered sidebar.
+ */
+test('AppController exports the current selected part when export metadata is stale', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const exportRequests = []
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser(),
+        selectedPartExportService: {
+            async export(options) {
+                exportRequests.push(options)
+                return {
+                    archiveName:
+                        options.selectedComponentKey + '-kicad-part.zip',
+                    archiveBytes: new Uint8Array([1, 2, 3])
+                }
+            }
+        }
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+    state.setValue('selectedPcbComponents', {
+        [documentId]: 'XO1'
+    })
+
+    await view.exportSelectedPart({
+        documentId,
+        componentKey: 'XO2',
+        format: 'kicad'
+    })
+
+    assert.equal(exportRequests.length, 1)
+    assert.equal(exportRequests[0].selectedComponentKey, 'XO1')
+    assert.equal(view.downloadedArchives[0].fileName, 'XO1-kicad-part.zip')
+})
+
+/**
  * Verifies whole-PCB assembly export requests are resolved and downloaded.
  */
 test('AppController exports the active PCB assembly from sidebar controls', async () => {
@@ -605,12 +667,12 @@ test('AppController exports the active PCB assembly from sidebar controls', asyn
                 exportRequests.push(options)
                 options.onProgress?.({
                     value: 63,
-                    message: 'Writing STEP assembly'
+                    message: 'Writing GLB assembly'
                 })
                 return {
-                    fileName: 'alpha-assembly.step',
+                    fileName: 'alpha-assembly.glb',
                     bytes: new Uint8Array([4, 5, 6]),
-                    contentType: 'model/step',
+                    contentType: 'model/gltf-binary',
                     diagnostics: [
                         {
                             severity: 'warning',
@@ -637,11 +699,11 @@ test('AppController exports the active PCB assembly from sidebar controls', asyn
 
     await view.exportPcbAssembly({
         documentId,
-        format: 'step'
+        format: 'glb'
     })
 
     assert.equal(exportRequests.length, 1)
-    assert.equal(exportRequests[0].format, 'step')
+    assert.equal(exportRequests[0].format, 'glb')
     assert.equal(exportRequests[0].documentId, documentId)
     assert.equal(exportRequests[0].documentModel.fileName, 'alpha.PcbDoc')
     assert.equal(typeof exportRequests[0].onProgress, 'function')
@@ -650,13 +712,13 @@ test('AppController exports the active PCB assembly from sidebar controls', asyn
         'parts/body.wrl'
     )
     assert.deepEqual(view.downloadedArchives.at(-1), {
-        fileName: 'alpha-assembly.step',
+        fileName: 'alpha-assembly.glb',
         bytes: new Uint8Array([4, 5, 6]),
-        contentType: 'model/step'
+        contentType: 'model/gltf-binary'
     })
     assert.match(
         view.statuses.at(-1),
-        /Exported alpha-assembly\.step with 1 warning/
+        /Exported alpha-assembly\.glb with 1 warning/
     )
     assert.deepEqual(view.exportProgressEvents, [
         {
@@ -668,7 +730,7 @@ test('AppController exports the active PCB assembly from sidebar controls', asyn
         {
             type: 'update',
             value: 63,
-            message: 'Writing STEP assembly'
+            message: 'Writing GLB assembly'
         },
         { type: 'hide' }
     ])
@@ -731,6 +793,60 @@ test('AppController resolves missing model assets before selected part export', 
     assert.equal(
         state.getSnapshot().sessionAssets.at(-1).relativePath,
         '10103594.stp'
+    )
+})
+
+/**
+ * Verifies models fetched by the 3D view are retained for later exports.
+ */
+test('AppController stores 3D-resolved session assets for selected part export reuse', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const exportRequests = []
+    const resolvedAsset = {
+        name: 'J3.step',
+        relativePath: 'Package_FAKE.3dshapes/J3.step',
+        file: new Uint8Array([7, 8, 9]),
+        format: 'step'
+    }
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser(),
+        selectedPartExportService: {
+            async export(options) {
+                exportRequests.push(options)
+                return {
+                    archiveName: 'J3-kicad-part.zip',
+                    archiveBytes: new Uint8Array([1, 2, 3])
+                }
+            }
+        }
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const snapshot = state.getSnapshot()
+
+    view.resolveSessionAssets({
+        documentModel: snapshot.documentModel,
+        sessionAssets: [resolvedAsset]
+    })
+    await view.exportSelectedPart({
+        documentId: snapshot.activeDocumentId,
+        componentKey: 'J3',
+        format: 'kicad'
+    })
+
+    assert.equal(state.getSnapshot().sessionAssets.length, 1)
+    assert.equal(
+        state.getSnapshot().sessionAssets[0].relativePath,
+        'Package_FAKE.3dshapes/J3.step'
+    )
+    assert.equal(exportRequests.length, 1)
+    assert.equal(
+        exportRequests[0].sessionAssets[0].relativePath,
+        'Package_FAKE.3dshapes/J3.step'
     )
 })
 

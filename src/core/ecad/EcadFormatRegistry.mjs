@@ -48,6 +48,14 @@ export class EcadFormatRegistry {
             return { sourceFormat: 'kicad', fileType: 'kicad_pcb' }
         }
 
+        if (normalized.endsWith('.kicad_mod')) {
+            return { sourceFormat: 'kicad', fileType: 'kicad_mod' }
+        }
+
+        if (normalized.endsWith('.kicad_sym')) {
+            return { sourceFormat: 'kicad', fileType: 'kicad_sym' }
+        }
+
         if (EcadFormatRegistry.#isGerberFileName(normalized)) {
             return { sourceFormat: 'gerber', fileType: 'gerber' }
         }
@@ -83,6 +91,22 @@ export class EcadFormatRegistry {
             return 'step'
         }
 
+        if (normalized.endsWith('.glb')) {
+            return 'glb'
+        }
+
+        if (normalized.endsWith('.gltf')) {
+            return 'gltf'
+        }
+
+        if (normalized.endsWith('.stl')) {
+            return 'stl'
+        }
+
+        if (normalized.endsWith('.obj')) {
+            return 'obj'
+        }
+
         if (normalized.endsWith('.prjpcb')) {
             return 'altium-project'
         }
@@ -103,7 +127,48 @@ export class EcadFormatRegistry {
      * @returns {string}
      */
     static sourceFormatForDocument(documentModel) {
-        return String(documentModel?.sourceFormat || 'altium')
+        const sourceFormat = String(documentModel?.sourceFormat || '').trim()
+        if (sourceFormat) return sourceFormat
+        if (EcadFormatRegistry.#hasCompatibilityModel(documentModel)) {
+            return 'altium'
+        }
+        if (EcadFormatRegistry.#isElementArrayDocument(documentModel)) {
+            return 'circuitjson'
+        }
+        return 'altium'
+    }
+
+    /**
+     * Returns true when a parser has attached app-native schematic or PCB data.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {boolean}
+     */
+    static #hasCompatibilityModel(documentModel) {
+        return Boolean(
+            documentModel &&
+            typeof documentModel === 'object' &&
+            (documentModel.schematic || documentModel.pcb)
+        )
+    }
+
+    /**
+     * Returns true for serialized element-array document models.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {boolean}
+     */
+    static #isElementArrayDocument(documentModel) {
+        return (
+            Array.isArray(documentModel) &&
+            documentModel.some(
+                (element) =>
+                    element &&
+                    typeof element === 'object' &&
+                    typeof element.type === 'string' &&
+                    (element.type.startsWith('pcb_') ||
+                        element.type.startsWith('schematic_') ||
+                        element.type.startsWith('source_'))
+            )
+        )
     }
 
     /**

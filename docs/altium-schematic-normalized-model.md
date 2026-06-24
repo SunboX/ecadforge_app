@@ -103,7 +103,7 @@ Future features should prefer authored data where it exists and fall back to syn
 
 ### `sheetSymbols`
 
-```js
+```text
 {
     x,
     y,
@@ -123,7 +123,7 @@ Coordinates use authored schematic space. `y` is the authored top edge of the sy
 
 ### `sheetEntries`
 
-```js
+```text
 {
     ownerIndex,
     name,
@@ -146,7 +146,7 @@ Coordinates use authored schematic space. `y` is the authored top edge of the sy
 
 ### `junctions`
 
-```js
+```text
 {
     x,
     y,
@@ -159,7 +159,7 @@ These are authored `RECORD=29` junctions only.
 
 ### `busEntries`
 
-```js
+```text
 {
     x1,
     y1,
@@ -173,7 +173,7 @@ These are authored `RECORD=29` junctions only.
 
 ### `images`
 
-```js
+```text
 {
     x,
     y,
@@ -197,7 +197,7 @@ These are authored `RECORD=29` junctions only.
 
 ### `nets`
 
-```js
+```text
 {
     name,
     segments,
@@ -212,6 +212,48 @@ These are authored `RECORD=29` junctions only.
 ```
 
 `segments` is currently the grouped wire-segment list for one single-sheet net.
+
+### Net Geometry Diagnostics
+
+The app can derive read-only schematic net geometry diagnostics from the
+normalized `nets` collection without mutating the source document model.
+
+Diagnostics may report:
+
+- nets with no authored segment geometry but enough coordinate-bearing anchors
+  to sketch a fallback connection overlay
+- segment rows whose alternate coordinate forms disagree
+- segment rows with incomplete or non-finite coordinates
+- suspicious authored path shapes such as zero-length parts, tiny parts,
+  immediate backtracks, or excessive turns
+- disconnected islands within one net's authored segment geometry
+- coordinate-bearing anchors that are not connected to any authored segment
+- pin-like anchors placed outside the sheet, inside a symbol body, or away from
+  the expected symbol edge
+- colinear overlapping wire segments that belong to different nets
+- net label bounds that collide with unrelated net traces, other net labels,
+  or schematic body bounds
+- fallback connection segments that cross schematic body obstacles
+- trace paths that can be simplified or balanced without changing endpoints
+- clear trace-label detour, trace-anchored label, constrained label
+  orientation, power-label corner, and routing guideline opportunities
+- symbol body and pin-edge fit candidates when pin anchors and component
+  bounds disagree
+
+Diagnostic results include staged debug metadata, focused issue metadata for
+affected nets, anchors, labels, segments, obstacles, merged label obstacle
+groups, spatial index statistics, non-mutating candidate label bounds,
+non-mutating trace-anchored label bounds, rejected trace-anchored label
+candidate telemetry, constrained label-orientation candidates, power-label
+corner candidates, symbol-fit candidates, per-advisor candidate budgets,
+non-mutating jog suggestion paths for cross-net overlaps, trace-label detour
+candidates, path cleanup candidates, routing guideline overlays, and a compact
+issue repro export for regression tests or renderer debugging.
+
+Fallback connection, label-candidate, jog-candidate, trace-detour,
+path-cleanup, label-orientation, power-label, symbol-fit, and guideline
+overlays are visual debug aids only. They must not replace authored `segments`,
+parser connectivity, or renderer-owned source geometry.
 
 ## Stability Notes
 

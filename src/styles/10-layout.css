@@ -112,6 +112,7 @@ body.is-viewer-mode.is-viewer-report .app-shell {
 }
 
 .toolbar {
+    grid-column: 3;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -126,10 +127,11 @@ body.is-viewer-mode.is-viewer-report .app-shell {
 }
 
 .file-pill,
-.inline-field select {
+.inline-field {
+    min-height: 2.55rem;
     border: 1px solid var(--border);
     border-radius: 0.48rem;
-    padding: 0.64rem 0.95rem;
+    padding: 0 0.95rem;
     color: var(--muted);
     background: rgba(255, 255, 255, 0.74);
     box-shadow: 0 8px 18px rgba(35, 44, 50, 0.04);
@@ -202,13 +204,7 @@ body.is-viewer-mode.is-viewer-report .app-shell {
 }
 
 .inline-field {
-    min-height: 2.85rem;
-    padding: 0 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.48rem;
     color: #263a4a;
-    background: rgba(255, 255, 255, 0.74);
-    box-shadow: 0 8px 18px rgba(35, 44, 50, 0.04);
 }
 
 .inline-field select {
@@ -218,6 +214,10 @@ body.is-viewer-mode.is-viewer-report .app-shell {
     background: transparent;
     box-shadow: none;
     cursor: pointer;
+}
+
+.inline-field select:focus {
+    outline: none;
 }
 
 .status {
@@ -362,7 +362,7 @@ body.is-viewer-mode.is-viewer-report .app-shell {
 .file-pill:focus-visible,
 .inline-field:focus-within,
 .brand-lockup:focus-visible,
-.github-open input:focus-visible,
+.github-open__input-wrap:focus-within,
 .github-open button:focus-visible,
 .view-tab:focus-visible,
 .icon-link:focus-visible {
@@ -404,6 +404,7 @@ body.is-viewer-mode.is-viewer-report .app-shell {
     }
 
     .toolbar {
+        grid-column: 1;
         width: 100%;
         justify-content: flex-start;
     }

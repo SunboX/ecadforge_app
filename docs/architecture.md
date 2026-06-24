@@ -12,6 +12,7 @@
 - `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation, view, and WebMCP method-usage events without file names, raw URLs, contents, or WebMCP payload data
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
+- `src/core/simulation/*.mjs`: local SPICE simulation worker client and message contract
 - `src/core/webmcp/*.mjs`: browser-native WebMCP adapter plus read-only loaded-session dispatch to toolkit-owned netlist query services
 - `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
 - `altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
@@ -24,11 +25,12 @@
 - `gerber-toolkit/parser`: Gerber/Excellon project loading, fabrication ZIP expansion, source-layer classification, and normalized fabrication models
 - `gerber-toolkit/renderers`: deterministic Gerber PCB SVG rendering and PCB interaction helpers
 - `gerber-toolkit/scene3d`: bare-board Gerber 3D scene-description builders from outline, copper, pad, and drill fabrication geometry
-- `circuitjson-toolkit`: CircuitJSON parsing for standards-native board and assembly data
+- `circuitjson-toolkit`: CircuitJSON parsing and local SPICE transient graph helpers for standards-native board, assembly, and simulation data
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
 - `src/workers/ecad-parser.worker.mjs`: parser offload worker
+- `src/workers/spice-simulation.worker.mjs`: local SPICE simulation offload worker
 - `src/server.mjs`: local static server and metadata endpoints
 - `src/StaticDeployBuilder.mjs`: Apache/shared-hosting artifact builder that rewrites static assets before FTP upload
 - `scripts/build-static-deploy.mjs`: CLI wrapper that writes `.deploy-src/`
@@ -44,7 +46,7 @@ The current parser is intentionally pragmatic:
 3. Parse pipe-delimited Altium-style key/value records, KiCad 9 S-expressions, Gerber/Excellon commands, or CircuitJSON objects from those sources
 4. Normalize the recovered data into one shared viewer model with `sourceFormat` as an additive discriminator
 5. Build additive schematic hierarchy, embedded-image, BOM, and connectivity metadata where supported
-6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model
+6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model. Schematic net diagnostics stay read-only and can emit staged geometry checks, restricted centerline crossings, supplemental island connection candidates, guideline-snapped elbow candidates, endpoint-preserving jog candidates, balanced path-cleanup candidates, label placement rejection reasons, constrained label-orientation and power-label corner candidates, symbol body and pin-fit candidates, per-advisor candidate budgets, and semantic same-side label groups. The PCB tab uses deterministic SVG renderers for normalized native boards, Gerber fabrication data, and standards-shaped element-array boards, including rich detail artwork, in-board diagnostics, source-connectivity rats-nest overlays, trace-length budget labels, solder-mask/paste inspection layers, group outlines, and anchor-offset overlays, then applies app-local layer visibility, object opacity, component highlight, net hover/selection highlight, diagnostic focus navigation, and copyable measurement overlays.
 
 This is still not full binary reconstruction. It is a browser-first recovery strategy that mixes printable record parsing with targeted OLE stream access where the format clearly requires it, such as embedded schematic images, embedded PCB STEP payloads, and richer PCB stream recovery.
 
@@ -55,10 +57,11 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium, KiCad, Gerber, or CircuitJSON toolkit
 4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
 5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
-6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, and mounts the interactive 3D controller when needed
-7. The app uses `EcadScene3dService` to choose the Altium, KiCad, Gerber, or CircuitJSON scene-description path. Gerber documents render as fabrication-derived bare boards without component bodies. The local 3D runtime resolves embedded STEP payloads from the normalized PCB model first, falls back to companion `WRL`/`STEP` assets from the active session or GitHub project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy. Whole-board assembly export reuses the same scene-description and model-resolution path, then writes mesh-derived STEP B-rep or WRL geometry for the board substrate, copper, silkscreen, pads, vias, and resolved component models.
+6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, mounts the 2D PCB interaction controller for board selection and measurements, and mounts the interactive 3D controller when needed
+7. The app uses `EcadScene3dService` to choose the Altium, KiCad, Gerber, or CircuitJSON scene-description path. Gerber documents render as fabrication-derived bare boards without component bodies. The local 3D runtime resolves embedded STEP payloads from the normalized PCB model first, falls back to companion STEP, WRL, GLB, GLTF, STL, or OBJ assets from the active session or GitHub project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy. Whole-board assembly export reuses the same scene-description and model-resolution path, then writes mesh-derived STEP B-rep, WRL, GLTF, or GLB geometry for the board substrate, copper, silkscreen, pads, vias, resolved component models, and fallback bodies for unresolved models; mesh imports preserve translucent material alpha and OBJ sidecar material colors, and GLTF/GLB exports attach rendered top and bottom PCB artwork as configurable board-face textures when the active document can render PCB views.
 8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
-9. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
+9. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
+10. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## WebMCP
 

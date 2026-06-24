@@ -326,7 +326,7 @@ export class AppState {
     /**
      * Normalizes session companion assets.
      * @param {unknown} value
-     * @returns {{ name: string, relativePath: string, file: any, format: string }[]}
+     * @returns {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string }[]}
      */
     static #sanitizeSessionAssets(value) {
         if (!Array.isArray(value)) {
@@ -349,8 +349,22 @@ export class AppState {
                 name: entry.name,
                 relativePath: entry.relativePath,
                 file: entry.file,
-                format: entry.format
+                format: entry.format,
+                ...AppState.#optionalSessionAssetTextFields(entry)
             }))
+    }
+
+    /**
+     * Preserves optional model asset metadata used by downstream renderers.
+     * @param {object} entry Session asset entry.
+     * @returns {{ source?: string, sourceUrl?: string, componentKey?: string }}
+     */
+    static #optionalSessionAssetTextFields(entry) {
+        return Object.fromEntries(
+            ['source', 'sourceUrl', 'componentKey']
+                .map((key) => [key, String(entry?.[key] || '').trim()])
+                .filter(([_key, value]) => value)
+        )
     }
 
     /**

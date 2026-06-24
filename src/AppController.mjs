@@ -14,6 +14,7 @@ import { GitHubParsePlan } from './GitHubParsePlan.mjs'
 import { AppControllerPcbStateHandlers } from './AppControllerPcbStateHandlers.mjs'
 import { AppControllerSelectedPartExport } from './AppControllerSelectedPartExport.mjs'
 import { AppControllerPcbAssemblyExport } from './AppControllerPcbAssemblyExport.mjs'
+import { AppControllerSessionAssetHandler } from './AppControllerSessionAssetHandler.mjs'
 import { SelectedPartExportService } from './core/SelectedPartExportService.mjs'
 import { PcbAssemblyExportService } from './core/PcbAssemblyExportService.mjs'
 import { PcbStylerLinkState } from './PcbStylerLinkState.mjs'
@@ -188,10 +189,14 @@ export class AppController {
             })
         })
         this.#view.bindModelSearchPreferenceChange?.((enabled) => {
-            AppControllerModelSearchPreferenceHandler.handle(
+            void AppControllerModelSearchPreferenceHandler.handle(
                 enabled,
-                this.#state
+                this.#state,
+                this.#modelSearchService
             )
+        })
+        this.#view.bindSessionAssetsResolved?.((change) => {
+            AppControllerSessionAssetHandler.handle(change, this.#state)
         })
         this.#view.bindDemoSelection?.((demoId) => this.#loadDemo(demoId))
         this.#view.bindHomeNavigation?.(() => this.#handleHomeNavigation())

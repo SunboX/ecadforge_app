@@ -126,17 +126,23 @@ class BatchParser {
     /** @type {object} */
     #result
 
+    /** @type {string[]} */
+    seenNames
+
     /**
      * @param {object} result Parser result.
      */
     constructor(result) {
         this.#result = result
+        this.seenNames = []
     }
 
     /**
+     * @param {{ name: string }[]} entries Parser entries.
      * @returns {object}
      */
-    parseEntries() {
+    parseEntries(entries) {
+        this.seenNames = (entries || []).map((entry) => entry.name)
         return this.#result
     }
 }
@@ -203,6 +209,23 @@ function createPcbDocument(fileName, sourceFormat = 'kicad') {
 }
 
 /**
+ * Builds a normalized KiCad library document model stub.
+ * @param {string} fileName Source filename.
+ * @returns {object}
+ */
+function createLibraryDocument(fileName) {
+    return {
+        fileName,
+        sourceFormat: 'kicad',
+        kind: fileName.endsWith('.kicad_mod')
+            ? 'footprint-library'
+            : 'symbol-library',
+        diagnostics: [],
+        bom: []
+    }
+}
+
+/**
  * Restores a global property descriptor after a test override.
  * @param {string} key Global property name.
  * @param {PropertyDescriptor | undefined} descriptor Original descriptor.
@@ -262,6 +285,40 @@ test('AppController prefers KiCad source boards over Gerber archives in folder b
 
     assert.equal(snapshot.activeView, 'pcb')
     assert.equal(snapshot.activeFileName, 'Project/main.kicad_pcb')
+})
+
+/**
+ * Verifies standalone KiCad library files are parsed as local documents.
+ */
+test('AppController opens standalone KiCad library files from local selection', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const parser = new BatchParser({
+        documents: [createLibraryDocument('Project/libs/R_0603.kicad_mod')],
+        assets: []
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        analytics: new NoopAnalytics()
+    })
+
+    await controller.init()
+    await view.chooseFiles([
+        new FakeFile(
+            'R_0603.kicad_mod',
+            new ArrayBuffer(1),
+            'Project/libs/R_0603.kicad_mod'
+        )
+    ])
+
+    const snapshot = state.getSnapshot()
+
+    assert.deepEqual(parser.seenNames, ['Project/libs/R_0603.kicad_mod'])
+    assert.equal(snapshot.documents.length, 1)
+    assert.equal(snapshot.activeFileName, 'Project/libs/R_0603.kicad_mod')
+    assert.equal(snapshot.activeView, 'diagnostics')
 })
 
 /**

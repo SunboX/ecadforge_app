@@ -1,3 +1,5 @@
+import { PcbInteractionPrimitiveModel } from './PcbInteractionPrimitiveModel.mjs'
+
 /**
  * Resolves schematic and PCB net selection state shared by sidebar and views.
  */
@@ -156,9 +158,16 @@ export class NetSelectionModel {
      */
     static resolveDocumentNetNames(documentModel) {
         return [
-            ...NetSelectionModel.#explicitNetNames(documentModel),
-            ...NetSelectionModel.#primitiveNetNames(documentModel)
-        ].filter(Boolean)
+            ...new Set(
+                [
+                    ...NetSelectionModel.#explicitNetNames(documentModel),
+                    ...NetSelectionModel.#primitiveNetNames(documentModel),
+                    ...NetSelectionModel.#interactionPrimitiveNetNames(
+                        documentModel
+                    )
+                ].filter(Boolean)
+            )
+        ]
     }
 
     /**
@@ -230,6 +239,21 @@ export class NetSelectionModel {
             .flatMap((items) => (Array.isArray(items) ? items : []))
             .map((item) => NetSelectionModel.#primitiveNetName(item))
             .filter(Boolean)
+    }
+
+    /**
+     * Returns net names from the shared PCB primitive model.
+     * @param {any} documentModel Document model.
+     * @returns {string[]}
+     */
+    static #interactionPrimitiveNetNames(documentModel) {
+        try {
+            return PcbInteractionPrimitiveModel.build(documentModel).nets.map(
+                (net, index) => NetSelectionModel.resolveNetKey(net, index)
+            )
+        } catch (_error) {
+            return []
+        }
     }
 
     /**

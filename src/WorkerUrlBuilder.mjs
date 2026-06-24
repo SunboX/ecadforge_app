@@ -34,4 +34,21 @@ export class WorkerUrlBuilder {
         workerUrl.searchParams.set('v', String(cacheKey || '0'))
         return workerUrl
     }
+
+    /**
+     * Resolves the SPICE simulation worker module path relative to one entry
+     * module URL.
+     * @param {string} entryModuleUrl
+     * @param {string} cacheKey
+     * @returns {URL}
+     */
+    static buildSpiceSimulationWorkerUrl(entryModuleUrl, cacheKey) {
+        const workerUrl = new URL(
+            './workers/spice-simulation.worker.mjs',
+            entryModuleUrl
+        )
+
+        workerUrl.searchParams.set('v', String(cacheKey || '0'))
+        return workerUrl
+    }
 }

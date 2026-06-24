@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { CircuitJsonDocument } from 'circuitjson-toolkit'
 import { unzipSync } from 'fflate'
 import {
     PcbLibModelParser,
@@ -335,6 +336,29 @@ test('SelectedPartExportService exports a selected part as CircuitJSON ZIP', asy
         textEntry(zip, 'circuitjson/QFN.circuit.json'),
         /source_component/
     )
+
+    const circuitJson = JSON.parse(
+        textEntry(zip, 'circuitjson/QFN.circuit.json')
+    )
+    assert.deepEqual(CircuitJsonDocument.validateModel(circuitJson), [])
+    const elementByType = new Map(
+        circuitJson.map((element) => [element.type, element])
+    )
+
+    assert.deepEqual(
+        elementByType.get('source_component').supplier_part_numbers,
+        {}
+    )
+    assert.equal(elementByType.get('source_component').ftype, 'simple_chip')
+    assert.deepEqual(elementByType.get('schematic_component').size, {
+        width: 2.54,
+        height: 2.54
+    })
+    assert.equal(elementByType.get('pcb_component').layer, 'top')
+    assert.equal(elementByType.get('pcb_component').width, 1)
+    assert.equal(elementByType.get('pcb_component').height, 1)
+    assert.equal(elementByType.get('source_port').pin_number, 1)
+    assert.equal(elementByType.get('pcb_smtpad').shape, 'rect')
 })
 
 /**
@@ -365,6 +389,13 @@ test('SelectedPartExportService exports KiCad and Altium ZIP entries', async () 
 
     assert.ok(kicadZip['kicad/QFN.kicad_sym'])
     assert.ok(kicadZip['kicad/QFN.kicad_mod'])
+    assert.ok(kicadZip['kicad/project/QFN.kicad_pro'])
+    assert.ok(kicadZip['kicad/project/QFN.kicad_sch'])
+    assert.ok(kicadZip['kicad/project/QFN.kicad_pcb'])
+    assert.ok(kicadZip['kicad/project/fp-lib-table'])
+    assert.ok(kicadZip['kicad/project/sym-lib-table'])
+    assert.ok(kicadZip['kicad/project/QFN.kicad_sym'])
+    assert.ok(kicadZip['kicad/project/QFN.pretty/QFN.kicad_mod'])
     assert.ok(altiumZip['altium/QFN.SchLib'])
     assert.ok(altiumZip['altium/QFN.PcbLib'])
     assert.ok(altiumZip['source/source.json'])
@@ -482,6 +513,44 @@ test('SelectedPartExportService includes the selected 3D model asset', async () 
 })
 
 /**
+ * Verifies KiCad selected-part exports attach packaged 3D models to the
+ * generated footprint.
+ */
+test('SelectedPartExportService references packaged 3D models from KiCad footprints', async () => {
+    const service = new SelectedPartExportService()
+    const documentModel = createDocumentModel('U3')
+    documentModel.pcb.components[0].modelName = 'body.step'
+    documentModel.pcb.components[0].modelPath = '${KIPRJMOD}/parts/body.step'
+
+    const result = await service.export({
+        format: 'kicad',
+        documentModel,
+        selectedComponentKey: 'U3',
+        sessionAssets: [
+            {
+                name: 'body.step',
+                relativePath: 'parts/body.step',
+                format: 'step',
+                file: new Uint8Array([1, 2, 3])
+            }
+        ]
+    })
+    const zip = unzipSync(result.archiveBytes)
+    const footprintText = textEntry(zip, 'kicad/QFN.kicad_mod')
+
+    assert.deepEqual([...zip['models/QFN.step']], [1, 2, 3])
+    assert.deepEqual([...zip['kicad/project/models/QFN.step']], [1, 2, 3])
+    assert.match(footprintText, /\(model "\.\.\/models\/QFN\.step"/)
+    assert.match(
+        textEntry(zip, 'kicad/project/QFN.pretty/QFN.kicad_mod'),
+        /\(model "\$\{KIPRJMOD\}\/models\/QFN\.step"/
+    )
+    assert.match(footprintText, /\(offset \(xyz 0 0 0\)\)/)
+    assert.match(footprintText, /\(scale \(xyz 1 1 1\)\)/)
+    assert.match(footprintText, /\(rotate \(xyz 0 0 0\)\)/)
+})
+
+/**
  * Verifies selected-part exports include the generated stitched component
  * model for the selected designator, without adding unrelated stitched parts.
  */
@@ -514,7 +583,72 @@ test('SelectedPartExportService includes the selected stitched component STEP', 
             manifest.files.includes('models/Stacked_A-stitched.step'),
             format
         )
+        if (format === 'kicad') {
+            const footprintText = textEntry(zip, 'kicad/Stacked_A.kicad_mod')
+            assert.match(
+                footprintText,
+                /\(model "\.\.\/models\/Stacked_A-stitched\.step"/
+            )
+            assert.match(footprintText, /\(rotate \(xyz -90 0 0\)\)/)
+        }
     }
+})
+
+/**
+ * Verifies generated stitched STEP files are rotated back into the selected
+ * footprint's local KiCad coordinate frame.
+ */
+test('SelectedPartExportService rotates stitched KiCad models into footprint frame', async () => {
+    const service = new SelectedPartExportService({
+        modelMeshLoader: createStitchedModelMeshLoader()
+    })
+    const documentModel = createDocumentModel('XO2')
+    documentModel.schematic.components[0].footprint = 'Package:Stacked_A'
+    documentModel.pcb.components[0].pattern = 'Package:Stacked_A'
+    documentModel.pcb.components[0].rotation = 270
+
+    const result = await service.export({
+        format: 'kicad',
+        documentModel,
+        selectedComponentKey: 'XO2',
+        sceneDescription: createStitchedSceneDescription()
+    })
+    const zip = unzipSync(result.archiveBytes)
+    const footprintText = textEntry(zip, 'kicad/Stacked_A.kicad_mod')
+
+    assert.match(footprintText, /\(rotate \(xyz -90 0 90\)\)/)
+})
+
+/**
+ * Verifies generated stitched STEP files are placed in Altium footprints using
+ * the same local footprint-frame correction.
+ */
+test('SelectedPartExportService places stitched Altium models into footprint frame', async () => {
+    const service = new SelectedPartExportService({
+        modelMeshLoader: createStitchedModelMeshLoader()
+    })
+    const documentModel = createDocumentModel('XO2')
+    documentModel.schematic.components[0].footprint = 'Package:Stacked_A'
+    documentModel.pcb.components[0].pattern = 'Package:Stacked_A'
+    documentModel.pcb.components[0].rotation = 270
+
+    const result = await service.export({
+        format: 'altium',
+        documentModel,
+        selectedComponentKey: 'XO2',
+        sceneDescription: createStitchedSceneDescription()
+    })
+    const zip = unzipSync(result.archiveBytes)
+    const pcbModel = PcbLibModelParser.parse(
+        'Stacked_A.PcbLib',
+        PcbLibStreamExtractor.extractFromArrayBuffer(
+            toArrayBuffer(zip['altium/Stacked_A.PcbLib'])
+        )
+    )
+    const body = pcbModel.pcbLibrary.componentBodies[0]
+
+    assert.equal(body.name, 'Stacked_A-stitched.step')
+    assert.deepEqual(body.modelRotationDeg, { x: -90, y: 0, z: 90 })
 })
 
 /**

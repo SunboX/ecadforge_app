@@ -12,11 +12,11 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Bundled Altium and KiCad demo projects with preserved third-party license notices
 - GitHub raw/blob URL loading for supported ECAD files, Gerber/Excellon files, CircuitJSON JSON, and KiCad project triplets
 - Schematic SVG view derived from recovered record geometry, text, symbols, and highlightable nets
-- PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, and highlightable nets where available
+- PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, diagnostic navigation, optional rats-nest connectivity, trace-length budget labels, solder-mask/paste inspection layers, group/anchor-offset overlays, copyable measurements, and highlightable nets where available
 - BOM grouping from recovered component metadata
-- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup, opt-in missing-model search, and single-file PCB assembly export as STEP or WRL with board, copper, silkscreen, pads, vias, and resolved 3D components
+- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup for STEP, WRL, GLB, GLTF, STL, and OBJ assets, opt-in missing-model search, and single-file PCB assembly export as STEP, WRL, GLTF, or GLB with board, copper, silkscreen, pads, vias, resolved or fallback 3D components, OBJ sidecar material colors, translucent model materials, and configurable board-face artwork textures for GLTF/GLB downloads
 - Browser-native WebMCP tools for querying designs already loaded in the current session
-- Worker-backed parse flow with main-thread fallback
+- Worker-backed parse flow with main-thread fallback and a local SPICE simulation worker boundary that returns CircuitJSON experiment output
 - Runtime language switching with browser detection and Brazilian Portuguese support
 - Shared parser, renderer, and non-interactive scene-data cores from `altium-toolkit`, `kicad-toolkit`, `gerber-toolkit`, and `circuitjson-toolkit`
 - Local Express dev server in `src/server.mjs`
@@ -26,12 +26,14 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `altium-toolkit`: printable-record extraction, normalized Altium parsers, schematic SVG, PCB SVG, BOM HTML, and complete non-interactive 3D scene-description utilities
 - `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, schematic/PCB normalization, BOM generation, renderers, and complete data-only 3D scene helpers
 - `gerber-toolkit`: Gerber/Excellon project loading, ZIP expansion, fabrication-layer normalization, deterministic SVG rendering, bare-board 3D scene data, and PCB interaction helpers
-- `circuitjson-toolkit`: CircuitJSON document loading for standards-native board and assembly data
+- `circuitjson-toolkit`: CircuitJSON document loading plus local SPICE transient experiment helpers for standards-native board, assembly, and simulation data
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
+- `src/core/simulation/`: app-owned simulation worker client and message handler
 - `src/core/webmcp/`: read-only loaded-session WebMCP adapter, tool registry, and toolkit-backed netlist query dispatcher
 - `src/demo/`: bundled demo project files plus source and license notices
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
+- `src/workers/spice-simulation.worker.mjs`: off-main-thread local SPICE transient simulation
 - `scripts/build-static-deploy.mjs`: Apache/shared-hosting frontend artifact builder
 - `tests/`: app state, server, interaction, and structure tests
 - `docs/`: architecture, setup, testing, security, troubleshooting

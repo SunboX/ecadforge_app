@@ -611,7 +611,17 @@ export class EcadParserService {
 
         const companionFormat =
             EcadFormatRegistry.resolveCompanionFormat(fileName)
-        if (['kicad-library', 'step', 'wrl'].includes(companionFormat)) {
+        if (
+            [
+                'kicad-library',
+                'step',
+                'wrl',
+                'glb',
+                'gltf',
+                'stl',
+                'obj'
+            ].includes(companionFormat)
+        ) {
             return true
         }
 

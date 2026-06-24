@@ -28,7 +28,19 @@
     stroke-width: 0.54;
 }
 
+.pcb-svg--circuitjson .pcb-board {
+    fill: var(--pcb-board-fill);
+    stroke: var(--pcb-board-stroke);
+    stroke-width: 0.06;
+    vector-effect: non-scaling-stroke;
+}
+
 .pcb-svg--kicad .pcb-zone {
+    fill: var(--pcb-surface-fill);
+    stroke: none;
+}
+
+.pcb-svg--circuitjson .pcb-copper--surface .pcb-zone {
     fill: var(--pcb-surface-fill);
     stroke: none;
 }
@@ -53,6 +65,11 @@
     opacity: 0.94;
 }
 
+.pcb-svg--circuitjson .pcb-copper--surface .pcb-track {
+    stroke: var(--pcb-surface-track-color);
+    opacity: 0.94;
+}
+
 .pcb-svg--kicad .pcb-zone[data-layer='B.Cu'] {
     fill: var(--pcb-subsurface-fill);
 }
@@ -65,6 +82,10 @@
     fill: var(--pcb-subsurface-fill);
 }
 
+.pcb-svg--circuitjson .pcb-copper--subsurface .pcb-zone {
+    fill: var(--pcb-subsurface-fill);
+}
+
 .pcb-svg--kicad line.pcb-segment[data-layer='B.Cu'],
 .pcb-svg--kicad path.pcb-arc[data-layer='B.Cu'],
 .pcb-svg--kicad .pcb-drawing--copper[data-layer='B.Cu'] {
@@ -73,6 +94,11 @@
 }
 
 .pcb-svg--gerber .pcb-copper--subsurface .pcb-track {
+    stroke: var(--pcb-subsurface-track-color);
+    opacity: 0.78;
+}
+
+.pcb-svg--circuitjson .pcb-copper--subsurface .pcb-track {
     stroke: var(--pcb-subsurface-track-color);
     opacity: 0.78;
 }
@@ -98,6 +124,14 @@
     fill: var(--pcb-copper-solid-fill);
     stroke: var(--pcb-surface-track-color);
     opacity: 0.96;
+}
+
+.pcb-svg--circuitjson :is(circle, rect, polygon).pcb-pad {
+    fill: var(--pcb-copper-solid-fill);
+    stroke: var(--pcb-surface-track-color);
+    stroke-width: 0.04;
+    opacity: 0.96;
+    vector-effect: non-scaling-stroke;
 }
 
 .pcb-svg--gerber .pcb-pad {
@@ -127,9 +161,24 @@
     opacity: 1;
 }
 
+.pcb-svg--circuitjson .pcb-via {
+    fill: var(--pcb-via-ring-fill);
+    stroke: var(--pcb-surface-track-color);
+    stroke-width: 0.04;
+    opacity: 1;
+    vector-effect: non-scaling-stroke;
+}
+
 .pcb-svg--kicad :is(.pcb-via-drill, .pcb-pad-drill) {
     fill: var(--pcb-via-hole-fill);
     stroke: rgba(255, 255, 255, 0.72);
+}
+
+.pcb-svg--circuitjson .pcb-via__hole {
+    fill: var(--pcb-via-hole-fill);
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 0.03;
+    vector-effect: non-scaling-stroke;
 }
 
 .pcb-svg--gerber .pcb-via-drill {
@@ -147,4 +196,234 @@
 .pcb-svg--kicad .pcb-label {
     stroke: var(--pcb-component-text);
     opacity: 0.88;
+}
+
+.pcb-svg--circuitjson .pcb-label {
+    fill: var(--pcb-component-text);
+    font-size: 0.42px;
+    font-weight: 700;
+    opacity: 0.9;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.7);
+    stroke-linejoin: round;
+    stroke-width: 0.08;
+}
+
+.pcb-svg--circuitjson .pcb-copper-text {
+    fill: rgba(185, 82, 44, 0.92);
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-linejoin: round;
+    stroke-width: 0.06;
+}
+
+.pcb-svg--circuitjson .pcb-silkscreen {
+    fill: rgba(65, 86, 104, 0.12);
+    stroke: rgba(65, 86, 104, 0.82);
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson text.pcb-silkscreen {
+    fill: rgba(65, 86, 104, 0.9);
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 0.05;
+}
+
+.pcb-svg--circuitjson .pcb-fabrication {
+    fill: rgba(40, 125, 116, 0.1);
+    stroke: rgba(40, 125, 116, 0.72);
+    stroke-dasharray: 0.18 0.12;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson text.pcb-fabrication {
+    fill: rgba(40, 125, 116, 0.82);
+    stroke: rgba(255, 255, 255, 0.66);
+    stroke-dasharray: none;
+    stroke-width: 0.05;
+}
+
+.pcb-svg--circuitjson .pcb-courtyard {
+    fill: none;
+    stroke: rgba(50, 115, 172, 0.72);
+    stroke-dasharray: 0.16 0.1;
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-keepout {
+    fill: rgba(210, 70, 70, 0.1);
+    stroke: rgba(210, 70, 70, 0.74);
+    stroke-dasharray: 0.14 0.1;
+    stroke-width: 0.04;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-cutout {
+    fill: rgba(248, 245, 239, 0.95);
+    stroke: rgba(66, 93, 112, 0.62);
+    stroke-width: 0.045;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-note {
+    fill: rgba(82, 92, 116, 0.08);
+    stroke: rgba(82, 92, 116, 0.64);
+    stroke-dasharray: 0.12 0.09;
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-dimension {
+    fill: rgba(45, 96, 150, 0.9);
+    stroke: rgba(45, 96, 150, 0.72);
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-dimension text {
+    fill: rgba(45, 96, 150, 0.92);
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.72);
+    stroke-width: 0.045;
+}
+
+.pcb-svg--circuitjson .pcb-solder-mask {
+    fill: rgba(47, 132, 95, 0.14);
+    stroke: rgba(47, 132, 95, 0.72);
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-solder-paste {
+    fill: rgba(132, 118, 58, 0.18);
+    stroke: rgba(132, 118, 58, 0.76);
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-thermal-spoke {
+    stroke: rgba(112, 86, 154, 0.72);
+    stroke-dasharray: 0.12 0.08;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-route-hint {
+    stroke: rgba(27, 143, 180, 0.58);
+    stroke-dasharray: 0.18 0.12;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-breakout-point {
+    fill: rgba(27, 143, 180, 0.2);
+    stroke: rgba(27, 143, 180, 0.78);
+    stroke-width: 0.04;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-panel-outline {
+    fill: none;
+    stroke: rgba(96, 106, 121, 0.72);
+    stroke-dasharray: 0.22 0.14;
+    stroke-width: 0.05;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-ratsnest-line {
+    fill: none;
+    stroke: rgba(27, 143, 180, 0.62);
+    stroke-dasharray: 0.12 0.14;
+    stroke-linecap: round;
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-diagnostic-marker {
+    fill: rgba(220, 75, 55, 0.16);
+    stroke: rgba(220, 75, 55, 0.92);
+    stroke-linecap: round;
+    stroke-width: 0.05;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-diagnostic-marker--warning {
+    fill: rgba(200, 145, 50, 0.16);
+    stroke: rgba(200, 145, 50, 0.92);
+}
+
+.pcb-svg--circuitjson .pcb-diagnostic-marker.is-focused {
+    fill: rgba(27, 143, 180, 0.26);
+    stroke: rgba(27, 143, 180, 0.98);
+    stroke-width: 0.08;
+}
+
+.pcb-svg--circuitjson .pcb-group-outline {
+    fill: rgba(27, 143, 180, 0.04);
+    stroke: rgba(27, 143, 180, 0.58);
+    stroke-dasharray: 0.22 0.12;
+    stroke-width: 0.04;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-anchor-offset {
+    stroke: rgba(105, 87, 33, 0.58);
+    stroke-dasharray: 0.1 0.1;
+    stroke-width: 0.035;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-anchor-offset__endpoint {
+    fill: rgba(105, 87, 33, 0.86);
+    stroke: rgba(255, 255, 255, 0.82);
+    stroke-width: 0.025;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-trace-length-label {
+    fill: rgba(36, 65, 80, 0.92);
+    font-size: 0.28px;
+    font-weight: 700;
+    paint-order: stroke;
+    pointer-events: none;
+    stroke: rgba(255, 255, 255, 0.82);
+    stroke-linejoin: round;
+    stroke-width: 0.06;
+}
+
+.pcb-svg--circuitjson .pcb-trace-length-label--over-limit {
+    fill: rgba(190, 55, 50, 0.96);
+}
+
+.pcb-svg--circuitjson .pcb-measurement-snap-target {
+    fill: rgba(255, 255, 255, 0.86);
+    stroke: rgba(27, 143, 180, 0.82);
+    stroke-width: 0.025;
+    vector-effect: non-scaling-stroke;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-copy-host {
+    overflow: visible;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-copy {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(27, 143, 180, 0.42);
+    border-radius: 4px;
+    color: rgba(36, 65, 80, 0.94);
+    display: inline-flex;
+    height: 18px;
+    justify-content: center;
+    padding: 0;
+    width: 18px;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-copy svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.6;
 }

@@ -297,7 +297,11 @@ export class DocumentRailRenderer {
         }
 
         if (activeView === 'pcb') {
-            return Boolean(documentModel?.pcb)
+            return (
+                Boolean(documentModel?.pcb) ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+                    'circuitjson'
+            )
         }
 
         if (activeView === '3d') {

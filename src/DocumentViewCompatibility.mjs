@@ -16,11 +16,21 @@ export class DocumentViewCompatibility {
         }
 
         if (viewName === 'schematic') {
-            return Boolean(documentModel.schematic)
+            return (
+                Boolean(documentModel.schematic) ||
+                DocumentViewCompatibility.#hasElementPrefix(
+                    documentModel,
+                    'schematic_'
+                )
+            )
         }
 
         if (viewName === 'pcb') {
-            return Boolean(documentModel.pcb)
+            return (
+                Boolean(documentModel.pcb) ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+                    'circuitjson'
+            )
         }
 
         if (viewName === '3d') {
@@ -74,5 +84,27 @@ export class DocumentViewCompatibility {
         }
 
         return preferredDocumentId || documents[0]?.id || ''
+    }
+
+    /**
+     * Returns true when a standards-shaped element array has a type prefix.
+     * @param {object | object[]} documentModel Document model.
+     * @param {string} prefix Element type prefix.
+     * @returns {boolean}
+     */
+    static #hasElementPrefix(documentModel, prefix) {
+        if (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) !==
+            'circuitjson'
+        ) {
+            return false
+        }
+
+        const elements = Array.isArray(documentModel)
+            ? documentModel
+            : documentModel.elements || documentModel.circuitJson || []
+        return elements.some((element) =>
+            String(element?.type || '').startsWith(prefix)
+        )
     }
 }

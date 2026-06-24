@@ -121,6 +121,10 @@
     background: rgba(255, 255, 255, 0.78);
 }
 
+.github-open__input-wrap:focus-within {
+    border-color: rgba(15, 116, 108, 0.42);
+}
+
 .github-open__input-wrap .icon {
     width: 1rem;
     height: 1rem;

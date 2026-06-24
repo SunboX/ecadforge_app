@@ -32,3 +32,18 @@ test('buildScene3dWorkerUrl appends a cache-busting key', () => {
         'http://localhost:3000/workers/pcb-scene3d.worker.mjs?v=12345'
     )
 })
+
+/**
+ * Verifies SPICE simulation worker URLs get the same cache-busting key.
+ */
+test('buildSpiceSimulationWorkerUrl appends a cache-busting key', () => {
+    const workerUrl = WorkerUrlBuilder.buildSpiceSimulationWorkerUrl(
+        'http://localhost:3000/main.mjs',
+        '12345'
+    )
+
+    assert.equal(
+        workerUrl.href,
+        'http://localhost:3000/workers/spice-simulation.worker.mjs?v=12345'
+    )
+})

@@ -1,3 +1,5 @@
+import { SelectedPartKicadModelNodeBuilder } from './SelectedPartKicadModelNodeBuilder.mjs'
+
 /**
  * Builds KiCad S-expression nodes from normalized selected-part data.
  */
@@ -12,9 +14,10 @@ export class SelectedPartKicadExportAdapter {
      * Returns a selected-part bundle with KiCad raw nodes when possible.
      * @param {object} selectedPart Selected part bundle.
      * @param {string} partName Export artifact name.
+     * @param {object[]} [models] Packaged 3D model assets.
      * @returns {object}
      */
-    static adapt(selectedPart, partName) {
+    static adapt(selectedPart, partName, models = []) {
         return {
             ...selectedPart,
             symbol: SelectedPartKicadExportAdapter.#adaptSymbol(
@@ -23,7 +26,8 @@ export class SelectedPartKicadExportAdapter {
             ),
             footprint: SelectedPartKicadExportAdapter.#adaptFootprint(
                 selectedPart,
-                partName
+                partName,
+                models
             )
         }
     }
@@ -53,19 +57,31 @@ export class SelectedPartKicadExportAdapter {
      * Adds a generated KiCad footprint node when no native raw node exists.
      * @param {object} selectedPart Selected part bundle.
      * @param {string} partName Export artifact name.
+     * @param {object[]} models Packaged 3D model assets.
      * @returns {object}
      */
-    static #adaptFootprint(selectedPart, partName) {
+    static #adaptFootprint(selectedPart, partName, models) {
         const footprint = selectedPart?.footprint || {}
-        if (SelectedPartKicadExportAdapter.#rawNode(footprint)) {
-            return footprint
+        const rawNode = SelectedPartKicadExportAdapter.#rawNode(footprint)
+        if (rawNode) {
+            return {
+                ...footprint,
+                rawNode:
+                    SelectedPartKicadModelNodeBuilder.attachToFootprintNode(
+                        rawNode,
+                        models,
+                        footprint.component ||
+                            selectedPart?.footprint?.component
+                    )
+            }
         }
 
         return {
             ...footprint,
             rawNode: SelectedPartKicadExportAdapter.#footprintNode(
                 selectedPart,
-                partName
+                partName,
+                models
             )
         }
     }
@@ -282,9 +298,10 @@ export class SelectedPartKicadExportAdapter {
      * Builds one KiCad footprint node.
      * @param {object} selectedPart Selected part bundle.
      * @param {string} partName Export artifact name.
+     * @param {object[]} models Packaged 3D model assets.
      * @returns {Array}
      */
-    static #footprintNode(selectedPart, partName) {
+    static #footprintNode(selectedPart, partName, models) {
         const footprint = selectedPart?.footprint || {}
         const footprintName = SelectedPartKicadExportAdapter.#libraryName(
             partName ||
@@ -323,7 +340,8 @@ export class SelectedPartKicadExportAdapter {
                         index,
                         component
                     )
-            )
+            ),
+            ...SelectedPartKicadModelNodeBuilder.buildMany(models, component)
         ]
     }
 

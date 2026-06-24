@@ -1,3 +1,4 @@
+import { SvgDragClickGuard } from './SvgDragClickGuard.mjs'
 import { TouchTapSelectionGuard } from './TouchTapSelectionGuard.mjs'
 
 /**
@@ -11,32 +12,37 @@ export class SchematicComponentSelectionBinder {
      * @param {string} documentId Active document id.
      * @param {((change: { documentId: string, componentKey: string, source: string }) => void) | null} componentCallback Component selection callback.
      * @param {((change: { documentId: string, netName: string, source: string }) => void) | null} [netCallback] Net selection callback.
-     * @returns {void}
+     * @returns {() => void} Function that removes the bound listeners.
      */
     static bind(svgNode, documentId, componentCallback, netCallback = null) {
         if (!svgNode || (!componentCallback && !netCallback) || !documentId) {
-            return
+            return () => {}
         }
 
         const touchTapGuard = new TouchTapSelectionGuard({
             readState: () => String(svgNode.getAttribute?.('viewBox') || '')
         })
+        const dragClickGuard = new SvgDragClickGuard(() => svgNode)
+        const handleMouseDown = dragClickGuard.handleMouseDown
+        const handleClick = (event) => {
+            if (dragClickGuard.shouldSuppressClick(event)) {
+                return
+            }
 
-        svgNode.addEventListener('click', (event) => {
             SchematicComponentSelectionBinder.#emitSelection(
                 event,
                 documentId,
                 componentCallback,
                 netCallback
             )
-        })
-        svgNode.addEventListener('touchstart', (event) => {
+        }
+        const handleTouchStart = (event) => {
             touchTapGuard.start(event)
-        })
-        svgNode.addEventListener('touchmove', (event) => {
+        }
+        const handleTouchMove = (event) => {
             touchTapGuard.move(event)
-        })
-        svgNode.addEventListener('touchend', (event) => {
+        }
+        const handleTouchEnd = (event) => {
             const tap = touchTapGuard.end(event)
             if (!tap) {
                 return
@@ -48,10 +54,28 @@ export class SchematicComponentSelectionBinder {
                 componentCallback,
                 netCallback
             )
-        })
-        svgNode.addEventListener('touchcancel', () => {
+        }
+        const handleTouchCancel = () => {
             touchTapGuard.reset()
-        })
+        }
+
+        svgNode.addEventListener('mousedown', handleMouseDown)
+        svgNode.addEventListener('click', handleClick)
+        svgNode.addEventListener('touchstart', handleTouchStart)
+        svgNode.addEventListener('touchmove', handleTouchMove)
+        svgNode.addEventListener('touchend', handleTouchEnd)
+        svgNode.addEventListener('touchcancel', handleTouchCancel)
+
+        return () => {
+            svgNode.removeEventListener('mousedown', handleMouseDown)
+            svgNode.removeEventListener('click', handleClick)
+            svgNode.removeEventListener('touchstart', handleTouchStart)
+            svgNode.removeEventListener('touchmove', handleTouchMove)
+            svgNode.removeEventListener('touchend', handleTouchEnd)
+            svgNode.removeEventListener('touchcancel', handleTouchCancel)
+            dragClickGuard.reset()
+            touchTapGuard.reset()
+        }
     }
 
     /**

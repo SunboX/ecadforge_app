@@ -5,7 +5,7 @@ import { AppControllerParserData } from './AppControllerParserData.mjs'
  */
 export class AppControllerPcbAssemblyExport {
     /**
-     * Exports the active PCB assembly as STEP or WRL.
+     * Exports the active PCB assembly as STEP, WRL, GLTF, or GLB.
      * @param {{ change?: { documentId?: string, format?: string }, state: { getSnapshot: () => object, setValue?: (key: string, value: any) => object }, view: { showExportProgress?: (progress: { title?: string, value?: number, message?: string }) => void, updateExportProgress?: (progress: { value?: number, message?: string }) => void, hideExportProgress?: () => void, downloadBytes?: (fileName: string, bytes: Uint8Array, contentType: string) => void, setStatus?: (message: string) => void }, pcbAssemblyExportService: { export: (options: { format?: string, documentId?: string, documentModel?: object | null, documents?: object[], sessionAssets?: object[], onProgress?: (progress: { value: number, message: string }) => void }) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
      * @returns {Promise<void>}
      */

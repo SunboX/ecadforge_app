@@ -63,6 +63,10 @@ export class ViewerSidebarOverviewRenderer {
                 label: translate('scene3d.exportAssemblyWrl')
             },
             {
+                attribute: 'data-pcb-assembly-export-format="glb"',
+                label: translate('scene3d.exportAssemblyGlb')
+            },
+            {
                 attribute: 'data-scene-3d-export="models-zip"',
                 label: translate('scene3d.downloadModelsZip')
             }

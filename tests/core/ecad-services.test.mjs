@@ -4,7 +4,6 @@ import { EcadFormatRegistry } from '../../src/core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { EcadScene3dService } from '../../src/core/ecad/EcadScene3dService.mjs'
-import { DocumentPreferredViewResolver } from '../../src/DocumentPreferredViewResolver.mjs'
 
 /**
  * Verifies the format registry accepts the expanded ECAD intake surface.
@@ -31,6 +30,10 @@ test('EcadFormatRegistry detects Altium, KiCad, ZIP, and companion assets', () =
         'circuitjson'
     )
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.step'), 'step')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.glb'), 'glb')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.gltf'), 'gltf')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.stl'), 'stl')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.obj'), 'obj')
     assert.equal(
         EcadFormatRegistry.resolveCompanionFormat('symbols.kicad_sym'),
         'kicad-library'
@@ -73,70 +76,6 @@ test('EcadParserService dispatches mixed Altium and KiCad batches', async () => 
     )
     assert.equal(result.assets[0].name, 'model.step')
     assert.equal(result.diagnostics[0].message, 'ok')
-})
-
-/**
- * Verifies standalone CircuitJSON files are parsed as first-class documents.
- */
-test('EcadParserService parses standalone CircuitJSON JSON files', async () => {
-    const source = new TextEncoder().encode(
-        JSON.stringify([
-            {
-                type: 'pcb_board',
-                pcb_board_id: 'board_1',
-                width: 10,
-                height: 5
-            }
-        ])
-    )
-    const service = new EcadParserService()
-    const documentModel = service.parseArrayBuffer('board.json', source.buffer)
-    const result = await service.parseEntries([
-        { name: 'board.json', buffer: source.buffer }
-    ])
-
-    assert.equal(Array.isArray(documentModel), true)
-    assert.equal(documentModel.sourceFormat, 'circuitjson')
-    assert.equal(documentModel.kind, 'pcb')
-    assert.equal(result.documents.length, 1)
-    assert.equal(result.documents[0].sourceFormat, 'circuitjson')
-    assert.equal(EcadScene3dService.build(documentModel), documentModel)
-    assert.equal(await EcadScene3dService.prepare(documentModel), documentModel)
-    assert.equal(
-        EcadScene3dService.createModelRegistry(documentModel, []),
-        null
-    )
-    assert.throws(
-        () => EcadRendererService.renderPcb(documentModel),
-        /CircuitJSON documents are rendered through the 3D scene runtime/
-    )
-})
-
-/**
- * Verifies standalone CircuitJSON metadata survives browser worker-style
- * structured cloning.
- */
-test('EcadParserService preserves CircuitJSON identity through structured clone', () => {
-    const source = new TextEncoder().encode(
-        JSON.stringify([
-            {
-                type: 'pcb_board',
-                pcb_board_id: 'board_1',
-                width: 10,
-                height: 5
-            }
-        ])
-    )
-    const documentModel = EcadParserService.parseArrayBuffer(
-        'board.json',
-        source.buffer
-    )
-    const clonedDocument = structuredClone(documentModel)
-
-    assert.equal(clonedDocument.fileName, 'board.json')
-    assert.equal(clonedDocument.kind, 'pcb')
-    assert.equal(clonedDocument.sourceFormat, 'circuitjson')
-    assert.equal(DocumentPreferredViewResolver.resolve(clonedDocument), '3d')
 })
 
 /**

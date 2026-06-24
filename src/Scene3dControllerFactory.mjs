@@ -129,7 +129,7 @@ export class Scene3dControllerFactory {
      * @param {{ prepareScene: Function, dispose?: Function }} workerClient Worker client.
      * @param {{ prepare: Function }} sceneService Scene service.
      * @param {EcadMissingModelSearchService | null} modelSearchService Search service.
-     * @param {{ autoSearchMissingModels?: boolean }} options Controller options.
+     * @param {{ autoSearchMissingModels?: boolean, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null }} options Controller options.
      * @returns {{ prepareScene: (documentModel: any, sessionAssets?: any[]) => Promise<any>, dispose: () => void }}
      */
     static #createScenePrepClient(
@@ -147,6 +147,11 @@ export class Scene3dControllerFactory {
                         sessionAssets,
                         options
                     )
+                Scene3dControllerFactory.#reportSessionAssetsResolved(
+                    options,
+                    documentModel,
+                    resolvedAssets
+                )
 
                 try {
                     return await workerClient.prepareScene(
@@ -184,6 +189,24 @@ export class Scene3dControllerFactory {
         return modelSearchService.resolveSessionAssets(documentModel, {
             enabled: true,
             sessionAssets
+        })
+    }
+
+    /**
+     * Reports resolved scene model assets to the app shell.
+     * @param {{ onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null }} options Controller options.
+     * @param {any} documentModel Prepared document model.
+     * @param {any[]} sessionAssets Resolved session assets.
+     * @returns {void}
+     */
+    static #reportSessionAssetsResolved(options, documentModel, sessionAssets) {
+        if (typeof options?.onSessionAssetsResolved !== 'function') {
+            return
+        }
+
+        options.onSessionAssetsResolved({
+            documentModel,
+            sessionAssets: Array.isArray(sessionAssets) ? sessionAssets : []
         })
     }
 

@@ -11,6 +11,12 @@ export class AppViewScene3dPanelController {
     /** @type {any | null} */
     #documentModel
 
+    /** @type {string} */
+    #sessionAssetsSignature
+
+    /** @type {boolean} */
+    #autoSearchMissingModels
+
     /** @type {Node[]} */
     #contentNodes
 
@@ -23,6 +29,8 @@ export class AppViewScene3dPanelController {
     constructor() {
         this.#controller = null
         this.#documentModel = null
+        this.#sessionAssetsSignature = ''
+        this.#autoSearchMissingModels = false
         this.#contentNodes = []
         this.#adjustmentHostNode = null
         this.#exportActionProxyNode = null
@@ -31,11 +39,17 @@ export class AppViewScene3dPanelController {
     /**
      * Returns true when the cached 3D scene matches the requested model set.
      * @param {any} documentModel Candidate document model.
+     * @param {any[]} [sessionAssets] Candidate session assets.
      * @returns {boolean}
      */
-    canReuse(documentModel) {
+    canReuse(documentModel, sessionAssets = []) {
         return Boolean(
-            this.#controller && this.#documentModel === documentModel
+            this.#controller &&
+                this.#documentModel === documentModel &&
+                this.#sessionAssetsSignature ===
+                    AppViewScene3dPanelController.#buildSessionAssetSignature(
+                        sessionAssets
+                    )
         )
     }
 
@@ -58,14 +72,14 @@ export class AppViewScene3dPanelController {
 
     /**
      * Renders or reattaches the 3D scene for the active board.
-     * @param {{ contentNode: HTMLElement | null, documentId?: string, documentModel: any, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any }} options
+     * @param {{ contentNode: HTMLElement | null, documentId?: string, documentModel: any, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any }} options
      * @returns {void}
      */
     render(options) {
         const contentNode = options.contentNode
         if (!contentNode) return
 
-        if (this.canReuse(options.documentModel)) {
+        if (this.canReuse(options.documentModel, options.sessionAssets || [])) {
             this.#restoreContent(contentNode)
             this.#setAutoSearchMissingModels(
                 contentNode,
@@ -90,6 +104,8 @@ export class AppViewScene3dPanelController {
         this.#controller?.dispose?.()
         this.#controller = null
         this.#documentModel = null
+        this.#sessionAssetsSignature = ''
+        this.#autoSearchMissingModels = false
         this.#contentNodes = []
         this.#exportActionProxyNode = null
     }
@@ -128,7 +144,7 @@ export class AppViewScene3dPanelController {
 
     /**
      * Creates a fresh scene controller from rendered shell markup.
-     * @param {{ contentNode: HTMLElement, documentId?: string, documentModel: any, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: object) => any }} options
+     * @param {{ contentNode: HTMLElement, documentId?: string, documentModel: any, sessionAssets?: any[], autoSearchMissingModels?: boolean, renderAdjustmentControlsInSelection?: boolean, selectedComponentKey?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null, translate: (key: string) => string, createScene3dController: (viewportNode: HTMLElement, documentModel: any, options?: object) => any }} options
      * @returns {void}
      */
     #mountNewScene(options) {
@@ -144,6 +160,13 @@ export class AppViewScene3dPanelController {
         this.#captureExportActionProxy(options.contentNode)
         this.#controller?.setAdjustmentHost?.(this.#adjustmentHostNode)
         this.#documentModel = this.#controller ? options.documentModel : null
+        this.#sessionAssetsSignature = this.#controller
+            ? AppViewScene3dPanelController.#buildSessionAssetSignature(
+                  options.sessionAssets || []
+              )
+            : ''
+        this.#autoSearchMissingModels =
+            this.#controller && options.autoSearchMissingModels === true
         this.#rememberContent(options.contentNode)
     }
 
@@ -179,6 +202,11 @@ export class AppViewScene3dPanelController {
             toggle.checked = enabled
         }
 
+        if (this.#autoSearchMissingModels === enabled) {
+            return
+        }
+
+        this.#autoSearchMissingModels = enabled
         this.#controller?.setAutoSearchMissingModels?.(enabled)
     }
 
@@ -245,6 +273,26 @@ export class AppViewScene3dPanelController {
      */
     static #containsSceneViewport(contentNode) {
         return Boolean(contentNode?.querySelector?.('[data-scene-3d-viewport]'))
+    }
+
+    /**
+     * Builds a stable signature for assets that affect 3D model resolution.
+     * @param {any[]} sessionAssets Session assets.
+     * @returns {string}
+     */
+    static #buildSessionAssetSignature(sessionAssets) {
+        return JSON.stringify(
+            (Array.isArray(sessionAssets) ? sessionAssets : []).map(
+                (asset) => [
+                    String(asset?.name || ''),
+                    String(asset?.relativePath || ''),
+                    String(asset?.sourceUrl || ''),
+                    String(asset?.source || ''),
+                    String(asset?.componentKey || ''),
+                    String(asset?.format || '')
+                ]
+            )
+        )
     }
 
     /**

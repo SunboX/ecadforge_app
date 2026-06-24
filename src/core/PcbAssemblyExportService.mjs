@@ -1,7 +1,9 @@
 import { EcadScene3dService } from './ecad/EcadScene3dService.mjs'
+import { PcbAssemblyBoardTextureRenderer } from './PcbAssemblyBoardTextureRenderer.mjs'
 import {
     PcbAssemblyGeometryBuildProgress,
     PcbAssemblyGeometryBuilder,
+    PcbAssemblyGltfWriter,
     PcbAssemblyModelMeshLoader,
     PcbAssemblyStepWriter,
     PcbAssemblyWrlWriter
@@ -20,8 +22,11 @@ export class PcbAssemblyExportService {
     /** @type {((placement: object) => Promise<object | object[]>) | null} */
     #modelMeshLoaderCallback
 
+    /** @type {{ render?: (documentModel: object | object[], options?: object) => ({ top?: string, bottom?: string } | null) | Promise<{ top?: string, bottom?: string } | null> } | null} */
+    #boardTextureRenderer
+
     /**
-     * @param {{ sceneService?: { prepare?: (documentModel: object, options?: object) => Promise<object> }, modelMeshLoader?: ((placement: object) => Promise<object | object[]>) | PcbAssemblyModelMeshLoader }} [options] Service options.
+     * @param {{ sceneService?: { prepare?: (documentModel: object, options?: object) => Promise<object> }, modelMeshLoader?: ((placement: object) => Promise<object | object[]>) | PcbAssemblyModelMeshLoader, boardTextureRenderer?: { render?: (documentModel: object | object[], options?: object) => ({ top?: string, bottom?: string } | null) | Promise<{ top?: string, bottom?: string } | null> } | null }} [options] Service options.
      */
     constructor(options = {}) {
         this.#sceneService = options.sceneService || EcadScene3dService
@@ -33,11 +38,16 @@ export class PcbAssemblyExportService {
             typeof options.modelMeshLoader === 'function'
                 ? options.modelMeshLoader
                 : null
+        this.#boardTextureRenderer =
+            options.boardTextureRenderer === null
+                ? null
+                : options.boardTextureRenderer ||
+                  PcbAssemblyBoardTextureRenderer
     }
 
     /**
      * Exports one PCB assembly.
-     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
+     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean, onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
      * @returns {Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics: object[], meshCount: number }>}
      */
     async export(options = {}) {
@@ -63,7 +73,8 @@ export class PcbAssemblyExportService {
             {
                 modelMeshLoader: (placement) =>
                     this.#loadPlacementMesh(placement),
-                progress: buildProgress
+                progress: buildProgress,
+                ...PcbAssemblyExportService.#geometryBuildOptions(options)
             }
         )
         PcbAssemblyExportService.#reportProgress(
@@ -71,23 +82,21 @@ export class PcbAssemblyExportService {
             75,
             'Writing ' + format.toUpperCase() + ' assembly'
         )
-        const text =
-            format === 'wrl'
-                ? PcbAssemblyWrlWriter.write({
-                      name: assemblyName,
-                      meshes: geometry.meshes
-                  })
-                : PcbAssemblyStepWriter.write({
-                      name: assemblyName,
-                      meshes: geometry.meshes
-                  })
+        const boardTextures = await this.#renderBoardTextures(format, options)
+        const payload = PcbAssemblyExportService.#writeAssembly(
+            format,
+            assemblyName,
+            PcbAssemblyExportService.#withBoardTextures(
+                geometry.meshes,
+                boardTextures
+            )
+        )
 
         PcbAssemblyExportService.#reportProgress(
             onProgress,
             92,
             'Encoding ' + format.toUpperCase() + ' download'
         )
-        const bytes = new TextEncoder().encode(text)
         PcbAssemblyExportService.#reportProgress(
             onProgress,
             100,
@@ -95,9 +104,12 @@ export class PcbAssemblyExportService {
         )
 
         return {
-            fileName: assemblyName + (format === 'wrl' ? '.wrl' : '.step'),
-            bytes,
-            contentType: format === 'wrl' ? 'model/vrml' : 'model/step',
+            fileName:
+                assemblyName +
+                '.' +
+                PcbAssemblyExportService.#fileExtension(format),
+            bytes: payload.bytes,
+            contentType: PcbAssemblyExportService.#contentType(format),
             diagnostics: geometry.diagnostics,
             meshCount: geometry.meshes.length
         }
@@ -114,7 +126,7 @@ export class PcbAssemblyExportService {
 
     /**
      * Resolves prepared scene data.
-     * @param {{ documentModel?: object, sceneDescription?: object, sessionAssets?: object[] }} options Export options.
+     * @param {{ documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }} options Export options.
      * @returns {Promise<object>}
      */
     async #resolveSceneDescription(options) {
@@ -126,9 +138,10 @@ export class PcbAssemblyExportService {
             throw new Error('3D scene preparation is unavailable.')
         }
 
-        return await this.#sceneService.prepare(options.documentModel || {}, {
-            sessionAssets: options.sessionAssets || []
-        })
+        return await this.#sceneService.prepare(
+            options.documentModel || {},
+            PcbAssemblyExportService.#scenePrepareOptions(options)
+        )
     }
 
     /**
@@ -149,13 +162,199 @@ export class PcbAssemblyExportService {
     }
 
     /**
+     * Renders board texture data for texture-capable export formats.
+     * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
+     * @param {{ documentModel?: object, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean }} options Export options.
+     * @returns {Promise<{ top?: string, bottom?: string } | null>}
+     */
+    async #renderBoardTextures(format, options) {
+        if (
+            !this.#boardTextureRenderer ||
+            (format !== 'gltf' && format !== 'glb')
+        ) {
+            return null
+        }
+
+        return (
+            (await this.#boardTextureRenderer.render?.(
+                options.documentModel || {},
+                PcbAssemblyExportService.#boardTextureOptions(options)
+            )) || null
+        )
+    }
+
+    /**
+     * Builds texture render options for board artwork export.
+     * @param {{ boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean }} options Export options.
+     * @returns {{ imageFormat?: string, resolution?: number, showNotes?: boolean }}
+     */
+    static #boardTextureOptions(options) {
+        const textureOptions = {}
+        if (options.boardTextureFormat) {
+            textureOptions.imageFormat = options.boardTextureFormat
+        }
+        if (options.boardTextureResolution) {
+            textureOptions.resolution = options.boardTextureResolution
+        }
+        if (typeof options.boardTextureShowNotes === 'boolean') {
+            textureOptions.showNotes = options.boardTextureShowNotes
+        }
+        return textureOptions
+    }
+
+    /**
+     * Builds 3D scene preparation options from assembly export settings.
+     * @param {{ sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }} options Export options.
+     * @returns {{ sessionAssets: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }}
+     */
+    static #scenePrepareOptions(options) {
+        const prepareOptions = {
+            sessionAssets: options.sessionAssets || []
+        }
+        for (const key of [
+            'includeModels',
+            'renderFallbackBodies',
+            'boardDrillQuality',
+            'drawFauxBoard'
+        ]) {
+            if (Object.hasOwn(options, key)) {
+                prepareOptions[key] = options[key]
+            }
+        }
+        return prepareOptions
+    }
+
+    /**
+     * Builds assembly geometry options from export settings.
+     * @param {{ includeModels?: boolean, renderFallbackBodies?: boolean }} options Export options.
+     * @returns {{ includeModels?: boolean, renderFallbackBodies?: boolean }}
+     */
+    static #geometryBuildOptions(options) {
+        const geometryOptions = {}
+        for (const key of ['includeModels', 'renderFallbackBodies']) {
+            if (Object.hasOwn(options, key)) {
+                geometryOptions[key] = options[key]
+            }
+        }
+        return geometryOptions
+    }
+
+    /**
      * Normalizes the requested export format.
      * @param {string | undefined} format Requested format.
-     * @returns {'step' | 'wrl'}
+     * @returns {'step' | 'wrl' | 'gltf' | 'glb'}
      */
     static #normalizeFormat(format) {
         const normalized = String(format || 'step').toLowerCase()
-        return normalized === 'wrl' || normalized === 'vrml' ? 'wrl' : 'step'
+        if (normalized === 'wrl' || normalized === 'vrml') {
+            return 'wrl'
+        }
+        if (normalized === 'gltf' || normalized === 'glb') {
+            return normalized
+        }
+        return 'step'
+    }
+
+    /**
+     * Writes the requested assembly payload.
+     * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
+     * @param {string} assemblyName Assembly name.
+     * @param {object[]} meshes Assembly meshes.
+     * @returns {{ bytes: Uint8Array }}
+     */
+    static #writeAssembly(format, assemblyName, meshes) {
+        if (format === 'glb') {
+            return {
+                bytes: PcbAssemblyGltfWriter.write({
+                    name: assemblyName,
+                    meshes,
+                    format
+                })
+            }
+        }
+
+        if (format === 'gltf') {
+            return {
+                bytes: new TextEncoder().encode(
+                    JSON.stringify(
+                        PcbAssemblyGltfWriter.write({
+                            name: assemblyName,
+                            meshes,
+                            format
+                        })
+                    )
+                )
+            }
+        }
+
+        const text =
+            format === 'wrl'
+                ? PcbAssemblyWrlWriter.write({
+                      name: assemblyName,
+                      meshes
+                  })
+                : PcbAssemblyStepWriter.write({
+                      name: assemblyName,
+                      meshes
+                  })
+
+        return {
+            bytes: new TextEncoder().encode(text)
+        }
+    }
+
+    /**
+     * Applies rendered board texture data to board substrate meshes.
+     * @param {object[]} meshes Assembly meshes.
+     * @param {{ top?: string, bottom?: string } | null} textures Texture data.
+     * @returns {object[]}
+     */
+    static #withBoardTextures(meshes, textures) {
+        if (!textures?.top && !textures?.bottom) {
+            return meshes
+        }
+
+        return meshes.map((mesh) =>
+            String(mesh?.name || '') === 'board'
+                ? {
+                      ...mesh,
+                      texture: {
+                          ...(mesh.texture || {}),
+                          ...(textures.top ? { top: textures.top } : {}),
+                          ...(textures.bottom
+                              ? { bottom: textures.bottom }
+                              : {})
+                      }
+                  }
+                : mesh
+        )
+    }
+
+    /**
+     * Resolves the export file extension.
+     * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
+     * @returns {string}
+     */
+    static #fileExtension(format) {
+        return format
+    }
+
+    /**
+     * Resolves the download content type.
+     * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
+     * @returns {string}
+     */
+    static #contentType(format) {
+        if (format === 'wrl') {
+            return 'model/vrml'
+        }
+        if (format === 'glb') {
+            return 'model/gltf-binary'
+        }
+        if (format === 'gltf') {
+            return 'model/gltf+json'
+        }
+        return 'model/step'
     }
 
     /**

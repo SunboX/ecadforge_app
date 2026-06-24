@@ -23,6 +23,9 @@ import {
     PcbInteractionLayerModel as GerberPcbInteractionLayerModel
 } from 'gerber-toolkit/renderers'
 import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
+import { PcbInteractionPrimitiveModel } from '../PcbInteractionPrimitiveModel.mjs'
+import { CircuitJsonPcbSvgRenderer } from './CircuitJsonPcbSvgRenderer.mjs'
+import { CircuitJsonSchematicSvgRenderer } from './CircuitJsonSchematicSvgRenderer.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 const BOM_TRANSLATION_FALLBACKS = {
@@ -41,18 +44,24 @@ const BOM_TRANSLATION_FALLBACKS = {
  */
 export class EcadRendererService {
     static #schematicSvgCache = new WeakMap()
-
     static #pcbSvgCache = new WeakMap()
-
     static #pcbInteractionIndexCache = new WeakMap()
-
     /**
      * Renders a schematic document.
      * @param {object} documentModel Document model.
      * @returns {string}
      */
     static renderSchematic(documentModel) {
-        EcadRendererService.#assertRendererBackedDocument(documentModel)
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#schematicSvgCache,
+                documentModel,
+                'schematic',
+                () => CircuitJsonSchematicSvgRenderer.render(documentModel)
+            )
+        }
+
+        EcadRendererService.#assertSchematicRendererBackedDocument(documentModel)
         return EcadRendererService.#renderCached(
             EcadRendererService.#schematicSvgCache,
             documentModel,
@@ -70,7 +79,6 @@ export class EcadRendererService {
                       )
         )
     }
-
     /**
      * Renders a PCB document.
      * @param {object} documentModel Document model.
@@ -78,9 +86,17 @@ export class EcadRendererService {
      * @returns {string}
      */
     static renderPcb(documentModel, options = {}) {
-        EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const renderKey = EcadRendererService.#pcbRenderCacheKey(side, options)
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#pcbSvgCache,
+                documentModel,
+                renderKey,
+                () => CircuitJsonPcbSvgRenderer.render(documentModel, { side })
+            )
+        }
+
         const renderDocumentModel =
             EcadRendererService.#normalizePcbPadAxes(documentModel)
         return EcadRendererService.#renderCached(
@@ -105,7 +121,6 @@ export class EcadRendererService {
                         )
         )
     }
-
     /**
      * Returns prioritized PCB interaction candidates for a board-space point.
      * @param {object} documentModel Document model.
@@ -114,8 +129,14 @@ export class EcadRendererService {
      * @returns {object[]}
      */
     static hitTestPcb(documentModel, point, options = {}) {
-        EcadRendererService.#assertRendererBackedDocument(documentModel)
         const side = EcadRendererService.#normalizePcbSide(options.side)
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return PcbInteractionPrimitiveModel.hitTest(documentModel, point, {
+                ...options,
+                side
+            })
+        }
+
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
         const hitTestDocumentModel =
             EcadRendererService.#normalizePcbPadAxes(documentModel)
@@ -158,14 +179,18 @@ export class EcadRendererService {
             )
         )
     }
-
     /**
      * Returns physical and virtual PCB interaction layers.
      * @param {object} documentModel Document model.
      * @returns {{ physicalLayers: object[], virtualLayers: object[] }}
      */
     static resolvePcbInteractionLayers(documentModel) {
-        EcadRendererService.#assertRendererBackedDocument(documentModel)
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return PcbInteractionPrimitiveModel.resolveLayerGroups(
+                documentModel
+            )
+        }
+
         if (EcadRendererService.#isGerber(documentModel)) {
             return GerberPcbInteractionLayerModel.resolve(documentModel)
         }
@@ -174,7 +199,6 @@ export class EcadRendererService {
             ? KicadPcbInteractionLayerModel.resolve(documentModel)
             : AltiumPcbInteractionLayerModel.resolve(documentModel)
     }
-
     /**
      * Renders BOM rows.
      * @param {object} documentModel Document model.
@@ -201,31 +225,30 @@ export class EcadRendererService {
             ? KicadBomTableRenderer.render(rows)
             : AltiumBomTableRenderer.render(rows)
     }
-
     /**
      * Returns true for KiCad document models.
      * @param {object} documentModel Document model.
      * @returns {boolean}
      */
     static #isKiCad(documentModel) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'kicad'
-        )
+        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'kicad'
     }
-
     /**
      * Returns true for Gerber document models.
      * @param {object} documentModel Document model.
      * @returns {boolean}
      */
     static #isGerber(documentModel) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'gerber'
-        )
+        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'gerber'
     }
-
+    /**
+     * Returns true for standards-shaped element-array document models.
+     * @param {object} documentModel Document model.
+     * @returns {boolean}
+     */
+    static #isCircuitJson(documentModel) {
+        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'circuitjson'
+    }
     /**
      * Applies the format-owned rectangular pad axis normalization.
      * @param {object} documentModel Document model.
@@ -236,7 +259,6 @@ export class EcadRendererService {
             ? KicadPcbFootprintPadAxisNormalizer.apply(documentModel)
             : AltiumPcbFootprintPadAxisNormalizer.apply(documentModel)
     }
-
     /**
      * Returns a render-only Altium schematic model with hidden fallback labels suppressed.
      * @param {object} documentModel Document model.
@@ -264,23 +286,16 @@ export class EcadRendererService {
             }
         }
     }
-
     /**
-     * Throws when a document only supports the standards-native 3D path.
+     * Throws when a document does not have a schematic SVG renderer.
      * @param {object} documentModel Document model.
      * @returns {void}
      */
-    static #assertRendererBackedDocument(documentModel) {
-        if (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'circuitjson'
-        ) {
-            throw new Error(
-                'CircuitJSON documents are rendered through the 3D scene runtime.'
-            )
+    static #assertSchematicRendererBackedDocument(documentModel) {
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            throw new Error('Element-array documents do not provide schematic SVG rendering.')
         }
     }
-
     /**
      * Builds Altium schematic renderer options from document context.
      * @param {object} documentModel Document model.
@@ -293,7 +308,6 @@ export class EcadRendererService {
             ? { projectParameters }
             : {}
     }
-
     /**
      * Returns cached PCB interaction items for one document and toolkit index.
      * @param {object} documentModel Document model.
@@ -320,7 +334,6 @@ export class EcadRendererService {
 
         return indexesByToolkit.get(interactionIndex)
     }
-
     /**
      * Restores component keys for toolkit candidates backed by owned primitives.
      * @param {object} documentModel Document model.
@@ -360,7 +373,6 @@ export class EcadRendererService {
             }
         })
     }
-
     /**
      * Returns an existing component key from one hit-test candidate.
      * @param {object | null | undefined} candidate Hit-test candidate.
@@ -371,7 +383,6 @@ export class EcadRendererService {
             candidate?.componentKey ?? candidate?.componentId ?? ''
         ).trim()
     }
-
     /**
      * Resolves the component that owns one PCB primitive.
      * @param {object | null | undefined} primitive Source primitive.
@@ -406,7 +417,6 @@ export class EcadRendererService {
             null
         )
     }
-
     /**
      * Renders or returns cached renderer output for one document/key pair.
      * @param {WeakMap<object, Map<string, string>>} cache Renderer output cache.
@@ -433,7 +443,6 @@ export class EcadRendererService {
         documentCache.set(key, markup)
         return markup
     }
-
     /**
      * Returns true when a parsed document can be used as a weak cache key.
      * @param {unknown} documentModel Document candidate.
@@ -446,7 +455,6 @@ export class EcadRendererService {
                 typeof documentModel === 'function')
         )
     }
-
     /**
      * Renders BOM rows with app-localized table chrome.
      * @param {object} documentModel Document model.
@@ -501,7 +509,6 @@ export class EcadRendererService {
             '</section>'
         )
     }
-
     /**
      * Renders an empty BOM message with the source-format wrapper class.
      * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
@@ -521,7 +528,6 @@ export class EcadRendererService {
             '</section>'
         )
     }
-
     /**
      * Renders the localized BOM table element.
      * @param {object[]} rows BOM rows.
@@ -562,7 +568,6 @@ export class EcadRendererService {
             '</tbody></table>'
         )
     }
-
     /**
      * Renders one localized BOM header cell.
      * @param {string} columnKey BOM column key.
@@ -578,7 +583,6 @@ export class EcadRendererService {
             '</th>'
         )
     }
-
     /**
      * Renders one BOM row using the requested column order.
      * @param {object} row BOM row.
@@ -613,7 +617,6 @@ export class EcadRendererService {
             '</tr>'
         )
     }
-
     /**
      * Renders one localized BOM cell.
      * @param {object} row BOM row.
@@ -641,7 +644,6 @@ export class EcadRendererService {
             '</td>'
         )
     }
-
     /**
      * Renders BOM designators with the selected component emphasized.
      * @param {object} row BOM row.
@@ -666,7 +668,6 @@ export class EcadRendererService {
             )
             .join(', ')
     }
-
     /**
      * Returns true when a BOM row includes one exact designator.
      * @param {object} row BOM row.
@@ -681,7 +682,6 @@ export class EcadRendererService {
             )
         )
     }
-
     /**
      * Returns normalized BOM row designators.
      * @param {object} row BOM row.
@@ -694,7 +694,6 @@ export class EcadRendererService {
 
         return row.designators.map((designator) => String(designator).trim())
     }
-
     /**
      * Normalizes one selected component key.
      * @param {unknown} value Selected component candidate.
@@ -703,7 +702,6 @@ export class EcadRendererService {
     static #normalizeBomSelectionKey(value) {
         return String(value || '').trim()
     }
-
     /**
      * Reads one BOM row cell value.
      * @param {object} row BOM row.
@@ -723,7 +721,6 @@ export class EcadRendererService {
 
         return String(row?.[columnKey] || '')
     }
-
     /**
      * Returns the renderer-compatible BOM column order.
      * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
@@ -734,7 +731,6 @@ export class EcadRendererService {
             ? ['designators', 'quantity', 'value', 'pattern', 'source']
             : ['designators', 'quantity', 'pattern', 'value', 'source']
     }
-
     /**
      * Translates one BOM UI key with an English fallback.
      * @param {(key: string) => string} translate Translation lookup.
@@ -749,7 +745,6 @@ export class EcadRendererService {
 
         return value
     }
-
     /**
      * Renders KiCad PCB SVG with an app-scoped marker class for palette fixes.
      * @param {object} documentModel Document model.
@@ -782,7 +777,6 @@ export class EcadRendererService {
             'pcb-svg--kicad'
         )
     }
-
     /**
      * Renders normalized PCB SVG for the requested side.
      * @param {object} documentModel Document model.
@@ -806,16 +800,13 @@ export class EcadRendererService {
             side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
         )
 
-        if (side !== 'bottom') {
-            return markup
-        }
+        if (side !== 'bottom') return markup
 
         return markup.replace(
             'Top-facing composite view',
             'Bottom-facing composite view'
         )
     }
-
     /**
      * Renders Altium PCB SVG for the requested side through the normalized
      * model adapter exported by the toolkit.
@@ -830,7 +821,6 @@ export class EcadRendererService {
             'pcb-svg--altium'
         )
     }
-
     /**
      * Renders Gerber PCB SVG through the fabrication renderer.
      * @param {object} documentModel Document model.
@@ -850,7 +840,6 @@ export class EcadRendererService {
             'pcb-svg--gerber'
         )
     }
-
     /**
      * Returns a KiCad document model with bounds acceptable to the native SVG renderer.
      * @param {object} documentModel Document model.
@@ -876,7 +865,6 @@ export class EcadRendererService {
             }
         }
     }
-
     /**
      * Completes and validates KiCad board bounds before passing them to the toolkit.
      * @param {object | null | undefined} bounds Bounds candidate.
@@ -926,7 +914,6 @@ export class EcadRendererService {
             height
         }
     }
-
     /**
      * Adds app-level PCB SVG modifier classes without changing renderer markup
      * internals.
@@ -939,14 +926,9 @@ export class EcadRendererService {
 
         return String(markup).replace(
             /class="([^"]*\bpcb-svg\b[^"]*)"/,
-            (_match, existingClasses) =>
-                'class="' +
-                existingClasses +
-                (classes ? ' ' + classes : '') +
-                '"'
+            (_match, existingClasses) => 'class="' + existingClasses + (classes ? ' ' + classes : '') + '"'
         )
     }
-
     /**
      * Builds a PCB render cache key from side and format-specific options.
      * @param {'top' | 'bottom'} side PCB side.
@@ -958,12 +940,9 @@ export class EcadRendererService {
             side,
             String(options.renderMode || ''),
             String(options.layerId || ''),
-            (Array.isArray(options.layerIds) ? options.layerIds : [])
-                .map(String)
-                .join(',')
+            (Array.isArray(options.layerIds) ? options.layerIds : []).map(String).join(',')
         ].join('|')
     }
-
     /**
      * Escapes text for safe insertion into renderer-owned HTML.
      * @param {unknown} value Raw value.
@@ -976,7 +955,6 @@ export class EcadRendererService {
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
     }
-
     /**
      * Normalizes the app-level PCB side option.
      * @param {unknown} side Requested side.

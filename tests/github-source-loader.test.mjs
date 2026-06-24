@@ -61,7 +61,8 @@ test('GitHubSourceLoader resolves github query paths through raw GitHub URLs', (
 test('GitHubSourceLoader accepts standalone CircuitJSON raw URLs', async () => {
     const rawUrl = 'https://raw.githubusercontent.com/acme/demo/main/board.json'
     const { fetcher } = createFetchDouble({
-        [rawUrl]: '[{"type":"pcb_board","pcb_board_id":"board_1"}]'
+        [rawUrl]:
+            '[{"type":"pcb_board","pcb_board_id":"board_1","center":{"x":0,"y":0}}]'
     })
     const loader = new GitHubSourceLoader({ fetcher })
 

@@ -1,5 +1,3 @@
-import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
-
 /**
  * Chooses the first viewer tab for a freshly parsed document model.
  */
@@ -14,9 +12,16 @@ export class DocumentPreferredViewResolver {
             return 'schematic'
         }
 
-        return EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'circuitjson'
-            ? '3d'
-            : 'pcb'
+        if (documentModel?.kind === 'pcb') {
+            return 'pcb'
+        }
+
+        if (!documentModel?.pcb) {
+            return Array.isArray(documentModel?.diagnostics)
+                ? 'diagnostics'
+                : 'bom'
+        }
+
+        return 'pcb'
     }
 }

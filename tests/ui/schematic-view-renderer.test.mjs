@@ -517,6 +517,36 @@ test('SchematicViewRenderer highlights the selected schematic net', () => {
 })
 
 /**
+ * Verifies schematic net geometry diagnostics are opt-in at the main renderer
+ * boundary.
+ */
+test('SchematicViewRenderer injects net geometry diagnostics only when requested', () => {
+    const documentModel = createKicadSchematicDocument()
+    documentModel.schematic.nets = [
+        {
+            name: 'SENSE_A',
+            pins: [
+                { refdes: 'U1', pin: '1', x: 18, y: 24 },
+                { refdes: 'U2', pin: '2', x: 40, y: 24 }
+            ]
+        }
+    ]
+
+    const defaultHtml = SchematicViewRenderer.render(documentModel)
+    const diagnosticHtml = SchematicViewRenderer.render(
+        documentModel,
+        '',
+        '',
+        { showNetGeometryDiagnostics: true }
+    )
+
+    assert.doesNotMatch(defaultHtml, /schematic-net-diagnostic-overlay/)
+    assert.match(diagnosticHtml, /class="schematic-net-diagnostic-style"/)
+    assert.match(diagnosticHtml, /class="schematic-net-diagnostic-overlay"/)
+    assert.match(diagnosticHtml, /data-schematic-net-name="SENSE_A"/)
+})
+
+/**
  * Verifies selected Altium schematic symbols get an SVG-local highlight.
  */
 test('SchematicViewRenderer keeps compact Altium highlights body-sized', () => {

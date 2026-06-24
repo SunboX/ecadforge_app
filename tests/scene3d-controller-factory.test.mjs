@@ -158,6 +158,8 @@ function installBrowserGlobals(fetcher) {
 
 test('Scene3dControllerFactory resolves project-relative KiCad models through the app proxy', async () => {
     const requestedUrls = []
+    const resolvedAssetReports = []
+    const documentModel = createKicadDocument()
     FakeSceneWorker.postedSessionAssets = []
     const restore = installBrowserGlobals(async (url) => {
         requestedUrls.push(String(url))
@@ -194,8 +196,11 @@ test('Scene3dControllerFactory resolves project-relative KiCad models through th
             () => 'test'
         )
 
-        createController(createViewport(), createKicadDocument(), {
+        createController(createViewport(), documentModel, {
             autoSearchMissingModels: true,
+            onSessionAssetsResolved: (change) => {
+                resolvedAssetReports.push(change)
+            },
             createRuntime: () => ({ whenReady: async () => {} }),
             setLoadingVisible: () => {}
         })
@@ -217,4 +222,10 @@ test('Scene3dControllerFactory resolves project-relative KiCad models through th
         FakeSceneWorker.postedSessionAssets[0].relativePath,
         '10103594.stp'
     )
+    assert.equal(resolvedAssetReports.length, 1)
+    assert.equal(
+        resolvedAssetReports[0].sessionAssets[0].relativePath,
+        '10103594.stp'
+    )
+    assert.equal(resolvedAssetReports[0].documentModel, documentModel)
 })

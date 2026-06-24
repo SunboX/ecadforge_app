@@ -12,15 +12,11 @@ import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
 import { AppViewGerberRenderSelectionStore } from './AppViewGerberRenderSelectionStore.mjs'
 import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.mjs'
 import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
-import { AppViewSchematicContentReuseModel } from './AppViewSchematicContentReuseModel.mjs'
+import { AppViewSchematicPanelRenderer } from './AppViewSchematicPanelRenderer.mjs'
 import { AppViewSidebarScrollState } from './AppViewSidebarScrollState.mjs'
 import { AppViewSidebarFilterState } from './AppViewSidebarFilterState.mjs'
 import { AppViewLocalFileBinder } from './AppViewLocalFileBinder.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
-import { SchematicComponentSelectionBinder } from './SchematicComponentSelectionBinder.mjs'
-import { SchematicSelectionMarkerBoundsResolver } from './SchematicSelectionMarkerBoundsResolver.mjs'
-import { SchematicViewRenderer } from './SchematicViewRenderer.mjs'
-import { SchematicViewportPreserver } from './SchematicViewportPreserver.mjs'
 import { UiText } from './UiText.mjs'
 import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
@@ -99,6 +95,9 @@ export class AppView {
     /** @type {SchematicViewportController | null} */
     #svgViewportController
 
+    /** @type {(() => void) | null} */
+    #schematicSelectionDisposer
+
     /** @type {import('./PcbViewController.mjs').PcbViewController | null} */
     #pcbViewController
 
@@ -107,6 +106,9 @@ export class AppView {
 
     /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
     #pcbNetSelectionCallback
+
+    /** @type {((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null} */
+    #sessionAssetsResolvedCallback
 
     /** @type {AppViewComponentSelectionScrollGuard} */
     #componentSelectionScrollGuard
@@ -125,12 +127,12 @@ export class AppView {
 
     #heroPreviewController
 
-    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
+    /** @type {(viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any} */
     #createScene3dController
 
     /**
      * @param {Document} documentRef
-     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
+     * @param {{ createScene3dController?: (viewportNode: HTMLElement, documentModel: any, options?: { documentId?: string, onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onSessionAssetsResolved?: ((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null, sessionAssets?: any[], autoSearchMissingModels?: boolean, setLoadingVisible?: (visible: boolean) => void, translate?: ((key: string) => string) | null }) => any, translate?: ((key: string) => string) | null, storage?: Storage | null }} [options]
      */
     constructor(documentRef, options = {}) {
         this.#document = documentRef
@@ -158,9 +160,11 @@ export class AppView {
                 : options.storage
         this.#translate = UiText.createTranslator(options.translate || null)
         this.#svgViewportController = null
+        this.#schematicSelectionDisposer = null
         this.#pcbViewController = null
         this.#pcbComponentSelectionCallback = null
         this.#pcbNetSelectionCallback = null
+        this.#sessionAssetsResolvedCallback = null
         this.#componentSelectionScrollGuard =
             new AppViewComponentSelectionScrollGuard()
         this.#suppressNextNetScroll = false
@@ -470,6 +474,16 @@ export class AppView {
             this.#documentRailNode,
             callback
         )
+    }
+
+    /**
+     * Binds 3D scene asset resolution updates.
+     * @param {(change: { documentModel?: object, sessionAssets?: object[] }) => void} callback Resolved assets callback.
+     * @returns {void}
+     */
+    bindSessionAssetsResolved(callback) {
+        this.#sessionAssetsResolvedCallback =
+            typeof callback === 'function' ? callback : null
     }
 
     /**
@@ -820,7 +834,7 @@ export class AppView {
             return
         }
         if (
-            AppViewSchematicContentReuseModel.shouldReuse(
+            AppViewSchematicPanelRenderer.shouldReuse(
                 this.#contentNode,
                 snapshot
             )
@@ -829,10 +843,12 @@ export class AppView {
         }
 
         const previousPcbSide = this.#pcbViewController?.side || 'top'
-        const preservedSchematicViewBox = SchematicViewportPreserver.capture(
-            this.#contentNode,
-            snapshot
-        )
+        const preservedSchematicViewBox =
+            AppViewSchematicPanelRenderer.captureViewport(
+                this.#contentNode,
+                snapshot
+            )
+        this.#disposeSchematicSelectionBinder()
         this.#disposeSvgViewportController()
         this.#disposePcbViewController()
         this.#scene3dPanelController.prepareForRender(
@@ -841,7 +857,7 @@ export class AppView {
         )
 
         if (snapshot.parseStatus === 'loading' && !snapshot.documentModel) {
-            AppViewSchematicContentReuseModel.clear(this.#contentNode)
+            AppViewSchematicPanelRenderer.clear(this.#contentNode)
             this.#contentNode.innerHTML =
                 '<section class="viewer-loading"><div class="viewer-loading__pulse"></div><p>' +
                 AppViewSupport.escapeHtml(this.#translate('status.loading')) +
@@ -850,8 +866,7 @@ export class AppView {
         }
 
         if (!snapshot.documentModel) {
-            SchematicViewportPreserver.clear(this.#contentNode)
-            AppViewSchematicContentReuseModel.clear(this.#contentNode)
+            AppViewSchematicPanelRenderer.clear(this.#contentNode)
             this.#contentNode.innerHTML = ViewerEmptyStateRenderer.render(
                 this.#translate
             )
@@ -859,47 +874,20 @@ export class AppView {
         }
 
         if (snapshot.activeView === 'schematic') {
-            const documentId = String(snapshot?.activeDocumentId || '')
-            const selectedComponentKey = String(
-                snapshot?.selectedPcbComponents?.[documentId] || ''
-            )
-            this.#contentNode.innerHTML = SchematicViewRenderer.render(
-                snapshot.documentModel,
-                selectedComponentKey,
-                String(snapshot?.selectedNets?.[documentId] || '')
-            )
-            const restoredSchematicViewport =
-                SchematicViewportPreserver.restore(
-                    this.#contentNode,
-                    preservedSchematicViewBox
-                )
-            SchematicViewportPreserver.remember(
-                this.#contentNode,
-                documentId,
-                snapshot.documentModel
-            )
-            AppViewSchematicContentReuseModel.remember(
-                this.#contentNode,
-                snapshot
-            )
-            this.#attachSvgViewportController('.schematic-svg')
-            SchematicSelectionMarkerBoundsResolver.centerViewport(
-                this.#svgViewportController,
-                this.#contentNode.innerHTML,
-                selectedComponentKey,
-                restoredSchematicViewport
-            )
-            SchematicComponentSelectionBinder.bind(
-                this.#contentNode.querySelector('.schematic-svg'),
-                documentId,
-                (change) => this.#handleRenderedComponentSelection(change),
-                this.#pcbNetSelectionCallback
-            )
+            const schematicPanel = AppViewSchematicPanelRenderer.render({
+                contentNode: this.#contentNode,
+                snapshot,
+                preservedViewBox: preservedSchematicViewBox,
+                onComponentSelectionChange: (change) =>
+                    this.#handleRenderedComponentSelection(change),
+                onNetSelectionChange: this.#pcbNetSelectionCallback
+            })
+            this.#svgViewportController = schematicPanel.svgViewportController
+            this.#schematicSelectionDisposer = schematicPanel.selectionDisposer
             return
         }
 
-        SchematicViewportPreserver.clear(this.#contentNode)
-        AppViewSchematicContentReuseModel.clear(this.#contentNode)
+        AppViewSchematicPanelRenderer.clear(this.#contentNode)
 
         if (snapshot.activeView === 'pcb') {
             this.#pcbViewController = AppViewPcbControllerBinder.attach({
@@ -930,6 +918,8 @@ export class AppView {
                 selectedComponentKey: selectedKey,
                 onComponentSelectionChange: (change) =>
                     this.#handleRenderedComponentSelection(change),
+                onSessionAssetsResolved: (change) =>
+                    this.#sessionAssetsResolvedCallback?.(change),
                 translate: this.#translate,
                 createScene3dController: this.#createScene3dController
             })
@@ -983,6 +973,15 @@ export class AppView {
     #disposeSvgViewportController() {
         this.#svgViewportController?.dispose()
         this.#svgViewportController = null
+    }
+
+    /**
+     * Disposes schematic selection listeners before replacing schematic SVGs.
+     * @returns {void}
+     */
+    #disposeSchematicSelectionBinder() {
+        this.#schematicSelectionDisposer?.()
+        this.#schematicSelectionDisposer = null
     }
 
     /**

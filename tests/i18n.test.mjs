@@ -512,6 +512,7 @@ test('dynamic viewer renderers use provided translations', () => {
         'scene3d.downloadModelsZip': '下载模型 ZIP',
         'scene3d.exportAssemblyStep': '导出 STEP 装配',
         'scene3d.exportAssemblyWrl': '导出 WRL 装配',
+        'scene3d.exportAssemblyGlb': '导出 GLB 装配',
         'scene3d.loading': '正在准备 3D 场景...',
         'scene3d.externalModels': '外部模型',
         'scene3d.fallbackBodies': '备用实体',

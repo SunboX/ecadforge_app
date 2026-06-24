@@ -4,7 +4,11 @@ import {
     AltiumSchLibExporter,
     SourceBundleExporter
 } from 'altium-toolkit/parser'
-import { KicadSelectedPartExporter } from 'kicad-toolkit/parser'
+import { SelectedPartCircuitJsonExportAdapter } from './SelectedPartCircuitJsonExportAdapter.mjs'
+import {
+    CircuitJsonKicadProjectExporter,
+    KicadSelectedPartExporter
+} from 'kicad-toolkit/parser'
 import { SelectedPartKicadExportAdapter } from './SelectedPartKicadExportAdapter.mjs'
 import { SelectedPartResolver } from './SelectedPartResolver.mjs'
 import { SelectedPartStitchedModelExporter } from './SelectedPartStitchedModelExporter.mjs'
@@ -108,6 +112,8 @@ export class SelectedPartExportService {
         if (format === 'kicad') {
             return SelectedPartExportService.#buildKicadEntries(
                 selectedPart,
+                documentModel,
+                models,
                 partName
             )
         }
@@ -130,18 +136,37 @@ export class SelectedPartExportService {
     /**
      * Builds KiCad export entries.
      * @param {object} selectedPart Selected part data.
+     * @param {object} documentModel Active document model.
+     * @param {object[]} models Matched 3D model assets.
      * @param {string} partName Export artifact name.
      * @returns {{ path: string, bytes: Uint8Array, contentType: string }[]}
      */
-    static #buildKicadEntries(selectedPart, partName) {
+    static #buildKicadEntries(selectedPart, documentModel, models, partName) {
         const kicadPart = SelectedPartKicadExportAdapter.adapt(
             selectedPart,
+            partName,
+            models
+        )
+        const circuitJson = SelectedPartCircuitJsonExportAdapter.build(
+            selectedPart,
+            documentModel,
             partName
         )
+        const projectResult = CircuitJsonKicadProjectExporter.export(
+            circuitJson,
+            {
+                projectName: partName,
+                libraryName: partName,
+                basePath: 'kicad/project',
+                modelFiles: models
+            }
+        )
 
-        return KicadSelectedPartExporter.export(kicadPart, {
+        const libraryResult = KicadSelectedPartExporter.export(kicadPart, {
             partName
-        }).entries
+        })
+
+        return [...libraryResult.entries, ...projectResult.entries]
     }
 
     /**
@@ -190,47 +215,11 @@ export class SelectedPartExportService {
      * @returns {{ path: string, bytes: Uint8Array, contentType: string }[]}
      */
     static #buildCircuitJsonEntries(selectedPart, documentModel, partName) {
-        const designator = selectedPart.designator || 'selected-part'
-        const sourceComponentId =
-            'source_component_' +
-            SelectedPartExportService.#safeIdentifier(designator)
-        const footprintId =
-            'pcb_component_' +
-            SelectedPartExportService.#safeIdentifier(designator)
-        const circuitJson = [
-            {
-                type: 'source_project_metadata',
-                name: documentModel?.fileName || 'Selected part export',
-                software_used_string:
-                    documentModel?.sourceFormat || documentModel?.fileType || ''
-            },
-            {
-                type: 'source_component',
-                source_component_id: sourceComponentId,
-                name: partName,
-                manufacturer_part_number: selectedPart.symbol?.value || '',
-                supplier_part_numbers: []
-            },
-            {
-                type: 'schematic_component',
-                schematic_component_id:
-                    'schematic_component_' +
-                    SelectedPartExportService.#safeIdentifier(designator),
-                source_component_id: sourceComponentId,
-                center: { x: 0, y: 0 },
-                rotation: 0
-            },
-            {
-                type: 'pcb_component',
-                pcb_component_id: footprintId,
-                source_component_id: sourceComponentId,
-                center: { x: 0, y: 0 },
-                rotation: 0,
-                footprint: selectedPart.footprint?.name || ''
-            },
-            ...SelectedPartExportService.#sourcePorts(selectedPart),
-            ...SelectedPartExportService.#pcbPads(selectedPart, footprintId)
-        ]
+        const circuitJson = SelectedPartCircuitJsonExportAdapter.build(
+            selectedPart,
+            documentModel,
+            partName
+        )
 
         return [
             SelectedPartExportService.#jsonEntry(
@@ -274,6 +263,7 @@ export class SelectedPartExportService {
                     selectedPart.footprint?.name ||
                     selectedPart.designator ||
                     'Selected part',
+                component: selectedPart.footprint?.component || {},
                 pads: selectedPart.footprint?.pads || [],
                 tracks: selectedPart.footprint?.tracks || [],
                 arcs: selectedPart.footprint?.arcs || [],
@@ -326,61 +316,6 @@ export class SelectedPartExportService {
                 ...primitive
             })
         )
-    }
-
-    /**
-     * Builds CircuitJSON source port entries.
-     * @param {{ designator: string, symbol: { pins?: object[] } }} selectedPart Selected part data.
-     * @returns {object[]}
-     */
-    static #sourcePorts(selectedPart) {
-        const sourceComponentId =
-            'source_component_' +
-            SelectedPartExportService.#safeIdentifier(
-                selectedPart.designator || 'selected-part'
-            )
-
-        return SelectedPartExportService.#array(selectedPart.symbol?.pins).map(
-            (pin, index) => ({
-                type: 'source_port',
-                source_port_id:
-                    sourceComponentId +
-                    '_port_' +
-                    SelectedPartExportService.#safeIdentifier(
-                        pin.number || index + 1
-                    ),
-                source_component_id: sourceComponentId,
-                name: String(pin.name || index + 1),
-                pin_number: String(pin.number || index + 1)
-            })
-        )
-    }
-
-    /**
-     * Builds CircuitJSON PCB pad entries.
-     * @param {{ footprint: { pads?: object[] } }} selectedPart Selected part data.
-     * @param {string} footprintId PCB component id.
-     * @returns {object[]}
-     */
-    static #pcbPads(selectedPart, footprintId) {
-        return SelectedPartExportService.#array(
-            selectedPart.footprint?.pads
-        ).map((pad, index) => ({
-            type: 'pcb_smtpad',
-            pcb_smtpad_id:
-                footprintId +
-                '_pad_' +
-                SelectedPartExportService.#safeIdentifier(
-                    pad.number || index + 1
-                ),
-            pcb_component_id: footprintId,
-            port_hints: [String(pad.number || index + 1)],
-            x: SelectedPartExportService.#number(pad.x, 0),
-            y: SelectedPartExportService.#number(pad.y, 0),
-            width: SelectedPartExportService.#number(pad.width, 1),
-            height: SelectedPartExportService.#number(pad.height, 1),
-            layer: 'top'
-        }))
     }
 
     /**

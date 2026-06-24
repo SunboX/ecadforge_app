@@ -1,12 +1,18 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
+import { PcbDiagnosticFocusModel } from '../core/PcbDiagnosticFocusModel.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbBoardClickGuard } from './PcbBoardClickGuard.mjs'
+import { PcbDiagnosticNavigationController } from './PcbDiagnosticNavigationController.mjs'
 import { PcbGerberRenderSelectionModel } from './PcbGerberRenderSelectionModel.mjs'
 import { PcbHitTestPointResolver } from './PcbHitTestPointResolver.mjs'
+import { PcbMeasurementInteractionController } from './PcbMeasurementInteractionController.mjs'
 import { PcbSelectionMarkerBoundsResolver } from './PcbSelectionMarkerBoundsResolver.mjs'
+import { PcbTraceLengthToggleController } from './PcbTraceLengthToggleController.mjs'
 import { PcbViewRenderer } from './PcbViewRenderer.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
-import { SvgViewBoxParser } from './SvgViewBoxParser.mjs'
+import { SvgClientBoundsGuard } from './SvgClientBoundsGuard.mjs'
+import { PcbSvgPointResolver } from './PcbSvgPointResolver.mjs'
 import { TouchTapSelectionGuard } from './TouchTapSelectionGuard.mjs'
 
 const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
@@ -15,67 +21,42 @@ const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
  * Handles board-side selection and pan/zoom wiring for the 2D PCB view.
  */
 export class PcbViewController {
-    /** @type {HTMLElement} */
     #contentNode
-    /** @type {object} */
     #documentModel
-    /** @type {string} */
     #documentId
-    /** @type {'top' | 'bottom'} */
     #side
-    /** @type {((key: string) => string) | null} */
     #translate
-    /** @type {string[]} */
     #hiddenLayers
-    /** @type {string[]} */
     #hiddenObjects
-    /** @type {{ [objectKey: string]: number }} */
     #objectOpacities
-    /** @type {string} */
     #selectedComponentKey
-    /** @type {string} */
     #selectedNetName
-    /** @type {'composite' | 'separated'} */
+    #hoveredNetName
+    #traceLengthToggle
     #gerberRenderMode
-    /** @type {string} */
     #gerberLayerId
-    /** @type {string[]} */
     #gerberLayerIds
-    /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
+    #measurement
+    #diagnosticNavigation
     #onComponentSelectionChange
-    /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
     #onNetSelectionChange
-    /** @type {((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null} */
     #onInteractionCandidatesChange
-    /** @type {SchematicViewportController | null} */
     #svgViewportController
-    /** @type {PcbBoardClickGuard} */
     #boardClickGuard
-    /** @type {TouchTapSelectionGuard} */
     #touchTapGuard
-    /** @type {number} */
     #renderGeneration
-    /** @type {boolean} */
     #fontRefreshCompleted
-    /** @type {(event: Event) => void} */
     #handleClick
-    /** @type {(event: Event) => void} */
     #handleChange
-    /** @type {(event: Event) => void} */
     #handlePointerMove
-    /** @type {() => void} */
     #handlePointerLeave
-    /** @type {(event: Event) => void} */
     #handleTouchStart
-    /** @type {(event: Event) => void} */
     #handleTouchMove
-    /** @type {(event: Event) => void} */
     #handleTouchEnd
-
     /**
      * @param {HTMLElement} contentNode PCB panel mount node.
      * @param {object} documentModel Document model.
-     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, selectedNetName?: string, gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onNetSelectionChange?: ((change: { documentId: string, netName: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
+     * @param {{ documentId?: string, side?: 'top' | 'bottom', hiddenLayers?: string[], hiddenObjects?: string[], objectOpacities?: { [objectKey: string]: number }, selectedComponentKey?: string, selectedNetName?: string, showTraceLengths?: boolean, gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], onComponentSelectionChange?: ((change: { documentId: string, componentKey: string, source?: string }) => void) | null, onNetSelectionChange?: ((change: { documentId: string, netName: string, source?: string }) => void) | null, onInteractionCandidatesChange?: ((change: { documentId: string, point: { x: number, y: number }, candidates: object[], selectedCandidate: object | null }) => void) | null, translate?: ((key: string) => string) | null }} [options] Initial options.
      */
     constructor(contentNode, documentModel, options = {}) {
         this.#contentNode = contentNode
@@ -83,6 +64,15 @@ export class PcbViewController {
         this.#documentId = String(options.documentId || '')
         this.#selectedComponentKey = String(options.selectedComponentKey || '')
         this.#selectedNetName = String(options.selectedNetName || '')
+        this.#hoveredNetName = ''
+        this.#traceLengthToggle = new PcbTraceLengthToggleController({
+            visible: options.showTraceLengths,
+            render: () =>
+                this.#renderSide(this.#side, {
+                    refreshFonts: false,
+                    preserveViewport: true
+                })
+        })
         this.#gerberLayerIds = PcbGerberRenderSelectionModel.resolveLayerIds(
             documentModel,
             options.gerberLayerIds,
@@ -131,12 +121,27 @@ export class PcbViewController {
         this.#touchTapGuard = new TouchTapSelectionGuard({
             readState: () => this.#readActiveSvgViewBox()
         })
+        this.#measurement = new PcbMeasurementInteractionController({
+            documentModel: this.#documentModel,
+            render: () => this.#renderSide(this.#side, { preserveViewport: true }),
+            resolvePcbSvgNode: (target) => this.#resolvePcbSvgNode(target),
+            resolveSvgPoint: (svgNode, event) =>
+                this.#resolveSvgPoint(svgNode, event),
+            resolveHitTestPoint: (svgNode, point) =>
+                this.#resolveHitTestPoint(svgNode, point)
+        })
+        this.#diagnosticNavigation = new PcbDiagnosticNavigationController(
+            this.#contentNode,
+            {
+                onFocus: (diagnosticId) => this.#focusDiagnostic(diagnosticId)
+            }
+        )
         this.#renderGeneration = 0
         this.#fontRefreshCompleted = false
         this.#handleClick = (event) => this.#handleClickEvent(event)
         this.#handleChange = (event) => this.#handleChangeEvent(event)
         this.#handlePointerMove = (event) => this.#handlePointerMoveEvent(event)
-        this.#handlePointerLeave = () => this.#clearClickableCursor()
+        this.#handlePointerLeave = () => this.#handlePointerLeaveEvent()
         this.#handleTouchStart = (event) => this.#handleTouchStartEvent(event)
         this.#handleTouchMove = (event) => this.#touchTapGuard.move(event)
         this.#handleTouchEnd = (event) => this.#handleTouchEndEvent(event)
@@ -158,7 +163,6 @@ export class PcbViewController {
         this.#contentNode.addEventListener('touchcancel', this.#handleTouchEnd)
         this.#renderSide(this.#side)
     }
-
     /**
      * Returns the currently rendered PCB side.
      * @returns {'top' | 'bottom'}
@@ -166,7 +170,6 @@ export class PcbViewController {
     get side() {
         return this.#side
     }
-
     /**
      * Applies Gerber stack/file selection from external viewer chrome.
      * @param {{ renderMode?: string, layerId?: string, layerIds?: string[] }} selection Selection details.
@@ -208,7 +211,6 @@ export class PcbViewController {
         this.#gerberRenderMode = nextRenderMode
         this.#renderSide(this.#side, { preserveViewport: true })
     }
-
     /**
      * Disposes current event and SVG viewport bindings.
      * @returns {void}
@@ -245,10 +247,10 @@ export class PcbViewController {
         this.#clearClickableCursor()
         this.#boardClickGuard.reset()
         this.#touchTapGuard.reset()
+        this.#diagnosticNavigation.dispose()
         this.#renderGeneration += 1
         this.#disposeSvgViewportController()
     }
-
     /**
      * Handles PCB panel clicks.
      * @param {Event} event Click event.
@@ -263,9 +265,20 @@ export class PcbViewController {
             return
         }
 
+        if (this.#traceLengthToggle.handleClick(event)) {
+            return
+        }
+
+        if (this.#measurement.handleCopy(event)) {
+            return
+        }
+
+        if (this.#measurement.handleToolSelection(event)) {
+            return
+        }
+
         this.#handleBoardClick(event)
     }
-
     /**
      * Handles PCB panel change events.
      * @param {Event} event Change event.
@@ -274,7 +287,6 @@ export class PcbViewController {
     #handleChangeEvent(event) {
         this.#handleGerberLayerSelection(event)
     }
-
     /**
      * Handles Top/Bottom toolbar clicks.
      * @param {Event} event Click event.
@@ -304,7 +316,6 @@ export class PcbViewController {
         this.#renderSide(nextSide)
         return true
     }
-
     /**
      * Handles Gerber composite toggle clicks.
      * @param {Event} event Click event.
@@ -332,7 +343,6 @@ export class PcbViewController {
         })
         return true
     }
-
     /**
      * Handles Gerber source-layer select changes.
      * @param {Event} event Change event.
@@ -358,7 +368,6 @@ export class PcbViewController {
         })
         return true
     }
-
     /**
      * Handles clicks inside the active PCB SVG.
      * @param {Event} event Click event.
@@ -369,9 +378,12 @@ export class PcbViewController {
             return
         }
 
+        if (this.#measurement.handleBoardClick(event)) {
+            return
+        }
+
         this.#selectBoardHit(event)
     }
-
     /**
      * Starts tracking a possible mobile board tap.
      * @param {Event} event Touch event.
@@ -385,7 +397,6 @@ export class PcbViewController {
 
         this.#touchTapGuard.start(event)
     }
-
     /**
      * Selects board content from a completed stationary mobile tap.
      * @param {Event} event Touch event.
@@ -402,9 +413,12 @@ export class PcbViewController {
             return
         }
 
+        if (this.#measurement.handleBoardClick(tap)) {
+            return
+        }
+
         this.#selectBoardHit(tap)
     }
-
     /**
      * Selects the highest-priority PCB hit candidate for one event point.
      * @param {Event | { target?: unknown, clientX?: number, clientY?: number }} event Selection event.
@@ -413,6 +427,10 @@ export class PcbViewController {
     #selectBoardHit(event) {
         const hit = this.#resolveBoardHit(event)
         if (!hit) {
+            if (PcbViewController.#isInteractiveSvg(event.target)) {
+                this.#emitComponentSelection(null)
+                this.#emitNetSelection(null)
+            }
             return
         }
 
@@ -430,13 +448,23 @@ export class PcbViewController {
         this.#emitComponentSelection(componentCandidate)
         this.#emitNetSelection(componentCandidate ? null : netCandidate)
     }
-
     /**
      * Handles pointer movement over the PCB view.
      * @param {Event} event Pointer event.
      * @returns {void}
      */
     #handlePointerMoveEvent(event) {
+        if (this.#measurement.isActive()) {
+            this.#setHoveredNetName('')
+            this.#setMeasurementCursor(true)
+            return
+        }
+        const svgNode = this.#resolvePcbSvgNode(event.target)
+        if (SvgClientBoundsGuard.isOutside(svgNode, event)) {
+            this.#setClickableCursor(false)
+            this.#setHoveredNetName('')
+            return
+        }
         const hit = this.#resolveBoardHit(event)
         const componentCandidate = hit
             ? PcbViewController.#componentCandidate(hit.candidates)
@@ -444,10 +472,23 @@ export class PcbViewController {
         const netCandidate = hit
             ? PcbViewController.#netCandidate(hit.candidates)
             : null
+        const clickable = Boolean(componentCandidate || netCandidate)
 
-        this.#setClickableCursor(Boolean(componentCandidate || netCandidate))
+        if (
+            EcadFormatRegistry.sourceFormatForDocument(this.#documentModel) ===
+            'circuitjson'
+        ) {
+            this.#setHoveredNetName(
+                PcbViewController.#candidateNetName(netCandidate)
+            )
+        }
+        this.#setClickableCursor(clickable)
     }
-
+    /** Handles pointer exit from the PCB view. @returns {void} */
+    #handlePointerLeaveEvent() {
+        this.#clearClickableCursor()
+        this.#setHoveredNetName('')
+    }
     /**
      * Resolves one board-space hit test from a pointer event.
      * @param {Event} event Pointer event.
@@ -455,14 +496,10 @@ export class PcbViewController {
      */
     #resolveBoardHit(event) {
         const svgNode = this.#resolvePcbSvgNode(event.target)
-        if (!svgNode) {
-            return null
-        }
+        if (!svgNode) return null
 
         const point = this.#resolveSvgPoint(svgNode, event)
-        if (!point) {
-            return null
-        }
+        if (!point) return null
         const hitPoint = this.#resolveHitTestPoint(svgNode, point)
 
         return {
@@ -482,7 +519,6 @@ export class PcbViewController {
             )
         }
     }
-
     /**
      * Converts rendered SVG coordinates to the document's hit-test space.
      * @param {SVGSVGElement | HTMLElement} svgNode SVG node.
@@ -497,7 +533,6 @@ export class PcbViewController {
             this.#side
         )
     }
-
     /**
      * Sets the clickable cursor on the active PCB SVG.
      * @param {boolean} clickable Whether a component-backed hit is present.
@@ -511,15 +546,42 @@ export class PcbViewController {
 
         svgNode.style.cursor = clickable ? 'pointer' : ''
     }
+    /**
+     * Sets the measurement cursor on the active PCB SVG.
+     * @param {boolean} active Whether measurement is active.
+     * @returns {void}
+     */
+    #setMeasurementCursor(active) {
+        const svgNode = this.#contentNode.querySelector('.pcb-svg')
+        if (!svgNode?.style) {
+            return
+        }
 
+        svgNode.style.cursor = active ? 'crosshair' : ''
+    }
     /**
      * Clears the clickable cursor from the active PCB SVG.
      * @returns {void}
      */
     #clearClickableCursor() {
+        this.#setMeasurementCursor(false)
         this.#setClickableCursor(false)
     }
+    /**
+     * Stores the hovered net name and re-renders the view when it changes.
+     * @param {string} netName Hovered net name.
+     * @returns {void}
+     */
+    #setHoveredNetName(netName) {
+        const nextNetName = String(netName || '').trim()
+        if (nextNetName === this.#hoveredNetName) return
 
+        this.#hoveredNetName = nextNetName
+        this.#renderSide(this.#side, {
+            refreshFonts: false,
+            preserveViewport: true
+        })
+    }
     /**
      * Reads the active PCB SVG viewBox for tap invalidation.
      * @returns {string}
@@ -528,7 +590,6 @@ export class PcbViewController {
         const svgNode = this.#contentNode.querySelector('.pcb-svg')
         return String(svgNode?.getAttribute?.('viewBox') || '')
     }
-
     /**
      * Emits overlap candidate data when a listener is configured.
      * @param {{ x: number, y: number }} point Board-space point.
@@ -548,7 +609,6 @@ export class PcbViewController {
             selectedCandidate
         })
     }
-
     /**
      * Emits component selection or an empty key when no component is available.
      * @param {object | null} selectedCandidate Component-backed candidate.
@@ -569,7 +629,6 @@ export class PcbViewController {
             source: 'pcb-board'
         })
     }
-
     /**
      * Emits net selection or an empty name when no net is available.
      * @param {object | null} selectedCandidate Net-backed candidate.
@@ -587,7 +646,6 @@ export class PcbViewController {
             source: 'pcb-board'
         })
     }
-
     /**
      * Resolves the SVG node associated with a click target.
      * @param {unknown} target Event target.
@@ -622,7 +680,6 @@ export class PcbViewController {
 
         return null
     }
-
     /**
      * Resolves a click event into SVG viewBox coordinates.
      * @param {SVGSVGElement | HTMLElement} svgNode SVG node.
@@ -630,78 +687,8 @@ export class PcbViewController {
      * @returns {{ x: number, y: number } | null}
      */
     #resolveSvgPoint(svgNode, event) {
-        const matrixPoint = PcbViewController.#resolveSvgMatrixPoint(
-            svgNode,
-            event
-        )
-        if (matrixPoint) {
-            return matrixPoint
-        }
-
-        return PcbViewController.#resolveViewBoxPoint(svgNode, event)
+        return PcbSvgPointResolver.resolve(svgNode, event)
     }
-
-    /**
-     * Resolves an SVG point with native matrix APIs when available.
-     * @param {SVGSVGElement | HTMLElement} svgNode SVG node.
-     * @param {Event} event Click event.
-     * @returns {{ x: number, y: number } | null}
-     */
-    static #resolveSvgMatrixPoint(svgNode, event) {
-        if (
-            typeof svgNode.createSVGPoint !== 'function' ||
-            typeof svgNode.getScreenCTM !== 'function'
-        ) {
-            return null
-        }
-
-        const matrix = svgNode.getScreenCTM()
-        if (!matrix || typeof matrix.inverse !== 'function') {
-            return null
-        }
-
-        const point = svgNode.createSVGPoint()
-        point.x = Number(event.clientX) || 0
-        point.y = Number(event.clientY) || 0
-        const transformed = point.matrixTransform(matrix.inverse())
-
-        return {
-            x: Number(transformed.x) || 0,
-            y: Number(transformed.y) || 0
-        }
-    }
-
-    /**
-     * Resolves an SVG point from the viewBox and client rectangle.
-     * @param {SVGSVGElement | HTMLElement} svgNode SVG node.
-     * @param {Event} event Click event.
-     * @returns {{ x: number, y: number } | null}
-     */
-    static #resolveViewBoxPoint(svgNode, event) {
-        if (typeof svgNode.getBoundingClientRect !== 'function') {
-            return null
-        }
-
-        const rect = svgNode.getBoundingClientRect()
-        const viewBox = SvgViewBoxParser.parse(
-            svgNode.getAttribute?.('viewBox')
-        )
-        if (!viewBox || !rect.width || !rect.height) {
-            return null
-        }
-
-        return {
-            x:
-                viewBox.minX +
-                ((Number(event.clientX) || 0) - rect.left) *
-                    (viewBox.width / rect.width),
-            y:
-                viewBox.minY +
-                ((Number(event.clientY) || 0) - rect.top) *
-                    (viewBox.height / rect.height)
-        }
-    }
-
     /**
      * Returns the first component-backed candidate from a hit-test result.
      * @param {object[]} candidates Hit-test candidates.
@@ -714,7 +701,6 @@ export class PcbViewController {
             ) || null
         )
     }
-
     /**
      * Returns the first net-backed candidate from a hit-test result.
      * @param {object[]} candidates Hit-test candidates.
@@ -727,7 +713,6 @@ export class PcbViewController {
             ) || null
         )
     }
-
     /**
      * Returns one candidate's net name.
      * @param {object | null} candidate Hit-test candidate.
@@ -738,7 +723,6 @@ export class PcbViewController {
             candidate?.netName ?? candidate?.net ?? candidate?.net_name ?? ''
         ).trim()
     }
-
     /**
      * Replaces the PCB view with the selected board side.
      * @param {'top' | 'bottom'} side Requested side.
@@ -765,7 +749,10 @@ export class PcbViewController {
             {
                 gerberRenderMode: this.#gerberRenderMode,
                 gerberLayerId: this.#gerberLayerId,
-                gerberLayerIds: this.#gerberLayerIds
+                gerberLayerIds: this.#gerberLayerIds,
+                measurement: this.#measurement.snapshot(),
+                hoveredNetName: this.#hoveredNetName,
+                showTraceLengths: this.#traceLengthToggle.visible
             }
         )
         const renderedDefaultViewBox = this.#readCurrentViewBox()
@@ -780,7 +767,6 @@ export class PcbViewController {
             this.#refreshAfterFontsReady(generation)
         }
     }
-
     /**
      * Refreshes the current side once embedded SVG fonts are measurable.
      * @param {number} generation Render generation that scheduled the refresh.
@@ -805,7 +791,6 @@ export class PcbViewController {
             })
             .catch(() => {})
     }
-
     /**
      * Waits until the browser has had a chance to register inline SVG fonts.
      * @returns {Promise<void>}
@@ -817,7 +802,6 @@ export class PcbViewController {
             await ready
         }
     }
-
     /**
      * Checks whether the active PCB model has embedded font faces.
      * @returns {boolean}
@@ -828,7 +812,6 @@ export class PcbViewController {
             this.#documentModel.pcb.embeddedFonts.length
         )
     }
-
     /**
      * Attaches pan and zoom to the active PCB SVG.
      * @returns {void}
@@ -843,7 +826,6 @@ export class PcbViewController {
             defaultViewBox
         })
     }
-
     /**
      * Centers the active PCB viewport on a newly selected component marker.
      * @param {string} previousSelectedComponentKey Component key from the preserved viewport.
@@ -865,7 +847,21 @@ export class PcbViewController {
             )
         )
     }
+    /**
+     * Focuses the active PCB viewport around one diagnostic target.
+     * @param {string} diagnosticId Diagnostic id.
+     * @returns {void}
+     */
+    #focusDiagnostic(diagnosticId) {
+        const focus = PcbDiagnosticFocusModel.build(this.#documentModel).get(
+            String(diagnosticId || '').trim()
+        )
+        if (!focus) return
 
+        this.#svgViewportController?.focusBounds(
+            PcbDiagnosticFocusModel.viewportBounds(focus)
+        )
+    }
     /**
      * Stores the active PCB viewBox so an AppView remount can keep pan/zoom.
      * @returns {void}
@@ -881,7 +877,6 @@ export class PcbViewController {
             viewBox
         }
     }
-
     /**
      * Restores a previously stored viewBox when remounting the same PCB side.
      * @returns {{ restored: boolean, selectedComponentKey: string }}
@@ -902,7 +897,6 @@ export class PcbViewController {
             selectedComponentKey: String(preserved.selectedComponentKey || '')
         }
     }
-
     /**
      * Reads the active SVG viewBox.
      * @returns {string}
@@ -911,7 +905,6 @@ export class PcbViewController {
         const svgNode = this.#contentNode.querySelector('.pcb-svg')
         return String(svgNode?.getAttribute?.('viewBox') || '')
     }
-
     /**
      * Applies a viewBox to the active PCB SVG when a value is available.
      * @param {string} viewBox SVG viewBox value.
@@ -927,7 +920,6 @@ export class PcbViewController {
         svgNode.setAttribute('viewBox', value)
         return true
     }
-
     /**
      * Disposes the active SVG viewport controller.
      * @returns {void}
@@ -936,7 +928,6 @@ export class PcbViewController {
         this.#svgViewportController?.dispose()
         this.#svgViewportController = null
     }
-
     /**
      * Returns true when the queried node supports SVG viewport controls.
      * @param {unknown} node Queried node.
@@ -953,7 +944,6 @@ export class PcbViewController {
             typeof node.removeEventListener === 'function'
         )
     }
-
     /**
      * Resolves the first rendered side for a selected component.
      * @param {object} documentModel PCB document model.
@@ -973,7 +963,6 @@ export class PcbViewController {
             ) || PcbViewController.#normalizeSide(requestedSide)
         )
     }
-
     /**
      * Normalizes untrusted side input to the supported board-side names.
      * @param {unknown} side Requested side.

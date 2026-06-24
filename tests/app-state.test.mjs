@@ -338,3 +338,21 @@ test('AppState stores companion assets without affecting the active document', (
     assert.equal(snapshot.sessionAssets.length, 1)
     assert.equal(snapshot.sessionAssets[0].relativePath, 'Models/QFN32.wrl')
 })
+
+test('AppState preserves session asset model-search provenance', () => {
+    const state = new AppState()
+
+    const snapshot = state.setValue('sessionAssets', [
+        {
+            name: 'U1.step',
+            relativePath: 'Package_FAKE.3dshapes/U1.step',
+            file: { name: 'U1.step' },
+            format: 'step',
+            source: 'model-search',
+            componentKey: 'U1'
+        }
+    ])
+
+    assert.equal(snapshot.sessionAssets[0].source, 'model-search')
+    assert.equal(snapshot.sessionAssets[0].componentKey, 'U1')
+})
