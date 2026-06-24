@@ -36,13 +36,22 @@ test('ftp workflow excludes api htaccess from FTP sync', async () => {
  * Verifies the FTP workflow deploys the package manifest to the LIVE document
  * root so the PHP metadata endpoint can read the current app version.
  */
-test('ftp workflow deploys package.json to the live root on dependency changes', async () => {
+test('ftp workflow deploys package.json to the live root on frontend or dependency changes', async () => {
     const workflow = await readFile(workflowPath, 'utf8')
+    const stageManifestBlock = workflow.match(
+        /name: Stage package manifest for LIVE[\s\S]*?cp package\.json \.deploy-root\/package\.json/
+    )?.[0]
+    const deployManifestBlock = workflow.match(
+        /name: Deploy package manifest to \.\/[\s\S]*?state-name: \.ftp-deploy-root-meta-state\.json/
+    )?.[0]
+    const manifestDeployCondition =
+        /if: steps\.changes\.outputs\.src == 'true' \|\| steps\.changes\.outputs\.deps == 'true'/
 
     assert.match(workflow, /name: Stage package manifest for LIVE/)
-    assert.match(workflow, /if: steps\.changes\.outputs\.deps == 'true'/)
+    assert.match(stageManifestBlock ?? '', manifestDeployCondition)
     assert.match(workflow, /mkdir -p \.deploy-root/)
     assert.match(workflow, /cp package\.json \.deploy-root\/package\.json/)
+    assert.match(deployManifestBlock ?? '', manifestDeployCondition)
     assert.match(
         workflow,
         /name: Deploy package manifest to \.\/[\s\S]*?local-dir: \.\/\.deploy-root\/[\s\S]*?server-dir: \.\//

@@ -43,11 +43,19 @@ export class AppRuntimeVersion {
      * than the version currently served by the backend.
      * @param {string} loadedVersion
      * @param {string} serverVersion
+     * @param {string} [pageUrl]
      * @returns {boolean}
      */
-    static shouldReloadForStaleModules(loadedVersion, serverVersion) {
+    static shouldReloadForStaleModules(loadedVersion, serverVersion, pageUrl) {
         const normalizedLoadedVersion = String(loadedVersion || '').trim()
         const normalizedServerVersion = String(serverVersion || '').trim()
+
+        if (
+            AppRuntimeVersion.#readReloadVersion(pageUrl) ===
+            normalizedServerVersion
+        ) {
+            return false
+        }
 
         return Boolean(
             normalizedLoadedVersion &&
@@ -79,6 +87,25 @@ export class AppRuntimeVersion {
             return parsedUrl.toString()
         } catch (_error) {
             return normalizedPageUrl
+        }
+    }
+
+    /**
+     * Reads the reload version already present on one page URL.
+     * @param {string | undefined} pageUrl
+     * @returns {string}
+     */
+    static #readReloadVersion(pageUrl) {
+        const normalizedPageUrl = String(pageUrl || '').trim()
+        if (!normalizedPageUrl) {
+            return ''
+        }
+
+        try {
+            const parsedUrl = new URL(normalizedPageUrl)
+            return String(parsedUrl.searchParams.get('reload') || '').trim()
+        } catch (_error) {
+            return ''
         }
     }
 }

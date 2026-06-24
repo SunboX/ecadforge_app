@@ -141,7 +141,7 @@ jobs:
               run: exit 1
 
             - name: Stage package manifest for LIVE
-              if: steps.changes.outputs.deps == 'true'
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               run: |
                   rm -rf .deploy-root
                   mkdir -p .deploy-root
@@ -149,7 +149,7 @@ jobs:
 
             - name: Deploy package manifest to ./
               id: deploy_package_manifest
-              if: steps.changes.outputs.deps == 'true'
+              if: steps.changes.outputs.src == 'true' || steps.changes.outputs.deps == 'true'
               continue-on-error: true
               uses: SamKirkland/FTP-Deploy-Action@v4.3.6
               with:

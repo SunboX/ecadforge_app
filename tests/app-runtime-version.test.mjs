@@ -35,6 +35,14 @@ test('shouldReloadForStaleModules detects stale loaded modules', () => {
         true
     )
     assert.equal(
+        AppRuntimeVersion.shouldReloadForStaleModules(
+            '1.1.103',
+            '1.1.104',
+            'http://localhost:3000/?reload=1.1.104'
+        ),
+        false
+    )
+    assert.equal(
         AppRuntimeVersion.shouldReloadForStaleModules('1.1.104', '1.1.104'),
         false
     )

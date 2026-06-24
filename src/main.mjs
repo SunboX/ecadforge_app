@@ -95,7 +95,8 @@ async function loadVersion(view, loadedVersion, i18n) {
         if (
             AppRuntimeVersion.shouldReloadForStaleModules(
                 loadedVersion,
-                serverVersion
+                serverVersion,
+                typeof window !== 'undefined' ? window.location.href : ''
             )
         ) {
             view.setStatus(i18n.translate('status.refreshing'))
