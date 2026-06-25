@@ -1,11 +1,12 @@
 import { AppControllerParserData } from './AppControllerParserData.mjs'
+import { CircuitJsonManufacturingDownloadBuilder } from 'circuitjson-toolkit/renderers'
 
 /**
  * Handles whole-PCB 3D assembly exports from sidebar actions.
  */
 export class AppControllerPcbAssemblyExport {
     /**
-     * Exports the active PCB assembly as STEP, WRL, GLTF, or GLB.
+     * Exports the active PCB assembly or manufacturing metadata.
      * @param {{ change?: { documentId?: string, format?: string }, state: { getSnapshot: () => object, setValue?: (key: string, value: any) => object }, view: { showExportProgress?: (progress: { title?: string, value?: number, message?: string }) => void, updateExportProgress?: (progress: { value?: number, message?: string }) => void, hideExportProgress?: () => void, downloadBytes?: (fileName: string, bytes: Uint8Array, contentType: string) => void, setStatus?: (message: string) => void }, pcbAssemblyExportService: { export: (options: { format?: string, documentId?: string, documentModel?: object | null, documents?: object[], sessionAssets?: object[], onProgress?: (progress: { value: number, message: string }) => void }) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
      * @returns {Promise<void>}
      */
@@ -18,6 +19,16 @@ export class AppControllerPcbAssemblyExport {
         const documentModel =
             snapshot.documents?.find((entry) => entry.id === documentId)
                 ?.documentModel || snapshot.documentModel
+        const format = String(change?.format || 'step')
+
+        if (CircuitJsonManufacturingDownloadBuilder.supportsFormat(format)) {
+            AppControllerPcbAssemblyExport.#handleManufacturingDownload(
+                options,
+                documentModel,
+                format
+            )
+            return
+        }
 
         try {
             options.view.showExportProgress?.({
@@ -32,7 +43,7 @@ export class AppControllerPcbAssemblyExport {
                     documentModel
                 )
             const exportResult = await options.pcbAssemblyExportService.export({
-                format: String(change?.format || 'step'),
+                format,
                 documentId,
                 documentModel,
                 documents: snapshot.documents,
@@ -55,6 +66,33 @@ export class AppControllerPcbAssemblyExport {
             )
         } finally {
             options.view.hideExportProgress?.()
+        }
+    }
+
+    /**
+     * Downloads manufacturing metadata from the active document.
+     * @param {{ view: { downloadBytes?: (fileName: string, bytes: Uint8Array, contentType: string) => void, setStatus?: (message: string) => void } }} options Export handling options.
+     * @param {object | null} documentModel Active document model.
+     * @param {string} format Export format.
+     * @returns {void}
+     */
+    static #handleManufacturingDownload(options, documentModel, format) {
+        try {
+            const download = CircuitJsonManufacturingDownloadBuilder.build(
+                documentModel,
+                format
+            )
+            options.view.downloadBytes?.(
+                download.fileName,
+                download.bytes,
+                download.contentType
+            )
+            options.view.setStatus?.('Exported ' + download.fileName)
+        } catch (error) {
+            options.view.setStatus?.(
+                'Manufacturing export failed: ' +
+                    String(error?.message || error)
+            )
         }
     }
 

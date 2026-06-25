@@ -1,3 +1,7 @@
+import { ViewerSidebarManufacturingActions } from './ViewerSidebarManufacturingActions.mjs'
+import { ViewerSidebarSupportCoverageRenderer } from './ViewerSidebarSupportCoverageRenderer.mjs'
+import { SimulationResultPanelRenderer } from './SimulationResultPanelRenderer.mjs'
+
 /**
  * Renders the loaded-document overview shown in the viewer sidebar.
  */
@@ -32,6 +36,10 @@ export class ViewerSidebarOverviewRenderer {
                 documentModel,
                 translate
             ) +
+            ViewerSidebarSupportCoverageRenderer.render(
+                documentModel?.supportMatrix
+            ) +
+            SimulationResultPanelRenderer.render(documentModel) +
             ViewerSidebarOverviewRenderer.#renderOverviewMeta(
                 documentModel,
                 translate
@@ -48,29 +56,30 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {string}
      */
     static #renderOverviewActions(documentModel, translate, options) {
-        if (!documentModel?.pcb || options.showModelZipExport !== true) {
-            return ''
-        }
-
         const documentId = String(options?.documentId || '')
-        const actions = [
-            {
-                attribute: 'data-pcb-assembly-export-format="step"',
-                label: translate('scene3d.exportAssemblyStep')
-            },
-            {
-                attribute: 'data-pcb-assembly-export-format="wrl"',
-                label: translate('scene3d.exportAssemblyWrl')
-            },
-            {
-                attribute: 'data-pcb-assembly-export-format="glb"',
-                label: translate('scene3d.exportAssemblyGlb')
-            },
-            {
-                attribute: 'data-scene-3d-export="models-zip"',
-                label: translate('scene3d.downloadModelsZip')
-            }
-        ]
+        const actions =
+            documentModel?.pcb && options.showModelZipExport === true
+                ? [
+                      {
+                          attribute: 'data-pcb-assembly-export-format="step"',
+                          label: translate('scene3d.exportAssemblyStep')
+                      },
+                      {
+                          attribute: 'data-pcb-assembly-export-format="wrl"',
+                          label: translate('scene3d.exportAssemblyWrl')
+                      },
+                      {
+                          attribute: 'data-pcb-assembly-export-format="glb"',
+                          label: translate('scene3d.exportAssemblyGlb')
+                      },
+                      {
+                          attribute: 'data-scene-3d-export="models-zip"',
+                          label: translate('scene3d.downloadModelsZip')
+                      }
+                  ]
+                : []
+        actions.push(...ViewerSidebarManufacturingActions.build(documentModel))
+        if (!actions.length) return ''
 
         return (
             '<div class="viewer-sidebar__model-export viewer-sidebar__overview-actions">' +

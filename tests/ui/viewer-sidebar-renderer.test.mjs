@@ -138,6 +138,29 @@ function createSchematicDocument() {
 }
 
 /**
+ * Builds a compact project manifest model for sidebar rendering tests.
+ * @returns {object}
+ */
+function createProjectDocument() {
+    const documentModel = [
+        {
+            type: 'source_file',
+            source_file_id: 'project-source'
+        }
+    ]
+
+    return Object.assign(documentModel, {
+        fileName: 'demo-project.PrjPcb',
+        kind: 'project',
+        fileType: 'PrjPcb',
+        diagnostics: [],
+        summary: { title: 'Demo project', documentCount: 2 },
+        project: {},
+        bom: []
+    })
+}
+
+/**
  * Builds a render snapshot for the sidebar renderer.
  * @param {object} documentModel
  * @param {string} activeSidebarTab
@@ -790,7 +813,9 @@ test('ViewerSidebarRenderer de-duplicates schematic symbol rows by component key
 test('ViewerSidebarRenderer filters project documents by active view', () => {
     const boardDocument = createBoardDocument()
     const schematicDocument = createSchematicDocument()
+    const projectDocument = createProjectDocument()
     const documents = [
+        { id: 'doc-0', documentModel: projectDocument },
         { id: 'doc-1', documentModel: schematicDocument },
         { id: 'doc-2', documentModel: boardDocument }
     ]
@@ -818,10 +843,13 @@ test('ViewerSidebarRenderer filters project documents by active view', () => {
 
     assert.match(schematicHtml, /demo-sheet\.SchDoc/)
     assert.doesNotMatch(schematicHtml, /demo-board\.PcbDoc/)
+    assert.doesNotMatch(schematicHtml, /demo-project\.PrjPcb/)
     assert.match(pcbHtml, /demo-board\.PcbDoc/)
     assert.doesNotMatch(pcbHtml, /demo-sheet\.SchDoc/)
+    assert.doesNotMatch(pcbHtml, /demo-project\.PrjPcb/)
     assert.match(sceneHtml, /demo-board\.PcbDoc/)
     assert.doesNotMatch(sceneHtml, /demo-sheet\.SchDoc/)
+    assert.doesNotMatch(sceneHtml, /demo-project\.PrjPcb/)
 })
 
 /**

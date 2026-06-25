@@ -382,4 +382,4 @@ The browser implementation intentionally does not:
 - mutate the loaded ECAD session
 
 Use the normal ECAD Forge file picker, folder picker, drag-and-drop area, demo
-buttons, or GitHub URL intake to load a design before calling WebMCP tools.
+buttons, or Git URL intake to load a design before calling WebMCP tools.

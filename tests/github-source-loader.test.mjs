@@ -44,6 +44,41 @@ test('GitHubSourceLoader converts GitHub blob URLs to raw URLs', () => {
     assert.equal(resolved.formatFamily, 'kicad')
 })
 
+test('GitHubSourceLoader converts GitLab blob URLs to raw URLs', () => {
+    const resolved = GitHubSourceLoader.normalizeSourceUrl(
+        'https://gitlab.com/acme/demo/-/blob/main/hardware/board.kicad_pcb?ref_type=heads'
+    )
+
+    assert.equal(
+        resolved.rawUrl,
+        'https://gitlab.com/acme/demo/-/raw/main/hardware/board.kicad_pcb'
+    )
+    assert.equal(resolved.fileName, 'board.kicad_pcb')
+    assert.equal(resolved.formatFamily, 'kicad')
+})
+
+test('GitHubSourceLoader fetches GitLab blob URLs through the API raw endpoint', async () => {
+    const sourceUrl =
+        'https://gitlab.com/acme/demo/-/blob/main/hardware/board.kicad_pcb?ref_type=heads'
+    const rawUrl =
+        'https://gitlab.com/acme/demo/-/raw/main/hardware/board.kicad_pcb'
+    const apiRawUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/files/hardware%2Fboard.kicad_pcb/raw?ref=main'
+    const { fetcher, urls } = createFetchDouble({
+        [apiRawUrl]: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(sourceUrl)
+
+    assert.deepEqual(urls, [apiRawUrl])
+    assert.equal(result.rawUrl, rawUrl)
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.kicad_pcb']
+    )
+})
+
 test('GitHubSourceLoader resolves github query paths through raw GitHub URLs', () => {
     const resolved = GitHubSourceLoader.normalizeGitHubPath(
         'acme/demo/hardware/main.PcbDoc',
@@ -150,6 +185,109 @@ test('GitHubSourceLoader discovers a KiCad project from GitHub tree folders', as
     )
     assert.equal(result.rawUrl, baseUrl + '.kicad_pro')
     assert.equal(result.boardUrl, baseUrl + '.kicad_pcb')
+})
+
+test('GitHubSourceLoader discovers a KiCad project from GitLab tree folders', async () => {
+    const apiUrl =
+        'https://gitlab.com/api/v4/projects/ohwr%2Fproject%2Fwr-switch-hw/repository/tree?path=circuit_board%2Fwrs_v3%2FSCB_SAM9G45&ref=master&per_page=100'
+    const baseUrl =
+        'https://gitlab.com/ohwr/project/wr-switch-hw/-/raw/master/circuit_board/wrs_v3/SCB_SAM9G45/board'
+    const apiBaseUrl =
+        'https://gitlab.com/api/v4/projects/ohwr%2Fproject%2Fwr-switch-hw/repository/files/circuit_board%2Fwrs_v3%2FSCB_SAM9G45%2Fboard'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'board.kicad_pro',
+                type: 'blob',
+                path: 'circuit_board/wrs_v3/SCB_SAM9G45/board.kicad_pro'
+            },
+            {
+                name: 'board.kicad_sch',
+                type: 'blob',
+                path: 'circuit_board/wrs_v3/SCB_SAM9G45/board.kicad_sch'
+            },
+            {
+                name: 'board.kicad_pcb',
+                type: 'blob',
+                path: 'circuit_board/wrs_v3/SCB_SAM9G45/board.kicad_pcb'
+            }
+        ]),
+        [apiBaseUrl + '.kicad_pro/raw?ref=master']: '{}',
+        [apiBaseUrl + '.kicad_sch/raw?ref=master']: '(kicad_sch)',
+        [apiBaseUrl + '.kicad_pcb/raw?ref=master']: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://gitlab.com/ohwr/project/wr-switch-hw/-/tree/master/circuit_board/wrs_v3/SCB_SAM9G45?ref_type=heads'
+    )
+
+    assert.deepEqual(urls, [
+        apiUrl,
+        apiBaseUrl + '.kicad_pro/raw?ref=master',
+        apiBaseUrl + '.kicad_sch/raw?ref=master',
+        apiBaseUrl + '.kicad_pcb/raw?ref=master'
+    ])
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.kicad_pro', 'board.kicad_sch', 'board.kicad_pcb']
+    )
+    assert.equal(result.rawUrl, baseUrl + '.kicad_pro')
+    assert.equal(result.boardUrl, baseUrl + '.kicad_pcb')
+})
+
+test('GitHubSourceLoader fetches GitLab Altium project files through API raw endpoints', async () => {
+    const apiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/tree?path=hardware%2Fproject&ref=main&per_page=100'
+    const bodiesApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/tree?path=hardware%2Fproject%2F3D+Bodies&ref=main&per_page=100'
+    const baseUrl = 'https://gitlab.com/acme/demo/-/raw/main/hardware/project/'
+    const projectUrl = baseUrl + 'Demo.PrjPCB'
+    const schematicUrl = baseUrl + 'Schematics/Main.SchDoc'
+    const boardUrl = baseUrl + 'PCB/Main.PcbDoc'
+    const projectApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/files/hardware%2Fproject%2FDemo.PrjPCB/raw?ref=main'
+    const schematicApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/files/hardware%2Fproject%2FSchematics%2FMain.SchDoc/raw?ref=main'
+    const boardApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fdemo/repository/files/hardware%2Fproject%2FPCB%2FMain.PcbDoc/raw?ref=main'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'Demo.PrjPCB',
+                type: 'blob',
+                path: 'hardware/project/Demo.PrjPCB'
+            }
+        ]),
+        [projectApiUrl]:
+            '[Document1]\n' +
+            'DocumentPath=Schematics\\Main.SchDoc\n' +
+            '[Document2]\n' +
+            'DocumentPath=PCB\\Main.PcbDoc\n',
+        [bodiesApiUrl]: JSON.stringify([]),
+        [schematicApiUrl]: '|HEADER=Schematic Document',
+        [boardApiUrl]: '|HEADER=Protel for Windows - PCB'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl(
+        'https://gitlab.com/acme/demo/-/tree/main/hardware/project'
+    )
+
+    assert.deepEqual(urls, [
+        apiUrl,
+        projectApiUrl,
+        bodiesApiUrl,
+        projectApiUrl,
+        schematicApiUrl,
+        boardApiUrl
+    ])
+    assert.equal(result.rawUrl, projectUrl)
+    assert.equal(result.boardUrl, boardUrl)
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['Demo.PrjPCB', 'Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
+    )
 })
 
 test('GitHubSourceLoader resolves Altium project manifests before generated folder zips', async () => {

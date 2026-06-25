@@ -1,10 +1,11 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { GitHubAltiumProjectManifest } from './GitHubAltiumProjectManifest.mjs'
 import { GitHubCompanionAssetLoader } from './GitHubCompanionAssetLoader.mjs'
+import { GitSourceUrlResolver } from './GitSourceUrlResolver.mjs'
 import { SExpressionParser } from 'kicad-toolkit/parser'
 
 /**
- * Loads supported ECAD files from GitHub raw, blob, or tree URLs.
+ * Loads supported ECAD files from hosted Git raw, blob, or tree URLs.
  */
 export class GitHubSourceLoader {
     /** @type {number} */
@@ -28,15 +29,15 @@ export class GitHubSourceLoader {
     }
 
     /**
-     * Loads one supported GitHub URL into parser entries.
-     * @param {string} sourceUrl Raw, GitHub blob, or GitHub tree URL.
+     * Loads one supported hosted Git URL into parser entries.
+     * @param {string} sourceUrl Raw, blob, or tree URL.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
     async loadUrl(sourceUrl) {
-        const treeSource = GitHubSourceLoader.#normalizeTreeUrl(sourceUrl)
+        const treeSource = GitSourceUrlResolver.normalizeTreeUrl(sourceUrl)
         const resolved = treeSource
             ? await this.#resolveTreeSource(treeSource)
-            : GitHubSourceLoader.normalizeSourceUrl(sourceUrl)
+            : GitSourceUrlResolver.normalizeSourceUrl(sourceUrl)
 
         return this.#buildLoadResult(resolved)
     }
@@ -133,38 +134,44 @@ export class GitHubSourceLoader {
 
     /**
      * Resolves the preferred supported source from a GitHub directory.
-     * @param {{ apiUrl: string }} treeSource GitHub Contents API source.
+     * @param {{ provider: string, providerLabel: string, apiUrl: string }} treeSource Git host folder API source.
      * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }>}
      */
     async #resolveTreeSource(treeSource) {
-        await this.#assertGitHubFolderDiscoveryAvailable()
-        const entries = await this.#fetchJson(treeSource.apiUrl)
-        const altiumProject = await this.#resolveAltiumProject(
+        if (treeSource.provider === 'github') {
+            await this.#assertGitHubFolderDiscoveryAvailable()
+        }
+
+        const entries = await this.#fetchJson(
             treeSource.apiUrl,
+            GitSourceUrlResolver.getProviderLabel(treeSource)
+        )
+        const altiumProject = await this.#resolveAltiumProject(
+            treeSource,
             entries
         )
         if (altiumProject) {
             return altiumProject
         }
 
-        return GitHubSourceLoader.#selectDirectorySource(entries)
+        return GitSourceUrlResolver.selectDirectorySource(entries, treeSource)
     }
 
     /**
-     * Resolves an Altium `.PrjPcb` manifest from a GitHub folder, if present.
-     * @param {string} contentsApiUrl GitHub Contents API URL for the project folder.
-     * @param {object[]} entries GitHub Contents API entries.
+     * Resolves an Altium `.PrjPcb` manifest from a hosted folder, if present.
+     * @param {{ provider: string, providerLabel: string, apiUrl: string }} treeSource Git host folder API source.
+     * @param {object[]} entries Git host folder API entries.
      * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[], companionAssetFiles: { rawUrl: string, fileName: string, relativePath: string, format: string }[] } | null>}
      */
-    async #resolveAltiumProject(contentsApiUrl, entries) {
-        const projectEntries = (entries || []).filter((entry) => {
-            return (
-                entry?.type === 'file' &&
-                entry?.download_url &&
-                EcadFormatRegistry.resolveCompanionFormat(entry?.name) ===
-                    'altium-project'
+    async #resolveAltiumProject(treeSource, entries) {
+        const projectEntries = (entries || [])
+            .map((entry) =>
+                GitSourceUrlResolver.buildAltiumProjectCandidate(
+                    entry,
+                    treeSource
+                )
             )
-        })
+            .filter(Boolean)
 
         if (!projectEntries.length) {
             return null
@@ -172,12 +179,14 @@ export class GitHubSourceLoader {
 
         if (projectEntries.length > 1) {
             throw new Error(
-                'This GitHub folder contains multiple Altium project files. Please paste the specific project file URL.'
+                'This ' +
+                    GitSourceUrlResolver.getProviderLabel(treeSource) +
+                    ' folder contains multiple Altium project files. Please paste the specific project file URL.'
             )
         }
 
         const projectEntry = projectEntries[0]
-        const projectRawUrl = String(projectEntry.download_url)
+        const projectRawUrl = String(projectEntry.rawUrl)
         const manifestText = new TextDecoder().decode(
             await this.#fetchArrayBuffer(projectRawUrl)
         )
@@ -194,13 +203,17 @@ export class GitHubSourceLoader {
 
         const companionAssetFiles =
             await GitHubCompanionAssetLoader.resolveAltiumProjectAssets(
-                contentsApiUrl,
-                (apiUrl) => this.#fetchJson(apiUrl)
+                treeSource,
+                (apiUrl) =>
+                    this.#fetchJson(
+                        apiUrl,
+                        GitSourceUrlResolver.getProviderLabel(treeSource)
+                    )
             )
 
         return {
             rawUrl: projectRawUrl,
-            fileName: String(projectEntry.name || ''),
+            fileName: String(projectEntry.fileName || ''),
             formatFamily: 'altium',
             fileType: 'prjpcb',
             projectFiles,
@@ -209,39 +222,12 @@ export class GitHubSourceLoader {
     }
 
     /**
-     * Normalizes a raw.githubusercontent.com or github.com/blob URL.
+     * Normalizes a raw, GitHub blob, or GitLab blob/raw URL.
      * @param {string} sourceUrl URL supplied by the user.
      * @returns {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }}
      */
     static normalizeSourceUrl(sourceUrl) {
-        const parsedUrl = GitHubSourceLoader.#parseHttpsUrl(sourceUrl)
-
-        if (parsedUrl.hostname === 'raw.githubusercontent.com') {
-            return GitHubSourceLoader.#buildResolvedUrl(parsedUrl.href)
-        }
-
-        if (parsedUrl.hostname === 'github.com') {
-            const parts = parsedUrl.pathname.split('/').filter(Boolean)
-            if (parts.length < 5 || parts[2] !== 'blob') {
-                throw new Error(
-                    'Only GitHub blob/tree URLs or raw.githubusercontent.com URLs are supported.'
-                )
-            }
-
-            const rawPath = parts
-                .slice(0, 2)
-                .concat(parts.slice(3))
-                .map((part) => encodeURIComponent(decodeURIComponent(part)))
-                .join('/')
-
-            return GitHubSourceLoader.#buildResolvedUrl(
-                'https://raw.githubusercontent.com/' + rawPath
-            )
-        }
-
-        throw new Error(
-            'Only GitHub blob/tree URLs or raw.githubusercontent.com URLs are supported.'
-        )
+        return GitSourceUrlResolver.normalizeSourceUrl(sourceUrl)
     }
 
     /**
@@ -251,28 +237,7 @@ export class GitHubSourceLoader {
      * @returns {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }}
      */
     static normalizeGitHubPath(githubPath, ref = 'main') {
-        const parts = String(githubPath || '')
-            .split('/')
-            .filter(Boolean)
-
-        if (parts.length < 3) {
-            throw new Error(
-                'GitHub source must use owner/repo/path/to/file format.'
-            )
-        }
-
-        const rawPath = [
-            parts[0],
-            parts[1],
-            String(ref || 'main'),
-            ...parts.slice(2)
-        ]
-            .map((part) => encodeURIComponent(decodeURIComponent(part)))
-            .join('/')
-
-        return GitHubSourceLoader.#buildResolvedUrl(
-            'https://raw.githubusercontent.com/' + rawPath
-        )
+        return GitSourceUrlResolver.normalizeGitHubPath(githubPath, ref)
     }
 
     /**
@@ -292,26 +257,35 @@ export class GitHubSourceLoader {
 
     /**
      * Fetches one URL as an ArrayBuffer with user-facing error buckets.
-     * @param {string} rawUrl GitHub raw URL.
+     * @param {string} rawUrl Hosted Git raw URL.
      * @returns {Promise<ArrayBuffer>}
      */
     async #fetchArrayBuffer(rawUrl) {
+        const providerLabel =
+            GitHubSourceLoader.#resolveRawUrlProviderLabel(rawUrl)
         if (typeof this.#fetcher !== 'function') {
-            throw new Error('GitHub URL loading is not available here.')
+            throw new Error(
+                providerLabel + ' URL loading is not available here.'
+            )
         }
 
         let response
         try {
-            response = await this.#fetcher(rawUrl)
+            response = await this.#fetcher(
+                GitSourceUrlResolver.resolveFetchUrl(rawUrl)
+            )
         } catch (_error) {
             throw new Error(
-                'Could not fetch the GitHub file. The request may be blocked by the network or browser CORS policy.'
+                'Could not fetch the ' +
+                    providerLabel +
+                    ' file. The request may be blocked by the network or browser CORS policy.'
             )
         }
 
         if (!response || !response.ok) {
             throw new Error(
-                'GitHub returned HTTP ' +
+                providerLabel +
+                    ' returned HTTP ' +
                     String(response?.status || 0) +
                     ' for the requested ECAD file.'
             )
@@ -321,13 +295,31 @@ export class GitHubSourceLoader {
     }
 
     /**
-     * Fetches one GitHub API URL and parses the JSON response.
-     * @param {string} apiUrl GitHub Contents API URL.
+     * Resolves the display label for one raw source URL.
+     * @param {string} rawUrl Raw source URL.
+     * @returns {string}
+     */
+    static #resolveRawUrlProviderLabel(rawUrl) {
+        try {
+            return new URL(rawUrl).hostname === 'gitlab.com'
+                ? 'GitLab'
+                : 'GitHub'
+        } catch (_error) {
+            return 'Git'
+        }
+    }
+
+    /**
+     * Fetches one Git host API URL and parses the JSON response.
+     * @param {string} apiUrl Git host folder API URL.
+     * @param {string} [providerLabel] Git host display label.
      * @returns {Promise<object[]>}
      */
-    async #fetchJson(apiUrl) {
+    async #fetchJson(apiUrl, providerLabel = 'GitHub') {
         if (typeof this.#fetcher !== 'function') {
-            throw new Error('GitHub URL loading is not available here.')
+            throw new Error(
+                providerLabel + ' URL loading is not available here.'
+            )
         }
 
         let response
@@ -335,15 +327,20 @@ export class GitHubSourceLoader {
             response = await this.#fetcher(apiUrl)
         } catch (_error) {
             throw new Error(
-                'Could not fetch the GitHub folder. The request may be blocked by the network or browser CORS policy.'
+                'Could not fetch the ' +
+                    providerLabel +
+                    ' folder. The request may be blocked by the network or browser CORS policy.'
             )
         }
 
         if (!response || !response.ok) {
             throw new Error(
-                'GitHub returned HTTP ' +
+                providerLabel +
+                    ' returned HTTP ' +
                     String(response?.status || 0) +
-                    ' for the requested GitHub folder.'
+                    ' for the requested ' +
+                    providerLabel +
+                    ' folder.'
             )
         }
 
@@ -351,11 +348,15 @@ export class GitHubSourceLoader {
         try {
             payload = await response.json()
         } catch (_error) {
-            throw new Error('Could not read the GitHub folder listing.')
+            throw new Error(
+                'Could not read the ' + providerLabel + ' folder listing.'
+            )
         }
 
         if (!Array.isArray(payload)) {
-            throw new Error('This GitHub URL does not point to a folder.')
+            throw new Error(
+                'This ' + providerLabel + ' URL does not point to a folder.'
+            )
         }
 
         return payload
@@ -452,194 +453,6 @@ export class GitHubSourceLoader {
         } catch (_error) {
             return date.toLocaleString()
         }
-    }
-
-    /**
-     * Parses an HTTPS URL.
-     * @param {string} sourceUrl Candidate URL.
-     * @returns {URL}
-     */
-    static #parseHttpsUrl(sourceUrl) {
-        let parsedUrl
-        try {
-            parsedUrl = new URL(String(sourceUrl || '').trim())
-        } catch (_error) {
-            throw new Error('Please enter a valid GitHub URL.')
-        }
-
-        if (parsedUrl.protocol !== 'https:') {
-            throw new Error('GitHub URL loading requires an HTTPS URL.')
-        }
-
-        return parsedUrl
-    }
-
-    /**
-     * Normalizes a GitHub tree URL to a Contents API URL.
-     * @param {string} sourceUrl URL supplied by the user.
-     * @returns {{ apiUrl: string } | null}
-     */
-    static #normalizeTreeUrl(sourceUrl) {
-        const parsedUrl = GitHubSourceLoader.#parseHttpsUrl(sourceUrl)
-
-        if (parsedUrl.hostname !== 'github.com') {
-            return null
-        }
-
-        const parts = parsedUrl.pathname.split('/').filter(Boolean)
-        if (parts[2] !== 'tree') {
-            return null
-        }
-
-        if (parts.length < 4) {
-            throw new Error(
-                'GitHub tree URLs must include owner, repository, and branch.'
-            )
-        }
-
-        return {
-            apiUrl: GitHubSourceLoader.#buildContentsApiUrl(
-                parts[0],
-                parts[1],
-                parts[3],
-                parts.slice(4)
-            )
-        }
-    }
-
-    /**
-     * Builds a GitHub Contents API URL for one repository path.
-     * @param {string} owner Repository owner.
-     * @param {string} repo Repository name.
-     * @param {string} ref Git ref.
-     * @param {string[]} pathParts Directory path parts.
-     * @returns {string}
-     */
-    static #buildContentsApiUrl(owner, repo, ref, pathParts) {
-        const encodedPath = pathParts
-            .map((part) => encodeURIComponent(decodeURIComponent(part)))
-            .join('/')
-        const baseUrl =
-            'https://api.github.com/repos/' +
-            encodeURIComponent(decodeURIComponent(owner)) +
-            '/' +
-            encodeURIComponent(decodeURIComponent(repo)) +
-            '/contents'
-        const contentsUrl = encodedPath ? baseUrl + '/' + encodedPath : baseUrl
-
-        return (
-            contentsUrl +
-            '?ref=' +
-            encodeURIComponent(decodeURIComponent(ref || 'main'))
-        )
-    }
-
-    /**
-     * Builds metadata for one raw URL.
-     * @param {string} rawUrl Raw GitHub URL.
-     * @returns {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }}
-     */
-    static #buildResolvedUrl(rawUrl) {
-        const parsedUrl = new URL(rawUrl)
-        const fileName = decodeURIComponent(
-            parsedUrl.pathname.split('/').filter(Boolean).at(-1) || ''
-        )
-        const role = EcadFormatRegistry.resolveNativeRole(fileName)
-
-        if (!role) {
-            throw new Error(
-                'This GitHub file type is not supported yet. ECAD Forge supports selected Altium, KiCad, Gerber, and CircuitJSON design files.'
-            )
-        }
-
-        return {
-            rawUrl,
-            fileName,
-            formatFamily: role.sourceFormat,
-            fileType: role.fileType
-        }
-    }
-
-    /**
-     * Selects the one supported ECAD source to load from a GitHub folder.
-     * @param {object[]} entries GitHub Contents API entries.
-     * @returns {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }}
-     */
-    static #selectDirectorySource(entries) {
-        const candidates = entries
-            .map((entry) => GitHubSourceLoader.#buildDirectoryCandidate(entry))
-            .filter(Boolean)
-            .sort((left, right) => {
-                const priority =
-                    GitHubSourceLoader.#getDirectorySourcePriority(left) -
-                    GitHubSourceLoader.#getDirectorySourcePriority(right)
-
-                if (priority !== 0) return priority
-                return left.fileName.localeCompare(right.fileName)
-            })
-
-        if (!candidates.length) {
-            throw new Error(
-                'This GitHub folder does not contain a supported ECAD file.'
-            )
-        }
-
-        const bestPriority = GitHubSourceLoader.#getDirectorySourcePriority(
-            candidates[0]
-        )
-        const preferredCandidates = candidates.filter(
-            (candidate) =>
-                GitHubSourceLoader.#getDirectorySourcePriority(candidate) ===
-                bestPriority
-        )
-
-        if (preferredCandidates.length > 1) {
-            throw new Error(
-                'This GitHub folder contains multiple supported ECAD files. Please paste the specific project file URL.'
-            )
-        }
-
-        return candidates[0]
-    }
-
-    /**
-     * Builds a supported source candidate from one GitHub Contents API entry.
-     * @param {object} entry GitHub Contents API entry.
-     * @returns {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string } | null}
-     */
-    static #buildDirectoryCandidate(entry) {
-        if (!entry || entry.type !== 'file' || !entry.download_url) {
-            return null
-        }
-
-        const fileName = String(entry.name || '')
-        const role = EcadFormatRegistry.resolveNativeRole(fileName)
-        if (!role) return null
-
-        return {
-            rawUrl: String(entry.download_url),
-            fileName,
-            formatFamily: role.sourceFormat,
-            fileType: role.fileType
-        }
-    }
-
-    /**
-     * Returns source discovery priority for GitHub folders.
-     * @param {{ fileType: string }} source Candidate source.
-     * @returns {number}
-     */
-    static #getDirectorySourcePriority(source) {
-        const priorities = {
-            kicad_pro: 0,
-            kicad_pcb: 1,
-            kicad_sch: 2,
-            pcbdoc: 3,
-            schdoc: 4,
-            circuitjson: 5
-        }
-
-        return priorities[source.fileType] ?? 99
     }
 
     /**

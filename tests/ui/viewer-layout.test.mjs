@@ -103,6 +103,37 @@ test('viewer preset toolbars reserve top space for hover lift', async () => {
 })
 
 /**
+ * Verifies PCB measurement toolbar buttons center their icon inside the full
+ * circular hit target instead of inheriting preset pill padding.
+ */
+test('PCB measurement toolbar buttons center icon-only controls', async () => {
+    const css = await readViewerStylesheet()
+    const buttonBlock =
+        css.match(
+            /\.scene-3d__preset\.pcb-view__measure-tool\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(
+        buttonBlock,
+        /display:\s*inline-grid;[\s\S]*width:\s*2\.25rem;[\s\S]*height:\s*2\.25rem;[\s\S]*padding:\s*0;[\s\S]*place-items:\s*center;/
+    )
+})
+
+/**
+ * Verifies PCB measurement control icons can be temporarily hidden without
+ * removing the button markup or delegated click targets.
+ */
+test('PCB measurement toolbar hides icon SVGs while retaining controls', async () => {
+    const css = await readViewerStylesheet()
+    const iconBlock =
+        css.match(
+            /\.pcb-view__measure-tool\[data-pcb-measure-tool\]\s*>\s*svg\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(iconBlock, /visibility:\s*hidden;/)
+})
+
+/**
  * Verifies the primary viewer stage is a bounded work surface on the landing
  * page instead of a full-screen empty panel.
  */
@@ -647,6 +678,62 @@ test('viewer stylesheet maps bottom-side PCB surface output to bottom layer colo
         bottomPaletteBlock,
         /--pcb-subsurface-track-color:\s*rgba\(199,\s*82,\s*45,\s*0\.92\);/
     )
+})
+
+/**
+ * Verifies KiCad vias use copper coloring rather than a large white annular
+ * fill that overpowers dense PCB views.
+ */
+test('viewer stylesheet renders KiCad via copper without the white ring fill', async () => {
+    const css = await readStylesheet('25-kicad-pcb.css')
+    const viaBlock =
+        css.match(/\.pcb-svg--kicad circle\.pcb-via\s*\{(?<rules>[\s\S]*?)\}/)
+            ?.groups?.rules || ''
+
+    assert.match(viaBlock, /fill:\s*var\(--pcb-copper-solid-fill\);/)
+    assert.doesNotMatch(viaBlock, /--pcb-via-ring-fill/)
+})
+
+/**
+ * Verifies shared PCB via and through-hole ring colors follow copper instead
+ * of producing oversized white disks in zoomed PCB views.
+ */
+test('viewer PCB palette uses copper for shared via ring fills', async () => {
+    const css = await readViewerStylesheet()
+    const paletteBlocks = Array.from(
+        css.matchAll(
+            /\.(?:pcb-svg|document-preview__svg--pcb)\s*\{(?<rules>[\s\S]*?)\}/g
+        )
+    ).filter((match) => match.groups?.rules?.includes('--pcb-via-ring-fill'))
+
+    assert.equal(paletteBlocks.length, 2)
+    for (const match of paletteBlocks) {
+        const rules = match.groups?.rules || ''
+
+        assert.match(
+            rules,
+            /--pcb-via-ring-fill:\s*var\(--pcb-copper-solid-fill\);/
+        )
+        assert.doesNotMatch(
+            rules,
+            /--pcb-via-ring-fill:\s*rgba\(232,\s*236,\s*233,\s*0\.92\);/
+        )
+    }
+})
+
+/**
+ * Verifies KiCad drill holes do not add a white circular stroke on top of via
+ * and through-hole copper.
+ */
+test('viewer stylesheet avoids white KiCad drill halos', async () => {
+    const css = await readStylesheet('25-kicad-pcb.css')
+    const drillBlock =
+        css.match(
+            /\.pcb-svg--kicad :is\(\.pcb-via-drill,\s*\.pcb-pad-drill\)\s*\{(?<rules>[\s\S]*?)\}/
+        )?.groups?.rules || ''
+
+    assert.match(drillBlock, /stroke:\s*none;/)
+    assert.doesNotMatch(drillBlock, /255,\s*255,\s*255/)
 })
 
 /**

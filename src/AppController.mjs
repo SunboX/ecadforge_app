@@ -137,7 +137,12 @@ export class AppController {
         })
         this.#view.bindDocumentSelection?.((documentId) => {
             AppControllerDeepLinkState.sync(
-                this.#state.setValue('activeDocumentId', documentId)
+                this.#state.patch(
+                    AppControllerDocumentSelection.buildCompatibleDocumentPatch(
+                        documentId,
+                        this.#state.getSnapshot()
+                    )
+                )
             )
         })
         this.#view.bindSidebarTabSelection?.((tabName) => {
@@ -151,6 +156,12 @@ export class AppController {
         })
         this.#view.bindPcbObjectOpacityChange?.((change) => {
             AppControllerPcbStateHandlers.handleObjectOpacity(
+                this.#state,
+                change
+            )
+        })
+        this.#view.bindPcbObjectVisibilityChange?.((change) => {
+            AppControllerPcbStateHandlers.handleObjectVisibility(
                 this.#state,
                 change
             )

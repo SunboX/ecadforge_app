@@ -1,24 +1,26 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { GitSourceUrlResolver } from './GitSourceUrlResolver.mjs'
 
 /**
- * Discovers and fetches project-local GitHub companion model assets.
+ * Discovers and fetches project-local hosted Git companion model assets.
  */
 export class GitHubCompanionAssetLoader {
     /**
      * Resolves conventional Altium project-local companion model files.
-     * @param {string} contentsApiUrl GitHub Contents API URL for the project folder.
+     * @param {{ provider?: string, apiUrl?: string, projectPath?: string, ref?: string, directoryPath?: string } | string} directorySource Git host folder source.
      * @param {(apiUrl: string) => Promise<object[]>} fetchJson JSON fetcher.
      * @returns {Promise<{ rawUrl: string, fileName: string, relativePath: string, format: string }[]>}
      */
-    static async resolveAltiumProjectAssets(contentsApiUrl, fetchJson) {
+    static async resolveAltiumProjectAssets(directorySource, fetchJson) {
         const modelFolderPath = '3D Bodies'
-        const modelEntries = await GitHubCompanionAssetLoader.#fetchOptionalJson(
-            GitHubCompanionAssetLoader.#buildChildContentsApiUrl(
-                contentsApiUrl,
-                modelFolderPath
-            ),
-            fetchJson
-        )
+        const modelEntries =
+            await GitHubCompanionAssetLoader.#fetchOptionalJson(
+                GitSourceUrlResolver.buildChildDirectoryApiUrl(
+                    directorySource,
+                    modelFolderPath
+                ),
+                fetchJson
+            )
 
         return GitHubCompanionAssetLoader.#buildCompanionAssetFiles(
             modelFolderPath,
@@ -86,8 +88,8 @@ export class GitHubCompanionAssetLoader {
     }
 
     /**
-     * Fetches an optional GitHub folder listing.
-     * @param {string} apiUrl GitHub Contents API URL.
+     * Fetches an optional hosted Git folder listing.
+     * @param {string} apiUrl Git host folder API URL.
      * @param {(apiUrl: string) => Promise<object[]>} fetchJson JSON fetcher.
      * @returns {Promise<object[]>}
      */
@@ -100,25 +102,7 @@ export class GitHubCompanionAssetLoader {
     }
 
     /**
-     * Builds a child GitHub Contents API URL below an existing folder URL.
-     * @param {string} contentsApiUrl Parent Contents API URL.
-     * @param {string} relativePath Child folder path.
-     * @returns {string}
-     */
-    static #buildChildContentsApiUrl(contentsApiUrl, relativePath) {
-        const parsedUrl = new URL(contentsApiUrl)
-        const childParts = String(relativePath || '')
-            .split('/')
-            .filter(Boolean)
-            .map((part) => encodeURIComponent(decodeURIComponent(part)))
-
-        parsedUrl.pathname =
-            parsedUrl.pathname.replace(/\/+$/u, '') + '/' + childParts.join('/')
-        return parsedUrl.href
-    }
-
-    /**
-     * Builds companion asset descriptors from one GitHub folder listing.
+     * Builds companion asset descriptors from one hosted Git folder listing.
      * @param {string} folderPath Project-relative folder path.
      * @param {object[]} entries GitHub Contents API entries.
      * @returns {{ rawUrl: string, fileName: string, relativePath: string, format: string }[]}

@@ -31,8 +31,19 @@ export class SchematicNetDiagnosticsSummary {
                 data.powerLabelCornerCandidateBounds.length,
             labelObstacleGroupCount: data.labelObstacleGroups.length,
             jogSuggestionCount: data.jogSuggestionSegments.length,
+            netIslandLaneShiftSegmentCount:
+                data.netIslandLaneShiftSegments.length,
+            segmentOverlapShiftCount: data.segmentOverlapShiftSegments.length,
             traceLabelDetourCount: data.traceLabelDetourSegments.length,
+            traceLabelSnipReconnectCount:
+                data.traceLabelSnipReconnectSegments.length,
+            multiLabelTraceDetourCount:
+                data.multiLabelTraceDetourSegments.length,
+            labelRelocationCandidateCount:
+                data.labelRelocationCandidateBounds.length,
             pathCleanupSuggestionCount: data.pathCleanupSegments.length,
+            congestedLTurnRerouteCount:
+                data.congestedLTurnRerouteSegments.length,
             guidelineCount: data.guidelineSegments.length,
             guidelineSnappedElbowCount:
                 data.guidelineSnappedElbowSegments.length,
@@ -40,10 +51,28 @@ export class SchematicNetDiagnosticsSummary {
                 data.restrictedCenterlineSegments.length,
             supplementalConnectionCount:
                 data.supplementalConnectionSegments.length,
+            anchorConnectionRouteCount:
+                data.anchorConnectionRouteSegments.length,
+            longDistanceConnectionCount:
+                data.longDistanceConnectionSegments.length,
+            sectionBoundaryConnectionCount:
+                data.sectionBoundaryConnectionSegments.length,
             symbolBodyFitCandidateCount:
                 data.symbolBodyFitCandidateBounds.length,
             symbolPinSnapCandidateCount: data.symbolPinSnapSegments.length,
+            symbolBoundsExpansionCandidateCount:
+                data.symbolBoundsExpansionCandidateBounds.length,
+            symbolAnchorCorrectionCount:
+                data.symbolAnchorCorrectionSegments.length,
+            traceLabelResolutionCandidateCount:
+                data.traceLabelResolutionCandidateBounds.length,
+            traceLabelResolutionTraceCount:
+                data.traceLabelResolutionSegments.length,
             candidateRejectionCount: data.candidateRejections.length,
+            candidateDecisionCount: data.candidateDecisionRows.length,
+            stageHealthRowCount: Array.isArray(data.stageHealthRows)
+                ? data.stageHealthRows.length
+                : 0,
             pathShapeIssueCount: this.#issueCount(
                 data.issues,
                 'suspicious-net-path-shape'

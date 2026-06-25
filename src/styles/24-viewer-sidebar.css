@@ -415,6 +415,147 @@ body.is-viewer-mode.is-viewer-report
     background: rgba(229, 72, 24, 0.08);
 }
 
+.viewer-sidebar__support-coverage,
+.viewer-sidebar__simulation-setup,
+.viewer-sidebar__simulation-results {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0 1.1rem 1rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(95, 112, 124, 0.12);
+    border-radius: 0.72rem;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.viewer-sidebar__support-coverage header,
+.viewer-sidebar__simulation-setup header,
+.viewer-sidebar__simulation-results header,
+.viewer-sidebar__simulation-graph-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.viewer-sidebar__support-coverage h4,
+.viewer-sidebar__simulation-setup h4,
+.viewer-sidebar__simulation-results h4 {
+    margin: 0;
+    color: #425d70;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.viewer-sidebar__support-coverage header span,
+.viewer-sidebar__simulation-setup header span,
+.viewer-sidebar__simulation-results header span,
+.viewer-sidebar__simulation-graph-header span {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.viewer-sidebar__support-coverage ul {
+    display: grid;
+    gap: 0.42rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.viewer-sidebar__support-coverage li {
+    display: grid;
+    gap: 0.16rem;
+    min-width: 0;
+}
+
+.viewer-sidebar__support-coverage li strong,
+.viewer-sidebar__simulation-graph-header strong {
+    min-width: 0;
+    color: var(--text);
+    font-size: 0.84rem;
+    overflow-wrap: anywhere;
+}
+
+.viewer-sidebar__support-coverage li span,
+.viewer-sidebar__support-coverage-empty {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.viewer-sidebar__simulation-models,
+.viewer-sidebar__simulation-probes,
+.viewer-sidebar__simulation-scope-traces {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.viewer-sidebar__simulation-model,
+.viewer-sidebar__simulation-source,
+.viewer-sidebar__simulation-scope-trace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 0.24rem 0.5rem;
+    min-width: 0;
+}
+
+.viewer-sidebar__simulation-model strong,
+.viewer-sidebar__simulation-source strong,
+.viewer-sidebar__simulation-scope-trace strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.viewer-sidebar__simulation-model code,
+.viewer-sidebar__simulation-source span,
+.viewer-sidebar__simulation-probes span,
+.viewer-sidebar__simulation-scope-trace span {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 0.76rem;
+    overflow-wrap: anywhere;
+}
+
+.viewer-sidebar__simulation-scope-trace {
+    position: relative;
+    padding-left: 0.7rem;
+}
+
+.viewer-sidebar__simulation-scope-trace::before {
+    content: '';
+    position: absolute;
+    inset: 0.2rem auto 0.2rem 0;
+    width: 0.18rem;
+    border-radius: 999px;
+    background: var(--simulation-trace-color, var(--accent));
+}
+
+.viewer-sidebar__simulation-graph {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.viewer-sidebar__simulation-graph svg {
+    width: 100%;
+    height: 3.5rem;
+    border-radius: 0.45rem;
+    background: rgba(15, 116, 108, 0.06);
+}
+
+.viewer-sidebar__simulation-graph polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .viewer-sidebar__overview-row {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) minmax(4.5rem, auto);

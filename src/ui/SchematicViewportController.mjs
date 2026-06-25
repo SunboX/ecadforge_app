@@ -23,6 +23,9 @@ export class SchematicViewportController {
     /** @type {{ mode: 'pan', startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number } } | { mode: 'pinch', startDistance: number, anchorPoint: { x: number, y: number }, originViewBox: { x: number, y: number, width: number, height: number } } | null} */
     #touchState
 
+    /** @type {number | null} */
+    #animationFrame
+
     /** @type {(event: any) => void} */
     #boundWheel
 
@@ -57,6 +60,7 @@ export class SchematicViewportController {
         this.#viewBox = { ...initialViewBox }
         this.#dragState = null
         this.#touchState = null
+        this.#animationFrame = null
         this.#boundWheel = (event) => this.#handleWheel(event)
         this.#boundMouseDown = (event) => this.#handleMouseDown(event)
         this.#boundMouseMove = (event) => this.#handleMouseMove(event)
@@ -74,8 +78,19 @@ export class SchematicViewportController {
      */
     dispose() {
         this.#unbindEvents()
+        this.#cancelAnimation()
         this.#stopDragging()
         this.#stopTouchGesture()
+    }
+
+    /**
+     * Restores the viewport to its default fitted viewBox.
+     * @returns {void}
+     */
+    resetViewBox() {
+        this.#cancelAnimation()
+        this.#viewBox = { ...this.#defaultViewBox }
+        this.#applyViewBox()
     }
 
     /**
@@ -103,9 +118,10 @@ export class SchematicViewportController {
     /**
      * Centers document-space bounds and zooms to a readable detail scale.
      * @param {{ x?: number, y?: number, width?: number, height?: number } | null} bounds Bounds to focus.
+     * @param {{ paddingFactor?: number, animate?: boolean, animationDurationMs?: number }} [options] Focus options.
      * @returns {boolean}
      */
-    focusBounds(bounds) {
+    focusBounds(bounds, options = {}) {
         const normalizedBounds =
             SchematicViewportController.#normalizeBounds(bounds)
         if (!normalizedBounds) {
@@ -113,15 +129,22 @@ export class SchematicViewportController {
         }
 
         const aspectRatio = this.#viewBox.width / this.#viewBox.height
+        const paddingFactor =
+            SchematicViewportController.#positiveNumber(
+                options.paddingFactor
+            ) || FOCUS_BOUNDS_PADDING_FACTOR
         const paddedWidth = Math.max(
-            normalizedBounds.width * FOCUS_BOUNDS_PADDING_FACTOR,
-            normalizedBounds.height * FOCUS_BOUNDS_PADDING_FACTOR * aspectRatio,
+            normalizedBounds.width * paddingFactor,
+            normalizedBounds.height * paddingFactor * aspectRatio,
             this.#defaultViewBox.width * MIN_SCALE_RATIO
         )
         const nextWidth = this.#clampWidth(paddedWidth)
         const nextHeight = this.#clampHeight(nextWidth / aspectRatio)
 
-        this.#centerBoundsWithSize(normalizedBounds, nextWidth, nextHeight)
+        this.#centerBoundsWithSize(normalizedBounds, nextWidth, nextHeight, {
+            animate: options.animate === true,
+            durationMs: options.animationDurationMs
+        })
 
         return true
     }
@@ -606,16 +629,75 @@ export class SchematicViewportController {
      * @param {{ x: number, y: number, width: number, height: number }} bounds Bounds to center.
      * @param {number} width Viewport width.
      * @param {number} height Viewport height.
+     * @param {{ animate?: boolean, durationMs?: number }} [options] Apply options.
      * @returns {void}
      */
-    #centerBoundsWithSize(bounds, width, height) {
-        this.#viewBox = {
+    #centerBoundsWithSize(bounds, width, height, options = {}) {
+        this.#applyViewBoxChange({
             x: bounds.x + bounds.width / 2 - width / 2,
             y: bounds.y + bounds.height / 2 - height / 2,
             width,
             height
+        }, options)
+    }
+
+    /**
+     * Applies a target viewBox immediately or with animation.
+     * @param {{ x: number, y: number, width: number, height: number }} nextViewBox Target viewBox.
+     * @param {{ animate?: boolean, durationMs?: number }} options Apply options.
+     * @returns {void}
+     */
+    #applyViewBoxChange(nextViewBox, options = {}) {
+        this.#cancelAnimation()
+        if (options.animate && typeof globalThis.requestAnimationFrame === 'function') {
+            this.#animateViewBox(nextViewBox, options.durationMs)
+            return
         }
+
+        this.#viewBox = { ...nextViewBox }
         this.#applyViewBox()
+    }
+
+    /**
+     * Animates the current viewBox to a target viewBox.
+     * @param {{ x: number, y: number, width: number, height: number }} nextViewBox Target viewBox.
+     * @param {unknown} durationMs Requested duration in milliseconds.
+     * @returns {void}
+     */
+    #animateViewBox(nextViewBox, durationMs) {
+        const startViewBox = { ...this.#viewBox }
+        const duration =
+            SchematicViewportController.#positiveNumber(durationMs) || 160
+        const startTime = Number(globalThis.performance?.now?.() || 0)
+        const step = (time) => {
+            const progress = Math.min(
+                Math.max((Number(time || 0) - startTime) / duration, 0),
+                1
+            )
+            const eased = 1 - (1 - progress) ** 3
+            this.#viewBox = SchematicViewportController.#interpolateViewBox(
+                startViewBox,
+                nextViewBox,
+                eased
+            )
+            this.#applyViewBox()
+            if (progress < 1) {
+                this.#animationFrame = globalThis.requestAnimationFrame(step)
+                return
+            }
+            this.#animationFrame = null
+        }
+        this.#animationFrame = globalThis.requestAnimationFrame(step)
+    }
+
+    /**
+     * Cancels a pending viewBox animation.
+     * @returns {void}
+     */
+    #cancelAnimation() {
+        if (this.#animationFrame === null) return
+        globalThis.cancelAnimationFrame?.(this.#animationFrame)
+        this.#animationFrame = null
     }
 
     /**
@@ -776,6 +858,32 @@ export class SchematicViewportController {
      */
     static #formatNumber(value) {
         return String(Number(value.toFixed(4)))
+    }
+
+    /**
+     * Interpolates between two viewBox values.
+     * @param {{ x: number, y: number, width: number, height: number }} start Start viewBox.
+     * @param {{ x: number, y: number, width: number, height: number }} end End viewBox.
+     * @param {number} progress Interpolation progress from 0 to 1.
+     * @returns {{ x: number, y: number, width: number, height: number }}
+     */
+    static #interpolateViewBox(start, end, progress) {
+        return {
+            x: start.x + (end.x - start.x) * progress,
+            y: start.y + (end.y - start.y) * progress,
+            width: start.width + (end.width - start.width) * progress,
+            height: start.height + (end.height - start.height) * progress
+        }
+    }
+
+    /**
+     * Returns a positive finite number or null.
+     * @param {unknown} value Numeric candidate.
+     * @returns {number | null}
+     */
+    static #positiveNumber(value) {
+        const number = Number(value)
+        return Number.isFinite(number) && number > 0 ? number : null
     }
 
     /**

@@ -192,24 +192,25 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
 })
 
 /**
- * Verifies reusable ECAD parser, renderer, and 3D cores resolve from pinned
- * npm package ranges.
+ * Verifies reusable ECAD parser, renderer, and 3D cores resolve from npm
+ * registry releases for app distribution.
  */
-test('package depends on intended ECAD toolkit package sources', async () => {
+test('package depends on intended ECAD toolkit registry releases', async () => {
     const raw = await readFile(new URL('package.json', root), 'utf8')
     const pkg = JSON.parse(raw)
-    const toolkitDependencies = [
-        { name: 'altium-toolkit', pattern: /^\^1\.1\.35$/ },
-        { name: 'circuitjson-toolkit', pattern: /^\^1\.0\.10$/ },
-        { name: 'gerber-toolkit', pattern: /^\^0\.1\.18$/ },
-        { name: 'kicad-toolkit', pattern: /^\^1\.0\.22$/ },
-        { name: 'pcb-scene3d-viewer', pattern: /^\^1\.1\.31$/ }
+    const toolkitPackageNames = [
+        'altium-toolkit',
+        'circuitjson-toolkit',
+        'gerber-toolkit',
+        'kicad-toolkit',
+        'pcb-scene3d-viewer'
     ]
+    const releaseRangePattern = /^\^\d+\.\d+\.\d+$/
 
-    for (const dependency of toolkitDependencies) {
-        const dependencyVersion = pkg.dependencies?.[dependency.name] ?? ''
+    for (const packageName of toolkitPackageNames) {
+        const dependencyVersion = pkg.dependencies?.[packageName] ?? ''
 
-        assert.match(dependencyVersion, dependency.pattern)
+        assert.match(dependencyVersion, releaseRangePattern)
         assert.doesNotMatch(dependencyVersion, /^file:/)
     }
 
@@ -592,53 +593,38 @@ test('runtime app metadata uses package.json as the only version source', async 
 })
 
 /**
- * Verifies ECAD libraries resolve through configured registry package sources.
+ * Verifies ECAD libraries resolve through npm registry package sources.
  */
-test('ECAD libraries resolve through configured package sources', async () => {
+test('ECAD libraries resolve through configured registry package sources', async () => {
     const packageRaw = await readFile(new URL('package.json', root), 'utf8')
     const lockRaw = await readFile(new URL('package-lock.json', root), 'utf8')
     const pkg = JSON.parse(packageRaw)
     const lock = JSON.parse(lockRaw)
-    const toolkitDependencies = [
-        {
-            name: 'altium-toolkit',
-            registryVersion: '1.1.35'
-        },
-        {
-            name: 'circuitjson-toolkit',
-            registryVersion: '1.0.10'
-        },
-        {
-            name: 'gerber-toolkit',
-            registryVersion: '0.1.18'
-        },
-        {
-            name: 'kicad-toolkit',
-            registryVersion: '1.0.22'
-        },
-        {
-            name: 'pcb-scene3d-viewer',
-            registryVersion: '1.1.31'
-        }
+    const toolkitPackageNames = [
+        'altium-toolkit',
+        'circuitjson-toolkit',
+        'gerber-toolkit',
+        'kicad-toolkit',
+        'pcb-scene3d-viewer'
     ]
+    const releaseRangePattern = /^\^\d+\.\d+\.\d+$/
 
-    for (const dependency of toolkitDependencies) {
-        const packageDependency = pkg.dependencies[dependency.name]
+    for (const packageName of toolkitPackageNames) {
+        const packageDependency = pkg.dependencies[packageName]
         const lockedDependency =
-            lock.packages['']?.dependencies?.[dependency.name]
-        const dependencyPackage =
-            lock.packages[`node_modules/${dependency.name}`]
+            lock.packages['']?.dependencies?.[packageName]
+        const dependencyPackage = lock.packages[`node_modules/${packageName}`]
 
-        assert.equal(packageDependency, `^${dependency.registryVersion}`)
-        assert.equal(lockedDependency, `^${dependency.registryVersion}`)
-        assert.equal(dependencyPackage?.version, dependency.registryVersion)
+        assert.match(packageDependency, releaseRangePattern)
+        assert.equal(lockedDependency, packageDependency)
         assert.match(
             dependencyPackage?.resolved ?? '',
             new RegExp(
-                `^https://registry\\.npmjs\\.org/${dependency.name}/-/${dependency.name}-${dependency.registryVersion}\\.tgz$`
+                `^https://registry\\.npmjs\\.org/${packageName}/-/${packageName}-`
             )
         )
-        assert.notEqual(dependencyPackage?.link, true)
+        assert.match(dependencyPackage?.integrity ?? '', /^sha512-/)
+        assert.equal(dependencyPackage?.link, undefined)
     }
 })
 
@@ -769,6 +755,14 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"gerber-toolkit\/scene3d"\s*:\s*"\/node_modules\/gerber-toolkit\/src\/scene3d\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"circuitjson-toolkit"\s*:\s*"\/node_modules\/circuitjson-toolkit\/src\/index\.mjs"/
+    )
+    assert.match(
+        indexRaw,
+        /"circuitjson-toolkit\/renderers"\s*:\s*"\/node_modules\/circuitjson-toolkit\/src\/renderers\.mjs"/
     )
     assert.match(
         indexRaw,

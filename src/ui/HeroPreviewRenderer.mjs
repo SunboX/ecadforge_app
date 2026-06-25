@@ -49,6 +49,21 @@ export class HeroPreviewRenderer {
     }
 
     /**
+     * Renders the selected preview state while demo documents are loading.
+     * @param {string} _activeView Selected preview view.
+     * @param {((key: string) => string) | null} [translate] Translation lookup.
+     * @returns {string}
+     */
+    static renderLoading(_activeView, translate = null) {
+        const t = UiText.createTranslator(translate)
+        return HeroPreviewRenderer.#renderPreviewSummary(
+            t('preview.label'),
+            t('preview.loading'),
+            t('preview.loadingDetail')
+        )
+    }
+
+    /**
      * Resolves the best document for the requested view.
      * @param {any[]} documentModels Parsed document models.
      * @param {string} activeView Selected preview view.

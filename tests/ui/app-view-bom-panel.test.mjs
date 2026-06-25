@@ -268,3 +268,27 @@ test('AppView highlights the selected BOM row by exact designator', () => {
         /<mark class="bom-table__selected-designator">R1<\/mark>/
     )
 })
+
+/**
+ * Verifies semantic BOM fields are exposed as row attributes.
+ */
+test('AppView renders BOM semantic row metadata', () => {
+    const markup = renderBomMarkup('circuitjson', {
+        bom: [
+            {
+                designators: ['C1'],
+                quantity: 1,
+                value: '100n',
+                pattern: 'simple_capacitor',
+                source: 'CAP-100N',
+                sourceFtype: 'simple_capacitor',
+                componentType: 'capacitor',
+                componentIcon: 'capacitor'
+            }
+        ]
+    })
+
+    assert.match(markup, /data-bom-component-type="capacitor"/)
+    assert.match(markup, /data-bom-source-ftype="simple_capacitor"/)
+    assert.match(markup, /data-bom-component-icon="capacitor"/)
+})

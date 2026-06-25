@@ -84,6 +84,8 @@ export class ServerAssetVersioner {
                 '/node_modules/kicad-toolkit/src/workers/kicad-parser.worker.mjs',
             'circuitjson-toolkit':
                 '/node_modules/circuitjson-toolkit/src/index.mjs',
+            'circuitjson-toolkit/renderers':
+                '/node_modules/circuitjson-toolkit/src/renderers.mjs',
             'gerber-toolkit': '/node_modules/gerber-toolkit/src/index.mjs',
             'gerber-toolkit/parser':
                 '/node_modules/gerber-toolkit/src/parser.mjs',
@@ -111,7 +113,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate)'
+            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

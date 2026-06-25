@@ -1,313 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbDiagnosticFocusModel } from '../../src/core/PcbDiagnosticFocusModel.mjs'
-import { PcbInteractionPrimitiveModel } from '../../src/core/PcbInteractionPrimitiveModel.mjs'
-
-/**
- * Builds a standards-shaped board document with richer PCB artwork records.
- * @returns {object[]}
- */
-function createRichCircuitJsonDocument() {
-    const documentModel = [
-        {
-            type: 'pcb_board',
-            pcb_board_id: 'board_1',
-            center: { x: 0, y: 0 },
-            width: 12,
-            height: 8,
-            num_layers: 4
-        },
-        {
-            type: 'source_component',
-            source_component_id: 'source_u1',
-            name: 'U1'
-        },
-        {
-            type: 'pcb_component',
-            pcb_component_id: 'pcb_u1',
-            source_component_id: 'source_u1',
-            center: { x: 1, y: 1 },
-            width: 1.8,
-            height: 1.2,
-            layer: 'top',
-            pcb_group_id: 'group_1',
-            position_mode: 'relative_to_group_anchor',
-            positioned_relative_to_pcb_group_id: 'group_1'
-        },
-        {
-            type: 'source_group',
-            source_group_id: 'source_group_1',
-            name: 'Analog',
-            was_automatically_named: false
-        },
-        {
-            type: 'pcb_group',
-            pcb_group_id: 'group_1',
-            source_group_id: 'source_group_1',
-            name: 'Analog',
-            center: { x: 1, y: 1 },
-            width: 3,
-            height: 2,
-            anchor_position: { x: 0, y: 0 }
-        },
-        {
-            type: 'pcb_smtpad',
-            pcb_smtpad_id: 'pad_rot',
-            pcb_component_id: 'pcb_u1',
-            shape: 'rotated_rect',
-            x: 0.6,
-            y: 0.6,
-            width: 0.9,
-            height: 0.35,
-            ccw_rotation: 45,
-            layer: 'top',
-            net: 'SIG',
-            solderMaskExpansion: 0.1,
-            solderPasteExpansion: 0.05
-        },
-        {
-            type: 'pcb_smtpad',
-            pcb_smtpad_id: 'pad_asym',
-            pcb_component_id: 'pcb_u1',
-            shape: 'rotated_rect',
-            x: -0.8,
-            y: 0.1,
-            width: 1,
-            height: 0.5,
-            ccw_rotation: 30,
-            layer: 'top',
-            net: 'AUX',
-            soldermask_margin_left: 0.2,
-            soldermask_margin_right: 0.4,
-            soldermask_margin_top: 0.1,
-            soldermask_margin_bottom: -0.05
-        },
-        {
-            type: 'source_trace',
-            source_trace_id: 'source_trace_sig',
-            display_name: 'SIG budget',
-            max_length: 2.5
-        },
-        {
-            type: 'pcb_trace',
-            pcb_trace_id: 'trace_sig',
-            source_trace_id: 'source_trace_sig',
-            net: 'SIG',
-            route: [
-                {
-                    route_type: 'wire',
-                    x: -1,
-                    y: -1,
-                    width: 0.2,
-                    layer: 'top'
-                },
-                {
-                    route_type: 'wire',
-                    x: 2,
-                    y: -1,
-                    width: 0.2,
-                    layer: 'top'
-                }
-            ]
-        },
-        {
-            type: 'pcb_smtpad',
-            pcb_smtpad_id: 'pad_pill',
-            pcb_component_id: 'pcb_u1',
-            shape: 'pill',
-            x: 1.4,
-            y: 0.6,
-            width: 1.1,
-            height: 0.35,
-            layer: 'top',
-            net: 'SIG'
-        },
-        {
-            type: 'pcb_smtpad',
-            pcb_smtpad_id: 'pad_poly',
-            pcb_component_id: 'pcb_u1',
-            shape: 'polygon',
-            points: [
-                { x: 0.4, y: 1.4 },
-                { x: 1, y: 1.8 },
-                { x: 1.6, y: 1.4 }
-            ],
-            layer: 'top',
-            net: 'GND'
-        },
-        {
-            type: 'pcb_plated_hole',
-            pcb_plated_hole_id: 'hole_1',
-            shape: 'circular_hole_with_rect_pad',
-            x: -2,
-            y: 1.5,
-            outer_diameter: 0.9,
-            hole_diameter: 0.35,
-            rect_pad_width: 1.4,
-            rect_pad_height: 0.8,
-            layer: 'top',
-            net: 'GND'
-        },
-        {
-            type: 'pcb_keepout',
-            pcb_keepout_id: 'keepout_1',
-            center: { x: -3, y: -2 },
-            width: 1.2,
-            height: 0.8,
-            layer: 'top'
-        },
-        {
-            type: 'pcb_cutout',
-            pcb_cutout_id: 'cutout_1',
-            points: [
-                { x: 3, y: -1 },
-                { x: 4, y: -1 },
-                { x: 4, y: 0 },
-                { x: 3, y: 0 }
-            ],
-            layer: 'board'
-        },
-        {
-            type: 'pcb_courtyard',
-            pcb_courtyard_id: 'courtyard_1',
-            center: { x: 1, y: 1 },
-            width: 2.4,
-            height: 1.8,
-            layer: 'top_courtyard'
-        },
-        {
-            type: 'pcb_silkscreen_text',
-            pcb_silkscreen_text_id: 'silk_1',
-            text: 'U1',
-            x: 1,
-            y: 2.2,
-            layer: 'top_silkscreen'
-        },
-        {
-            type: 'pcb_fabrication_note_text',
-            pcb_fabrication_note_text_id: 'fab_1',
-            text: 'PIN 1',
-            x: -1,
-            y: 2.4,
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_copper_text',
-            pcb_copper_text_id: 'copper_text_1',
-            text: 'SIG',
-            x: 2.4,
-            y: 1.2,
-            layer: 'top',
-            net: 'SIG'
-        },
-        {
-            type: 'pcb_note_text',
-            pcb_note_text_id: 'note_1',
-            text: 'ASSEMBLY NOTE',
-            x: -4,
-            y: 2.8,
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_note_line',
-            pcb_note_line_id: 'note_line_1',
-            x1: -4,
-            y1: 2.2,
-            x2: -2,
-            y2: 2.2,
-            width: 0.08,
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_note_rect',
-            pcb_note_rect_id: 'note_rect_1',
-            center: { x: -3, y: 1.4 },
-            width: 1.4,
-            height: 0.6,
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_note_dimension',
-            pcb_note_dimension_id: 'note_dimension_1',
-            start: { x: -5, y: -3 },
-            end: { x: -3, y: -3 },
-            text: '2mm',
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_fabrication_note_rect',
-            pcb_fabrication_note_rect_id: 'fab_rect_1',
-            center: { x: 3.4, y: 2.2 },
-            width: 1.2,
-            height: 0.5,
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_fabrication_note_dimension',
-            pcb_fabrication_note_dimension_id: 'fab_dimension_1',
-            start: { x: 2.8, y: 3 },
-            end: { x: 4.2, y: 3 },
-            text: '1.4mm',
-            layer: 'top_fabrication'
-        },
-        {
-            type: 'pcb_solder_paste',
-            pcb_solder_paste_id: 'paste_1',
-            center: { x: 0.6, y: -1.6 },
-            width: 0.7,
-            height: 0.25,
-            layer: 'top'
-        },
-        {
-            type: 'pcb_thermal_spoke',
-            pcb_thermal_spoke_id: 'thermal_1',
-            x1: -1,
-            y1: -1,
-            x2: -0.2,
-            y2: -1,
-            width: 0.16,
-            layer: 'top',
-            net: 'GND'
-        },
-        {
-            type: 'pcb_trace_hint',
-            pcb_trace_hint_id: 'hint_1',
-            route: [
-                { x: 2.8, y: -2.2, layer: 'top' },
-                { x: 4, y: -2.2, layer: 'top' }
-            ],
-            layer: 'top',
-            net: 'SIG'
-        },
-        {
-            type: 'pcb_breakout_point',
-            pcb_breakout_point_id: 'breakout_1',
-            center: { x: 4.4, y: 1.8 },
-            layer: 'top',
-            net: 'SIG'
-        },
-        {
-            type: 'pcb_panel',
-            pcb_panel_id: 'panel_1',
-            center: { x: 0, y: 0 },
-            width: 14,
-            height: 10
-        },
-        {
-            type: 'pcb_trace_error',
-            pcb_trace_error_id: 'err_1',
-            pcb_component_id: 'pcb_u1',
-            message: 'Trace clearance is below the configured rule.',
-            error_type: 'clearance'
-        }
-    ]
-    Object.assign(documentModel, {
-        fileName: 'board.json',
-        kind: 'pcb',
-        sourceFormat: 'circuitjson'
-    })
-    return documentModel
-}
+import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { createRichCircuitJsonDocument } from '../helpers/FakePcbInteractionDocuments.mjs'
 
 /**
  * Builds a compact board with two unrouted ports on the same source net.
@@ -362,6 +57,72 @@ function createConnectivityDocument() {
 }
 
 /**
+ * Builds a board whose explicit source net belongs to a source group.
+ * @returns {object[]}
+ */
+function createGroupedSourceNetDocument() {
+    const documentModel = [
+        {
+            type: 'pcb_board',
+            pcb_board_id: 'board_1',
+            center: { x: 0, y: 0 },
+            width: 6,
+            height: 4,
+            num_layers: 2
+        },
+        {
+            type: 'source_group',
+            source_group_id: 'source_group_power',
+            name: 'Power'
+        },
+        {
+            type: 'source_net',
+            source_net_id: 'source_net_power',
+            name: 'PWR',
+            member_source_group_ids: ['source_group_power']
+        },
+        {
+            type: 'pcb_smtpad',
+            pcb_smtpad_id: 'pad_power',
+            shape: 'rect',
+            x: -1,
+            y: 0,
+            width: 0.8,
+            height: 0.5,
+            layer: 'top',
+            net: 'PWR'
+        },
+        {
+            type: 'pcb_trace',
+            pcb_trace_id: 'trace_power',
+            net: 'PWR',
+            route: [
+                {
+                    route_type: 'wire',
+                    x: -1,
+                    y: 0,
+                    width: 0.18,
+                    layer: 'top'
+                },
+                {
+                    route_type: 'wire',
+                    x: 1,
+                    y: 0,
+                    width: 0.18,
+                    layer: 'top'
+                }
+            ]
+        }
+    ]
+    Object.assign(documentModel, {
+        fileName: 'grouped-source-net.json',
+        kind: 'pcb',
+        sourceFormat: 'circuitjson'
+    })
+    return documentModel
+}
+
+/**
  * Verifies richer element-array records are preserved for rendering,
  * visibility, snapping, and in-view diagnostics.
  */
@@ -385,6 +146,42 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
             .length,
         3
     )
+    assert.deepEqual(
+        model.primitives
+            .filter((primitive) => ['hole_1', 'slot_1'].includes(primitive.id))
+            .map((primitive) => ({
+                id: primitive.id,
+                shape: primitive.shape,
+                holeShape: primitive.holeShape,
+                width: primitive.width,
+                height: primitive.height,
+                holeDiameter: primitive.holeDiameter,
+                holeWidth: primitive.holeWidth,
+                holeHeight: primitive.holeHeight
+            })),
+        [
+            {
+                id: 'hole_1',
+                shape: 'rect',
+                holeShape: 'circle',
+                width: 1.4,
+                height: 0.8,
+                holeDiameter: 0.35,
+                holeWidth: 0.35,
+                holeHeight: 0.35
+            },
+            {
+                id: 'slot_1',
+                shape: 'pill',
+                holeShape: 'pill',
+                width: 1.2,
+                height: 0.4,
+                holeDiameter: 0.4,
+                holeWidth: 1.2,
+                holeHeight: 0.4
+            }
+        ]
+    )
     assert.equal(kinds.has('silkscreen'), true)
     assert.equal(kinds.has('fabrication'), true)
     assert.equal(kinds.has('keepout'), true)
@@ -399,6 +196,27 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
     assert.equal(kinds.has('route-hint'), true)
     assert.equal(kinds.has('breakout-point'), true)
     assert.equal(kinds.has('panel'), true)
+    assert.deepEqual(
+        model.primitives
+            .filter((primitive) => ['silk_1', 'fab_1'].includes(primitive.id))
+            .map((primitive) => ({
+                id: primitive.id,
+                anchorAlignment: primitive.anchorAlignment,
+                isKnockout: primitive.isKnockout
+            })),
+        [
+            {
+                id: 'silk_1',
+                anchorAlignment: 'bottom_right',
+                isKnockout: true
+            },
+            {
+                id: 'fab_1',
+                anchorAlignment: 'top_left',
+                isKnockout: false
+            }
+        ]
+    )
     assert.deepEqual(
         model.primitives
             .filter((primitive) =>
@@ -435,6 +253,7 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
         {
             id: 'trace_sig',
             netName: 'SIG',
+            sourceTraceId: 'source_trace_sig',
             length: 3,
             maxLength: 2.5,
             displayName: 'SIG budget',
@@ -505,10 +324,92 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
         category: 'clearance',
         code: 'clearance',
         message: 'Trace clearance is below the configured rule.',
-        point: { x: 1, y: 1 },
+        point: { x: 0.2250000000000001, y: 0.825 },
         componentKey: 'U1',
-        netName: ''
+        netName: 'SIG',
+        bounds: {
+            minX: -1.5,
+            minY: -0.15,
+            maxX: 1.95,
+            maxY: 1.8,
+            width: 3.45,
+            height: 1.95
+        },
+        relatedPrimitiveIds: [
+            'pad_rot',
+            'pad_asym',
+            'pad_pill',
+            'pad_poly',
+            'pad_rot:solder-mask',
+            'pad_asym:solder-mask'
+        ]
     })
+})
+
+/**
+ * Verifies explicit source-net group memberships reach net rows and primitives.
+ */
+test('PcbInteractionPrimitiveModel propagates source-net group membership', () => {
+    const model = PcbInteractionPrimitiveModel.build(
+        createGroupedSourceNetDocument()
+    )
+    const net = model.nets.find((entry) => entry.name === 'PWR')
+    const groupedPrimitives = model.primitives.filter(
+        (primitive) => primitive.netName === 'PWR'
+    )
+
+    assert.deepEqual(net, {
+        name: 'PWR',
+        sourceNetId: 'source_net_power',
+        groupIds: ['source_group_power']
+    })
+    assert.deepEqual(
+        groupedPrimitives.map((primitive) => ({
+            id: primitive.id,
+            sourceNetId: primitive.sourceNetId,
+            groupIds: primitive.groupIds
+        })),
+        [
+            {
+                id: 'pad_power',
+                sourceNetId: 'source_net_power',
+                groupIds: ['source_group_power']
+            },
+            {
+                id: 'trace_power:segment:0',
+                sourceNetId: 'source_net_power',
+                groupIds: ['source_group_power']
+            }
+        ]
+    )
+})
+
+/**
+ * Verifies shaped board holes select by pad or slot geometry, not by a
+ * circular via fallback.
+ */
+test('PcbInteractionPrimitiveModel hit tests shaped CircuitJSON holes', () => {
+    const documentModel = createRichCircuitJsonDocument()
+
+    const rectPadHits = PcbInteractionPrimitiveModel.hitTest(
+        documentModel,
+        { x: -1.4, y: 1.8 },
+        { tolerance: 0 }
+    )
+    const slotHits = PcbInteractionPrimitiveModel.hitTest(
+        documentModel,
+        { x: -2.95, y: 1.5 },
+        { tolerance: 0 }
+    )
+
+    assert.equal(
+        rectPadHits.some((hit) => hit.source?.pcb_plated_hole_id === 'hole_1'),
+        true
+    )
+    assert.equal(
+        slotHits.some((hit) => hit.source?.pcb_hole_id === 'slot_1'),
+        true
+    )
 })
 
 /**
@@ -675,6 +576,60 @@ test('PcbInteractionPrimitiveModel reports CircuitJSON copper clearance gaps', (
 })
 
 /**
+ * Verifies keepout primitives participate in clearance diagnostics.
+ */
+test('PcbInteractionPrimitiveModel reports CircuitJSON keepout clearance gaps', () => {
+    const documentModel = [
+        {
+            type: 'pcb_board',
+            pcb_board_id: 'board_1',
+            center: { x: 0, y: 0 },
+            width: 6,
+            height: 4,
+            min_trace_clearance: 0.25
+        },
+        {
+            type: 'pcb_smtpad',
+            pcb_smtpad_id: 'pad_a',
+            shape: 'rect',
+            x: 0,
+            y: 0,
+            width: 0.4,
+            height: 0.4,
+            layer: 'top',
+            net: 'A'
+        },
+        {
+            type: 'pcb_keepout',
+            pcb_keepout_id: 'keepout_a',
+            shape: 'rect',
+            center: { x: 0.25, y: 0 },
+            width: 0.4,
+            height: 0.4,
+            layers: ['top'],
+            description: 'No copper under connector latch'
+        }
+    ]
+    Object.assign(documentModel, {
+        fileName: 'keepout-clearance.json',
+        kind: 'pcb',
+        sourceFormat: 'circuitjson'
+    })
+    const model = PcbInteractionPrimitiveModel.build(documentModel)
+    const clearance = model.diagnostics.find(
+        (diagnostic) => diagnostic.code === 'pcb_keepout_clearance'
+    )
+
+    assert.equal(clearance.severity, 'error')
+    assert.equal(clearance.category, 'clearance')
+    assert.equal(clearance.netName, 'A')
+    assert.equal(clearance.keepoutId, 'keepout_a')
+    assert.equal(clearance.clearance.minimum, 0.25)
+    assert.equal(clearance.clearance.actual, 0)
+    assert.deepEqual(clearance.relatedPrimitiveIds, ['keepout_a', 'pad_a'])
+})
+
+/**
  * Verifies copper clearance checks use primitive geometry rather than only
  * axis-aligned bounds.
  */
@@ -748,7 +703,15 @@ test('PcbInteractionPrimitiveModel exposes CircuitJSON group and subcircuit rows
             name: 'Regulator',
             center: { x: 0, y: 0 },
             width: 3,
-            height: 2
+            height: 2,
+            anchor_position: { x: -1, y: -0.75 },
+            anchor_alignment: 'top_left',
+            position_mode: 'relative_to_group_anchor',
+            child_layout_mode: 'packed',
+            layout_mode: 'grid',
+            autorouter_configuration: {
+                trace_clearance: 0.2
+            }
         },
         {
             type: 'source_component',
@@ -805,8 +768,13 @@ test('PcbInteractionPrimitiveModel exposes CircuitJSON group and subcircuit rows
             subcircuitId: '',
             componentIds: ['pcb_u1'],
             memberIds: ['pcb_u1', 'pad_u1_1'],
-            anchor: null,
-            depth: 0
+            anchor: { x: -1, y: -0.75 },
+            depth: 0,
+            anchorAlignment: 'top_left',
+            positionMode: 'relative_to_group_anchor',
+            childLayoutMode: 'packed',
+            layoutMode: 'grid',
+            autorouterTraceClearance: 0.2
         }
     ])
     assert.deepEqual(
@@ -818,6 +786,36 @@ test('PcbInteractionPrimitiveModel exposes CircuitJSON group and subcircuit rows
         model.components.find((component) => component.componentKey === 'U1')
             .subcircuitIds,
         ['subcircuit_regulator']
+    )
+    assert.deepEqual(
+        PcbInteractionPrimitiveModel.hitTest(
+            documentModel,
+            { x: 0, y: 0 },
+            { tolerance: 0 }
+        ).find((hit) => hit.id === 'pad_u1_1')?.groups,
+        [
+            {
+                id: 'pcb_group_regulator',
+                name: 'Regulator',
+                sourceGroupId: 'source_group_power',
+                componentCount: 1,
+                memberCount: 2,
+                anchor: { x: -1, y: -0.75 },
+                anchorAlignment: 'top_left',
+                positionMode: 'relative_to_group_anchor',
+                childLayoutMode: 'packed',
+                layoutMode: 'grid',
+                autorouterTraceClearance: 0.2,
+                bounds: {
+                    minX: -1.5,
+                    minY: -1,
+                    maxX: 1.5,
+                    maxY: 1,
+                    width: 3,
+                    height: 2
+                }
+            }
+        ]
     )
 })
 

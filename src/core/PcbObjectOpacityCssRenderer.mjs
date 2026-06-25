@@ -1,6 +1,8 @@
 import { PcbObjectVisibilityModel } from './PcbObjectVisibilityModel.mjs'
 
 const PCB_OBJECT_VISIBILITY_SELECTORS = {
+    'components-top': ["[data-pcb-component-side='top']"],
+    'components-bottom': ["[data-pcb-component-side='bottom']"],
     tracks: ['.pcb-track', '.pcb-segment', '.pcb-arc'],
     vias: ['.pcb-via', '.pcb-via__pad'],
     pads: ['.pcb-pad', '.pcb-pad__ring', '.pcb-smd-pad'],
@@ -19,6 +21,23 @@ const PCB_OBJECT_VISIBILITY_SELECTORS = {
         '.pcb-value',
         '.pcb-footprint-text'
     ],
+    'rats-nest': ['.pcb-ratsnest', '.pcb-ratsnest-line', '.pcb-airwire'],
+    'solder-mask': ['.pcb-solder-mask', '.pcb-soldermask'],
+    'solder-paste': ['.pcb-solder-paste', '.pcb-solderpaste'],
+    silkscreen: [
+        '.pcb-silkscreen',
+        '.pcb-silkscreen-text',
+        '.pcb-silkscreen-line'
+    ],
+    fabrication: [
+        '.pcb-fabrication',
+        '.pcb-fabrication-note',
+        '.pcb-note',
+        '.pcb-dimension'
+    ],
+    courtyards: ['.pcb-courtyard'],
+    groups: ['.pcb-groups', '.pcb-group-outline'],
+    'anchor-offsets': ['.pcb-anchor-offsets', '.pcb-anchor-offset'],
     grid: ['.pcb-grid', '.schematic-grid', '.grid'],
     page: [
         '.pcb-board',

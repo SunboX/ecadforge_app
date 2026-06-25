@@ -1,5 +1,6 @@
 import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
+import { ViewportInteractionGateRenderer } from './ViewportInteractionGateRenderer.mjs'
 
 /**
  * Adapts the shared 3D scene shell for the app's active viewer layout.
@@ -14,13 +15,34 @@ export class AppViewScene3dShellRenderer {
      */
     static render(documentModel, translate = null, options = {}) {
         return AppViewScene3dShellRenderer.#insertModelSearchToggle(
-            AppViewScene3dShellRenderer.#removeStatsStrip(
-                SvgPanelChromeStripper.stripMetadataHeader(
-                    Scene3dRenderer.render(documentModel, translate)
-                )
+            AppViewScene3dShellRenderer.#insertInteractionGate(
+                AppViewScene3dShellRenderer.#removeStatsStrip(
+                    SvgPanelChromeStripper.stripMetadataHeader(
+                        Scene3dRenderer.render(documentModel, translate)
+                    )
+                ),
+                translate
             ),
             translate,
             options
+        )
+    }
+
+    /**
+     * Adds the reusable interaction gate inside the 3D viewport.
+     * @param {string} markup Rendered 3D shell markup.
+     * @param {((key: string) => string) | null} translate Translation lookup.
+     * @returns {string}
+     */
+    static #insertInteractionGate(markup, translate) {
+        const t = typeof translate === 'function' ? translate : (key) => key
+        const gate = ViewportInteractionGateRenderer.render(
+            t('viewport.interactWithView')
+        )
+
+        return String(markup).replace(
+            /(<\/div><aside\b[^>]*class="[^"]*\bscene-3d__controls\b)/u,
+            gate + '$1'
         )
     }
 

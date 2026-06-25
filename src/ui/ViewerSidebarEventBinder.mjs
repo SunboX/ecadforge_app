@@ -79,6 +79,16 @@ export class ViewerSidebarEventBinder {
                         'false'
                 })
         )
+        mount?.addEventListener('pcb-layer-visibility-change', (event) => {
+            if (!event?.detail || typeof event.detail !== 'object') return
+
+            callback({
+                documentId: String(event.detail.documentId || ''),
+                layerKey: String(event.detail.layerKey || ''),
+                visible: event.detail.visible !== false,
+                source: String(event.detail.source || '')
+            })
+        })
     }
 
     /**
@@ -118,6 +128,25 @@ export class ViewerSidebarEventBinder {
 
         mount?.addEventListener('input', handleOpacityEvent)
         mount?.addEventListener('change', handleOpacityEvent)
+    }
+
+    /**
+     * Binds PCB object visibility changes from rendered view controls.
+     * @param {HTMLElement | null} mount Sidebar or content mount node.
+     * @param {(change: { documentId: string, objectKey: string, visible: boolean, source?: string }) => void} callback Visibility callback.
+     * @returns {void}
+     */
+    static bindPcbObjectVisibilityChange(mount, callback) {
+        mount?.addEventListener('pcb-object-visibility-change', (event) => {
+            if (!event?.detail || typeof event.detail !== 'object') return
+
+            callback({
+                documentId: String(event.detail.documentId || ''),
+                objectKey: String(event.detail.objectKey || ''),
+                visible: event.detail.visible !== false,
+                source: String(event.detail.source || '')
+            })
+        })
     }
 
     /**

@@ -1,10 +1,6 @@
 import { zipSync } from 'fflate'
-import {
-    AltiumPcbLibExporter,
-    AltiumSchLibExporter,
-    SourceBundleExporter
-} from 'altium-toolkit/parser'
-import { SelectedPartCircuitJsonExportAdapter } from './SelectedPartCircuitJsonExportAdapter.mjs'
+import { SelectedPartAltiumExportAdapter } from 'altium-toolkit/parser'
+import { SelectedPartCircuitJsonExportAdapter } from 'circuitjson-toolkit/renderers'
 import {
     CircuitJsonKicadProjectExporter,
     KicadSelectedPartExporter
@@ -177,34 +173,12 @@ export class SelectedPartExportService {
      * @returns {{ path: string, bytes: Uint8Array, contentType: string }[]}
      */
     static #buildAltiumEntries(selectedPart, models, partName) {
-        const bundle = SelectedPartExportService.#altiumBundle(
-            selectedPart,
+        return SelectedPartAltiumExportAdapter.export(selectedPart, {
             models,
-            partName
-        )
-        const sourceEntries = SourceBundleExporter.export(bundle, {
-            includeModels: true
-        }).entries.map((entry) => ({
-            ...entry,
-            path:
-                entry.path === 'manifest.json'
-                    ? 'source/manifest.json'
-                    : entry.path
-        }))
-
-        return [
-            {
-                path: 'altium/' + partName + '.SchLib',
-                bytes: AltiumSchLibExporter.export([bundle]),
-                contentType: 'application/octet-stream'
-            },
-            {
-                path: 'altium/' + partName + '.PcbLib',
-                bytes: AltiumPcbLibExporter.export([bundle]),
-                contentType: 'application/octet-stream'
-            },
-            ...sourceEntries
-        ]
+            partName,
+            libraryBasePath: 'altium',
+            sourceBasePath: 'source'
+        }).entries
     }
 
     /**
@@ -227,95 +201,6 @@ export class SelectedPartExportService {
                 circuitJson
             )
         ]
-    }
-
-    /**
-     * Builds a source bundle for the existing Altium exporters.
-     * @param {{ designator: string, symbol: object, footprint: object }} selectedPart Selected part data.
-     * @param {object[]} models Matched 3D model assets.
-     * @param {string} partName Export artifact name.
-     * @returns {object}
-     */
-    static #altiumBundle(selectedPart, models = [], partName = '') {
-        const bundleName =
-            partName || selectedPart.designator || 'Selected part'
-
-        return {
-            id: selectedPart.designator || 'selected-part',
-            name: bundleName,
-            metadata: {
-                name: bundleName,
-                partNumber: selectedPart.symbol?.value || ''
-            },
-            symbol: {
-                name:
-                    selectedPart.symbol?.name ||
-                    selectedPart.designator ||
-                    'Selected part',
-                pins: selectedPart.symbol?.pins || [],
-                primitives: SelectedPartExportService.#symbolPrimitives(
-                    selectedPart.symbol
-                ),
-                raw: selectedPart.symbol?.raw || {}
-            },
-            footprint: {
-                name:
-                    selectedPart.footprint?.name ||
-                    selectedPart.designator ||
-                    'Selected part',
-                component: selectedPart.footprint?.component || {},
-                pads: selectedPart.footprint?.pads || [],
-                tracks: selectedPart.footprint?.tracks || [],
-                arcs: selectedPart.footprint?.arcs || [],
-                fills: selectedPart.footprint?.fills || [],
-                texts: selectedPart.footprint?.texts || [],
-                primitives: [],
-                raw: selectedPart.footprint?.raw || {}
-            },
-            models,
-            sourceJson: {
-                selectedPart
-            }
-        }
-    }
-
-    /**
-     * Builds Altium schematic primitive rows from the selected symbol.
-     * @param {object} symbol Selected symbol.
-     * @returns {object[]}
-     */
-    static #symbolPrimitives(symbol = {}) {
-        return [
-            ...SelectedPartExportService.#typedPrimitives(
-                symbol.rectangles,
-                'rectangle'
-            ),
-            ...SelectedPartExportService.#typedPrimitives(symbol.lines, 'line'),
-            ...SelectedPartExportService.#typedPrimitives(symbol.arcs, 'arc'),
-            ...SelectedPartExportService.#typedPrimitives(
-                symbol.ellipses,
-                'ellipse'
-            ),
-            ...SelectedPartExportService.#typedPrimitives(
-                symbol.polygons,
-                'polygon'
-            )
-        ]
-    }
-
-    /**
-     * Adds a primitive type to each entry.
-     * @param {unknown} primitives Primitive candidates.
-     * @param {string} type Primitive type.
-     * @returns {object[]}
-     */
-    static #typedPrimitives(primitives, type) {
-        return SelectedPartExportService.#array(primitives).map(
-            (primitive) => ({
-                type,
-                ...primitive
-            })
-        )
     }
 
     /**

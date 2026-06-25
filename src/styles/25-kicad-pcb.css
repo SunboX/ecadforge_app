@@ -151,7 +151,7 @@
 }
 
 .pcb-svg--kicad circle.pcb-via {
-    fill: var(--pcb-via-ring-fill);
+    fill: var(--pcb-copper-solid-fill);
     stroke: var(--pcb-surface-track-color);
 }
 
@@ -171,7 +171,7 @@
 
 .pcb-svg--kicad :is(.pcb-via-drill, .pcb-pad-drill) {
     fill: var(--pcb-via-hole-fill);
-    stroke: rgba(255, 255, 255, 0.72);
+    stroke: none;
 }
 
 .pcb-svg--circuitjson .pcb-via__hole {
@@ -229,6 +229,14 @@
     fill: rgba(65, 86, 104, 0.9);
     stroke: rgba(255, 255, 255, 0.72);
     stroke-width: 0.05;
+}
+
+.pcb-svg--circuitjson text.pcb-silkscreen-text--knockout {
+    fill: rgba(255, 255, 255, 0.92);
+    paint-order: stroke;
+    stroke: rgba(65, 86, 104, 0.9);
+    stroke-linejoin: round;
+    stroke-width: 0.08;
 }
 
 .pcb-svg--circuitjson .pcb-fabrication {
@@ -403,21 +411,43 @@
     vector-effect: non-scaling-stroke;
 }
 
-.pcb-svg--circuitjson .pcb-measurement-copy-host {
+.pcb-svg--circuitjson .pcb-measurement-copy-host,
+.pcb-svg--circuitjson .pcb-measurement-actions-host {
     overflow: visible;
 }
 
-.pcb-svg--circuitjson .pcb-measurement-copy {
+.pcb-svg--circuitjson .pcb-measurement-actions {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-copy,
+.pcb-svg--circuitjson .pcb-measurement-action {
     align-items: center;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(27, 143, 180, 0.42);
     border-radius: 4px;
     color: rgba(36, 65, 80, 0.94);
+    cursor: pointer;
     display: inline-flex;
     height: 18px;
     justify-content: center;
     padding: 0;
     width: 18px;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-action {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-copy:hover,
+.pcb-svg--circuitjson .pcb-measurement-copy:focus-visible,
+.pcb-svg--circuitjson .pcb-measurement-action:hover,
+.pcb-svg--circuitjson .pcb-measurement-action:focus-visible {
+    background: rgba(230, 248, 251, 0.96);
+    border-color: rgba(27, 143, 180, 0.72);
 }
 
 .pcb-svg--circuitjson .pcb-measurement-copy svg {
@@ -426,4 +456,72 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 1.6;
+}
+
+.pcb-svg--circuitjson .pcb-measurement-action svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.6;
+}
+
+.pcb-view-settings {
+    position: relative;
+}
+
+.pcb-view-settings__summary {
+    list-style: none;
+}
+
+.pcb-view-settings__summary::-webkit-details-marker {
+    display: none;
+}
+
+.pcb-view-settings__menu {
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(36, 65, 80, 0.16);
+    border-radius: 6px;
+    box-shadow: 0 16px 36px rgba(24, 34, 44, 0.16);
+    display: grid;
+    gap: 2px;
+    max-height: min(68vh, 440px);
+    min-width: 210px;
+    overflow: auto;
+    padding: 6px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 6;
+}
+
+.pcb-view-settings__item {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: rgba(36, 65, 80, 0.94);
+    cursor: pointer;
+    display: flex;
+    font: inherit;
+    justify-content: space-between;
+    min-height: 28px;
+    padding: 5px 8px;
+    text-align: left;
+}
+
+.pcb-view-settings__item::after {
+    color: rgba(15, 116, 108, 0.92);
+    content: '+';
+    font-weight: 700;
+    margin-left: 16px;
+}
+
+.pcb-view-settings__item[aria-pressed='false']::after {
+    color: rgba(36, 65, 80, 0.42);
+    content: '-';
+}
+
+.pcb-view-settings__item:is(:hover, :focus-visible) {
+    background: rgba(230, 248, 251, 0.96);
 }

@@ -13,7 +13,10 @@ import {
     PcbScene3dBuilder as GerberScene3dBuilder,
     PcbScene3dScenePreparator as GerberScene3dScenePreparator
 } from 'gerber-toolkit/scene3d'
-import { PcbScene3dCircuitJsonAdapter } from 'pcb-scene3d-viewer/scene3d'
+import {
+    CircuitJsonCadModelAssetResolver,
+    PcbScene3dCircuitJsonAdapter
+} from 'pcb-scene3d-viewer/scene3d'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
@@ -149,7 +152,14 @@ export class EcadScene3dService {
             return documentModel
         }
 
-        const scene = PcbScene3dCircuitJsonAdapter.build(documentModel, options)
+        const sceneDocument =
+            CircuitJsonCadModelAssetResolver.withModelAssetUrls(documentModel)
+        const sceneOptions =
+            CircuitJsonCadModelAssetResolver.withSessionAssetResolver(options)
+        const scene = PcbScene3dCircuitJsonAdapter.build(
+            sceneDocument,
+            sceneOptions
+        )
         return {
             ...scene,
             pcb: {

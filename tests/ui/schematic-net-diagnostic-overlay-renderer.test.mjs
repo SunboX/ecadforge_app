@@ -97,6 +97,75 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
                         ]
                     }
                 ],
+                traceLabelSnipReconnectSegments: [
+                    {
+                        kind: 'net-label-trace-snip-reconnect-candidate',
+                        netName: 'RETURN_A',
+                        points: [
+                            { x: 2, y: 1 },
+                            { x: 2, y: 2 },
+                            { x: 1, y: 2 },
+                            { x: 1, y: 4 },
+                            { x: 2, y: 4 },
+                            { x: 2, y: 5 }
+                        ]
+                    }
+                ],
+                multiLabelTraceDetourSegments: [
+                    {
+                        kind: 'multi-label-trace-detour-candidate',
+                        netName: 'TRACE_A',
+                        points: [
+                            { x: 1, y: 0 },
+                            { x: 1, y: -1 },
+                            { x: 6, y: -1 },
+                            { x: 6, y: 0 }
+                        ]
+                    }
+                ],
+                netIslandLaneShiftSegments: [
+                    {
+                        kind: 'net-island-lane-shift-candidate',
+                        netName: 'SHIFT_A',
+                        points: [
+                            { x: 0, y: -1 },
+                            { x: 4, y: -1 }
+                        ]
+                    }
+                ],
+                congestedLTurnRerouteSegments: [
+                    {
+                        kind: 'congested-l-turn-reroute-candidate',
+                        netName: 'TURN_A',
+                        points: [
+                            { x: 0, y: 0 },
+                            { x: 0, y: -1 },
+                            { x: 5, y: -1 },
+                            { x: 5, y: 4 },
+                            { x: 4, y: 4 }
+                        ]
+                    }
+                ],
+                longDistanceConnectionSegments: [
+                    {
+                        kind: 'long-distance-connection-candidate',
+                        netName: 'FAR_A',
+                        points: [
+                            { x: 0, y: 9 },
+                            { x: 20, y: 9 }
+                        ]
+                    }
+                ],
+                sectionBoundaryConnectionSegments: [
+                    {
+                        kind: 'section-boundary-connection-candidate',
+                        netName: 'SECTION_A',
+                        points: [
+                            { x: 0, y: 10 },
+                            { x: 6, y: 10 }
+                        ]
+                    }
+                ],
                 pathCleanupSegments: [
                     {
                         kind: 'net-path-cleanup-candidate',
@@ -212,6 +281,13 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
                         bounds: { minX: 25, minY: 6, maxX: 29, maxY: 10 }
                     }
                 ],
+                labelRelocationCandidateBounds: [
+                    {
+                        kind: 'net-label-relocation-candidate',
+                        netName: 'LABEL_B',
+                        bounds: { minX: 28, minY: 11, maxX: 32, maxY: 15 }
+                    }
+                ],
                 traceAnchoredLabelRejectedCandidateBounds: [
                     {
                         kind: 'trace-anchored-net-label-rejected-candidate',
@@ -247,6 +323,30 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
     assert.match(
         html,
         /data-schematic-net-diagnostic-kind="net-label-trace-detour-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="net-label-trace-snip-reconnect-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="multi-label-trace-detour-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="net-island-lane-shift-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="congested-l-turn-reroute-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="long-distance-connection-candidate"/
+    )
+    assert.match(
+        html,
+        /data-schematic-net-diagnostic-kind="section-boundary-connection-candidate"/
     )
     assert.match(
         html,
@@ -290,6 +390,10 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
     )
     assert.match(
         html,
+        /data-schematic-net-diagnostic-kind="net-label-relocation-candidate"/
+    )
+    assert.match(
+        html,
         /data-schematic-net-diagnostic-kind="trace-anchored-net-label-rejected-candidate"/
     )
     assert.match(
@@ -298,6 +402,12 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
     )
     assert.match(html, /d="M1 1 L1 3 L5 3 L5 1"/)
     assert.match(html, /d="M2 2 L4 2 L4 6 L2 6"/)
+    assert.match(html, /d="M2 1 L2 2 L1 2 L1 4 L2 4 L2 5"/)
+    assert.match(html, /d="M1 0 L1 -1 L6 -1 L6 0"/)
+    assert.match(html, /d="M0 -1 L4 -1"/)
+    assert.match(html, /d="M0 0 L0 -1 L5 -1 L5 4 L4 4"/)
+    assert.match(html, /d="M0 9 L20 9"/)
+    assert.match(html, /d="M0 10 L6 10"/)
     assert.match(html, /d="M6 1 L9 1 L9 4"/)
     assert.match(html, /d="M0 8 L12 8"/)
     assert.match(html, /d="M3 0 L7 0"/)
@@ -311,6 +421,7 @@ test('SchematicNetDiagnosticOverlayRenderer renders expanded diagnostic geometry
     assert.match(html, /x="15" y="6" width="4" height="4"/)
     assert.match(html, /x="20" y="6" width="4" height="4"/)
     assert.match(html, /x="25" y="6" width="4" height="4"/)
+    assert.match(html, /x="28" y="11" width="4" height="4"/)
     assert.match(html, /x="30" y="6" width="4" height="4"/)
     assert.match(html, /x="35" y="6" width="4" height="4"/)
 })

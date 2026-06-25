@@ -19,8 +19,12 @@ function createCircuitJsonPcbDocument() {
         {
             type: 'source_component',
             source_component_id: 'source_u1',
-            name: 'U1',
-            ftype: 'simple_chip'
+            name: 'U1'
+        },
+        {
+            type: 'source_component',
+            source_component_id: 'source_r1',
+            name: 'R1'
         },
         {
             type: 'pcb_component',
@@ -33,6 +37,16 @@ function createCircuitJsonPcbDocument() {
             height: 0.8
         },
         {
+            type: 'pcb_component',
+            pcb_component_id: 'pcb_r1',
+            source_component_id: 'source_r1',
+            center: { x: -1, y: -1 },
+            layer: 'bottom',
+            rotation: 0,
+            width: 1.4,
+            height: 0.6
+        },
+        {
             type: 'pcb_smtpad',
             pcb_smtpad_id: 'pad_1',
             pcb_component_id: 'pcb_u1',
@@ -43,6 +57,18 @@ function createCircuitJsonPcbDocument() {
             height: 0.8,
             layer: 'top',
             net: 'VCC'
+        },
+        {
+            type: 'pcb_smtpad',
+            pcb_smtpad_id: 'pad_r1',
+            pcb_component_id: 'pcb_r1',
+            shape: 'rect',
+            x: -1,
+            y: -1,
+            width: 1,
+            height: 0.5,
+            layer: 'bottom',
+            net: 'GND'
         },
         {
             type: 'pcb_trace',
@@ -103,8 +129,74 @@ test('PcbViewRenderer renders CircuitJSON PCB artwork and interaction metadata',
     assert.match(html, /data-component-key="U1"/)
     assert.match(html, /data-pcb-net-name="VCC"/)
     assert.match(html, /class="pcb-component-selection-marker"/)
+    assert.match(html, /data-viewport-interaction-gate="locked"/)
+    assert.match(html, /data-viewport-interaction-unlock="true"/)
     assert.match(html, /\[data-layer='inner1'\]\s*\{\s*display: none/)
     assert.match(html, /\[data-pcb-net-name='VCC'\]/)
+})
+
+/**
+ * Verifies temporary PCB viewport toolbar controls stay hidden but retained.
+ */
+test('PcbViewRenderer hides temporary PCB viewport toolbar controls', () => {
+    const html = PcbViewRenderer.render(createCircuitJsonPcbDocument(), 'top')
+
+    assert.match(html, /hidden[^>]*data-pcb-view-reset="true"/)
+    assert.match(html, /hidden[^>]*data-pcb-hover-focus-toggle="true"/)
+    assert.match(html, /hidden[^>]*data-pcb-measure-tool="distance"/)
+    assert.match(html, /hidden[^>]*data-pcb-measure-tool="bounds"/)
+    assert.match(html, /hidden[^>]*data-pcb-measure-tool="clear"/)
+    assert.match(html, /data-pcb-hover-focus-visible="false"/)
+    assert.match(html, /aria-pressed="false"/)
+})
+
+/**
+ * Verifies temporary PCB view settings controls stay hidden but retained.
+ */
+test('PcbViewRenderer hides PCB view settings controls', () => {
+    const html = PcbViewRenderer.render(
+        createCircuitJsonPcbDocument(),
+        'top',
+        null,
+        [],
+        ['components-bottom', 'silkscreen'],
+        '',
+        {},
+        '',
+        { showTraceLengths: true }
+    )
+
+    assert.match(html, /hidden[^>]*data-pcb-view-settings="true"/)
+    assert.match(html, /data-pcb-view-setting="components-top"/)
+    assert.match(
+        html,
+        /data-pcb-view-setting="components-bottom"[^>]*data-pcb-view-setting-visible="false"/
+    )
+    ;[
+        'rats-nest',
+        'solder-mask',
+        'solder-paste',
+        'silkscreen',
+        'fabrication',
+        'courtyards',
+        'groups',
+        'anchor-offsets'
+    ].forEach((settingKey) => {
+        assert.match(
+            html,
+            new RegExp('data-pcb-view-setting="' + settingKey + '"')
+        )
+    })
+    assert.match(html, /hidden[^>]*data-pcb-trace-length-toggle="true"/)
+    assert.match(html, /data-pcb-component-side="top"/)
+    assert.match(
+        html,
+        /\.pcb-svg \[data-pcb-component-side='bottom'\]\s*\{\s*opacity: 0/
+    )
+    assert.match(
+        html,
+        /\.pcb-svg \.pcb-silkscreen\s*\{\s*opacity: 0/
+    )
 })
 
 /**

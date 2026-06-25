@@ -73,6 +73,10 @@ export class HeroPreviewController {
         }
 
         if (!this.#hasReceivedDocuments) {
+            this.#previewNode.innerHTML = HeroPreviewRenderer.renderLoading(
+                this.#activeView,
+                this.#translate
+            )
             return
         }
 

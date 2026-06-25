@@ -111,18 +111,28 @@ test('AppState stores hidden PCB object keys by document', () => {
 /**
  * Verifies PCB object visibility exposes every virtual render-control layer.
  */
-test('PcbObjectVisibilityModel exposes footprint text as a virtual object control', () => {
+test('PcbObjectVisibilityModel exposes PCB view setting object controls', () => {
     assert.deepEqual(
         PcbObjectVisibilityModel.resolveObjectCategories().map(
             (category) => category.key
         ),
         [
+            'components-top',
+            'components-bottom',
             'tracks',
             'vias',
             'pads',
             'holes',
             'zones',
             'footprint-text',
+            'rats-nest',
+            'solder-mask',
+            'solder-paste',
+            'silkscreen',
+            'fabrication',
+            'courtyards',
+            'groups',
+            'anchor-offsets',
             'grid',
             'page'
         ]
@@ -131,11 +141,11 @@ test('PcbObjectVisibilityModel exposes footprint text as a virtual object contro
         PcbObjectVisibilityModel.withObjectVisibility(
             {},
             'doc-1',
-            'footprint-text',
+            'components-bottom',
             false
         ),
         {
-            'doc-1': ['footprint-text']
+            'doc-1': ['components-bottom']
         }
     )
 })

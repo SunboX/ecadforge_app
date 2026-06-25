@@ -1,5 +1,6 @@
 import { SchematicGeometryMath as Geometry } from './SchematicGeometryMath.mjs'
 import { SchematicAnchorPreflightDiagnostics } from './SchematicAnchorPreflightDiagnostics.mjs'
+import { SchematicDiagnosticStageHealth } from './SchematicDiagnosticStageHealth.mjs'
 import { SchematicNetDiagnosticPostProcessor } from './SchematicNetDiagnosticPostProcessor.mjs'
 import { SchematicNetDiagnosticStageSummaries } from './SchematicNetDiagnosticStageSummaries.mjs'
 import { SchematicNetDiagnosticsSummary } from './SchematicNetDiagnosticsSummary.mjs'
@@ -106,6 +107,10 @@ export class SchematicNetGeometryDiagnostics {
         issues.push(...postProcessed.issues)
         const resultRows = {
             netCount: nets.length,
+            netDebug,
+            obstacles,
+            labels,
+            orthogonalSegments,
             fallbackSegments,
             overlapSegments,
             obstacleSegments,
@@ -114,6 +119,9 @@ export class SchematicNetGeometryDiagnostics {
             ...postProcessed,
             issues
         }
+        const stageHealthRows = SchematicDiagnosticStageHealth.build(resultRows)
+        resultRows.stageHealthRows = stageHealthRows
+        const stageSnapshots = stageHealthRows.map((row) => row.snapshot)
 
         return {
             summary: SchematicNetDiagnosticsSummary.build(resultRows),
@@ -136,8 +144,20 @@ export class SchematicNetGeometryDiagnostics {
                 postProcessed.powerLabelCornerCandidateBounds,
             labelObstacleGroups: postProcessed.labelObstacleGroups,
             jogSuggestionSegments: postProcessed.jogSuggestionSegments,
+            netIslandLaneShiftSegments:
+                postProcessed.netIslandLaneShiftSegments,
+            segmentOverlapShiftSegments:
+                postProcessed.segmentOverlapShiftSegments,
             traceLabelDetourSegments: postProcessed.traceLabelDetourSegments,
+            traceLabelSnipReconnectSegments:
+                postProcessed.traceLabelSnipReconnectSegments,
+            multiLabelTraceDetourSegments:
+                postProcessed.multiLabelTraceDetourSegments,
+            labelRelocationCandidateBounds:
+                postProcessed.labelRelocationCandidateBounds,
             pathCleanupSegments: postProcessed.pathCleanupSegments,
+            congestedLTurnRerouteSegments:
+                postProcessed.congestedLTurnRerouteSegments,
             guidelineSegments: postProcessed.guidelineSegments,
             guidelineSnappedElbowSegments:
                 postProcessed.guidelineSnappedElbowSegments,
@@ -145,15 +165,32 @@ export class SchematicNetGeometryDiagnostics {
                 postProcessed.restrictedCenterlineSegments,
             supplementalConnectionSegments:
                 postProcessed.supplementalConnectionSegments,
+            anchorConnectionRouteSegments:
+                postProcessed.anchorConnectionRouteSegments,
+            longDistanceConnectionSegments:
+                postProcessed.longDistanceConnectionSegments,
+            sectionBoundaryConnectionSegments:
+                postProcessed.sectionBoundaryConnectionSegments,
             symbolBodyFitCandidateBounds:
                 postProcessed.symbolBodyFitCandidateBounds,
             symbolPinSnapSegments: postProcessed.symbolPinSnapSegments,
+            symbolBoundsExpansionCandidateBounds:
+                postProcessed.symbolBoundsExpansionCandidateBounds,
+            symbolAnchorCorrectionSegments:
+                postProcessed.symbolAnchorCorrectionSegments,
+            traceLabelResolutionCandidateBounds:
+                postProcessed.traceLabelResolutionCandidateBounds,
+            traceLabelResolutionSegments:
+                postProcessed.traceLabelResolutionSegments,
             candidateRejections: postProcessed.candidateRejections,
+            candidateDecisionRows: postProcessed.candidateDecisionRows,
             debug: {
                 nets: netDebug,
                 obstacles,
                 indexes: postProcessed.indexes,
                 candidateBudgets: postProcessed.candidateBudgets,
+                stageHealthRows,
+                stageSnapshots,
                 stages: SchematicNetDiagnosticStageSummaries.build({
                     netCount: nets.length,
                     netDebug,
@@ -166,6 +203,7 @@ export class SchematicNetGeometryDiagnostics {
                     anchorMarkers,
                     collisionBounds,
                     ...postProcessed,
+                    stageHealthRows,
                     issues
                 })
             }

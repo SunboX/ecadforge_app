@@ -61,6 +61,8 @@ export class ViewerSidebarComponentRenderer {
             snapshot?.selectedPcbComponents || {},
             documentId
         )
+        const previewKey =
+            ViewerSidebarComponentRenderer.#previewComponentKey(snapshot)
         const rows = components.map((component, index) =>
             ViewerSidebarComponentRenderer.#buildComponentRow(
                 component,
@@ -68,6 +70,7 @@ export class ViewerSidebarComponentRenderer {
                 documentModel,
                 documentId,
                 selectedKey,
+                previewKey,
                 snapshot?.documents || []
             )
         )
@@ -93,8 +96,9 @@ export class ViewerSidebarComponentRenderer {
      * @param {any} documentModel Active document model.
      * @param {string} documentId Active document id.
      * @param {string} selectedKey Selected component key.
+     * @param {string} previewKey Previewed component key.
      * @param {{ id: string, documentModel: any }[]} sessionDocuments Loaded session documents.
-     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, search: string, selected: boolean, value: string }}
+     * @returns {{ component: any, detail: string, documentId: string, group: string, key: string, label: string, preview: boolean, search: string, selected: boolean, value: string }}
      */
     static #buildComponentRow(
         component,
@@ -102,6 +106,7 @@ export class ViewerSidebarComponentRenderer {
         documentModel,
         documentId,
         selectedKey,
+        previewKey,
         sessionDocuments
     ) {
         const isPcb = Boolean(documentModel?.pcb)
@@ -150,6 +155,7 @@ export class ViewerSidebarComponentRenderer {
                 : 'symbols',
             key,
             label: key || 'Component',
+            preview: Boolean(previewKey && key === previewKey),
             search,
             selected: Boolean(selectedKey && key === selectedKey),
             value
@@ -644,7 +650,7 @@ export class ViewerSidebarComponentRenderer {
 
     /**
      * Renders one footprint row.
-     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean, value: string }} row Component row.
+     * @param {{ detail: string, documentId: string, key: string, label: string, preview: boolean, search: string, selected: boolean, value: string }} row Component row.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -660,10 +666,12 @@ export class ViewerSidebarComponentRenderer {
             : ''
         return (
             '<div class="viewer-sidebar__component-row-shell' +
+            (row.preview ? ' is-preview' : '') +
             (row.selected ? ' is-active' : '') +
             '" data-component-search="' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.search) +
             '"><button class="viewer-sidebar__component-row' +
+            (row.preview ? ' is-preview' : '') +
             (row.selected ? ' is-active' : '') +
             '" type="button" data-pcb-component-key="' +
             ViewerSidebarComponentRenderer.#escapeHtml(row.key) +
@@ -689,6 +697,25 @@ export class ViewerSidebarComponentRenderer {
             ViewerSidebarComponentRenderer.#renderCopyIcon() +
             '</button></div>'
         )
+    }
+
+    /**
+     * Resolves the component key currently previewed by PCB interaction.
+     * @param {{ pcbInteractionPreview?: object }} snapshot Viewer snapshot.
+     * @returns {string}
+     */
+    static #previewComponentKey(snapshot) {
+        const preview = snapshot?.pcbInteractionPreview
+        const selectedKey = String(
+            preview?.selectedCandidate?.componentKey || ''
+        ).trim()
+        if (selectedKey) return selectedKey
+
+        const candidate = (Array.isArray(preview?.candidates)
+            ? preview.candidates
+            : []
+        ).find((row) => String(row?.componentKey || '').trim())
+        return String(candidate?.componentKey || '').trim()
     }
 
     /**

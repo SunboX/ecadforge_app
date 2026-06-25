@@ -1,5 +1,6 @@
 import { PcbViewController } from './PcbViewController.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
+import { AppViewDownloadHelper } from './AppViewDownloadHelper.mjs'
 
 /**
  * Mounts the 2D PCB controller from an AppView snapshot.
@@ -13,6 +14,7 @@ export class AppViewPcbControllerBinder {
      * @param {'top' | 'bottom'} options.side Requested PCB side.
      * @param {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} options.onComponentSelectionChange Component selection callback.
      * @param {((change: { documentId: string, netName: string, source?: string }) => void) | null} options.onNetSelectionChange Net selection callback.
+     * @param {((change: { documentId: string, point: object, candidates: object[], selectedCandidate: object | null, source?: string }) => void) | null} options.onInteractionCandidatesChange Candidate preview callback.
      * @param {((key: string) => string) | null} options.translate Translation lookup.
      * @returns {PcbViewController}
      */
@@ -22,6 +24,7 @@ export class AppViewPcbControllerBinder {
         side,
         onComponentSelectionChange,
         onNetSelectionChange,
+        onInteractionCandidatesChange,
         translate
     }) {
         const documentId = String(snapshot?.activeDocumentId || '')
@@ -62,6 +65,14 @@ export class AppViewPcbControllerBinder {
                 gerberLayerIds: gerberSelection.layerIds,
                 onComponentSelectionChange,
                 onNetSelectionChange,
+                onInteractionCandidatesChange,
+                downloadBytes: (fileName, bytes, contentType) =>
+                    AppViewDownloadHelper.downloadBytes(
+                        contentNode.ownerDocument,
+                        fileName,
+                        bytes,
+                        contentType
+                    ),
                 translate
             }
         )

@@ -1,5 +1,5 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
-import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
+import { DocumentViewCompatibility } from '../DocumentViewCompatibility.mjs'
 import { UiText } from './UiText.mjs'
 
 /**
@@ -292,35 +292,7 @@ export class DocumentRailRenderer {
      * @returns {boolean}
      */
     static #supportsView(documentModel, activeView) {
-        if (activeView === 'schematic') {
-            return Boolean(documentModel?.schematic)
-        }
-
-        if (activeView === 'pcb') {
-            return (
-                Boolean(documentModel?.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
-            )
-        }
-
-        if (activeView === '3d') {
-            return (
-                Boolean(documentModel?.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
-            )
-        }
-
-        if (activeView === 'bom') {
-            return Array.isArray(documentModel?.bom)
-        }
-
-        if (activeView === 'diagnostics') {
-            return Array.isArray(documentModel?.diagnostics)
-        }
-
-        return false
+        return DocumentViewCompatibility.supportsView(documentModel, activeView)
     }
 
     /**

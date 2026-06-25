@@ -1,0 +1,46 @@
+.pcb-view__content,
+.scene-3d__viewport {
+    position: relative;
+}
+
+.viewport-interaction-gate {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    place-items: center;
+    background: rgba(248, 250, 252, 0.16);
+    backdrop-filter: blur(1px);
+}
+
+.viewport-interaction-gate[hidden] {
+    display: none;
+}
+
+.viewport-interaction-gate__button {
+    display: inline-grid;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid rgba(95, 112, 124, 0.24);
+    border-radius: 999px;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text);
+    cursor: pointer;
+    box-shadow: 0 16px 32px rgba(22, 31, 39, 0.16);
+}
+
+.viewport-interaction-gate__button:hover,
+.viewport-interaction-gate__button:focus-visible {
+    border-color: rgba(184, 90, 37, 0.36);
+    color: var(--brand-strong);
+    outline: none;
+}
+
+.viewport-interaction-gate__button svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+}

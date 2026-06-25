@@ -8,13 +8,17 @@ export class SchematicSymbolFitAdvisor {
      * Builds symbol fit diagnostics from anchor and body geometry.
      * @param {object[]} netDebug Per-net debug rows.
      * @param {object[]} obstacles Schematic body obstacles.
-     * @returns {{ symbolBodyFitCandidateBounds: object[], symbolPinSnapSegments: object[], budget: object }}
+     * @returns {{ symbolBodyFitCandidateBounds: object[], symbolPinSnapSegments: object[], symbolBoundsExpansionCandidateBounds: object[], symbolAnchorCorrectionSegments: object[], candidateDecisions: object[], normalizationCandidateDecisions: object[], budget: object, normalizationBudget: object }}
      */
     static suggest(netDebug, obstacles) {
         const components = this.#componentMap(obstacles)
         const pinsByComponent = this.#pinsByComponent(netDebug)
         const symbolBodyFitCandidateBounds = []
         const symbolPinSnapSegments = []
+        const symbolBoundsExpansionCandidateBounds = []
+        const symbolAnchorCorrectionSegments = []
+        const candidateDecisions = []
+        const normalizationCandidateDecisions = []
         let generated = 0
         let rejected = 0
 
@@ -31,16 +35,55 @@ export class SchematicSymbolFitAdvisor {
             )
             if (outside.length) {
                 generated += 1
-                symbolBodyFitCandidateBounds.push(
-                    this.#bodyFitCandidate(obstacle, outside)
+                const candidate = this.#bodyFitCandidate(obstacle, outside)
+                const expansionCandidate =
+                    this.#boundsExpansionCandidate(candidate)
+                symbolBodyFitCandidateBounds.push(candidate)
+                symbolBoundsExpansionCandidateBounds.push(expansionCandidate)
+                candidateDecisions.push(
+                    this.#decisionRow({
+                        candidate,
+                        candidateIndex: candidateDecisions.length,
+                        candidateKind: candidate.kind,
+                        reason: 'body-expansion-fits-pins'
+                    })
+                )
+                normalizationCandidateDecisions.push(
+                    this.#normalizationDecisionRow({
+                        candidate: expansionCandidate,
+                        candidateIndex:
+                            normalizationCandidateDecisions.length,
+                        reason: expansionCandidate.debug.normalizationKind
+                    })
                 )
             }
 
             for (const anchor of anchors) {
                 if (this.#pointOnEdge(anchor.point, obstacle.bounds)) continue
                 generated += 1
-                symbolPinSnapSegments.push(
-                    this.#pinSnapCandidate(obstacle, anchor)
+                const candidate = this.#pinSnapCandidate(obstacle, anchor)
+                const correctionCandidate = this.#anchorCorrectionCandidate(
+                    candidate,
+                    anchor,
+                    obstacle
+                )
+                symbolPinSnapSegments.push(candidate)
+                symbolAnchorCorrectionSegments.push(correctionCandidate)
+                candidateDecisions.push(
+                    this.#decisionRow({
+                        candidate,
+                        candidateIndex: candidateDecisions.length,
+                        candidateKind: candidate.kind,
+                        reason: candidate.debug.reason
+                    })
+                )
+                normalizationCandidateDecisions.push(
+                    this.#normalizationDecisionRow({
+                        candidate: correctionCandidate,
+                        candidateIndex:
+                            normalizationCandidateDecisions.length,
+                        reason: correctionCandidate.debug.normalizationKind
+                    })
                 )
             }
         }
@@ -48,12 +91,80 @@ export class SchematicSymbolFitAdvisor {
         return {
             symbolBodyFitCandidateBounds,
             symbolPinSnapSegments,
+            symbolBoundsExpansionCandidateBounds,
+            symbolAnchorCorrectionSegments,
+            candidateDecisions,
+            normalizationCandidateDecisions,
             budget: {
                 generated,
                 accepted:
                     symbolBodyFitCandidateBounds.length +
                     symbolPinSnapSegments.length,
                 rejected
+            },
+            normalizationBudget: {
+                generated: normalizationCandidateDecisions.length,
+                accepted:
+                    symbolBoundsExpansionCandidateBounds.length +
+                    symbolAnchorCorrectionSegments.length,
+                rejected: 0
+            }
+        }
+    }
+
+    /**
+     * Builds one candidate decision row for timeline normalization.
+     * @param {object} data Decision data.
+     * @returns {object}
+     */
+    static #decisionRow(data) {
+        return {
+            kind: data.candidateKind,
+            candidateKind: data.candidateKind,
+            status: 'accepted',
+            reason: data.reason,
+            selected: true,
+            score: data.candidateIndex,
+            collisionSource: 'symbol-fit',
+            netName: data.candidate.netName || '',
+            candidateId:
+                (data.candidate.obstacleId || data.candidate.anchorId || '') +
+                ':symbol-fit-' +
+                String(data.candidateIndex),
+            candidateIndex: data.candidateIndex,
+            debug: {
+                strategy: 'symbol-fit-diagnostic',
+                obstacleId: data.candidate.obstacleId || '',
+                anchorId: data.candidate.anchorId || ''
+            }
+        }
+    }
+
+    /**
+     * Builds one explicit normalization decision row.
+     * @param {object} data Decision data.
+     * @returns {object}
+     */
+    static #normalizationDecisionRow(data) {
+        return {
+            kind: data.candidate.kind,
+            candidateKind: data.candidate.kind,
+            status: 'accepted',
+            reason: data.reason,
+            selected: true,
+            score: data.candidateIndex,
+            collisionSource: 'symbol-normalization',
+            netName: data.candidate.netName || '',
+            candidateId:
+                (data.candidate.obstacleId || data.candidate.anchorId || '') +
+                ':symbol-normalization-' +
+                String(data.candidateIndex),
+            candidateIndex: data.candidateIndex,
+            debug: {
+                strategy: 'symbol-normalization-diagnostic',
+                normalizationKind: data.candidate.debug.normalizationKind,
+                obstacleId: data.candidate.obstacleId || '',
+                anchorId: data.candidate.anchorId || ''
             }
         }
     }
@@ -140,6 +251,24 @@ export class SchematicSymbolFitAdvisor {
     }
 
     /**
+     * Builds explicit symbol bounds expansion telemetry.
+     * @param {object} candidate Existing body fit candidate.
+     * @returns {object}
+     */
+    static #boundsExpansionCandidate(candidate) {
+        return {
+            kind: 'symbol-bounds-expansion-candidate',
+            obstacleId: candidate.obstacleId,
+            bounds: candidate.bounds,
+            debug: {
+                normalizationKind: 'expanded-symbol-bounds',
+                sourcePinIds: candidate.debug.sourcePinIds,
+                expansion: candidate.debug.expansion
+            }
+        }
+    }
+
+    /**
      * Builds one pin snap candidate.
      * @param {object} obstacle Component obstacle.
      * @param {object} anchor Pin anchor.
@@ -158,6 +287,33 @@ export class SchematicSymbolFitAdvisor {
                 reason: this.#pointInsideOrOn(anchor.point, obstacle.bounds)
                     ? 'pin-inside-symbol-body'
                     : 'pin-outside-symbol-body'
+            }
+        }
+    }
+
+    /**
+     * Builds explicit pin anchor correction telemetry.
+     * @param {object} candidate Existing pin snap candidate.
+     * @param {object} anchor Source pin anchor.
+     * @param {object} obstacle Owning component obstacle.
+     * @returns {object}
+     */
+    static #anchorCorrectionCandidate(candidate, anchor, obstacle) {
+        return {
+            kind: 'symbol-anchor-correction-candidate',
+            obstacleId: candidate.obstacleId,
+            netName: candidate.netName,
+            anchorId: candidate.anchorId,
+            points: candidate.points,
+            debug: {
+                normalizationKind: this.#pointInsideOrOn(
+                    anchor.point,
+                    obstacle.bounds
+                )
+                    ? 'inside-symbol-body'
+                    : 'outside-symbol-edge',
+                snapSide: candidate.debug.snapSide,
+                sourceCandidateKind: candidate.kind
             }
         }
     }

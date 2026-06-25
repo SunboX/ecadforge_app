@@ -365,17 +365,24 @@ test('SchematicNetGeometryDiagnostics exports staged debug metadata', () => {
             'connectivity',
             'collisions',
             'candidate-budgets',
+            'candidate-decisions',
             'final-issues'
         ]
     )
-    assert.deepEqual(result.debug.stages[0].summary, {
-        netCount: 1,
-        obstacleCount: 1
+    assert.equal(result.debug.stages[0].summary.netCount, 1)
+    assert.equal(result.debug.stages[0].summary.obstacleCount, 1)
+    assert.deepEqual(result.debug.stages[0].summary.health, {
+        generated: 2,
+        accepted: 2,
+        rejected: 0,
+        issueCount: 0,
+        topRejectionReasons: []
     })
+    assert.equal(result.debug.stageHealthRows.length, 8)
     assert.equal(result.debug.stages[1].summary.segmentCount, 1)
     assert.equal(result.debug.stages[4].summary.collisionCount, 1)
     assert.equal(
-        result.debug.stages[6].summary.issueCount,
+        result.debug.stages[7].summary.issueCount,
         result.issues.length
     )
 })

@@ -47,7 +47,7 @@ export class PcbAssemblyExportService {
 
     /**
      * Exports one PCB assembly.
-     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean, onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
+     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined, allowNetworkModelFetch?: boolean, modelFetch?: (url: string, options: object) => Promise<any>, modelFetchTimeoutMs?: number, authHeaders?: Record<string, string>, modelCache?: Map<string, Promise<Uint8Array>>, includeSceneMetadata?: boolean, onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
      * @returns {Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics: object[], meshCount: number }>}
      */
     async export(options = {}) {
@@ -72,7 +72,7 @@ export class PcbAssemblyExportService {
             sceneDescription,
             {
                 modelMeshLoader: (placement) =>
-                    this.#loadPlacementMesh(placement),
+                    this.#loadPlacementMesh(placement, options),
                 progress: buildProgress,
                 ...PcbAssemblyExportService.#geometryBuildOptions(options)
             }
@@ -89,7 +89,8 @@ export class PcbAssemblyExportService {
             PcbAssemblyExportService.#withBoardTextures(
                 geometry.meshes,
                 boardTextures
-            )
+            ),
+            options
         )
 
         PcbAssemblyExportService.#reportProgress(
@@ -126,7 +127,7 @@ export class PcbAssemblyExportService {
 
     /**
      * Resolves prepared scene data.
-     * @param {{ documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }} options Export options.
+     * @param {{ documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined }} options Export options.
      * @returns {Promise<object>}
      */
     async #resolveSceneDescription(options) {
@@ -147,11 +148,23 @@ export class PcbAssemblyExportService {
     /**
      * Loads one placement mesh through the configured loader.
      * @param {object} placement External placement.
+     * @param {object} options Export options.
      * @returns {Promise<object | object[]>}
      */
-    async #loadPlacementMesh(placement) {
+    async #loadPlacementMesh(placement, options) {
         if (this.#modelMeshLoaderCallback) {
             return await this.#modelMeshLoaderCallback(placement)
+        }
+
+        if (PcbAssemblyExportService.#usesNetworkModelOptions(options)) {
+            const loader = new PcbAssemblyModelMeshLoader(
+                PcbAssemblyExportService.#modelMeshLoaderOptions(options)
+            )
+            try {
+                return await loader.loadPlacement(placement)
+            } finally {
+                loader.dispose()
+            }
         }
 
         if (!this.#modelMeshLoader) {
@@ -204,8 +217,8 @@ export class PcbAssemblyExportService {
 
     /**
      * Builds 3D scene preparation options from assembly export settings.
-     * @param {{ sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }} options Export options.
-     * @returns {{ sessionAssets: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean }}
+     * @param {{ sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined }} options Export options.
+     * @returns {{ sessionAssets: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined }}
      */
     static #scenePrepareOptions(options) {
         const prepareOptions = {
@@ -215,7 +228,9 @@ export class PcbAssemblyExportService {
             'includeModels',
             'renderFallbackBodies',
             'boardDrillQuality',
-            'drawFauxBoard'
+            'drawFauxBoard',
+            'projectBaseUrl',
+            'modelUrlResolver'
         ]) {
             if (Object.hasOwn(options, key)) {
                 prepareOptions[key] = options[key]
@@ -260,15 +275,17 @@ export class PcbAssemblyExportService {
      * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
      * @param {string} assemblyName Assembly name.
      * @param {object[]} meshes Assembly meshes.
+     * @param {{ includeSceneMetadata?: boolean }} options Export options.
      * @returns {{ bytes: Uint8Array }}
      */
-    static #writeAssembly(format, assemblyName, meshes) {
+    static #writeAssembly(format, assemblyName, meshes, options = {}) {
         if (format === 'glb') {
             return {
                 bytes: PcbAssemblyGltfWriter.write({
                     name: assemblyName,
                     meshes,
-                    format
+                    format,
+                    includeSceneMetadata: options.includeSceneMetadata !== false
                 })
             }
         }
@@ -280,7 +297,9 @@ export class PcbAssemblyExportService {
                         PcbAssemblyGltfWriter.write({
                             name: assemblyName,
                             meshes,
-                            format
+                            format,
+                            includeSceneMetadata:
+                                options.includeSceneMetadata !== false
                         })
                     )
                 )
@@ -328,6 +347,42 @@ export class PcbAssemblyExportService {
                   }
                 : mesh
         )
+    }
+
+    /**
+     * Returns true when a one-off model loader needs network fetch settings.
+     * @param {object} options Export options.
+     * @returns {boolean}
+     */
+    static #usesNetworkModelOptions(options) {
+        return Boolean(
+            options?.allowNetworkModelFetch === true ||
+            typeof options?.modelFetch === 'function' ||
+            options?.authHeaders ||
+            options?.modelFetchTimeoutMs ||
+            options?.modelCache
+        )
+    }
+
+    /**
+     * Builds model mesh loader options from export settings.
+     * @param {object} options Export options.
+     * @returns {object}
+     */
+    static #modelMeshLoaderOptions(options) {
+        return {
+            allowNetworkModelFetch: options?.allowNetworkModelFetch === true,
+            ...(typeof options?.modelFetch === 'function'
+                ? { fetch: options.modelFetch }
+                : {}),
+            ...(options?.authHeaders
+                ? { authHeaders: options.authHeaders }
+                : {}),
+            ...(options?.modelFetchTimeoutMs
+                ? { fetchTimeoutMs: options.modelFetchTimeoutMs }
+                : {}),
+            ...(options?.modelCache ? { modelCache: options.modelCache } : {})
+        }
     }
 
     /**

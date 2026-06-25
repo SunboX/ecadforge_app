@@ -5,6 +5,7 @@ import { DocumentViewCompatibility } from '../../src/DocumentViewCompatibility.m
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { EcadScene3dService } from '../../src/core/ecad/EcadScene3dService.mjs'
+import { CircuitJsonSchematicSvgRenderer } from 'circuitjson-toolkit/renderers'
 
 /**
  * Builds a compact board source buffer.
@@ -155,7 +156,10 @@ test('EcadRendererService renders CircuitJSON schematic documents', () => {
         DocumentViewCompatibility.supportsView(documentModel, 'schematic'),
         true
     )
-    assert.equal(DocumentPreferredViewResolver.resolve(documentModel), 'schematic')
+    assert.equal(
+        DocumentPreferredViewResolver.resolve(documentModel),
+        'schematic'
+    )
     assert.match(markup, /schematic-svg--circuitjson/)
     assert.match(markup, /data-component-key="U1"/)
     assert.match(markup, />VCC</)
@@ -312,6 +316,99 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
 })
 
 /**
+ * Verifies symbol-library preview rows render source-port labels, three-point
+ * arcs, position-based text, and primitive drawing styles.
+ */
+test('CircuitJsonSchematicSvgRenderer renders symbol preview primitives', () => {
+    const markup = CircuitJsonSchematicSvgRenderer.render([
+        {
+            type: 'schematic_sheet',
+            schematic_sheet_id: 'sheet_1',
+            width: 12,
+            height: 8
+        },
+        {
+            type: 'source_port',
+            source_port_id: 'source_u1_pin_7',
+            source_component_id: 'source_u1',
+            name: 'A0',
+            pin_number: 7
+        },
+        {
+            type: 'schematic_port',
+            schematic_port_id: 'schematic_u1_pin_7',
+            source_port_id: 'source_u1_pin_7',
+            center: { x: 2, y: 2 },
+            facing_direction: 'right'
+        },
+        {
+            type: 'schematic_line',
+            schematic_line_id: 'line_1',
+            start: { x: 1, y: 1 },
+            end: { x: 3, y: 1 },
+            stroke_width: 0.12,
+            stroke_color: '#123456',
+            stroke_dasharray: [0.25, 0.1]
+        },
+        {
+            type: 'schematic_rect',
+            schematic_rect_id: 'rect_1',
+            center: { x: 5, y: 2 },
+            width: 2,
+            height: 1,
+            is_filled: true,
+            fill_color: '#ffeeaa',
+            stroke_color: '#444444'
+        },
+        {
+            type: 'schematic_arc',
+            schematic_arc_id: 'arc_1',
+            start: { x: 1, y: 0 },
+            mid: { x: 0.70710678, y: 0.70710678 },
+            end: { x: 0, y: 1 },
+            stroke_width: 0.08
+        },
+        {
+            type: 'schematic_path',
+            schematic_path_id: 'path_1',
+            points: [
+                { x: 7, y: 1 },
+                { x: 8, y: 2 },
+                { x: 7, y: 3 }
+            ],
+            is_filled: true,
+            fill_color: '#ddeeff'
+        },
+        {
+            type: 'schematic_text',
+            schematic_text_id: 'text_1',
+            text: 'PIN BANK',
+            position: { x: 4, y: 5 },
+            font_size: 0.8
+        }
+    ])
+
+    assert.match(markup, /data-source-port-id="source_u1_pin_7"/)
+    assert.match(markup, /data-pin-number="7"/)
+    assert.match(markup, />A0</)
+    assert.match(markup, /stroke-width="0\.12"/)
+    assert.match(markup, /stroke="#123456"/)
+    assert.match(markup, /stroke-dasharray="0\.25 0\.1"/)
+    assert.match(markup, /fill="#ffeeaa"/)
+    assert.match(
+        markup,
+        /<path class="schematic-shape schematic-shape--arc" d="M 1 0 A 1 1 0 0 1 0 1"/
+    )
+    assert.match(
+        markup,
+        /<polygon class="schematic-shape schematic-shape--path"/
+    )
+    assert.match(markup, /fill="#ddeeff"/)
+    assert.match(markup, /<text class="schematic-text" x="4" y="5"/)
+    assert.match(markup, />PIN BANK</)
+})
+
+/**
  * Verifies source component rows are promoted into the app BOM table shape.
  */
 test('EcadParserService derives CircuitJSON BOM rows from source components', () => {
@@ -360,10 +457,17 @@ test('EcadParserService derives CircuitJSON BOM rows from source components', ()
             value: '10k',
             pattern: 'simple_resistor',
             source: 'RC0402-10K',
-            supplierPartNumber: 'DIST-10K'
+            supplierPartNumber: 'DIST-10K',
+            supplierPartNumbers: { supplier: 'DIST-10K' },
+            sourceFtype: 'simple_resistor',
+            componentType: 'resistor',
+            componentIcon: 'resistor'
         }
     ])
-    assert.match(markup, /R1, <mark class="bom-table__selected-designator">R2<\/mark>/)
+    assert.match(
+        markup,
+        /R1, <mark class="bom-table__selected-designator">R2<\/mark>/
+    )
 })
 
 /**

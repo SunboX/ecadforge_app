@@ -1,10 +1,20 @@
 const PCB_OBJECT_KEYS = new Set([
+    'components-top',
+    'components-bottom',
     'tracks',
     'vias',
     'pads',
     'holes',
     'zones',
     'footprint-text',
+    'rats-nest',
+    'solder-mask',
+    'solder-paste',
+    'silkscreen',
+    'fabrication',
+    'courtyards',
+    'groups',
+    'anchor-offsets',
     'grid',
     'page'
 ])
@@ -19,6 +29,14 @@ export class PcbObjectVisibilityModel {
      */
     static resolveObjectCategories() {
         return [
+            {
+                key: 'components-top',
+                labelKey: 'sidebar.objectTopComponents'
+            },
+            {
+                key: 'components-bottom',
+                labelKey: 'sidebar.objectBottomComponents'
+            },
             { key: 'tracks', labelKey: 'sidebar.objectTracks' },
             { key: 'vias', labelKey: 'sidebar.objectVias' },
             { key: 'pads', labelKey: 'sidebar.objectPads' },
@@ -27,6 +45,17 @@ export class PcbObjectVisibilityModel {
             {
                 key: 'footprint-text',
                 labelKey: 'sidebar.objectFootprintText'
+            },
+            { key: 'rats-nest', labelKey: 'sidebar.objectRatsNest' },
+            { key: 'solder-mask', labelKey: 'sidebar.objectSolderMask' },
+            { key: 'solder-paste', labelKey: 'sidebar.objectSolderPaste' },
+            { key: 'silkscreen', labelKey: 'sidebar.objectSilkscreen' },
+            { key: 'fabrication', labelKey: 'sidebar.objectFabrication' },
+            { key: 'courtyards', labelKey: 'sidebar.objectCourtyards' },
+            { key: 'groups', labelKey: 'sidebar.objectGroups' },
+            {
+                key: 'anchor-offsets',
+                labelKey: 'sidebar.objectAnchorOffsets'
             },
             { key: 'grid', labelKey: 'sidebar.objectGrid' },
             { key: 'page', labelKey: 'sidebar.objectPage' }

@@ -134,7 +134,7 @@
                             "price": 0,
                             "priceCurrency": "EUR"
                         },
-                        "softwareVersion": "1.8.68",
+                        "softwareVersion": "1.8.74",
                         "mainEntityOfPage": {
                             "@id": "https://ecadforge.app/#webpage"
                         }
@@ -160,6 +160,7 @@
                     "gerber-toolkit/renderers": "/node_modules/gerber-toolkit/src/renderers.mjs",
                     "gerber-toolkit/scene3d": "/node_modules/gerber-toolkit/src/scene3d.mjs",
                     "circuitjson-toolkit": "/node_modules/circuitjson-toolkit/src/index.mjs",
+                    "circuitjson-toolkit/renderers": "/node_modules/circuitjson-toolkit/src/renderers.mjs",
                     "pcb-scene3d-viewer": "/node_modules/pcb-scene3d-viewer/src/index.mjs",
                     "pcb-scene3d-viewer/scene3d": "/node_modules/pcb-scene3d-viewer/src/scene3d.mjs",
                     "fflate": "/node_modules/fflate/esm/browser.js",
@@ -475,12 +476,12 @@
                     <form
                         id="githubOpenForm"
                         class="github-open"
-                        aria-label="Open from GitHub"
+                        aria-label="Open from GitHub or GitLab"
                         data-i18n-attr="aria-label:github.openAria"
                     >
                         <label for="githubUrlInput" data-i18n="github.label"
-                            >Paste a GitHub blob/raw URL or project folder
-                            URL</label
+                            >Paste a GitHub or GitLab blob/raw URL or project
+                            folder URL</label
                         >
                         <div class="github-open__row">
                             <div class="github-open__input-wrap">
@@ -497,11 +498,11 @@
                                     id="githubUrlInput"
                                     type="url"
                                     inputmode="url"
-                                    placeholder="https://github.com/owner/repo/tree/main/hardware/project"
+                                    placeholder="https://gitlab.com/group/project/-/tree/main/hardware/project"
                                 />
                             </div>
                             <button type="submit" data-i18n="github.open">
-                                Open GitHub URL
+                                Open Git URL
                             </button>
                         </div>
                     </form>
@@ -767,7 +768,7 @@
                     <span data-i18n="view.diagnostics">Diagnostics</span>
                 </a>
                 <span class="view-tabs__status" data-i18n="viewStatus.ready">
-                    Ready for a local file, folder, sample, or GitHub URL
+                    Ready for a local file, folder, sample, or Git URL
                 </span>
             </nav>
 

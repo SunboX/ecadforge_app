@@ -10,6 +10,9 @@ class FakeView {
     /** @type {any[]} */
     snapshots = []
 
+    /** @type {((documentId: string) => void) | null} */
+    #documentSelectionCallback = null
+
     /** @returns {void} */
     bindFileSelection() {}
 
@@ -18,6 +21,14 @@ class FakeView {
 
     /** @returns {void} */
     bindViewChange() {}
+
+    /**
+     * @param {(documentId: string) => void} callback Document callback.
+     * @returns {void}
+     */
+    bindDocumentSelection(callback) {
+        this.#documentSelectionCallback = callback
+    }
 
     /** @returns {void} */
     bindDemoSelection() {}
@@ -51,6 +62,14 @@ class FakeView {
      */
     render(snapshot) {
         this.snapshots.push(snapshot)
+    }
+
+    /**
+     * @param {string} documentId Selected document id.
+     * @returns {void}
+     */
+    chooseDocument(documentId) {
+        this.#documentSelectionCallback?.(documentId)
     }
 }
 
@@ -112,6 +131,33 @@ class DeferredBatchParser {
 }
 
 /**
+ * Parser double that returns a fixed batch result.
+ */
+class StaticBatchParser {
+    /** @type {object} */
+    #result
+
+    /** @type {string[][]} */
+    calls = []
+
+    /**
+     * @param {object} result Parser result.
+     */
+    constructor(result) {
+        this.#result = result
+    }
+
+    /**
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Parser entries.
+     * @returns {object}
+     */
+    parseEntries(entries) {
+        this.calls.push(entries.map((entry) => entry.name))
+        return this.#result
+    }
+}
+
+/**
  * Analytics fake that accepts emitted events.
  */
 class RecordingAnalytics {
@@ -159,6 +205,30 @@ function createPcbDocument(fileName) {
         },
         bom: []
     }
+}
+
+/**
+ * Builds a normalized Altium project document model stub.
+ * @param {string} fileName Source file name.
+ * @returns {object}
+ */
+function createProjectDocument(fileName) {
+    const documentModel = [
+        {
+            type: 'source_file',
+            source_file_id: 'project-source'
+        }
+    ]
+
+    return Object.assign(documentModel, {
+        fileName,
+        kind: 'project',
+        fileType: 'PrjPcb',
+        diagnostics: [],
+        summary: { title: fileName, documentCount: 1 },
+        project: {},
+        bom: []
+    })
 }
 
 /**
@@ -255,4 +325,56 @@ test('AppController prioritizes startup GitHub document parsing and defers backg
         ]
     )
     assert.equal(snapshot.activeFileName, 'Schematics/Target.SchDoc')
+})
+
+test('AppController ignores non-renderable project document selections in 3D view', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const parser = new StaticBatchParser({
+        documents: [
+            createProjectDocument('Demo.PrjPcb'),
+            createPcbDocument('PCB/Main.PcbDoc')
+        ],
+        assets: []
+    })
+    const controller = new AppController({
+        state,
+        view,
+        parser,
+        analytics: new RecordingAnalytics(),
+        githubSourceLoader: {
+            async loadUrl() {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'altium',
+                    boardUrl:
+                        'https://raw.githubusercontent.com/a/b/main/PCB/Main.PcbDoc',
+                    entries: [
+                        createEntry('Demo.PrjPcb'),
+                        createEntry('PCB/Main.PcbDoc')
+                    ]
+                }
+            }
+        },
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/a/b/tree/main/hardware',
+            view: '3d'
+        }
+    })
+
+    await controller.init()
+
+    const projectId = state
+        .getSnapshot()
+        .documents.find(
+            (entry) => entry.documentModel.fileName === 'Demo.PrjPcb'
+        )?.id
+
+    assert.equal(state.getSnapshot().activeFileName, 'PCB/Main.PcbDoc')
+
+    view.chooseDocument(projectId)
+
+    assert.equal(state.getSnapshot().activeFileName, 'PCB/Main.PcbDoc')
+    assert.equal(state.getSnapshot().activeView, '3d')
 })

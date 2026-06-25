@@ -471,10 +471,10 @@ test('AppView keeps landing preview chip clicks separate from main view changes'
 })
 
 /**
- * Verifies landing preview chip clicks keep the static fallback until demo
- * documents have loaded.
+ * Verifies landing preview chip clicks leave the static fallback immediately
+ * while demo documents are still loading.
  */
-test('AppView keeps the static landing preview before demo documents load', () => {
+test('AppView shows selected landing preview loading state before demo documents load', () => {
     const fakeDocument = new FakeDocument()
     new AppView(fakeDocument)
     const screen = fakeDocument.querySelector('#heroPreviewScreen')
@@ -484,8 +484,9 @@ test('AppView keeps the static landing preview before demo documents load', () =
 
     chips.clickChip('diagnostics')
 
-    assert.match(screen.innerHTML, /ecadforge-product-preview\.png/)
-    assert.doesNotMatch(screen.innerHTML, /hero-proof__summary/)
+    assert.doesNotMatch(screen.innerHTML, /ecadforge-product-preview\.png/)
+    assert.match(screen.innerHTML, /hero-proof__summary/)
+    assert.match(screen.innerHTML, /Preparing preview/)
     assert.equal(
         chips.getChip('diagnostics')?.getAttribute('aria-pressed'),
         'true'

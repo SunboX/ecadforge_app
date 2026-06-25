@@ -9,6 +9,7 @@ import { AppViewComponentSelectionScrollGuard } from './AppViewComponentSelectio
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
+import { AppViewPcbInteractionPreviewStore } from './AppViewPcbInteractionPreviewStore.mjs'
 import { AppViewGerberRenderSelectionStore } from './AppViewGerberRenderSelectionStore.mjs'
 import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.mjs'
 import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
@@ -24,47 +25,34 @@ import { ViewerSidebarEventBinder } from './ViewerSidebarEventBinder.mjs'
 import { ViewerSidebarRenderer } from './ViewerSidebarRenderer.mjs'
 import { AppViewExportProgressDialog } from './AppViewExportProgressDialog.mjs'
 import { AppViewSupport } from './AppViewSupport.mjs'
-
 /**
  * DOM rendering and event binding helper.
  */
 export class AppView {
     /** @type {Document} */
     #document
-
     /** @type {HTMLInputElement | null} */
     #fileInput
-
     /** @type {HTMLInputElement | null} */
     #folderInput
-
     /** @type {HTMLElement | null} */
     #dropZone
-
     /** @type {HTMLAnchorElement | null} */
     #brandHomeLink
-
     /** @type {HTMLElement | null} */
     #statusNode
-
     /** @type {HTMLElement | null} */
     #versionNode
-
     /** @type {HTMLSelectElement | null} */
     #localeSelect
-
     /** @type {HTMLElement | null} */
     #viewerStageNode
-
     /** @type {HTMLElement | null} */
     #documentRailNode
-
     /** @type {boolean} */
     #sidebarCollapsed
-
     /** @type {string} */
     #expandedSidebarMarkup
-
     /** @type {object | null} */
     #lastSnapshot
 
@@ -106,6 +94,9 @@ export class AppView {
 
     /** @type {((change: { documentId: string, netName: string, source?: string }) => void) | null} */
     #pcbNetSelectionCallback
+
+    /** @type {AppViewPcbInteractionPreviewStore} */
+    #pcbInteractionPreviewStore
 
     /** @type {((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null} */
     #sessionAssetsResolvedCallback
@@ -164,6 +155,8 @@ export class AppView {
         this.#pcbViewController = null
         this.#pcbComponentSelectionCallback = null
         this.#pcbNetSelectionCallback = null
+        this.#pcbInteractionPreviewStore =
+            new AppViewPcbInteractionPreviewStore()
         this.#sessionAssetsResolvedCallback = null
         this.#componentSelectionScrollGuard =
             new AppViewComponentSelectionScrollGuard()
@@ -219,7 +212,9 @@ export class AppView {
      * @param {{ activeView: string, activeSidebarTab?: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
      */
     render(snapshot) {
-        const renderSnapshot = this.#withGerberRenderSelections(snapshot)
+        const renderSnapshot = this.#pcbInteractionPreviewStore.withPreview(
+            this.#withGerberRenderSelections(snapshot)
+        )
         this.#lastSnapshot = renderSnapshot
         LandingStatusRenderer.renderPersistentStatus(
             this.#statusNode,
@@ -382,10 +377,8 @@ export class AppView {
      * @returns {void}
      */
     bindPcbLayerVisibilityChange(callback) {
-        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(
-            this.#documentRailNode,
-            callback
-        )
+        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(this.#documentRailNode, callback)
+        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(this.#contentNode, callback)
     }
 
     /**
@@ -396,6 +389,18 @@ export class AppView {
     bindPcbObjectOpacityChange(callback) {
         ViewerSidebarEventBinder.bindPcbObjectOpacityChange(
             this.#documentRailNode,
+            callback
+        )
+    }
+
+    /**
+     * Binds PCB object visibility changes from rendered view controls.
+     * @param {(change: { documentId: string, objectKey: string, visible: boolean, source?: string }) => void} callback
+     * @returns {void}
+     */
+    bindPcbObjectVisibilityChange(callback) {
+        ViewerSidebarEventBinder.bindPcbObjectVisibilityChange(
+            this.#contentNode,
             callback
         )
     }
@@ -686,6 +691,20 @@ export class AppView {
     }
 
     /**
+     * Stores transient PCB interaction candidates for the sidebar.
+     * @param {{ documentId?: string, candidates?: object[] }} change Preview change.
+     * @returns {void}
+     */
+    #handlePcbInteractionCandidates(change) {
+        this.#lastSnapshot = this.#pcbInteractionPreviewStore.handleChange(
+            change,
+            this.#lastSnapshot
+        )
+        if (!this.#lastSnapshot) return
+        this.#renderDocumentRail(this.#lastSnapshot)
+    }
+
+    /**
      * Updates the tab selected state.
      * @param {string} activeView
      */
@@ -897,6 +916,8 @@ export class AppView {
                 onComponentSelectionChange: (change) =>
                     this.#handleRenderedComponentSelection(change),
                 onNetSelectionChange: this.#pcbNetSelectionCallback,
+                onInteractionCandidatesChange: (change) =>
+                    this.#handlePcbInteractionCandidates(change),
                 translate: this.#translate
             })
             return
@@ -939,30 +960,6 @@ export class AppView {
             snapshot.documentModel.diagnostics || [],
             this.#translate
         )
-    }
-
-    /**
-     * Attaches the shared SVG viewport controller when the rendered content
-     * contains a compatible schematic or PCB SVG node.
-     * @param {string} selector
-     * @returns {void}
-     */
-    #attachSvgViewportController(selector) {
-        if (!this.#contentNode) return
-
-        const svgNode = this.#contentNode.querySelector(selector)
-        if (
-            !svgNode ||
-            typeof svgNode.getAttribute !== 'function' ||
-            typeof svgNode.setAttribute !== 'function' ||
-            typeof svgNode.getBoundingClientRect !== 'function' ||
-            typeof svgNode.addEventListener !== 'function' ||
-            typeof svgNode.removeEventListener !== 'function'
-        ) {
-            return
-        }
-
-        this.#svgViewportController = new SchematicViewportController(svgNode)
     }
 
     /**

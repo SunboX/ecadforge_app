@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from '../core/PcbInteractionPrimitiveModel.mjs'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
 import { SvgViewBoxParser } from './SvgViewBoxParser.mjs'
 
 /**
@@ -15,6 +15,8 @@ export class PcbMeasurementInteractionController {
     #resolveSvgPoint
     /** @type {(svgNode: SVGSVGElement | HTMLElement, point: { x: number, y: number }) => { x: number, y: number }} */
     #resolveHitTestPoint
+    /** @type {((change: { action: string, bounds: object }) => void) | null} */
+    #onAction
     /** @type {'' | 'distance' | 'bounds'} */
     #mode
     /** @type {'' | 'distance' | 'bounds'} */
@@ -25,7 +27,7 @@ export class PcbMeasurementInteractionController {
     #end
 
     /**
-     * @param {{ documentModel: object, render: () => void, resolvePcbSvgNode: (target: unknown) => SVGSVGElement | HTMLElement | null, resolveSvgPoint: (svgNode: SVGSVGElement | HTMLElement, event: any) => ({ x: number, y: number } | null), resolveHitTestPoint: (svgNode: SVGSVGElement | HTMLElement, point: { x: number, y: number }) => { x: number, y: number } }} options Controller options.
+     * @param {{ documentModel: object, render: () => void, resolvePcbSvgNode: (target: unknown) => SVGSVGElement | HTMLElement | null, resolveSvgPoint: (svgNode: SVGSVGElement | HTMLElement, event: any) => ({ x: number, y: number } | null), resolveHitTestPoint: (svgNode: SVGSVGElement | HTMLElement, point: { x: number, y: number }) => { x: number, y: number }, onAction?: ((change: { action: string, bounds: object }) => void) | null }} options Controller options.
      */
     constructor(options) {
         this.#documentModel = options.documentModel
@@ -33,6 +35,8 @@ export class PcbMeasurementInteractionController {
         this.#resolvePcbSvgNode = options.resolvePcbSvgNode
         this.#resolveSvgPoint = options.resolveSvgPoint
         this.#resolveHitTestPoint = options.resolveHitTestPoint
+        this.#onAction =
+            typeof options.onAction === 'function' ? options.onAction : null
         this.#mode = ''
         this.#tool = ''
         this.#start = null
@@ -88,25 +92,6 @@ export class PcbMeasurementInteractionController {
     }
 
     /**
-     * Handles measurement copy clicks.
-     * @param {Event} event Click event.
-     * @returns {boolean}
-     */
-    handleCopy(event) {
-        const button = PcbMeasurementInteractionController.#copyButton(event)
-        if (!button || typeof button.getAttribute !== 'function') {
-            return false
-        }
-
-        event.preventDefault?.()
-        const value = String(button.getAttribute('data-pcb-measure-copy') || '')
-        if (value) {
-            globalThis.navigator?.clipboard?.writeText?.(value)
-        }
-        return true
-    }
-
-    /**
      * Handles completed measurement copy clicks.
      * @param {Event} event Click event.
      * @returns {boolean}
@@ -120,6 +105,29 @@ export class PcbMeasurementInteractionController {
         event.preventDefault?.()
         const text = String(button.getAttribute('data-pcb-measure-copy') || '')
         if (text) globalThis.navigator?.clipboard?.writeText?.(text)
+        return true
+    }
+
+    /**
+     * Handles completed bounds measurement action clicks.
+     * @param {Event} event Click event.
+     * @returns {boolean}
+     */
+    handleAction(event) {
+        const button = PcbMeasurementInteractionController.#actionButton(event)
+        if (!button || typeof button.getAttribute !== 'function') {
+            return false
+        }
+
+        event.preventDefault?.()
+        const action = String(
+            button.getAttribute('data-pcb-measure-action') || ''
+        )
+        const bounds =
+            PcbMeasurementInteractionController.#buttonBounds(button)
+        if (action && bounds) {
+            this.#onAction?.({ action, bounds })
+        }
         return true
     }
 
@@ -188,6 +196,44 @@ export class PcbMeasurementInteractionController {
     }
 
     /**
+     * Resolves a clicked measurement action button.
+     * @param {Event} event Click event.
+     * @returns {Element | null}
+     */
+    static #actionButton(event) {
+        const target = event.target
+        return target &&
+            typeof target === 'object' &&
+            typeof target.closest === 'function'
+            ? target.closest('[data-pcb-measure-action]')
+            : null
+    }
+
+    /**
+     * Resolves bounds encoded on an action button.
+     * @param {Element} button Action button.
+     * @returns {{ minX: number, minY: number, maxX: number, maxY: number } | null}
+     */
+    static #buttonBounds(button) {
+        const minX = PcbMeasurementInteractionController.#number(
+            button.getAttribute('data-pcb-bounds-min-x')
+        )
+        const minY = PcbMeasurementInteractionController.#number(
+            button.getAttribute('data-pcb-bounds-min-y')
+        )
+        const maxX = PcbMeasurementInteractionController.#number(
+            button.getAttribute('data-pcb-bounds-max-x')
+        )
+        const maxY = PcbMeasurementInteractionController.#number(
+            button.getAttribute('data-pcb-bounds-max-y')
+        )
+        if ([minX, minY, maxX, maxY].some((value) => value === null)) {
+            return null
+        }
+        return { minX, minY, maxX, maxY }
+    }
+
+    /**
      * Resolves a snapped board-space measurement point.
      * @param {Event | { target?: unknown, clientX?: number, clientY?: number }} event Pointer event.
      * @returns {{ x: number, y: number } | null}
@@ -218,5 +264,16 @@ export class PcbMeasurementInteractionController {
         return viewBox
             ? Math.max(Math.min(viewBox.width, viewBox.height) / 60, 0.25)
             : 0.25
+    }
+
+    /**
+     * Converts a data attribute to a finite number.
+     * @param {unknown} value Numeric candidate.
+     * @returns {number | null}
+     */
+    static #number(value) {
+        if (value === undefined || value === null || value === '') return null
+        const number = Number(value)
+        return Number.isFinite(number) ? number : null
     }
 }

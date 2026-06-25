@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from '../core/PcbInteractionPrimitiveModel.mjs'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
 
 /**
  * Renders PCB measurement toolbar controls and SVG overlays.
@@ -8,24 +8,29 @@ export class PcbMeasurementRenderer {
      * Renders measurement tool buttons.
      * @param {string} activeTool Active measurement mode.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ hidden?: boolean }} [options] Render options.
      * @returns {string}
      */
-    static renderToolbarButtons(activeTool, translate) {
+    static renderToolbarButtons(activeTool, translate, options = {}) {
+        const hidden = options.hidden === true
         return [
             PcbMeasurementRenderer.#renderButton(
                 'distance',
                 activeTool,
-                translate('pcbView.measureDistance')
+                translate('pcbView.measureDistance'),
+                hidden
             ),
             PcbMeasurementRenderer.#renderButton(
                 'bounds',
                 activeTool,
-                translate('pcbView.measureBounds')
+                translate('pcbView.measureBounds'),
+                hidden
             ),
             PcbMeasurementRenderer.#renderButton(
                 'clear',
                 activeTool,
-                translate('pcbView.measureClear')
+                translate('pcbView.measureClear'),
+                hidden
             )
         ].join('')
     }
@@ -77,14 +82,17 @@ export class PcbMeasurementRenderer {
      * @param {'distance' | 'bounds' | 'clear'} tool Tool id.
      * @param {string} activeTool Active tool id.
      * @param {string} label Accessible label.
+     * @param {boolean} hidden Whether the button is hidden.
      * @returns {string}
      */
-    static #renderButton(tool, activeTool, label) {
+    static #renderButton(tool, activeTool, label, hidden) {
         const isActive = tool === activeTool && tool !== 'clear'
         return (
             '<button class="scene-3d__preset pcb-view__measure-tool' +
             (isActive ? ' is-active' : '') +
-            '" type="button" data-pcb-measure-tool="' +
+            '" type="button"' +
+            (hidden ? ' hidden' : '') +
+            ' data-pcb-measure-tool="' +
             tool +
             '" aria-label="' +
             PcbMeasurementRenderer.#escapeHtml(label) +
@@ -270,6 +278,13 @@ export class PcbMeasurementRenderer {
                     'Copy measurement bounds'
                 )
             ) +
+            PcbMeasurementRenderer.#actionButtons(
+                x,
+                y,
+                x + width,
+                y + height,
+                translate
+            ) +
             '</g>'
         )
     }
@@ -347,6 +362,98 @@ export class PcbMeasurementRenderer {
             PcbMeasurementRenderer.#escapeHtml(label) +
             '"><svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><rect x="6" y="5" width="8" height="10" rx="1"></rect><path d="M4 12V3h8"></path></svg></button></foreignObject>'
         )
+    }
+
+    /**
+     * Renders workflow actions for completed bounds measurements.
+     * @param {number} minX Minimum x.
+     * @param {number} minY Minimum y.
+     * @param {number} maxX Maximum x.
+     * @param {number} maxY Maximum y.
+     * @param {((key: string) => string) | null} translate Translation lookup.
+     * @returns {string}
+     */
+    static #actionButtons(minX, minY, maxX, maxY, translate) {
+        const actions = [
+            ['zoom', 'pcbView.zoomMeasurementBounds'],
+            ['select', 'pcbView.selectMeasurementBounds'],
+            ['export-svg', 'pcbView.exportMeasurementBoundsSvg'],
+            ['export-png', 'pcbView.exportMeasurementBoundsPng']
+        ]
+        return (
+            '<foreignObject class="pcb-measurement-actions-host" x="' +
+            PcbMeasurementRenderer.#svgNumber((minX + maxX) / 2 - 0.82) +
+            '" y="' +
+            PcbMeasurementRenderer.#svgNumber((minY + maxY) / 2 + 0.82) +
+            '" width="1.64" height="0.56"><span class="pcb-measurement-actions">' +
+            actions
+                .map(([action, labelKey]) =>
+                    PcbMeasurementRenderer.#actionButton(
+                        action,
+                        minX,
+                        minY,
+                        maxX,
+                        maxY,
+                        PcbMeasurementRenderer.#translated(
+                            translate,
+                            labelKey,
+                            labelKey
+                        )
+                    )
+                )
+                .join('') +
+            '</span></foreignObject>'
+        )
+    }
+
+    /**
+     * Renders one bounds action button.
+     * @param {string} action Action id.
+     * @param {number} minX Minimum x.
+     * @param {number} minY Minimum y.
+     * @param {number} maxX Maximum x.
+     * @param {number} maxY Maximum y.
+     * @param {string} label Accessible label.
+     * @returns {string}
+     */
+    static #actionButton(action, minX, minY, maxX, maxY, label) {
+        return (
+            '<button class="pcb-measurement-action" type="button" data-pcb-measure-action="' +
+            PcbMeasurementRenderer.#escapeHtml(action) +
+            '" data-pcb-bounds-min-x="' +
+            PcbMeasurementRenderer.#dataNumber(minX) +
+            '" data-pcb-bounds-min-y="' +
+            PcbMeasurementRenderer.#dataNumber(minY) +
+            '" data-pcb-bounds-max-x="' +
+            PcbMeasurementRenderer.#dataNumber(maxX) +
+            '" data-pcb-bounds-max-y="' +
+            PcbMeasurementRenderer.#dataNumber(maxY) +
+            '" aria-label="' +
+            PcbMeasurementRenderer.#escapeHtml(label) +
+            '" title="' +
+            PcbMeasurementRenderer.#escapeHtml(label) +
+            '">' +
+            PcbMeasurementRenderer.#actionIcon(action) +
+            '</button>'
+        )
+    }
+
+    /**
+     * Renders an icon for a bounds action.
+     * @param {string} action Action id.
+     * @returns {string}
+     */
+    static #actionIcon(action) {
+        if (action === 'select') {
+            return '<svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><path d="M5 4h8v8H5z"></path><path d="m7 14 2-2 2 2"></path></svg>'
+        }
+        if (action === 'export-svg') {
+            return '<svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><path d="M9 3v8"></path><path d="m6 8 3 3 3-3"></path><path d="M4 14h10"></path></svg>'
+        }
+        if (action === 'export-png') {
+            return '<svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><rect x="4" y="4" width="10" height="10" rx="1"></rect><circle cx="7" cy="7" r="1"></circle><path d="m5 13 3-3 2 2 1-1 2 2"></path></svg>'
+        }
+        return '<svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><path d="M6 4h8v8"></path><path d="M14 4 5 13"></path><path d="M5 8v5h5"></path></svg>'
     }
 
     /**

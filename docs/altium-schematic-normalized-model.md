@@ -231,12 +231,34 @@ Diagnostics may report:
 - pin-like anchors placed outside the sheet, inside a symbol body, or away from
   the expected symbol edge
 - colinear overlapping wire segments that belong to different nets
+- multi-part trace segments that can shift locally to clear a cross-net overlap
 - net label bounds that collide with unrelated net traces, other net labels,
   or schematic body bounds
 - fallback connection segments that cross schematic body obstacles
-- trace paths that can be simplified or balanced without changing endpoints
-- clear trace-label detour, trace-anchored label, constrained label
-  orientation, power-label corner, and routing guideline opportunities
+- trace paths that can be simplified, balanced, or turn-minimized without
+  changing endpoints or crossing labels and body obstacles
+- clear trace-label detour, merged-label trace detour, whole-island lane
+  shift, sampled label relocation, trace-anchored label, sampled constrained
+  label orientation, power-label corner, and routing guideline opportunities
+- label relocation chains where accepted moves resolve later label collisions
+  before additional candidates are evaluated
+- constrained label orientation connector paths that report whether the label
+  bounds or the connector path hit a label, trace, or schematic body
+- local snip-and-reconnect trace-label detours when only the colliding trace
+  span needs to move around a label
+- obstacle-aware lane-shift offsets and alternate congested L-turn rectangle
+  reroutes where overlapping or blocked legs make the authored path hard to
+  inspect
+- L-turn reroute telemetry with the evaluated turn, blocker intersections, and
+  rectangle candidates that led to an accepted or rejected path
+- port-only label relocations with candidate statuses for label, chip, and
+  trace blockers
+- long direct fallback or supplemental connections where a label or port-style
+  connection would be easier to read
+- anchor-pair supplemental connection decisions with distance, section,
+  centerline, and obstacle-risk rejection reasons
+- direct fallback or supplemental connections that cross logical schematic
+  section boundaries
 - symbol body and pin-edge fit candidates when pin anchors and component
   bounds disagree
 
@@ -244,16 +266,29 @@ Diagnostic results include staged debug metadata, focused issue metadata for
 affected nets, anchors, labels, segments, obstacles, merged label obstacle
 groups, spatial index statistics, non-mutating candidate label bounds,
 non-mutating trace-anchored label bounds, rejected trace-anchored label
-candidate telemetry, constrained label-orientation candidates, power-label
-corner candidates, symbol-fit candidates, per-advisor candidate budgets,
+candidate telemetry, constrained label-orientation candidates with lateral
+search and connector-collision metadata, power-label corner candidates,
+symbol-fit candidates, per-advisor candidate budgets with final acceptance
+status metadata,
 non-mutating jog suggestion paths for cross-net overlaps, trace-label detour
-candidates, path cleanup candidates, routing guideline overlays, and a compact
-issue repro export for regression tests or renderer debugging.
+candidates, merged-label trace-detour candidates, whole-island lane-shift
+candidates, segment-level overlap shift candidates, sampled and port-only
+label relocation candidates, congested L-turn reroute candidates with accepted
+and rejected alternate paths plus blocker-intersection telemetry,
+long-distance connection candidates,
+section-boundary connection candidates, anchor-pair supplemental connection
+decisions, snip-and-reconnect trace-label detour candidates, candidate decision
+rows with generated, rejected, selected, score, and collision-source metadata,
+symbol-fit decision telemetry, stage health rows with compact snapshot exports,
+collision-aware path cleanup candidates, routing guideline overlays, and a
+compact issue repro export for regression tests or renderer debugging.
 
-Fallback connection, label-candidate, jog-candidate, trace-detour,
-path-cleanup, label-orientation, power-label, symbol-fit, and guideline
-overlays are visual debug aids only. They must not replace authored `segments`,
-parser connectivity, or renderer-owned source geometry.
+Fallback connection, label-candidate, label-relocation, jog-candidate,
+lane-shift, segment-overlap-shift, congested L-turn reroute, trace-detour,
+snip-and-reconnect detour, long-distance connection, section-boundary
+connection, path-cleanup, label-orientation, power-label, symbol-fit, and
+guideline overlays are visual debug aids only. They must not replace authored
+`segments`, parser connectivity, or renderer-owned source geometry.
 
 ## Stability Notes
 

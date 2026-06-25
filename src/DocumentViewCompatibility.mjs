@@ -28,16 +28,20 @@ export class DocumentViewCompatibility {
         if (viewName === 'pcb') {
             return (
                 Boolean(documentModel.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
+                DocumentViewCompatibility.#hasElementPrefix(
+                    documentModel,
+                    'pcb_'
+                )
             )
         }
 
         if (viewName === '3d') {
             return (
                 Boolean(documentModel.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
+                DocumentViewCompatibility.#hasElementPrefix(
+                    documentModel,
+                    'pcb_'
+                )
             )
         }
 

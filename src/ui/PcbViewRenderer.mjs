@@ -1,13 +1,18 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
-import { PcbInteractionPrimitiveModel } from '../core/PcbInteractionPrimitiveModel.mjs'
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
+import { PcbComponentSideAttributeRenderer } from './PcbComponentSideAttributeRenderer.mjs'
 import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMarkerRenderer.mjs'
+import { PcbDiagnosticFocusRenderer } from './PcbDiagnosticFocusRenderer.mjs'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
+import { PcbViewportToolbarRenderer } from './PcbViewportToolbarRenderer.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 import { UiText } from './UiText.mjs'
+import { ViewportInteractionGateRenderer } from './ViewportInteractionGateRenderer.mjs'
+
+const PCB_VIEWPORT_TOOLBAR_CONTROLS_VISIBLE = false
 
 /**
  * Renders the 2D PCB viewer chrome around the format-specific SVG.
@@ -26,7 +31,7 @@ export class PcbViewRenderer {
      * @param {string} [selectedComponentKey] Selected component key.
      * @param {{ [objectKey: string]: number }} [objectOpacities] Object opacity map.
      * @param {string} [selectedNetName] Selected net name.
-     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], measurement?: object, hoveredNetName?: string, showTraceLengths?: boolean }} [viewerOptions] Format-specific PCB view options.
+     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], measurement?: object, hoveredNetName?: string, showTraceLengths?: boolean, hoverFocusEnabled?: boolean, focusedDiagnosticId?: string }} [viewerOptions] Format-specific PCB view options.
      * @returns {string}
      */
     static render(
@@ -51,6 +56,11 @@ export class PcbViewRenderer {
         )
         const hoveredNetName = String(viewerOptions.hoveredNetName || '').trim()
         const showTraceLengths = Boolean(viewerOptions.showTraceLengths)
+        const hoverFocusEnabled = Boolean(viewerOptions.hoverFocusEnabled)
+        const focusedDiagnosticId = String(
+            viewerOptions.focusedDiagnosticId || ''
+        ).trim()
+        const toolbarControlsHidden = !PCB_VIEWPORT_TOOLBAR_CONTROLS_VISIBLE
 
         return (
             '<section class="pcb-view" data-pcb-view-active-side="' +
@@ -61,19 +71,26 @@ export class PcbViewRenderer {
             PcbViewRenderer.#escapeHtml(hoveredNetName) +
             '" data-pcb-trace-length-visible="' +
             (showTraceLengths ? 'true' : 'false') +
+            '" data-pcb-hover-focus-visible="' +
+            (hoverFocusEnabled ? 'true' : 'false') +
+            '" data-pcb-focused-diagnostic-id="' +
+            PcbViewRenderer.#escapeHtml(focusedDiagnosticId) +
             '">' +
             '<div class="scene-3d__toolbar pcb-view__toolbar" aria-label="' +
             PcbViewRenderer.#escapeHtml(t('pcbView.boardSideAria')) +
             '">' +
             PcbViewRenderer.#renderSideButton('top', normalizedSide, t) +
             PcbViewRenderer.#renderSideButton('bottom', normalizedSide, t) +
-            PcbMeasurementRenderer.renderToolbarButtons(measurement.mode, t) +
-            PcbViewRenderer.#renderTraceLengthButton(
+            PcbViewportToolbarRenderer.renderControls({
                 documentModel,
+                hiddenObjects,
+                measurementMode: measurement.mode,
                 showTraceLengths,
-                t
-            ) +
-            PcbViewRenderer.#renderDiagnosticNavigator(documentModel, t) +
+                hoverFocusEnabled,
+                focusedDiagnosticId,
+                hidden: toolbarControlsHidden,
+                translate: t
+            }) +
             '</div>' +
             '<div class="pcb-view__content">' +
             PcbViewRenderer.#renderPcbSvg(
@@ -88,7 +105,11 @@ export class PcbViewRenderer {
                 measurement,
                 hoveredNetName,
                 showTraceLengths,
+                focusedDiagnosticId,
                 t
+            ) +
+            ViewportInteractionGateRenderer.render(
+                t('viewport.interactWithView')
             ) +
             '</div>' +
             '</section>'
@@ -109,121 +130,6 @@ export class PcbViewRenderer {
     }
 
     /**
-     * Renders the trace length overlay toggle when routed traces are available.
-     * @param {object} documentModel Document model.
-     * @param {boolean} visible Whether trace lengths are visible.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderTraceLengthButton(documentModel, visible, translate) {
-        const traceLengths =
-            PcbInteractionPrimitiveModel.build(documentModel).traceLengths || []
-        if (!traceLengths.length) return ''
-
-        const label = translate('pcbView.traceLengths')
-        return (
-            '<button class="scene-3d__preset pcb-view__measure-tool pcb-view__trace-length-toggle' +
-            (visible ? ' is-active' : '') +
-            '" type="button" data-pcb-trace-length-toggle="true" aria-label="' +
-            PcbViewRenderer.#escapeHtml(label) +
-            '" title="' +
-            PcbViewRenderer.#escapeHtml(label) +
-            '" aria-pressed="' +
-            (visible ? 'true' : 'false') +
-            '"><svg aria-hidden="true" viewBox="0 0 18 18" width="16" height="16"><path d="M3 12h12"></path><path d="M5 9l-2 3 2 3"></path><path d="M13 9l2 3-2 3"></path><path d="M6 5h6"></path></svg></button>'
-        )
-    }
-
-    /**
-     * Renders grouped in-view diagnostic navigation controls.
-     * @param {object} documentModel Document model.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderDiagnosticNavigator(documentModel, translate) {
-        const diagnostics =
-            PcbInteractionPrimitiveModel.build(documentModel).diagnostics || []
-        if (!diagnostics.length) return ''
-
-        const groups = PcbViewRenderer.#diagnosticGroups(diagnostics)
-        return (
-            '<details class="pcb-diagnostic-panel"><summary class="pcb-diagnostic-panel__summary">' +
-            PcbViewRenderer.#escapeHtml(translate('app.diagnostics')) +
-            ' · ' +
-            diagnostics.length +
-            '</summary><div class="pcb-diagnostic-panel__menu">' +
-            groups
-                .map((group) =>
-                    PcbViewRenderer.#renderDiagnosticGroup(group, translate)
-                )
-                .join('') +
-            '</div></details>'
-        )
-    }
-
-    /**
-     * Groups diagnostics by severity and code.
-     * @param {object[]} diagnostics Diagnostic rows.
-     * @returns {{ label: string, rows: object[] }[]}
-     */
-    static #diagnosticGroups(diagnostics) {
-        const groups = new Map()
-        for (const diagnostic of diagnostics) {
-            const label = [
-                diagnostic.severity || 'info',
-                diagnostic.code || diagnostic.category || 'diagnostic'
-            ].join(': ')
-            if (!groups.has(label)) groups.set(label, [])
-            groups.get(label).push(diagnostic)
-        }
-        return [...groups.entries()].map(([label, rows]) => ({ label, rows }))
-    }
-
-    /**
-     * Renders one diagnostic group.
-     * @param {{ label: string, rows: object[] }} group Diagnostic group.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderDiagnosticGroup(group, translate) {
-        return (
-            '<section class="pcb-diagnostic-panel__group"><h4>' +
-            PcbViewRenderer.#escapeHtml(group.label) +
-            '</h4>' +
-            group.rows
-                .map((diagnostic) =>
-                    PcbViewRenderer.#renderDiagnosticRow(diagnostic, translate)
-                )
-                .join('') +
-            '</section>'
-        )
-    }
-
-    /**
-     * Renders one diagnostic navigation row.
-     * @param {object} diagnostic Diagnostic row.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderDiagnosticRow(diagnostic, translate) {
-        const message = String(diagnostic.message || '')
-        const id = String(diagnostic.id || '')
-        return (
-            '<div class="pcb-diagnostic-panel__row"><button class="pcb-diagnostic-panel__item" type="button" data-pcb-diagnostic-focus="' +
-            PcbViewRenderer.#escapeHtml(id) +
-            '"><span>' +
-            PcbViewRenderer.#escapeHtml(message) +
-            '</span></button><button class="pcb-diagnostic-panel__copy" type="button" data-pcb-diagnostic-copy="' +
-            PcbViewRenderer.#escapeHtml(message) +
-            '" title="' +
-            PcbViewRenderer.#escapeHtml(translate('pcbView.copyDiagnostic')) +
-            '" aria-label="' +
-            PcbViewRenderer.#escapeHtml(translate('pcbView.copyDiagnostic')) +
-            '"><svg aria-hidden="true" viewBox="0 0 18 18" width="14" height="14"><rect x="6" y="5" width="8" height="10" rx="1"></rect><path d="M4 12V3h8"></path></svg></button></div>'
-        )
-    }
-
-    /**
      * Renders the PCB SVG with visibility styles applied.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
@@ -236,6 +142,7 @@ export class PcbViewRenderer {
      * @param {{ tool: string, mode: string, start: object | null, end: object | null }} measurement Measurement state.
      * @param {string} hoveredNetName Hovered net name.
      * @param {boolean} showTraceLengths Whether trace labels are visible.
+     * @param {string} focusedDiagnosticId Focused diagnostic id.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -251,6 +158,7 @@ export class PcbViewRenderer {
         measurement,
         hoveredNetName,
         showTraceLengths,
+        focusedDiagnosticId,
         translate
     ) {
         const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
@@ -293,11 +201,16 @@ export class PcbViewRenderer {
             side
         )
 
-        return PcbMeasurementRenderer.injectOverlay(
+        const measuredMarkup = PcbMeasurementRenderer.injectOverlay(
             markedMarkup,
             measurement,
             documentModel,
             translate
+        )
+        return PcbDiagnosticFocusRenderer.inject(
+            measuredMarkup,
+            documentModel,
+            focusedDiagnosticId
         )
     }
 
@@ -357,7 +270,12 @@ export class PcbViewRenderer {
             side
         )
 
-        return SvgPanelChromeStripper.stripMetadataHeader(componentMarkup)
+        return SvgPanelChromeStripper.stripMetadataHeader(
+            PcbComponentSideAttributeRenderer.render(
+                componentMarkup,
+                documentModel
+            )
+        )
     }
 
     /**

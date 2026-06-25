@@ -18,14 +18,17 @@ import {
     SchematicSvgRenderer as KicadSchematicSvgRenderer
 } from 'kicad-toolkit/renderers'
 import {
+    CircuitJsonPcbSvgRenderer,
+    CircuitJsonSchematicSvgRenderer,
+    PcbInteractionPrimitiveModel
+} from 'circuitjson-toolkit/renderers'
+import {
     GerberPcbSvgRenderer,
     PcbInteractionIndex as GerberPcbInteractionIndex,
     PcbInteractionLayerModel as GerberPcbInteractionLayerModel
 } from 'gerber-toolkit/renderers'
 import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
-import { PcbInteractionPrimitiveModel } from '../PcbInteractionPrimitiveModel.mjs'
-import { CircuitJsonPcbSvgRenderer } from './CircuitJsonPcbSvgRenderer.mjs'
-import { CircuitJsonSchematicSvgRenderer } from './CircuitJsonSchematicSvgRenderer.mjs'
+import { EcadBomRowAttributes } from './EcadBomRowAttributes.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 const BOM_TRANSLATION_FALLBACKS = {
@@ -61,7 +64,9 @@ export class EcadRendererService {
             )
         }
 
-        EcadRendererService.#assertSchematicRendererBackedDocument(documentModel)
+        EcadRendererService.#assertSchematicRendererBackedDocument(
+            documentModel
+        )
         return EcadRendererService.#renderCached(
             EcadRendererService.#schematicSvgCache,
             documentModel,
@@ -231,7 +236,10 @@ export class EcadRendererService {
      * @returns {boolean}
      */
     static #isKiCad(documentModel) {
-        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'kicad'
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'kicad'
+        )
     }
     /**
      * Returns true for Gerber document models.
@@ -239,7 +247,10 @@ export class EcadRendererService {
      * @returns {boolean}
      */
     static #isGerber(documentModel) {
-        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'gerber'
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'gerber'
+        )
     }
     /**
      * Returns true for standards-shaped element-array document models.
@@ -247,7 +258,10 @@ export class EcadRendererService {
      * @returns {boolean}
      */
     static #isCircuitJson(documentModel) {
-        return EcadFormatRegistry.sourceFormatForDocument(documentModel) === 'circuitjson'
+        return (
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
+            'circuitjson'
+        )
     }
     /**
      * Applies the format-owned rectangular pad axis normalization.
@@ -293,7 +307,9 @@ export class EcadRendererService {
      */
     static #assertSchematicRendererBackedDocument(documentModel) {
         if (EcadRendererService.#isCircuitJson(documentModel)) {
-            throw new Error('Element-array documents do not provide schematic SVG rendering.')
+            throw new Error(
+                'Element-array documents do not provide schematic SVG rendering.'
+            )
         }
     }
     /**
@@ -604,19 +620,23 @@ export class EcadRendererService {
                 selectedComponentKey
             )
         }
+        const attributes = EcadBomRowAttributes.render(row)
 
         if (!selected) {
-            return '<tr>' + cellMarkup + '</tr>'
+            return '<tr' + attributes + '>' + cellMarkup + '</tr>'
         }
 
         return (
             '<tr class="bom-table__row--selected" data-bom-selected-component-key="' +
             EcadRendererService.#escapeHtml(selectedComponentKey) +
-            '">' +
+            '"' +
+            attributes +
+            '>' +
             cellMarkup +
             '</tr>'
         )
     }
+
     /**
      * Renders one localized BOM cell.
      * @param {object} row BOM row.
@@ -926,7 +946,11 @@ export class EcadRendererService {
 
         return String(markup).replace(
             /class="([^"]*\bpcb-svg\b[^"]*)"/,
-            (_match, existingClasses) => 'class="' + existingClasses + (classes ? ' ' + classes : '') + '"'
+            (_match, existingClasses) =>
+                'class="' +
+                existingClasses +
+                (classes ? ' ' + classes : '') +
+                '"'
         )
     }
     /**
@@ -940,7 +964,9 @@ export class EcadRendererService {
             side,
             String(options.renderMode || ''),
             String(options.layerId || ''),
-            (Array.isArray(options.layerIds) ? options.layerIds : []).map(String).join(',')
+            (Array.isArray(options.layerIds) ? options.layerIds : [])
+                .map(String)
+                .join(',')
         ].join('|')
     }
     /**

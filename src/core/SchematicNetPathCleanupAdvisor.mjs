@@ -28,7 +28,10 @@ export class SchematicNetPathCleanupAdvisor {
                         cleanedPointCount: cleaned.points.length,
                         removedPointCount:
                             group.points.length - cleaned.points.length,
-                        cleanupKinds: cleaned.cleanupKinds
+                        cleanupKinds: cleaned.cleanupKinds,
+                        ...(cleaned.collisionChecked
+                            ? { collisionChecked: true }
+                            : {})
                     }
                 }
             ]
@@ -102,6 +105,13 @@ export class SchematicNetPathCleanupAdvisor {
             labels
         )
         if (balancedZ) return balancedZ
+
+        const minimized = this.#turnMinimizationCandidate(
+            withoutColinear,
+            obstacles,
+            labels
+        )
+        if (minimized) return minimized
 
         return {
             points: withoutColinear,
@@ -228,6 +238,125 @@ export class SchematicNetPathCleanupAdvisor {
             points: balanced,
             cleanupKinds: ['balanced-z-shape']
         }
+    }
+
+    /**
+     * Builds a reduced-turn path by reconnecting removable point runs.
+     * @param {object[]} points Source points.
+     * @param {object[]} obstacles Schematic body obstacles.
+     * @param {object[]} labels Label rows.
+     * @returns {object | null}
+     */
+    static #turnMinimizationCandidate(points, obstacles, labels) {
+        const sourceTurns = this.#turnCount(points)
+        const sourceKey = this.#pathKey(points)
+        let best = null
+
+        for (let startIndex = 0; startIndex < points.length - 2; startIndex++) {
+            for (
+                let endIndex = startIndex + 2;
+                endIndex < points.length;
+                endIndex++
+            ) {
+                for (const connection of this.#connectionOptions(
+                    points[startIndex],
+                    points[endIndex]
+                )) {
+                    const candidate = this.#removeColinearPoints([
+                        ...points.slice(0, startIndex + 1),
+                        ...connection.slice(1, -1),
+                        ...points.slice(endIndex)
+                    ])
+                    if (this.#pathKey(candidate) === sourceKey) continue
+                    if (!this.#isValidPath(candidate)) continue
+                    if (this.#pathCollides(candidate, obstacles, labels)) {
+                        continue
+                    }
+
+                    const candidateTurns = this.#turnCount(candidate)
+                    if (
+                        candidateTurns > sourceTurns ||
+                        (candidateTurns === sourceTurns &&
+                            candidate.length >= points.length)
+                    ) {
+                        continue
+                    }
+
+                    if (
+                        !best ||
+                        candidateTurns < best.turnCount ||
+                        (candidateTurns === best.turnCount &&
+                            candidate.length < best.points.length) ||
+                        (candidateTurns === best.turnCount &&
+                            candidate.length === best.points.length &&
+                            this.#pathLength(candidate) < best.length)
+                    ) {
+                        best = {
+                            points: candidate,
+                            turnCount: candidateTurns,
+                            length: this.#pathLength(candidate)
+                        }
+                    }
+                }
+            }
+        }
+
+        return best
+            ? {
+                  points: best.points,
+                  cleanupKinds: ['turn-minimization'],
+                  collisionChecked: true
+              }
+            : null
+    }
+
+    /**
+     * Builds direct or elbow connection options between two points.
+     * @param {object} start Start point.
+     * @param {object} end End point.
+     * @returns {object[][]}
+     */
+    static #connectionOptions(start, end) {
+        if (start.x === end.x || start.y === end.y) {
+            return [[start, end]]
+        }
+        return [
+            [start, { x: end.x, y: start.y }, end],
+            [start, { x: start.x, y: end.y }, end]
+        ]
+    }
+
+    /**
+     * Counts turns in one path.
+     * @param {object[]} points Path points.
+     * @returns {number}
+     */
+    static #turnCount(points) {
+        let turns = 0
+        for (let index = 1; index < points.length - 1; index++) {
+            const previousAxis = Geometry.segmentAxis(
+                points[index - 1],
+                points[index]
+            )
+            const nextAxis = Geometry.segmentAxis(points[index], points[index + 1])
+            if (previousAxis && nextAxis && previousAxis !== nextAxis) {
+                turns += 1
+            }
+        }
+        return turns
+    }
+
+    /**
+     * Computes Manhattan path length.
+     * @param {object[]} points Path points.
+     * @returns {number}
+     */
+    static #pathLength(points) {
+        let length = 0
+        for (let index = 0; index < points.length - 1; index++) {
+            length += Geometry.manhattan(points[index], points[index + 1])
+        }
+        return length
     }
 
     /**

@@ -30,6 +30,7 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
         "import { LoadedDesignNetlistService } from 'altium-toolkit/netlist-query'",
         "import('kicad-toolkit/netlist-query')",
         "import { CircuitJsonParser } from 'circuitjson-toolkit'",
+        "import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/renderers'",
         "import { GerberProjectLoader } from 'gerber-toolkit/parser'",
         "import('gerber-toolkit/renderers')",
         "import { PcbScene3dBuilder } from 'gerber-toolkit/scene3d'",
@@ -53,6 +54,10 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     assert.match(
         rewritten,
         /from '\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/circuitjson-toolkit\/src\/renderers\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,

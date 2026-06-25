@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from './PcbInteractionPrimitiveModel.mjs'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
 
 /**
  * Resolves schematic and PCB net selection state shared by sidebar and views.

@@ -126,6 +126,20 @@ function createRichCircuitJsonDocument() {
             text: 'U1',
             x: 1,
             y: 2,
+            layer: 'top_silkscreen',
+            anchor_alignment: 'bottom_right',
+            is_knockout: true
+        },
+        {
+            type: 'pcb_silkscreen_path',
+            pcb_silkscreen_path_id: 'silk_path_1',
+            pcb_component_id: 'pcb_u1',
+            route: [
+                { x: 1.4, y: 2.4 },
+                { x: 2, y: 2.4 },
+                { x: 2, y: 2.8 }
+            ],
+            width: 0.05,
             layer: 'top_silkscreen'
         },
         {
@@ -134,6 +148,18 @@ function createRichCircuitJsonDocument() {
             text: 'PIN 1',
             x: -1,
             y: 2,
+            layer: 'top_fabrication',
+            anchor_alignment: 'top_left'
+        },
+        {
+            type: 'pcb_fabrication_note_path',
+            pcb_fabrication_note_path_id: 'fab_path_1',
+            pcb_component_id: 'pcb_u1',
+            points: [
+                { x: -1.4, y: 2.4 },
+                { x: -0.8, y: 2.4 }
+            ],
+            width: 0.05,
             layer: 'top_fabrication'
         },
         {
@@ -196,6 +222,28 @@ function createRichCircuitJsonDocument() {
             net: 'SIG'
         },
         {
+            type: 'pcb_plated_hole',
+            pcb_plated_hole_id: 'hole_rect_1',
+            shape: 'circular_hole_with_rect_pad',
+            x: -2.8,
+            y: 0.8,
+            rect_pad_width: 1.2,
+            rect_pad_height: 0.7,
+            hole_diameter: 0.3,
+            layer: 'top',
+            net: 'GND'
+        },
+        {
+            type: 'pcb_hole',
+            pcb_hole_id: 'slot_1',
+            hole_shape: 'pill',
+            x: -2.8,
+            y: -0.2,
+            width: 1.1,
+            height: 0.35,
+            layer: 'board'
+        },
+        {
             type: 'pcb_panel',
             pcb_panel_id: 'panel_1',
             center: { x: 0, y: 0 },
@@ -224,6 +272,25 @@ function createRichCircuitJsonDocument() {
             center: { x: 1, y: 1 },
             width: 2,
             height: 1.4,
+            layer: 'top_courtyard'
+        },
+        {
+            type: 'pcb_courtyard_line',
+            pcb_courtyard_line_id: 'courtyard_line_1',
+            start: { x: -1.8, y: 2.8 },
+            end: { x: -1.2, y: 2.8 },
+            width: 0.05,
+            layer: 'top_courtyard'
+        },
+        {
+            type: 'pcb_courtyard_outline',
+            pcb_courtyard_outline_id: 'courtyard_outline_1',
+            points: [
+                { x: 2.6, y: 2.4 },
+                { x: 3.2, y: 2.4 },
+                { x: 3.2, y: 3 },
+                { x: 2.6, y: 3 }
+            ],
             layer: 'top_courtyard'
         },
         {
@@ -263,12 +330,36 @@ test('PcbViewRenderer renders rich CircuitJSON artwork and diagnostics', () => {
     assert.match(html, /class="[^"]*\bpcb-keepout\b/)
     assert.match(html, /class="[^"]*\bpcb-cutout\b/)
     assert.match(html, /class="[^"]*\bpcb-courtyard\b/)
+    assert.match(
+        html,
+        /class="[^"]*\bpcb-silkscreen\b[^"]*"[^>]*x1="1\.4" y1="2\.4" x2="2" y2="2\.4" stroke-width="0\.05"/
+    )
+    assert.match(
+        html,
+        /class="[^"]*\bpcb-fabrication\b[^"]*"[^>]*x1="-1\.4" y1="2\.4" x2="-0\.8" y2="2\.4" stroke-width="0\.05"/
+    )
+    assert.match(
+        html,
+        /class="[^"]*\bpcb-courtyard\b[^"]*"[^>]*x1="-1\.8" y1="2\.8" x2="-1\.2" y2="2\.8" stroke-width="0\.05"/
+    )
+    assert.match(
+        html,
+        /class="[^"]*\bpcb-silkscreen-text--knockout\b[^"]*"[^>]*data-pcb-primitive-id="silk_1"[^>]*data-knockout="true"[^>]*text-anchor="end" dominant-baseline="text-after-edge"/
+    )
+    assert.match(
+        html,
+        /class="[^"]*\bpcb-fabrication\b[^"]*"[^>]*data-pcb-primitive-id="fab_1"[^>]*text-anchor="start" dominant-baseline="text-before-edge"/
+    )
     assert.match(html, /class="[^"]*\bpcb-dimension\b/)
     assert.match(html, /class="[^"]*\bpcb-solder-mask\b/)
     assert.match(html, /class="[^"]*\bpcb-solder-paste\b/)
     assert.match(html, /class="[^"]*\bpcb-thermal-spoke\b/)
     assert.match(html, /class="[^"]*\bpcb-route-hint\b/)
     assert.match(html, /class="[^"]*\bpcb-breakout-point\b/)
+    assert.match(html, /class="[^"]*\bpcb-via--rect\b/)
+    assert.match(html, /class="[^"]*\bpcb-via-hole--circle\b/)
+    assert.match(html, /class="[^"]*\bpcb-via--pill\b/)
+    assert.match(html, /class="[^"]*\bpcb-via-hole--pill\b/)
     assert.match(html, /class="[^"]*\bpcb-panel-outline\b/)
     assert.match(html, /class="[^"]*\bpcb-group-outline\b/)
     assert.match(html, /class="[^"]*\bpcb-anchor-offset\b/)
@@ -278,6 +369,8 @@ test('PcbViewRenderer renders rich CircuitJSON artwork and diagnostics', () => {
     assert.match(html, /class="[^"]*\bpcb-trace-length-label--over-limit\b/)
     assert.match(html, />2\.00 \/ 1\.50 mm \(SIG budget\)<\/text>/)
     assert.match(html, /class="[^"]*\bpcb-diagnostic-panel\b/)
+    assert.match(html, /class="pcb-diagnostic-panel__group"/)
+    assert.match(html, /<summary class="pcb-diagnostic-panel__group-summary">/)
     assert.match(html, /data-pcb-diagnostic-focus="err_1"/)
     assert.match(
         html,
@@ -318,6 +411,40 @@ test('PcbViewRenderer renders copyable CircuitJSON measurement bounds', () => {
         /data-pcb-measure-copy="minX: 0\.00, minY: 0\.00, maxX: 2\.00, maxY: 1\.00"/
     )
     assert.match(html, /class="[^"]*\bpcb-measurement-copy\b/)
+})
+
+/**
+ * Verifies completed bounds measurements expose workflow actions.
+ */
+test('PcbViewRenderer renders CircuitJSON measurement bounds actions', () => {
+    const html = PcbViewRenderer.render(
+        createRichCircuitJsonDocument(),
+        'top',
+        null,
+        [],
+        [],
+        '',
+        {},
+        '',
+        {
+            measurement: {
+                tool: 'bounds',
+                mode: '',
+                start: { x: 0, y: 0 },
+                end: { x: 2, y: 1 }
+            }
+        }
+    )
+
+    ;['zoom', 'select', 'export-svg', 'export-png'].forEach((action) => {
+        assert.match(
+            html,
+            new RegExp('data-pcb-measure-action="' + action + '"')
+        )
+    })
+    assert.match(html, /data-pcb-bounds-min-x="0"/)
+    assert.match(html, /data-pcb-bounds-max-x="2"/)
+    assert.match(html, /class="[^"]*\bpcb-measurement-actions\b/)
 })
 
 /**

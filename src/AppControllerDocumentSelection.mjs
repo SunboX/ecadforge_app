@@ -1,4 +1,5 @@
 import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
+import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
 
@@ -99,6 +100,75 @@ export class AppControllerDocumentSelection {
         }
 
         return patch
+    }
+
+    /**
+     * Builds the active-document patch while keeping the selected document
+     * compatible with the current top-level view.
+     * @param {string} documentId Requested document id.
+     * @param {{ activeView: string, activeDocumentId: string, documents: { id: string, documentModel: object }[] }} snapshot Current state snapshot.
+     * @returns {{ activeView?: string, activeDocumentId: string }}
+     */
+    static buildCompatibleDocumentPatch(documentId, snapshot) {
+        const requestedDocumentId = String(documentId || '')
+        const requestedDocument = (snapshot.documents || []).find(
+            (entry) => entry.id === requestedDocumentId
+        )
+        if (
+            requestedDocument &&
+            DocumentViewCompatibility.supportsView(
+                requestedDocument.documentModel,
+                snapshot.activeView
+            )
+        ) {
+            return { activeDocumentId: requestedDocumentId }
+        }
+
+        const requestedDocumentModel = requestedDocument?.documentModel
+        const requestedView =
+            AppControllerDocumentSelection.#resolveDocumentSelectionView(
+                requestedDocumentModel
+            )
+        if (requestedView) {
+            return {
+                activeView: requestedView,
+                activeDocumentId: requestedDocumentId
+            }
+        }
+
+        return {
+            activeDocumentId:
+                AppControllerDocumentSelection.resolveDocumentId(
+                    snapshot.documents || [],
+                    snapshot.activeView,
+                    snapshot.activeDocumentId
+                )
+        }
+    }
+
+    /**
+     * Resolves a preferred view for an explicitly selected renderable document.
+     * @param {object | null | undefined} documentModel Parsed document model.
+     * @returns {string}
+     */
+    static #resolveDocumentSelectionView(documentModel) {
+        if (
+            !documentModel ||
+            documentModel.kind === 'project' ||
+            documentModel.fileType === 'PrjPcb'
+        ) {
+            return ''
+        }
+
+        const preferredView = DocumentPreferredViewResolver.resolve(
+            documentModel
+        )
+        return DocumentViewCompatibility.supportsView(
+            documentModel,
+            preferredView
+        )
+            ? preferredView
+            : ''
     }
 
     /**

@@ -190,6 +190,7 @@ test('PcbDiagnosticNavigationController focuses and copies diagnostics', async (
     const content = new FakeContentNode()
     const copied = []
     const focused = []
+    const eventActions = []
     const previousNavigator = globalThis.navigator
     Object.defineProperty(globalThis, 'navigator', {
         configurable: true,
@@ -202,11 +203,27 @@ test('PcbDiagnosticNavigationController focuses and copies diagnostics', async (
     content.dispatch('mouseover', { target: content.getFocusButton() })
     content.dispatch('click', {
         target: content.getFocusButton(),
-        preventDefault() {}
+        preventDefault() {
+            eventActions.push('focus:prevent')
+        },
+        stopPropagation() {
+            eventActions.push('focus:stop')
+        },
+        stopImmediatePropagation() {
+            eventActions.push('focus:stop-immediate')
+        }
     })
     content.dispatch('click', {
         target: content.getCopyButton(),
-        preventDefault() {}
+        preventDefault() {
+            eventActions.push('copy:prevent')
+        },
+        stopPropagation() {
+            eventActions.push('copy:stop')
+        },
+        stopImmediatePropagation() {
+            eventActions.push('copy:stop-immediate')
+        }
     })
     await Promise.resolve()
 
@@ -215,8 +232,21 @@ test('PcbDiagnosticNavigationController focuses and copies diagnostics', async (
         content.getFocusButton().classList.contains('is-focused'),
         true
     )
+    assert.equal(content.getCopyButton().classList.contains('is-copied'), true)
+    assert.equal(
+        content.getCopyButton().getAttribute('data-copy-state'),
+        'copied'
+    )
     assert.deepEqual(copied, ['Clearance warning.'])
     assert.deepEqual(focused, ['err_1'])
+    assert.deepEqual(eventActions, [
+        'focus:prevent',
+        'focus:stop',
+        'focus:stop-immediate',
+        'copy:prevent',
+        'copy:stop',
+        'copy:stop-immediate'
+    ])
 
     controller.dispose()
     Object.defineProperty(globalThis, 'navigator', {

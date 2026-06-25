@@ -1,5 +1,6 @@
 import { AppViewScene3dControllerBinder } from './AppViewScene3dControllerBinder.mjs'
 import { AppViewScene3dShellRenderer } from './AppViewScene3dShellRenderer.mjs'
+import { ViewportInteractionGateController } from './ViewportInteractionGateController.mjs'
 
 /**
  * Owns the mounted 3D panel lifecycle across app tab changes.
@@ -26,6 +27,9 @@ export class AppViewScene3dPanelController {
     /** @type {HTMLElement | null} */
     #exportActionProxyNode
 
+    /** @type {ViewportInteractionGateController | null} */
+    #interactionGate
+
     constructor() {
         this.#controller = null
         this.#documentModel = null
@@ -34,6 +38,7 @@ export class AppViewScene3dPanelController {
         this.#contentNodes = []
         this.#adjustmentHostNode = null
         this.#exportActionProxyNode = null
+        this.#interactionGate = null
     }
 
     /**
@@ -108,6 +113,8 @@ export class AppViewScene3dPanelController {
         this.#autoSearchMissingModels = false
         this.#contentNodes = []
         this.#exportActionProxyNode = null
+        this.#interactionGate?.dispose()
+        this.#interactionGate = null
     }
 
     /**
@@ -157,6 +164,9 @@ export class AppViewScene3dPanelController {
             }
         )
         this.#controller = AppViewScene3dControllerBinder.attach(options)
+        this.#interactionGate = new ViewportInteractionGateController(
+            options.contentNode
+        )
         this.#captureExportActionProxy(options.contentNode)
         this.#controller?.setAdjustmentHost?.(this.#adjustmentHostNode)
         this.#documentModel = this.#controller ? options.documentModel : null
@@ -226,12 +236,14 @@ export class AppViewScene3dPanelController {
         if (typeof contentNode.replaceChildren === 'function') {
             contentNode.replaceChildren(...this.#contentNodes)
             this.#rememberContent(contentNode)
+            this.#interactionGate?.sync()
             return
         }
 
         contentNode.innerHTML = ''
         this.#contentNodes.forEach((node) => contentNode.appendChild?.(node))
         this.#rememberContent(contentNode)
+        this.#interactionGate?.sync()
     }
 
     /**

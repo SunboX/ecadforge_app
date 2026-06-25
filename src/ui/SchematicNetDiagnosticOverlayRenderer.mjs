@@ -77,6 +77,48 @@ export class SchematicNetDiagnosticOverlayRenderer {
             contentHeight,
             isKicad
         )
+        const traceLabelSnipReconnects = this.#renderSegments(
+            diagnostics?.traceLabelSnipReconnectSegments,
+            'net-label-trace-snip-reconnect-candidate',
+            contentHeight,
+            isKicad
+        )
+        const multiLabelTraceDetours = this.#renderSegments(
+            diagnostics?.multiLabelTraceDetourSegments,
+            'multi-label-trace-detour-candidate',
+            contentHeight,
+            isKicad
+        )
+        const netIslandLaneShifts = this.#renderSegments(
+            diagnostics?.netIslandLaneShiftSegments,
+            'net-island-lane-shift-candidate',
+            contentHeight,
+            isKicad
+        )
+        const segmentOverlapShifts = this.#renderSegments(
+            diagnostics?.segmentOverlapShiftSegments,
+            'segment-overlap-shift-candidate',
+            contentHeight,
+            isKicad
+        )
+        const congestedLTurnReroutes = this.#renderSegments(
+            diagnostics?.congestedLTurnRerouteSegments,
+            'congested-l-turn-reroute-candidate',
+            contentHeight,
+            isKicad
+        )
+        const longDistanceConnections = this.#renderSegments(
+            diagnostics?.longDistanceConnectionSegments,
+            'long-distance-connection-candidate',
+            contentHeight,
+            isKicad
+        )
+        const sectionBoundaryConnections = this.#renderSegments(
+            diagnostics?.sectionBoundaryConnectionSegments,
+            'section-boundary-connection-candidate',
+            contentHeight,
+            isKicad
+        )
         const pathCleanup = this.#renderSegments(
             diagnostics?.pathCleanupSegments,
             'net-path-cleanup-candidate',
@@ -149,6 +191,11 @@ export class SchematicNetDiagnosticOverlayRenderer {
             contentHeight,
             isKicad
         )
+        const labelRelocationCandidates = this.#renderBounds(
+            diagnostics?.labelRelocationCandidateBounds,
+            contentHeight,
+            isKicad
+        )
         const rejectedTraceAnchoredLabelCandidates = this.#renderBounds(
             diagnostics?.traceAnchoredLabelRejectedCandidateBounds,
             contentHeight,
@@ -165,6 +212,13 @@ export class SchematicNetDiagnosticOverlayRenderer {
             obstacles +
             jogs +
             traceLabelDetours +
+            traceLabelSnipReconnects +
+            multiLabelTraceDetours +
+            netIslandLaneShifts +
+            segmentOverlapShifts +
+            congestedLTurnReroutes +
+            longDistanceConnections +
+            sectionBoundaryConnections +
             pathCleanup +
             guidelines +
             restrictedCenterlines +
@@ -178,6 +232,7 @@ export class SchematicNetDiagnosticOverlayRenderer {
             traceAnchoredLabelCandidates +
             orientationLabelCandidates +
             powerLabelCornerCandidates +
+            labelRelocationCandidates +
             rejectedTraceAnchoredLabelCandidates +
             symbolBodyFitCandidates
         return body
@@ -427,6 +482,18 @@ export class SchematicNetDiagnosticOverlayRenderer {
             'stroke:rgba(22,163,74,0.82);stroke-width:1.4;stroke-dasharray:5 3;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__segment--net-label-trace-detour-candidate {' +
             'stroke:rgba(14,165,233,0.84);stroke-width:1.4;stroke-dasharray:5 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--multi-label-trace-detour-candidate {' +
+            'stroke:rgba(8,145,178,0.86);stroke-width:1.5;stroke-dasharray:6 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--net-island-lane-shift-candidate {' +
+            'stroke:rgba(5,150,105,0.84);stroke-width:1.5;stroke-dasharray:4 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--segment-overlap-shift-candidate {' +
+            'stroke:rgba(16,185,129,0.84);stroke-width:1.5;stroke-dasharray:5 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--congested-l-turn-reroute-candidate {' +
+            'stroke:rgba(13,148,136,0.86);stroke-width:1.5;stroke-dasharray:7 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--long-distance-connection-candidate {' +
+            'stroke:rgba(124,58,237,0.78);stroke-width:1.4;stroke-dasharray:8 3;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__segment--section-boundary-connection-candidate {' +
+            'stroke:rgba(194,65,12,0.84);stroke-width:1.5;stroke-dasharray:2 4;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__segment--net-path-cleanup-candidate {' +
             'stroke:rgba(99,102,241,0.82);stroke-width:1.3;stroke-dasharray:3 2;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__segment--schematic-routing-guideline {' +
@@ -453,6 +520,8 @@ export class SchematicNetDiagnosticOverlayRenderer {
             'fill:rgba(2,132,199,0.08);stroke:rgba(2,132,199,0.82);stroke-width:1.1;stroke-dasharray:3 2;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__bounds--power-label-corner-candidate {' +
             'fill:rgba(250,204,21,0.1);stroke:rgba(202,138,4,0.82);stroke-width:1.1;stroke-dasharray:3 2;}' +
+            '.schematic-svg .schematic-net-diagnostic-overlay__bounds--net-label-relocation-candidate {' +
+            'fill:rgba(13,148,136,0.08);stroke:rgba(13,148,136,0.84);stroke-width:1.1;stroke-dasharray:4 2;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__bounds--trace-anchored-net-label-rejected-candidate {' +
             'fill:rgba(220,38,38,0.08);stroke:rgba(220,38,38,0.82);stroke-width:1.1;stroke-dasharray:1 3;}' +
             '.schematic-svg .schematic-net-diagnostic-overlay__bounds--symbol-body-fit-candidate {' +

@@ -3,6 +3,23 @@
  */
 export class SvgClientBoundsGuard {
     /**
+     * Returns true when a queried node supports SVG viewport controls.
+     * @param {unknown} node Queried node.
+     * @returns {boolean}
+     */
+    static isInteractiveSvg(node) {
+        return Boolean(
+            node &&
+            typeof node === 'object' &&
+            typeof node.getAttribute === 'function' &&
+            typeof node.setAttribute === 'function' &&
+            typeof node.getBoundingClientRect === 'function' &&
+            typeof node.addEventListener === 'function' &&
+            typeof node.removeEventListener === 'function'
+        )
+    }
+
+    /**
      * Returns whether an event with finite client coordinates falls outside the SVG rect.
      * @param {SVGSVGElement | HTMLElement | null} svgNode SVG node.
      * @param {Event | { clientX?: unknown, clientY?: unknown }} event Pointer event.

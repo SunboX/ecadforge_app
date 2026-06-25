@@ -365,6 +365,7 @@ test('PcbAssemblyExportService forwards assembly export options', async () => {
     const prepareCalls = []
     const textureCalls = []
     const sessionAssets = [{ name: 'model.step' }]
+    const modelUrlResolver = () => null
     const service = new PcbAssemblyExportService({
         sceneService: {
             async prepare(documentModel, options) {
@@ -390,6 +391,8 @@ test('PcbAssemblyExportService forwards assembly export options', async () => {
         renderFallbackBodies: false,
         boardDrillQuality: 'high',
         drawFauxBoard: true,
+        projectBaseUrl: 'https://assets.invalid/projects/fake/',
+        modelUrlResolver,
         boardTextureShowNotes: true
     })
 
@@ -400,6 +403,11 @@ test('PcbAssemblyExportService forwards assembly export options', async () => {
     assert.equal(prepareCalls[0].options.renderFallbackBodies, false)
     assert.equal(prepareCalls[0].options.boardDrillQuality, 'high')
     assert.equal(prepareCalls[0].options.drawFauxBoard, true)
+    assert.equal(
+        prepareCalls[0].options.projectBaseUrl,
+        'https://assets.invalid/projects/fake/'
+    )
+    assert.equal(prepareCalls[0].options.modelUrlResolver, modelUrlResolver)
     assert.equal(textureCalls.length, 1)
     assert.equal(textureCalls[0].options.showNotes, true)
 })

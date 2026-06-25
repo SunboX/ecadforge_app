@@ -1,17 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { PcbViewController } from '../../src/ui/PcbViewController.mjs'
-
 /**
  * Minimal classList implementation for viewport controller tests.
  */
 class FakeClassList {
     #tokens
-
     constructor() {
         this.#tokens = new Set()
     }
-
     /**
      * @param {...string} tokens Class tokens.
      * @returns {void}
@@ -19,7 +16,6 @@ class FakeClassList {
     add(...tokens) {
         tokens.forEach((token) => this.#tokens.add(token))
     }
-
     /**
      * @param {...string} tokens Class tokens.
      * @returns {void}
@@ -27,7 +23,6 @@ class FakeClassList {
     remove(...tokens) {
         tokens.forEach((token) => this.#tokens.delete(token))
     }
-
     /**
      * @param {string} token Class token.
      * @returns {boolean}
@@ -36,17 +31,14 @@ class FakeClassList {
         return this.#tokens.has(token)
     }
 }
-
 /**
  * Minimal event target used by fake DOM nodes.
  */
 class FakeEventTarget {
     #listeners
-
     constructor() {
         this.#listeners = new Map()
     }
-
     /**
      * @param {string} type Event type.
      * @param {(event: any) => void} listener Listener.
@@ -58,7 +50,6 @@ class FakeEventTarget {
         }
         this.#listeners.get(type).add(listener)
     }
-
     /**
      * @param {string} type Event type.
      * @param {(event: any) => void} listener Listener.
@@ -67,7 +58,6 @@ class FakeEventTarget {
     removeEventListener(type, listener) {
         this.#listeners.get(type)?.delete(listener)
     }
-
     /**
      * @param {string} type Event type.
      * @param {any} event Event payload.
@@ -79,20 +69,17 @@ class FakeEventTarget {
         }
     }
 }
-
 /**
  * Minimal generic fake node.
  */
 class FakeNode extends FakeEventTarget {
     #attributes
-
     constructor() {
         super()
         this.#attributes = new Map()
         this.classList = new FakeClassList()
         this.style = {}
     }
-
     /**
      * @param {string} name Attribute name.
      * @param {string} value Attribute value.
@@ -101,7 +88,6 @@ class FakeNode extends FakeEventTarget {
     setAttribute(name, value) {
         this.#attributes.set(name, String(value))
     }
-
     /**
      * @param {string} name Attribute name.
      * @returns {string | null}
@@ -109,7 +95,6 @@ class FakeNode extends FakeEventTarget {
     getAttribute(name) {
         return this.#attributes.get(name) || null
     }
-
     /**
      * @param {string} _selector Selector.
      * @returns {FakeNode | null}
@@ -118,7 +103,6 @@ class FakeNode extends FakeEventTarget {
         return null
     }
 }
-
 /**
  * Minimal document node for SVG viewport listeners.
  */
@@ -128,7 +112,6 @@ class FakeDocument extends FakeEventTarget {
         this.documentElement = { classList: new FakeClassList() }
     }
 }
-
 /**
  * Minimal rendered PCB SVG node.
  */
@@ -142,7 +125,6 @@ class FakeSvgElement extends FakeNode {
         this.ownerDocument = ownerDocument
         this.setAttribute('viewBox', viewBox)
     }
-
     /**
      * @returns {{ left: number, top: number, width: number, height: number }}
      */
@@ -150,7 +132,6 @@ class FakeSvgElement extends FakeNode {
         return { left: 0, top: 0, width: 400, height: 200 }
     }
 }
-
 /**
  * Minimal PCB measurement toolbar button.
  */
@@ -162,7 +143,6 @@ class FakePcbMeasureButton extends FakeNode {
         super()
         this.setAttribute('data-pcb-measure-tool', tool)
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbMeasureButton | null}
@@ -187,6 +167,29 @@ class FakePcbTraceLengthButton extends FakeNode {
      */
     closest(selector) {
         return selector === '[data-pcb-trace-length-toggle]' ? this : null
+    }
+}
+
+/**
+ * Minimal PCB view setting toolbar button.
+ */
+class FakePcbViewSettingButton extends FakeNode {
+    /**
+     * @param {string} objectKey Object visibility key.
+     * @param {string} visible Current visibility string.
+     */
+    constructor(objectKey, visible) {
+        super()
+        this.setAttribute('data-pcb-view-setting', objectKey)
+        this.setAttribute('data-pcb-view-setting-visible', visible)
+    }
+
+    /**
+     * @param {string} selector Selector.
+     * @returns {FakePcbViewSettingButton | null}
+     */
+    closest(selector) {
+        return selector === '[data-pcb-view-setting]' ? this : null
     }
 }
 
@@ -234,6 +237,32 @@ class FakePcbMeasureCopyButton extends FakeNode {
 }
 
 /**
+ * Minimal measurement action button.
+ */
+class FakePcbMeasureActionButton extends FakeNode {
+    /**
+     * @param {string} action Action id.
+     * @param {Record<string, string>} bounds Bounds attributes.
+     */
+    constructor(action, bounds) {
+        super()
+        this.setAttribute('data-pcb-measure-action', action)
+        Object.entries(bounds).forEach(([name, value]) => {
+            this.setAttribute(name, value)
+        })
+    }
+
+    /**
+     * @param {string} selector Selector.
+     * @returns {FakePcbMeasureActionButton | null}
+     */
+    closest(selector) {
+        if (selector === '[data-pcb-measure-action]') return this
+        return null
+    }
+}
+
+/**
  * Minimal content node that reparses rendered PCB view markup.
  */
 class FakeContentNode extends FakeEventTarget {
@@ -241,8 +270,10 @@ class FakeContentNode extends FakeEventTarget {
     #svg
     #measureButtons
     #traceLengthButton
+    #viewSettingButtons
     #diagnosticButtons
     #measureCopyButton
+    #measureActions
 
     /**
      * @param {FakeDocument} ownerDocument Owner document.
@@ -252,8 +283,10 @@ class FakeContentNode extends FakeEventTarget {
         this.#ownerDocument = ownerDocument
         this.#svg = null
         this.#measureButtons = new Map()
+        this.#viewSettingButtons = new Map()
         this.#diagnosticButtons = new Map()
         this.#measureCopyButton = null
+        this.#measureActions = new Map()
         this._innerHTML = ''
     }
 
@@ -265,8 +298,10 @@ class FakeContentNode extends FakeEventTarget {
         this.#svg = null
         this.#measureButtons = new Map()
         this.#traceLengthButton = null
+        this.#viewSettingButtons = new Map()
         this.#diagnosticButtons = new Map()
         this.#measureCopyButton = null
+        this.#measureActions = new Map()
 
         const svgMatch = this._innerHTML.match(
             /<svg[^>]*class="[^"]*\bpcb-svg\b[^"]*"[^>]*viewBox="([^"]+)"/
@@ -289,6 +324,15 @@ class FakeContentNode extends FakeEventTarget {
         }
 
         for (const match of this._innerHTML.matchAll(
+            /<button[^>]*data-pcb-view-setting="([^"]+)"[^>]*data-pcb-view-setting-visible="([^"]+)"/g
+        )) {
+            this.#viewSettingButtons.set(
+                match[1],
+                new FakePcbViewSettingButton(match[1], match[2])
+            )
+        }
+
+        for (const match of this._innerHTML.matchAll(
             /<button[^>]*data-pcb-diagnostic-focus="([^"]+)"/g
         )) {
             this.#diagnosticButtons.set(
@@ -303,6 +347,20 @@ class FakeContentNode extends FakeEventTarget {
         if (copyMatch) {
             this.#measureCopyButton = new FakePcbMeasureCopyButton(
                 copyMatch[1].replaceAll('&quot;', '"')
+            )
+        }
+
+        for (const match of this._innerHTML.matchAll(
+            /<button[^>]*data-pcb-measure-action="([^"]+)"[^>]*>/g
+        )) {
+            const bounds = Object.fromEntries(
+                [
+                    ...match[0].matchAll(/\s(data-pcb-bounds-[^=]+)="([^"]*)"/g)
+                ].map(([, name, value]) => [name, value])
+            )
+            this.#measureActions.set(
+                match[1],
+                new FakePcbMeasureActionButton(match[1], bounds)
             )
         }
     }
@@ -326,6 +384,16 @@ class FakeContentNode extends FakeEventTarget {
         if (selector === '[data-pcb-measure-copy]') {
             return this.#measureCopyButton
         }
+        const settingMatch = selector.match(
+            /^\[data-pcb-view-setting="([^"]+)"\]$/
+        )
+        if (settingMatch) {
+            return this.#viewSettingButtons.get(settingMatch[1]) || null
+        }
+        const actionMatch = selector.match(
+            /^\[data-pcb-measure-action="([^"]+)"\]$/
+        )
+        if (actionMatch) return this.#measureActions.get(actionMatch[1]) || null
         const match = selector.match(/^\[data-pcb-measure-tool="([^"]+)"\]$/)
         return match ? this.#measureButtons.get(match[1]) || null : null
     }
@@ -356,6 +424,23 @@ class FakeContentNode extends FakeEventTarget {
     }
 
     /**
+     * Clicks a rendered PCB view setting button.
+     * @param {string} objectKey Object setting key.
+     * @returns {void}
+     */
+    clickViewSetting(objectKey) {
+        const button = this.#viewSettingButtons.get(objectKey)
+        if (!button) return
+
+        this.dispatch('click', {
+            target: button,
+            preventDefault() {},
+            stopPropagation() {},
+            stopImmediatePropagation() {}
+        })
+    }
+
+    /**
      * Clicks one rendered diagnostic focus row.
      * @param {string} diagnosticId Diagnostic id.
      * @returns {void}
@@ -376,6 +461,21 @@ class FakeContentNode extends FakeEventTarget {
 
         this.dispatch('click', {
             target: this.#measureCopyButton,
+            preventDefault() {}
+        })
+    }
+
+    /**
+     * Clicks the rendered measurement action button.
+     * @param {string} action Action id.
+     * @returns {void}
+     */
+    clickMeasurementAction(action) {
+        const button = this.#measureActions.get(action)
+        if (!button) return
+
+        this.dispatch('click', {
+            target: button,
             preventDefault() {}
         })
     }
@@ -560,6 +660,36 @@ test('PcbViewController renders CircuitJSON PCB net hover context', () => {
 })
 
 /**
+ * Verifies PCB hover movement emits transient candidate previews.
+ */
+test('PcbViewController previews CircuitJSON PCB hover candidates', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const previews = []
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onInteractionCandidatesChange: (change) => previews.push(change)
+        }
+    )
+    const viewBox = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+
+    content.movePcbBoard(
+        ((1 - viewBox.minX) / viewBox.width) * 400,
+        ((1 - viewBox.minY) / viewBox.height) * 200
+    )
+
+    assert.equal(previews.at(-1)?.source, 'hover')
+    assert.equal(previews.at(-1)?.selectedCandidate?.componentKey, 'U1')
+    assert.equal(previews.at(-1)?.selectedCandidate?.netName, 'VCC')
+
+    controller.dispose()
+})
+
+/**
  * Verifies the trace length overlay can be toggled from the PCB toolbar.
  */
 test('PcbViewController toggles CircuitJSON PCB trace length labels', () => {
@@ -575,6 +705,74 @@ test('PcbViewController toggles CircuitJSON PCB trace length labels', () => {
 
     assert.match(content.innerHTML, /data-pcb-trace-length-visible="true"/)
     assert.match(content.innerHTML, /class="[^"]*\bpcb-trace-length-label\b/)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies in-board PCB view settings emit object visibility changes.
+ */
+test('PcbViewController emits CircuitJSON PCB view setting visibility changes', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const changes = []
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument(),
+        { documentId: 'doc-1' }
+    )
+    content.addEventListener('pcb-object-visibility-change', (event) => {
+        changes.push(event.detail)
+    })
+
+    content.clickViewSetting('components-bottom')
+
+    assert.deepEqual(changes, [
+        {
+            documentId: 'doc-1',
+            objectKey: 'components-bottom',
+            visible: false,
+            source: 'pcb-view-settings'
+        }
+    ])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies component-side visibility filters suppress board hits.
+ */
+test('PcbViewController excludes hidden component-side candidates', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const componentChanges = []
+    const candidateChanges = []
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument(),
+        {
+            documentId: 'doc-1',
+            hiddenObjects: ['components-top'],
+            onComponentSelectionChange: (change) =>
+                componentChanges.push(change),
+            onInteractionCandidatesChange: (change) =>
+                candidateChanges.push(change)
+        }
+    )
+    const viewBox = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+
+    content.clickPcbBoard(
+        ((1 - viewBox.minX) / viewBox.width) * 400,
+        ((1 - viewBox.minY) / viewBox.height) * 200
+    )
+
+    assert.notEqual(componentChanges.at(-1)?.componentKey, 'U1')
+    assert.equal(
+        candidateChanges
+            .flatMap((change) => change.candidates || [])
+            .some((candidate) => candidate.componentKey === 'U1'),
+        false
+    )
 
     controller.dispose()
 })
@@ -630,6 +828,8 @@ test('PcbViewController focuses CircuitJSON PCB diagnostics in the viewport', ()
     assert.ok(after.width < before.width)
     assert.ok(after.minX < 1)
     assert.ok(after.minX + after.width > 3)
+    assert.match(content.innerHTML, /data-pcb-focused-diagnostic-id="err_1"/)
+    assert.match(content.innerHTML, /data-pcb-diagnostic-related-preview/)
 
     controller.dispose()
 })
@@ -665,13 +865,131 @@ test('PcbViewController copies CircuitJSON PCB measurement bounds', async () => 
     content.clickMeasurementCopy()
     await Promise.resolve()
 
-    assert.deepEqual(copied, [
-        'minX: 0.40, minY: 0.60, maxX: 3.00, maxY: 1.00'
-    ])
+    assert.deepEqual(copied, ['minX: 0.40, minY: 0.60, maxX: 3.00, maxY: 1.00'])
 
     controller.dispose()
     Object.defineProperty(globalThis, 'navigator', {
         configurable: true,
         value: previousNavigator
     })
+})
+
+/**
+ * Verifies completed bounds measurements can zoom the PCB viewport.
+ */
+test('PcbViewController zooms to CircuitJSON PCB measurement bounds', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument()
+    )
+    const viewBox = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+    const toClient = (point) => ({
+        x: ((point.x - viewBox.minX) / viewBox.width) * 400,
+        y: ((point.y - viewBox.minY) / viewBox.height) * 200
+    })
+    const start = toClient({ x: 0.1, y: 0.1 })
+    const end = toClient({ x: 0.2, y: 0.2 })
+
+    content.clickMeasureTool('bounds')
+    content.clickPcbBoard(start.x, start.y)
+    content.clickPcbBoard(end.x, end.y)
+    content.clickMeasurementAction('zoom')
+
+    const after = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+    assert.ok(after.width < viewBox.width)
+    assert.ok(after.minX <= 0.1)
+    assert.ok(after.minX + after.width >= 0.2)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies completed bounds measurements select contained board candidates.
+ */
+test('PcbViewController selects CircuitJSON PCB measurement bounds candidates', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const componentChanges = []
+    const netChanges = []
+    const candidateChanges = []
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onComponentSelectionChange: (change) =>
+                componentChanges.push(change),
+            onNetSelectionChange: (change) => netChanges.push(change),
+            onInteractionCandidatesChange: (change) =>
+                candidateChanges.push(change)
+        }
+    )
+    const viewBox = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+    const toClient = (point) => ({
+        x: ((point.x - viewBox.minX) / viewBox.width) * 400,
+        y: ((point.y - viewBox.minY) / viewBox.height) * 200
+    })
+    const start = toClient({ x: 0.4, y: 0.6 })
+    const end = toClient({ x: 3, y: 1 })
+
+    content.clickMeasureTool('bounds')
+    content.clickPcbBoard(start.x, start.y)
+    content.clickPcbBoard(end.x, end.y)
+    content.clickMeasurementAction('select')
+
+    assert.equal(componentChanges.at(-1)?.componentKey, 'U1')
+    assert.equal(netChanges.at(-1)?.netName, 'VCC')
+    assert.equal(candidateChanges.at(-1)?.source, 'bounds')
+    assert.equal(candidateChanges.at(-1)?.selectedCandidate?.componentKey, 'U1')
+    assert.equal(candidateChanges.at(-1)?.candidates.length >= 2, true)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies completed bounds measurements export a clipped SVG snapshot.
+ */
+test('PcbViewController exports CircuitJSON PCB measurement bounds SVG', () => {
+    const content = new FakeContentNode(new FakeDocument())
+    const downloads = []
+    const controller = new PcbViewController(
+        content,
+        createCircuitJsonPcbDocument(),
+        {
+            downloadBytes: (fileName, bytes, contentType) => {
+                downloads.push({
+                    fileName,
+                    text: new TextDecoder().decode(bytes),
+                    contentType
+                })
+            }
+        }
+    )
+    const viewBox = parseViewBox(
+        content.querySelector('.pcb-svg')?.getAttribute('viewBox')
+    )
+    const toClient = (point) => ({
+        x: ((point.x - viewBox.minX) / viewBox.width) * 400,
+        y: ((point.y - viewBox.minY) / viewBox.height) * 200
+    })
+    const start = toClient({ x: 0.4, y: 0.6 })
+    const end = toClient({ x: 3, y: 1 })
+
+    content.clickMeasureTool('bounds')
+    content.clickPcbBoard(start.x, start.y)
+    content.clickPcbBoard(end.x, end.y)
+    content.clickMeasurementAction('export-svg')
+
+    assert.equal(downloads[0]?.fileName, 'board-bounds.svg')
+    assert.equal(downloads[0]?.contentType, 'image/svg+xml')
+    assert.match(downloads[0]?.text || '', /viewBox="0\.4 0\.6 2\.6 0\.4"/)
+    assert.match(downloads[0]?.text || '', /class="[^"]*\bpcb-svg\b/)
+
+    controller.dispose()
 })

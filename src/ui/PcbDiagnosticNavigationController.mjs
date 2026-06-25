@@ -48,10 +48,11 @@ export class PcbDiagnosticNavigationController {
             '[data-pcb-diagnostic-copy]'
         )
         if (copyButton) {
-            event.preventDefault?.()
+            PcbDiagnosticNavigationController.#consumeEvent(event)
             this.#copyMessage(
                 copyButton.getAttribute('data-pcb-diagnostic-copy')
             )
+            this.#markCopied(copyButton)
             return
         }
 
@@ -73,7 +74,10 @@ export class PcbDiagnosticNavigationController {
 
         const id = button.getAttribute('data-pcb-diagnostic-focus')
         this.#setFocusedId(id)
-        if (notify) this.#emitFocus(id)
+        if (notify) {
+            PcbDiagnosticNavigationController.#consumeEvent(event)
+            this.#emitFocus(id)
+        }
     }
 
     /**
@@ -113,6 +117,20 @@ export class PcbDiagnosticNavigationController {
         if (!text) return
 
         globalThis.navigator?.clipboard?.writeText?.(text)
+    }
+
+    /**
+     * Marks the copied diagnostic button for immediate visual feedback.
+     * @param {Element} copyButton Button that copied a message.
+     * @returns {void}
+     */
+    #markCopied(copyButton) {
+        for (const node of this.#queryAll('[data-pcb-diagnostic-copy]')) {
+            node.classList?.remove('is-copied')
+            node.setAttribute?.('data-copy-state', 'idle')
+        }
+        copyButton.classList?.add('is-copied')
+        copyButton.setAttribute?.('data-copy-state', 'copied')
     }
 
     /**
@@ -162,5 +180,16 @@ export class PcbDiagnosticNavigationController {
             return
         }
         node.classList?.remove(className)
+    }
+
+    /**
+     * Consumes toolbar events before they reach board selection handlers.
+     * @param {Event} event Event to consume.
+     * @returns {void}
+     */
+    static #consumeEvent(event) {
+        event.preventDefault?.()
+        event.stopPropagation?.()
+        event.stopImmediatePropagation?.()
     }
 }

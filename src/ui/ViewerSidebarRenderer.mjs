@@ -7,6 +7,7 @@ import { ViewerSidebarLayerRenderer } from './ViewerSidebarLayerRenderer.mjs'
 import { ViewerSidebarNetRenderer } from './ViewerSidebarNetRenderer.mjs'
 import { ViewerSidebarOverviewRenderer } from './ViewerSidebarOverviewRenderer.mjs'
 import { ViewerSidebarGerberRenderer } from './ViewerSidebarGerberRenderer.mjs'
+import { ViewerSidebarInteractionInspectorRenderer } from './ViewerSidebarInteractionInspectorRenderer.mjs'
 
 const SIDEBAR_TABS = [
     { id: 'project', icon: 'folder', labelKey: 'sidebar.project' },
@@ -225,7 +226,11 @@ export class ViewerSidebarRenderer {
             return ViewerSidebarRenderer.#renderInfoPanel(snapshot, translate)
         })()
         return ViewerSidebarRenderer.#attachCollapseControl(
-            panelMarkup,
+            panelMarkup +
+                ViewerSidebarInteractionInspectorRenderer.render(
+                    snapshot,
+                    translate
+                ),
             translate
         )
     }
@@ -505,38 +510,6 @@ export class ViewerSidebarRenderer {
             '"><span class="viewer-sidebar__object-opacity-value" aria-hidden="true">' +
             ViewerSidebarRenderer.#escapeHtml(opacity) +
             '%</span></span></label>'
-        )
-    }
-
-    /**
-     * Renders net rows.
-     * @param {any} documentModel Active document model.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderNetsPanel(documentModel, translate) {
-        const nets = ViewerSidebarRenderer.#resolveNets(documentModel)
-
-        return (
-            ViewerSidebarRenderer.#renderPanelHeader(
-                translate('sidebar.nets')
-            ) +
-            (nets.length
-                ? '<div class="viewer-sidebar__list">' +
-                  nets
-                      .map(
-                          (net) =>
-                              '<span class="viewer-sidebar__row"><strong>' +
-                              ViewerSidebarRenderer.#escapeHtml(net.name) +
-                              '</strong><span>' +
-                              ViewerSidebarRenderer.#escapeHtml(net.detail) +
-                              '</span></span>'
-                      )
-                      .join('') +
-                  '</div>'
-                : ViewerSidebarRenderer.#renderEmpty(
-                      translate('sidebar.noNets')
-                  ))
         )
     }
 
@@ -834,36 +807,6 @@ export class ViewerSidebarRenderer {
     }
 
     /**
-     * Resolves normalized net rows from known model locations.
-     * @param {any} documentModel Active document model.
-     * @returns {{ name: string, detail: string }[]}
-     */
-    static #resolveNets(documentModel) {
-        const nets =
-            documentModel?.nets ||
-            documentModel?.pcb?.nets ||
-            documentModel?.schematic?.nets ||
-            []
-
-        if (!Array.isArray(nets)) {
-            return []
-        }
-
-        return nets
-            .map((net) => {
-                if (typeof net === 'string') {
-                    return { name: net, detail: '' }
-                }
-
-                return {
-                    name: String(net?.name || net?.label || net?.netName || ''),
-                    detail: ViewerSidebarRenderer.#formatNetDetail(net)
-                }
-            })
-            .filter((net) => net.name)
-    }
-
-    /**
      * Formats one document type label.
      * @param {any} documentModel Active document model.
      * @param {(key: string) => string} translate Translation lookup.
@@ -879,20 +822,6 @@ export class ViewerSidebarRenderer {
         }
 
         return String(documentModel?.kind || translate('summary.document'))
-    }
-
-    /**
-     * Formats a net detail string.
-     * @param {any} net Net metadata.
-     * @returns {string}
-     */
-    static #formatNetDetail(net) {
-        const count =
-            net?.pinCount ??
-            net?.pins?.length ??
-            net?.nodes?.length ??
-            net?.members?.length
-        return count ? String(count) + ' pins' : ''
     }
 
     /**

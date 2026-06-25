@@ -19,6 +19,9 @@ class FakeView {
     /** @type {((change: { documentId: string, objectKey: string, opacity: number }) => void) | null} */
     #objectOpacityCallback
 
+    /** @type {((change: { documentId: string, objectKey: string, visible: boolean, source?: string }) => void) | null} */
+    #objectVisibilityCallback
+
     /** @type {((change: { documentId: string, componentKey: string, source?: string }) => void) | null} */
     #componentSelectionCallback
 
@@ -48,6 +51,7 @@ class FakeView {
         this.#sidebarTabSelectionCallback = null
         this.#layerVisibilityCallback = null
         this.#objectOpacityCallback = null
+        this.#objectVisibilityCallback = null
         this.#componentSelectionCallback = null
         this.#layerPresetCallback = null
         this.#selectedPartExportCallback = null
@@ -100,6 +104,14 @@ class FakeView {
      */
     bindPcbObjectOpacityChange(callback) {
         this.#objectOpacityCallback = callback
+    }
+
+    /**
+     * @param {(change: { documentId: string, objectKey: string, visible: boolean, source?: string }) => void} callback
+     * @returns {void}
+     */
+    bindPcbObjectVisibilityChange(callback) {
+        this.#objectVisibilityCallback = callback
     }
 
     /**
@@ -226,6 +238,14 @@ class FakeView {
      */
     setObjectOpacity(change) {
         this.#objectOpacityCallback?.(change)
+    }
+
+    /**
+     * @param {{ documentId: string, objectKey: string, visible: boolean, source?: string }} change
+     * @returns {void}
+     */
+    setObjectVisibility(change) {
+        this.#objectVisibilityCallback?.(change)
     }
 
     /**
@@ -390,6 +410,43 @@ test('AppController updates hidden PCB layers from sidebar controls', async () =
     })
 
     assert.deepEqual(state.getSnapshot().hiddenPcbLayers, {})
+})
+
+/**
+ * Verifies controller object visibility events update hidden-object state.
+ */
+test('AppController updates hidden PCB objects from view controls', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const controller = new AppController({
+        state,
+        view,
+        parser: new FakeParser()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('alpha.PcbDoc')])
+    const documentId = state.getSnapshot().activeDocumentId
+
+    view.setObjectVisibility({
+        documentId,
+        objectKey: 'components-bottom',
+        visible: false,
+        source: 'pcb-view-settings'
+    })
+
+    assert.deepEqual(state.getSnapshot().hiddenPcbObjects, {
+        [documentId]: ['components-bottom']
+    })
+
+    view.setObjectVisibility({
+        documentId,
+        objectKey: 'components-bottom',
+        visible: true,
+        source: 'pcb-view-settings'
+    })
+
+    assert.deepEqual(state.getSnapshot().hiddenPcbObjects, {})
 })
 
 /**

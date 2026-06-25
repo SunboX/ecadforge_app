@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.8.68",
+    "version": "1.8.102",
     "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
     "license": "AGPL-3.0-or-later",
@@ -9,6 +9,7 @@
         "start": "node src/server.mjs",
         "build:static": "node scripts/build-static-deploy.mjs",
         "test": "node --test",
+        "check:circuitjson-schema": "node scripts/check-circuitjson-schema-drift.mjs",
         "sync:structured-data": "node scripts/sync-structured-data.mjs",
         "check:structured-data": "node scripts/check-structured-data.mjs",
         "format": "prettier --write .",
@@ -16,14 +17,14 @@
     },
     "dependencies": {
         "@sunbox/occt-import-js": "^0.0.25",
-        "altium-toolkit": "^1.1.35",
-        "circuitjson-toolkit": "^1.0.10",
+        "altium-toolkit": "^1.1.36",
+        "circuitjson-toolkit": "^1.0.16",
         "earcut": "^3.0.2",
         "express": "^5.1.0",
         "fflate": "^0.8.2",
         "gerber-toolkit": "^0.1.18",
         "kicad-toolkit": "^1.0.22",
-        "pcb-scene3d-viewer": "^1.1.31",
+        "pcb-scene3d-viewer": "^1.1.44",
         "three": "^0.183.2"
     },
     "devDependencies": {

@@ -57,6 +57,29 @@ export class AppControllerPcbStateHandlers {
     }
 
     /**
+     * Applies one PCB object visibility change from rendered controls.
+     * @param {import('./core/AppState.mjs').AppState} state App state.
+     * @param {{ documentId?: string, objectKey?: string, visible?: boolean }} change Object visibility event.
+     * @returns {void}
+     */
+    static handleObjectVisibility(state, change) {
+        const snapshot = state.getSnapshot()
+        const documentId = AppControllerPcbStateHandlers.#documentId(
+            snapshot,
+            change
+        )
+        const objectKey = String(change?.objectKey || '')
+        const nextHidden = PcbObjectVisibilityModel.withObjectVisibility(
+            snapshot.hiddenPcbObjects,
+            documentId,
+            objectKey,
+            change?.visible !== false
+        )
+
+        state.setValue('hiddenPcbObjects', nextHidden)
+    }
+
+    /**
      * Applies one PCB component selection from the sidebar or rendered view.
      * @param {import('./core/AppState.mjs').AppState} state App state.
      * @param {{ documentId?: string, componentKey?: string, source?: string }} change Selection event.

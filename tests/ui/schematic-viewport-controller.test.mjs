@@ -219,6 +219,60 @@ test('SchematicViewportController centers document bounds', () => {
 })
 
 /**
+ * Verifies optional animated focus interpolates through animation frames.
+ */
+test('SchematicViewportController animates focused document bounds', () => {
+    const previousRequestAnimationFrame = globalThis.requestAnimationFrame
+    const previousCancelAnimationFrame = globalThis.cancelAnimationFrame
+    const frames = []
+    globalThis.requestAnimationFrame = (callback) => {
+        frames.push(callback)
+        return frames.length
+    }
+    globalThis.cancelAnimationFrame = () => {}
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 }
+    })
+    const controller = new SchematicViewportController(svg)
+
+    try {
+        controller.focusBounds(
+            { x: 20, y: 30, width: 10, height: 10 },
+            { animate: true, animationDurationMs: 120, paddingFactor: 2 }
+        )
+
+        assert.ok(frames.length > 0)
+        while (frames.length) {
+            frames.shift()(1000000)
+        }
+        assert.equal(svg.getAttribute('viewBox'), '5 25 40 20')
+    } finally {
+        controller.dispose()
+        globalThis.requestAnimationFrame = previousRequestAnimationFrame
+        globalThis.cancelAnimationFrame = previousCancelAnimationFrame
+    }
+})
+
+/**
+ * Verifies callers can restore the original fitted SVG viewBox.
+ */
+test('SchematicViewportController resets to the default viewBox', () => {
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 }
+    })
+    const controller = new SchematicViewportController(svg)
+
+    controller.centerBounds({ x: 20, y: 30, width: 10, height: 10 })
+    controller.resetViewBox()
+
+    assert.equal(svg.getAttribute('viewBox'), '0 0 200 100')
+
+    controller.dispose()
+})
+
+/**
  * Verifies drag panning updates the viewBox and toggles the panning class.
  */
 test('SchematicViewportController pans while the primary mouse button is held', () => {

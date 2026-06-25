@@ -73,6 +73,20 @@ class FakeMount {
             listener(event)
         }
     }
+
+    /**
+     * Dispatches one custom event with detail payload.
+     * @param {string} type Event type.
+     * @param {any} detail Event detail.
+     * @returns {void}
+     */
+    custom(type, detail) {
+        const event = { detail }
+
+        for (const listener of this.#listeners.get(type) || []) {
+            listener(event)
+        }
+    }
 }
 
 /**
@@ -483,6 +497,60 @@ test('ViewerSidebarEventBinder binds PCB net selection buttons', () => {
         }
     ])
     assert.equal(event.defaultPrevented, true)
+})
+
+/**
+ * Verifies PCB layer visibility can also flow through custom viewport events.
+ */
+test('ViewerSidebarEventBinder binds PCB layer visibility custom events', () => {
+    const mount = new FakeMount()
+    const changes = []
+
+    ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(mount, (change) =>
+        changes.push(change)
+    )
+    mount.custom('pcb-layer-visibility-change', {
+        documentId: 'doc-1',
+        layerKey: 'Top Layer',
+        visible: false,
+        source: 'pcb-layer-shortcut'
+    })
+
+    assert.deepEqual(changes, [
+        {
+            documentId: 'doc-1',
+            layerKey: 'Top Layer',
+            visible: false,
+            source: 'pcb-layer-shortcut'
+        }
+    ])
+})
+
+/**
+ * Verifies PCB object visibility can flow through custom viewport events.
+ */
+test('ViewerSidebarEventBinder binds PCB object visibility custom events', () => {
+    const mount = new FakeMount()
+    const changes = []
+
+    ViewerSidebarEventBinder.bindPcbObjectVisibilityChange(mount, (change) =>
+        changes.push(change)
+    )
+    mount.custom('pcb-object-visibility-change', {
+        documentId: 'doc-1',
+        objectKey: 'components-bottom',
+        visible: false,
+        source: 'pcb-view-settings'
+    })
+
+    assert.deepEqual(changes, [
+        {
+            documentId: 'doc-1',
+            objectKey: 'components-bottom',
+            visible: false,
+            source: 'pcb-view-settings'
+        }
+    ])
 })
 
 /**

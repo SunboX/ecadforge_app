@@ -14,7 +14,8 @@ export class ViewerSidebarNetRenderer {
         const nets = ViewerSidebarNetRenderer.#resolveRows(
             snapshot?.documentModel,
             String(snapshot?.activeDocumentId || ''),
-            snapshot?.selectedNets || {}
+            snapshot?.selectedNets || {},
+            ViewerSidebarNetRenderer.#previewNetName(snapshot)
         )
 
         return (
@@ -31,7 +32,7 @@ export class ViewerSidebarNetRenderer {
 
     /**
      * Renders the searchable net browser.
-     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }[]} nets Net rows.
+     * @param {{ color: string, detail: string, documentId: string, key: string, label: string, preview: boolean, search: string, selected: boolean }[]} nets Net rows.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -51,9 +52,10 @@ export class ViewerSidebarNetRenderer {
      * @param {any} documentModel Active document model.
      * @param {string} documentId Active document id.
      * @param {{ [documentId: string]: string }} selectedNets Selected net map.
-     * @returns {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }[]}
+     * @param {string} previewKey Previewed net key.
+     * @returns {{ color: string, detail: string, documentId: string, key: string, label: string, preview: boolean, search: string, selected: boolean }[]}
      */
-    static #resolveRows(documentModel, documentId, selectedNets) {
+    static #resolveRows(documentModel, documentId, selectedNets, previewKey) {
         const selectedKey = NetSelectionModel.resolveSelectedKey(
             selectedNets,
             documentId
@@ -71,10 +73,12 @@ export class ViewerSidebarNetRenderer {
                     ? ViewerSidebarNetRenderer.#formatNetDetail(net)
                     : ''
                 rowsByKey.set(key, {
+                    color: ViewerSidebarNetRenderer.#netColor(net),
                     detail,
                     documentId,
                     key,
                     label: key,
+                    preview: Boolean(previewKey && key === previewKey),
                     search: [key, detail]
                         .filter(Boolean)
                         .join(' ')
@@ -99,6 +103,7 @@ export class ViewerSidebarNetRenderer {
      */
     static #resolveNetEntries(documentModel) {
         const explicit = [
+            ...ViewerSidebarNetRenderer.#circuitJsonNetEntries(documentModel),
             ...(Array.isArray(documentModel?.nets) ? documentModel.nets : []),
             ...(Array.isArray(documentModel?.pcb?.nets)
                 ? documentModel.pcb.nets
@@ -124,6 +129,94 @@ export class ViewerSidebarNetRenderer {
     }
 
     /**
+     * Resolves explicit net entries from element-array documents.
+     * @param {any} documentModel Active document model.
+     * @returns {any[]}
+     */
+    static #circuitJsonNetEntries(documentModel) {
+        const elements = ViewerSidebarNetRenderer.#elements(documentModel)
+        const sourceById = new Map(
+            elements
+                .filter((element) => element?.type === 'source_net')
+                .map((element) => [
+                    String(element.source_net_id || '').trim(),
+                    element
+                ])
+                .filter(([id]) => id)
+        )
+        const pcbNets = elements.filter(
+            (element) => element?.type === 'pcb_net'
+        )
+        const entries = pcbNets
+            .map((pcbNet) =>
+                ViewerSidebarNetRenderer.#circuitJsonNetEntry(
+                    sourceById.get(String(pcbNet.source_net_id || '').trim()),
+                    pcbNet
+                )
+            )
+            .filter(Boolean)
+        const explicitSourceIds = new Set(
+            entries.map((entry) => entry.sourceNetId).filter(Boolean)
+        )
+        const sourceEntries = [...sourceById.values()]
+            .filter(
+                (source) => !explicitSourceIds.has(source.source_net_id || '')
+            )
+            .map((source) =>
+                ViewerSidebarNetRenderer.#circuitJsonNetEntry(source, {})
+            )
+            .filter(Boolean)
+        return [...entries, ...sourceEntries]
+    }
+
+    /**
+     * Builds one element-array net entry.
+     * @param {any} source Source net row.
+     * @param {any} pcbNet PCB net row.
+     * @returns {any | null}
+     */
+    static #circuitJsonNetEntry(source, pcbNet) {
+        const sourceNetId = String(
+            source?.source_net_id || pcbNet?.source_net_id || ''
+        ).trim()
+        const pcbNetId = String(pcbNet?.pcb_net_id || '').trim()
+        const name = String(
+            pcbNet?.name ||
+                pcbNet?.net ||
+                source?.name ||
+                source?.net ||
+                sourceNetId ||
+                pcbNetId ||
+                ''
+        ).trim()
+        if (!name) return null
+        return {
+            name,
+            sourceNetId,
+            pcbNetId,
+            highlightColor: ViewerSidebarNetRenderer.#safeColor(
+                pcbNet?.highlight_color ||
+                    pcbNet?.highlightColor ||
+                    pcbNet?.color
+            )
+        }
+    }
+
+    /**
+     * Reads element rows from document wrappers.
+     * @param {any} documentModel Active document model.
+     * @returns {any[]}
+     */
+    static #elements(documentModel) {
+        if (Array.isArray(documentModel)) return documentModel
+        if (Array.isArray(documentModel?.elements)) return documentModel.elements
+        if (Array.isArray(documentModel?.circuitJson)) {
+            return documentModel.circuitJson
+        }
+        return []
+    }
+
+    /**
      * Formats one net detail string.
      * @param {any} net Net metadata.
      * @returns {string}
@@ -136,6 +229,17 @@ export class ViewerSidebarNetRenderer {
             net?.members?.length ??
             0
         return String(count) + ' pins'
+    }
+
+    /**
+     * Resolves a safe row color for one net.
+     * @param {any} net Net metadata.
+     * @returns {string}
+     */
+    static #netColor(net) {
+        return ViewerSidebarNetRenderer.#safeColor(
+            net?.highlightColor || net?.highlight_color || net?.color
+        )
     }
 
     /**
@@ -162,7 +266,7 @@ export class ViewerSidebarNetRenderer {
     /**
      * Renders the single net group.
      * @param {string} groupLabel Group label.
-     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }[]} rows Net rows.
+     * @param {{ color: string, detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }[]} rows Net rows.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -182,7 +286,7 @@ export class ViewerSidebarNetRenderer {
 
     /**
      * Renders one net row.
-     * @param {{ detail: string, documentId: string, key: string, label: string, search: string, selected: boolean }} row Net row.
+     * @param {{ color: string, detail: string, documentId: string, key: string, label: string, preview: boolean, search: string, selected: boolean }} row Net row.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
@@ -191,11 +295,14 @@ export class ViewerSidebarNetRenderer {
         const title = [row.label, row.detail].filter(Boolean).join(' ')
         return (
             '<div class="viewer-sidebar__component-row-shell' +
+            (row.preview ? ' is-preview' : '') +
             (row.selected ? ' is-active' : '') +
             '" data-net-search="' +
             ViewerSidebarNetRenderer.#escapeHtml(row.search) +
             '"><button class="viewer-sidebar__component-row viewer-sidebar__net-row' +
+            (row.color ? ' viewer-sidebar__net-row--with-color' : '') +
             (row.detail ? '' : ' viewer-sidebar__net-row--label-only') +
+            (row.preview ? ' is-preview' : '') +
             (row.selected ? ' is-active' : '') +
             '" type="button" data-pcb-net-key="' +
             ViewerSidebarNetRenderer.#escapeHtml(row.key) +
@@ -205,7 +312,9 @@ export class ViewerSidebarNetRenderer {
             (row.selected ? 'true' : 'false') +
             '" title="' +
             ViewerSidebarNetRenderer.#escapeHtml(title) +
-            '"><span class="viewer-sidebar__component-ref">' +
+            '">' +
+            ViewerSidebarNetRenderer.#renderNetSwatch(row.color) +
+            '<span class="viewer-sidebar__component-ref">' +
             ViewerSidebarNetRenderer.#escapeHtml(row.label) +
             '</span>' +
             (row.detail
@@ -223,6 +332,62 @@ export class ViewerSidebarNetRenderer {
             ViewerSidebarNetRenderer.#renderCopyIcon() +
             '</button></div>'
         )
+    }
+
+    /**
+     * Renders a net color swatch.
+     * @param {string} color Safe color.
+     * @returns {string}
+     */
+    static #renderNetSwatch(color) {
+        if (!color) return ''
+        return (
+            '<span class="viewer-sidebar__net-swatch" data-net-color="' +
+            ViewerSidebarNetRenderer.#escapeHtml(color) +
+            '" style="--net-color: ' +
+            ViewerSidebarNetRenderer.#escapeHtml(color) +
+            '"></span>'
+        )
+    }
+
+    /**
+     * Resolves the net key currently previewed by PCB interaction.
+     * @param {{ pcbInteractionPreview?: object }} snapshot Viewer snapshot.
+     * @returns {string}
+     */
+    static #previewNetName(snapshot) {
+        const preview = snapshot?.pcbInteractionPreview
+        const selectedName = ViewerSidebarNetRenderer.#candidateNetName(
+            preview?.selectedCandidate
+        )
+        if (selectedName) return selectedName
+
+        const candidate = (Array.isArray(preview?.candidates)
+            ? preview.candidates
+            : []
+        ).find((row) => ViewerSidebarNetRenderer.#candidateNetName(row))
+        return ViewerSidebarNetRenderer.#candidateNetName(candidate)
+    }
+
+    /**
+     * Resolves one candidate's net name.
+     * @param {object | null | undefined} candidate Candidate row.
+     * @returns {string}
+     */
+    static #candidateNetName(candidate) {
+        return String(
+            candidate?.netName ?? candidate?.net ?? candidate?.net_name ?? ''
+        ).trim()
+    }
+
+    /**
+     * Returns a color safe for inline style variables.
+     * @param {unknown} value Color candidate.
+     * @returns {string}
+     */
+    static #safeColor(value) {
+        const text = String(value || '').trim()
+        return /^#[0-9a-f]{3,8}$/iu.test(text) ? text : ''
     }
 
     /**
