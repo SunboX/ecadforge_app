@@ -14,6 +14,7 @@
 - Run: `npm start`
 - Open: `http://localhost:3000/`
 - Test: `npm test`
+- Deploy checks: `npm run check:structured-data` and `npm run build:static`
 
 ## Local Library Development
 
@@ -63,6 +64,13 @@
 - With every change, increment the app version in `package.json`.
 - Keep merge request summaries concise and include test results.
 - Attach screenshots for visual changes.
+
+## Release & Deployment Gates
+
+- After any package version bump, dependency update, or change that can affect SEO or deployment HTML, run `npm run sync:structured-data`, commit the generated `src/*.html` updates, and then verify `npm run check:structured-data`.
+- Before pushing a release to `main`, run the local commands that mirror the `Deploy to FTP (main)` workflow for touched areas. For browser app or dependency changes this means at least `npm test`, `npm run check:structured-data`, and `npm run build:static`.
+- After pushing `main`, inspect the triggered GitHub Actions run for the pushed commit with `gh run list --branch main --commit <sha>` and `gh run watch <run-id> --exit-status`.
+- Do not report that a release is complete, deployed, or successful until the relevant GitHub Actions workflow has completed with conclusion `success`. If the GitHub release/tag exists but the deployment workflow fails or is still running, report that exact partial state instead of calling the release complete.
 
 ## Documentation Guidelines
 
