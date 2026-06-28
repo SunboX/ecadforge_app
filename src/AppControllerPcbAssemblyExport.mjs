@@ -7,7 +7,7 @@ import { CircuitJsonManufacturingDownloadBuilder } from 'circuitjson-toolkit/ren
 export class AppControllerPcbAssemblyExport {
     /**
      * Exports the active PCB assembly or manufacturing metadata.
-     * @param {{ change?: { documentId?: string, format?: string }, state: { getSnapshot: () => object, setValue?: (key: string, value: any) => object }, view: { showExportProgress?: (progress: { title?: string, value?: number, message?: string }) => void, updateExportProgress?: (progress: { value?: number, message?: string }) => void, hideExportProgress?: () => void, downloadBytes?: (fileName: string, bytes: Uint8Array, contentType: string) => void, setStatus?: (message: string) => void }, pcbAssemblyExportService: { export: (options: { format?: string, documentId?: string, documentModel?: object | null, documents?: object[], sessionAssets?: object[], onProgress?: (progress: { value: number, message: string }) => void }) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
+     * @param {{ change?: { documentId?: string, format?: string }, state: { getSnapshot: () => object, setValue?: (key: string, value: any) => object }, view: { showExportProgress?: (progress: { title?: string, value?: number, message?: string }) => void, updateExportProgress?: (progress: { value?: number, message?: string }) => void, hideExportProgress?: () => void, downloadBytes?: (fileName: string, bytes: Uint8Array, contentType: string) => void, setStatus?: (message: string) => void }, pcbAssemblyExportService: { export: (options: { format?: string, documentId?: string, documentModel?: object | null, documents?: object[], sessionAssets?: object[], boardTextureFormat?: string, onProgress?: (progress: { value: number, message: string }) => void }) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
      * @returns {Promise<void>}
      */
     static async handle(options) {
@@ -48,6 +48,9 @@ export class AppControllerPcbAssemblyExport {
                 documentModel,
                 documents: snapshot.documents,
                 sessionAssets,
+                ...AppControllerPcbAssemblyExport.#boardTextureExportOptions(
+                    format
+                ),
                 onProgress: (progress) =>
                     options.view.updateExportProgress?.(progress)
             })
@@ -67,6 +70,17 @@ export class AppControllerPcbAssemblyExport {
         } finally {
             options.view.hideExportProgress?.()
         }
+    }
+
+    /**
+     * Builds board texture export defaults for texture-heavy payload formats.
+     * @param {string} format Export format.
+     * @returns {{ boardTextureFormat?: string }}
+     */
+    static #boardTextureExportOptions(format) {
+        return String(format).toLowerCase() === 'glb'
+            ? { boardTextureFormat: 'png' }
+            : {}
     }
 
     /**

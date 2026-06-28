@@ -47,7 +47,7 @@ export class PcbAssemblyExportService {
 
     /**
      * Exports one PCB assembly.
-     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined, allowNetworkModelFetch?: boolean, modelFetch?: (url: string, options: object) => Promise<any>, modelFetchTimeoutMs?: number, authHeaders?: Record<string, string>, modelCache?: Map<string, Promise<Uint8Array>>, includeSceneMetadata?: boolean, onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
+     * @param {{ format?: string, documentModel?: object, sceneDescription?: object, sessionAssets?: object[], includeModels?: boolean, renderFallbackBodies?: boolean, boardDrillQuality?: string, drawFauxBoard?: boolean, boardTextureFormat?: string, boardTextureResolution?: number, boardTextureShowNotes?: boolean, projectBaseUrl?: string, modelUrlResolver?: (url: string, context: object) => string | object | null | undefined, allowNetworkModelFetch?: boolean, modelFetch?: (url: string, options: object) => Promise<any>, modelFetchTimeoutMs?: number, authHeaders?: Record<string, string>, modelCache?: Map<string, Promise<Uint8Array>>, includeSceneMetadata?: boolean, sceneCameraPreset?: string, sceneCameraAspectRatio?: number, sceneCameraFovDegrees?: number, onProgress?: (progress: { value: number, message: string }) => void }} options Export options.
      * @returns {Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics: object[], meshCount: number }>}
      */
     async export(options = {}) {
@@ -275,17 +275,19 @@ export class PcbAssemblyExportService {
      * @param {'step' | 'wrl' | 'gltf' | 'glb'} format Export format.
      * @param {string} assemblyName Assembly name.
      * @param {object[]} meshes Assembly meshes.
-     * @param {{ includeSceneMetadata?: boolean }} options Export options.
+     * @param {{ includeSceneMetadata?: boolean, sceneCameraPreset?: string, sceneCameraAspectRatio?: number, sceneCameraFovDegrees?: number }} options Export options.
      * @returns {{ bytes: Uint8Array }}
      */
     static #writeAssembly(format, assemblyName, meshes, options = {}) {
+        const sceneMetadataOptions =
+            PcbAssemblyExportService.#sceneMetadataOptions(options)
         if (format === 'glb') {
             return {
                 bytes: PcbAssemblyGltfWriter.write({
                     name: assemblyName,
                     meshes,
                     format,
-                    includeSceneMetadata: options.includeSceneMetadata !== false
+                    ...sceneMetadataOptions
                 })
             }
         }
@@ -298,8 +300,7 @@ export class PcbAssemblyExportService {
                             name: assemblyName,
                             meshes,
                             format,
-                            includeSceneMetadata:
-                                options.includeSceneMetadata !== false
+                            ...sceneMetadataOptions
                         })
                     )
                 )
@@ -320,6 +321,27 @@ export class PcbAssemblyExportService {
         return {
             bytes: new TextEncoder().encode(text)
         }
+    }
+
+    /**
+     * Builds GLTF scene metadata options from export settings.
+     * @param {{ includeSceneMetadata?: boolean, sceneCameraPreset?: string, sceneCameraAspectRatio?: number, sceneCameraFovDegrees?: number }} options Export options.
+     * @returns {{ includeSceneMetadata: boolean, sceneCameraPreset?: string, sceneCameraAspectRatio?: number, sceneCameraFovDegrees?: number }}
+     */
+    static #sceneMetadataOptions(options) {
+        const sceneOptions = {
+            includeSceneMetadata: options.includeSceneMetadata !== false
+        }
+        for (const key of [
+            'sceneCameraPreset',
+            'sceneCameraAspectRatio',
+            'sceneCameraFovDegrees'
+        ]) {
+            if (Object.hasOwn(options, key)) {
+                sceneOptions[key] = options[key]
+            }
+        }
+        return sceneOptions
     }
 
     /**

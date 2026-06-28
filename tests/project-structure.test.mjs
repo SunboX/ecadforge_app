@@ -798,9 +798,9 @@ test('3d runtime source resolves browser dependencies through deployed asset pat
         ),
         'utf8'
     )
-    const externalModelsSource = await readFile(
+    const externalModelGroupLoaderSource = await readFile(
         new URL(
-            'node_modules/pcb-scene3d-viewer/src/PcbScene3dExternalModels.mjs',
+            'node_modules/pcb-scene3d-viewer/src/PcbScene3dExternalModelGroupLoader.mjs',
             root
         ),
         'utf8'
@@ -822,7 +822,7 @@ test('3d runtime source resolves browser dependencies through deployed asset pat
         /\/node_modules\/three\/examples\/jsm\/controls\/OrbitControls\.js/
     )
     assert.match(
-        externalModelsSource,
+        externalModelGroupLoaderSource,
         /\/node_modules\/three\/examples\/jsm\/loaders\/VRMLLoader\.js/
     )
     assert.match(stepLoaderSource, /\/vendor\/occt-import-js\/dist\//)

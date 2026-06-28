@@ -761,6 +761,7 @@ test('AppController exports the active PCB assembly from sidebar controls', asyn
 
     assert.equal(exportRequests.length, 1)
     assert.equal(exportRequests[0].format, 'glb')
+    assert.equal(exportRequests[0].boardTextureFormat, 'png')
     assert.equal(exportRequests[0].documentId, documentId)
     assert.equal(exportRequests[0].documentModel.fileName, 'alpha.PcbDoc')
     assert.equal(typeof exportRequests[0].onProgress, 'function')

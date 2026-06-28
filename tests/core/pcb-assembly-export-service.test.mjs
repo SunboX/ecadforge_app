@@ -198,14 +198,51 @@ function parseGlbJson(glb) {
 }
 
 /**
- * Decodes a base64 SVG data URI.
- * @param {string} uri Data URI.
- * @returns {string}
+ * Extracts the binary chunk from a binary GLB.
+ * @param {Uint8Array} glb Binary GLB.
+ * @returns {Buffer}
  */
-function decodeSvgDataUri(uri) {
-    const prefix = 'data:image/svg+xml;base64,'
-    assert.ok(uri.startsWith(prefix))
-    return Buffer.from(uri.slice(prefix.length), 'base64').toString('utf8')
+function parseGlbBinaryChunk(glb) {
+    const buffer = Buffer.from(glb)
+    const jsonLength = buffer.readUInt32LE(12)
+    const binHeaderOffset = 20 + jsonLength
+    const binLength = buffer.readUInt32LE(binHeaderOffset)
+
+    assert.equal(
+        buffer.toString('utf8', binHeaderOffset + 4, binHeaderOffset + 7),
+        'BIN'
+    )
+    return buffer.subarray(binHeaderOffset + 8, binHeaderOffset + 8 + binLength)
+}
+
+/**
+ * Reads one GLB image buffer view.
+ * @param {object} gltf GLTF JSON chunk.
+ * @param {Buffer} binaryChunk GLB binary chunk.
+ * @param {object} image GLTF image record.
+ * @returns {Buffer}
+ */
+function readGlbImageBytes(gltf, binaryChunk, image) {
+    assert.equal(Number.isInteger(image?.bufferView), true)
+    const bufferView = gltf.bufferViews[image.bufferView]
+    assert.ok(bufferView)
+    return binaryChunk.subarray(
+        Number(bufferView.byteOffset || 0),
+        Number(bufferView.byteOffset || 0) + Number(bufferView.byteLength || 0)
+    )
+}
+
+/**
+ * Finds the first camera node in a GLTF document.
+ * @param {object} gltf GLTF JSON chunk.
+ * @returns {object}
+ */
+function findCameraNode(gltf) {
+    const node = gltf.nodes.find((candidate) =>
+        Number.isInteger(candidate.camera)
+    )
+    assert.ok(node)
+    return node
 }
 
 test('PcbAssemblyExportService exports a full PCB assembly as STEP', async () => {
@@ -286,7 +323,40 @@ test('PcbAssemblyExportService exports a full PCB assembly as GLB', async () => 
     assert.equal(buffer.toString('utf8', 0, 4), 'glTF')
     assert.equal(buffer.readUInt32LE(4), 2)
     assert.equal(gltf.asset.version, '2.0')
+    assert.equal(gltf.cameras[0].type, 'perspective')
+    assert.ok(findCameraNode(gltf).translation.every(Number.isFinite))
     assert.ok(result.meshCount > 0)
+})
+
+test('PcbAssemblyExportService forwards GLB scene camera options', async () => {
+    const service = new PcbAssemblyExportService({
+        modelMeshLoader: createModelMeshLoader()
+    })
+
+    const result = await service.export({
+        format: 'glb',
+        documentModel: { fileName: 'fake-board.kicad_pcb' },
+        sceneDescription: createSceneDescription(),
+        sceneCameraPreset: 'top',
+        sceneCameraAspectRatio: 0.5,
+        sceneCameraFovDegrees: 50
+    })
+    const gltf = parseGlbJson(result.bytes)
+    const cameraNode = findCameraNode(gltf)
+
+    assert.equal(gltf.cameras[0].perspective.aspectRatio, 0.5)
+    assert.equal(
+        Math.round(gltf.cameras[0].perspective.yfov * 1000),
+        Math.round(((50 * Math.PI) / 180) * 1000)
+    )
+    assert.ok(
+        Math.abs(cameraNode.translation[1]) >
+            Math.abs(cameraNode.translation[0])
+    )
+    assert.ok(
+        Math.abs(cameraNode.translation[1]) >
+            Math.abs(cameraNode.translation[2])
+    )
 })
 
 test('PcbAssemblyExportService embeds rendered board textures in GLB exports', async () => {
@@ -300,15 +370,19 @@ test('PcbAssemblyExportService embeds rendered board textures in GLB exports', a
         sceneDescription: createSceneDescription()
     })
     const gltf = parseGlbJson(result.bytes)
-    const imageUris = gltf.images.map((image) => image.uri)
-    const decodedImages = imageUris.map((uri) => decodeSvgDataUri(uri))
+    const binaryChunk = parseGlbBinaryChunk(result.bytes)
+    const decodedImages = gltf.images.map((image) => {
+        assert.equal(image.uri, undefined)
+        assert.equal(image.mimeType, 'image/svg+xml')
+        return readGlbImageBytes(gltf, binaryChunk, image).toString('utf8')
+    })
     const texturedMaterials = gltf.materials.filter((material) =>
         Number.isInteger(
             material?.pbrMetallicRoughness?.baseColorTexture?.index
         )
     )
 
-    assert.equal(imageUris.length, 2)
+    assert.equal(gltf.images.length, 2)
     assert.ok(decodedImages.some((image) => /pcb-svg--top/.test(image)))
     assert.ok(decodedImages.some((image) => /pcb-svg--bottom/.test(image)))
     assert.ok(texturedMaterials.length >= 2)
@@ -349,16 +423,18 @@ test('PcbAssemblyExportService passes board texture image options to GLB exports
         boardTextureResolution: 768
     })
     const gltf = parseGlbJson(result.bytes)
+    const binaryChunk = parseGlbBinaryChunk(result.bytes)
+    const imagePayloads = gltf.images.map((image) => {
+        assert.equal(image.uri, undefined)
+        assert.equal(image.mimeType, 'image/png')
+        return readGlbImageBytes(gltf, binaryChunk, image).toString('utf8')
+    })
 
     assert.equal(renderCalls.length, 1)
     assert.equal(renderCalls[0].documentModel, documentModel)
     assert.equal(renderCalls[0].options.imageFormat, 'png')
     assert.equal(renderCalls[0].options.resolution, 768)
-    assert.ok(
-        gltf.images.every((image) =>
-            image.uri.startsWith('data:image/png;base64,')
-        )
-    )
+    assert.deepEqual(imagePayloads.sort(), ['bottom-png', 'top-png'])
 })
 
 test('PcbAssemblyExportService forwards assembly export options', async () => {
