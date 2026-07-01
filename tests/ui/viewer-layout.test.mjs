@@ -588,9 +588,9 @@ test('sample CTA styles use explicit Altium and KiCad color classes', async () =
 })
 
 /**
- * Verifies app-level schematic palette overrides preserve the ECAD Forge theme.
+ * Verifies app-level schematic palette overrides preserve ECAD Forge colors.
  */
-test('viewer stylesheet keeps schematic app colors in app preview wrappers', async () => {
+test('viewer stylesheet keeps schematic ECAD Forge colors in app preview wrappers', async () => {
     const css = await readViewerStylesheet()
     const selectorBlocks = [
         '.schematic-svg',

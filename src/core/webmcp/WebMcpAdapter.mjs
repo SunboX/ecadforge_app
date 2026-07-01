@@ -31,9 +31,9 @@ export class WebMcpAdapter {
 
     /**
      * Registers tools when native WebMCP support is available.
-     * @returns {{ available: boolean, registered: number, failed: number }}
+     * @returns {Promise<{ available: boolean, registered: number, failed: number }>}
      */
-    initialize() {
+    async initialize() {
         if (
             !this.#modelContext ||
             typeof this.#modelContext.registerTool !== 'function'
@@ -46,7 +46,7 @@ export class WebMcpAdapter {
         const apiForm = this.#apiForm()
         for (const tool of this.#registry.getTools()) {
             try {
-                this.#registerTool(tool, apiForm)
+                await this.#registerTool(tool, apiForm)
                 registered += 1
             } catch (_error) {
                 failed += 1
@@ -70,18 +70,22 @@ export class WebMcpAdapter {
      * Registers one tool using the available browser signature.
      * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
      * @param {string} apiForm Browser API form.
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    #registerTool(tool, apiForm) {
+    async #registerTool(tool, apiForm) {
         const registerTool = this.#modelContext.registerTool
         if (registerTool.length <= 2) {
-            this.#modelContext.registerTool(this.#toNativeTool(tool, apiForm))
+            await registerTool.call(
+                this.#modelContext,
+                this.#toNativeTool(tool, apiForm)
+            )
             return
         }
 
         const handler = this.#toLegacyHandler(tool, apiForm)
         if (this.#modelContext.registerTool.length >= 4) {
-            this.#modelContext.registerTool(
+            await registerTool.call(
+                this.#modelContext,
                 tool.name,
                 tool.description,
                 tool.inputSchema,
@@ -90,7 +94,8 @@ export class WebMcpAdapter {
             return
         }
 
-        this.#modelContext.registerTool(
+        await registerTool.call(
+            this.#modelContext,
             tool.name,
             {
                 description: tool.description,

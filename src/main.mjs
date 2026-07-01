@@ -65,7 +65,7 @@ async function bootstrap() {
     })
 
     await controller.init()
-    webMcpAdapter.initialize()
+    await webMcpAdapter.initialize()
     if (!startupSource) {
         HeroPreviewDemoLoader.schedule(view)
     }

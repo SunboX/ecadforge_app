@@ -72,6 +72,36 @@ function createObjectModelContext(options = {}) {
 }
 
 /**
+ * Builds a fake promise-returning object-form model context.
+ * @param {{ rejectFor?: string }} [options] Options.
+ * @returns {{ calls: object[], modelContext: { registerTool: (tool: object, options?: object) => Promise<void> } }}
+ */
+function createAsyncObjectModelContext(options = {}) {
+    const calls = []
+    return {
+        calls,
+        modelContext: {
+            registerTool(tool, registrationOptions) {
+                calls.push({
+                    tool,
+                    registrationOptions
+                })
+
+                if (tool.name !== options.rejectFor) {
+                    return Promise.resolve()
+                }
+
+                const rejection = Promise.reject(
+                    new Error('registration failed')
+                )
+                rejection.catch(() => {})
+                return rejection
+            }
+        }
+    }
+}
+
+/**
  * Builds a fake legacy positional model context.
  * @param {{ throwFor?: string }} [options] Options.
  * @returns {{ calls: object[], modelContext: { registerTool: (name: string, descriptor: object, handler: Function) => void } }}
@@ -184,13 +214,13 @@ function setGlobalProperty(property, value) {
 /**
  * Verifies unsupported browsers keep the app unchanged.
  */
-test('WebMcpAdapter no-ops when native support is unavailable', () => {
+test('WebMcpAdapter no-ops when native support is unavailable', async () => {
     const adapter = new WebMcpAdapter({
         getSnapshot: createSnapshot,
         modelContext: null
     })
 
-    assert.deepEqual(adapter.initialize(), {
+    assert.deepEqual(await adapter.initialize(), {
         available: false,
         registered: 0,
         failed: 0
@@ -207,7 +237,7 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
         modelContext: fake.modelContext
     })
 
-    const result = adapter.initialize()
+    const result = await adapter.initialize()
     const toolNames = fake.calls.map((call) => call.tool.name)
 
     assert.equal(result.available, true)
@@ -254,7 +284,7 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
 /**
  * Verifies supported WebMCP registration emits availability analytics.
  */
-test('WebMcpAdapter tracks WebMCP availability after registration', () => {
+test('WebMcpAdapter tracks WebMCP availability after registration', async () => {
     const fake = createObjectModelContext()
     const recorder = createAnalyticsRecorder()
     const adapter = new WebMcpAdapter({
@@ -264,7 +294,7 @@ test('WebMcpAdapter tracks WebMCP availability after registration', () => {
         analytics: recorder.analytics
     })
 
-    const result = adapter.initialize()
+    const result = await adapter.initialize()
 
     assert.deepEqual(result, {
         available: true,
@@ -283,6 +313,47 @@ test('WebMcpAdapter tracks WebMCP availability after registration', () => {
 })
 
 /**
+ * Verifies promise-based registration failures are counted after settling.
+ */
+test('WebMcpAdapter awaits promise-based tool registration failures', async () => {
+    const fake = createAsyncObjectModelContext({
+        rejectFor: 'query_pcb_component'
+    })
+    const recorder = createAnalyticsRecorder()
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry(),
+        analytics: recorder.analytics
+    })
+
+    const result = await adapter.initialize()
+
+    assert.deepEqual(result, {
+        available: true,
+        registered: 0,
+        failed: 1
+    })
+    assert.deepEqual(recorder.events, [
+        {
+            name: 'webmcp_tool_registration_failed',
+            properties: {
+                methodName: 'query_pcb_component',
+                apiForm: 'object',
+                resultStatus: 'error'
+            }
+        },
+        {
+            name: 'webmcp_available',
+            properties: {
+                apiForm: 'object',
+                resultStatus: 'error'
+            }
+        }
+    ])
+})
+
+/**
  * Verifies object-form executions emit safe method-call analytics.
  */
 test('WebMcpAdapter tracks successful object-form tool calls', async () => {
@@ -294,7 +365,7 @@ test('WebMcpAdapter tracks successful object-form tool calls', async () => {
         registry: createSingleToolRegistry(),
         analytics: recorder.analytics
     })
-    adapter.initialize()
+    await adapter.initialize()
     recorder.events.length = 0
 
     const response = await fake.calls[0].tool.execute({
@@ -330,7 +401,7 @@ test('WebMcpAdapter tracks failed object-form tool calls', async () => {
         }),
         analytics: recorder.analytics
     })
-    adapter.initialize()
+    await adapter.initialize()
     recorder.events.length = 0
 
     await assert.rejects(
@@ -353,7 +424,7 @@ test('WebMcpAdapter tracks failed object-form tool calls', async () => {
 /**
  * Verifies the adapter prefers the current document-scoped API when available.
  */
-test('WebMcpAdapter prefers document model context over deprecated navigator context', () => {
+test('WebMcpAdapter prefers document model context over deprecated navigator context', async () => {
     const documentContext = createObjectModelContext()
     const navigatorContext = createObjectModelContext()
     setGlobalProperty('document', {
@@ -365,7 +436,7 @@ test('WebMcpAdapter prefers document model context over deprecated navigator con
 
     try {
         const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
-        const result = adapter.initialize()
+        const result = await adapter.initialize()
 
         assert.equal(result.registered, 28)
         assert.equal(documentContext.calls.length, 28)
@@ -379,7 +450,7 @@ test('WebMcpAdapter prefers document model context over deprecated navigator con
 /**
  * Verifies the adapter does not rely on the deprecated navigator-scoped API.
  */
-test('WebMcpAdapter ignores deprecated navigator-only model context', () => {
+test('WebMcpAdapter ignores deprecated navigator-only model context', async () => {
     const navigatorContext = createObjectModelContext()
     setGlobalProperty('document', {})
     setGlobalProperty('navigator', {
@@ -388,7 +459,7 @@ test('WebMcpAdapter ignores deprecated navigator-only model context', () => {
 
     try {
         const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
-        const result = adapter.initialize()
+        const result = await adapter.initialize()
 
         assert.deepEqual(result, {
             available: false,
@@ -412,7 +483,7 @@ test('WebMcpAdapter supports legacy positional model context', async () => {
         modelContext: fake.modelContext
     })
 
-    const result = adapter.initialize()
+    const result = await adapter.initialize()
     const listNets = fake.calls.find((call) => call.name === 'list_nets')
     const response = await listNets.handler({})
 
@@ -439,7 +510,7 @@ test('WebMcpAdapter tracks successful legacy descriptor tool calls', async () =>
         registry: createSingleToolRegistry(),
         analytics: recorder.analytics
     })
-    adapter.initialize()
+    await adapter.initialize()
     recorder.events.length = 0
 
     const response = await fake.calls[0].handler({
@@ -478,7 +549,7 @@ test('WebMcpAdapter tracks successful legacy positional tool calls', async () =>
         registry: createSingleToolRegistry(),
         analytics: recorder.analytics
     })
-    adapter.initialize()
+    await adapter.initialize()
     recorder.events.length = 0
 
     await fake.calls[0].handler({})
@@ -498,14 +569,14 @@ test('WebMcpAdapter tracks successful legacy positional tool calls', async () =>
 /**
  * Verifies one failed tool registration does not block the rest.
  */
-test('WebMcpAdapter continues after one registration failure', () => {
+test('WebMcpAdapter continues after one registration failure', async () => {
     const fake = createObjectModelContext({ throwFor: 'list_nets' })
     const adapter = new WebMcpAdapter({
         getSnapshot: createSnapshot,
         modelContext: fake.modelContext
     })
 
-    const result = adapter.initialize()
+    const result = await adapter.initialize()
 
     assert.equal(result.available, true)
     assert.equal(result.registered, 27)
@@ -519,7 +590,7 @@ test('WebMcpAdapter continues after one registration failure', () => {
 /**
  * Verifies failed registrations emit safe failure analytics.
  */
-test('WebMcpAdapter tracks failed tool registrations', () => {
+test('WebMcpAdapter tracks failed tool registrations', async () => {
     const fake = createObjectModelContext({ throwFor: 'query_pcb_component' })
     const recorder = createAnalyticsRecorder()
     const adapter = new WebMcpAdapter({
@@ -529,7 +600,7 @@ test('WebMcpAdapter tracks failed tool registrations', () => {
         analytics: recorder.analytics
     })
 
-    const result = adapter.initialize()
+    const result = await adapter.initialize()
 
     assert.deepEqual(result, {
         available: true,

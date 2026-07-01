@@ -36,16 +36,17 @@ selected loaded document.
 Registered tool descriptors use the current object-form WebMCP API with an
 `execute` function. They include `readOnlyHint: true` and
 `untrustedContentHint: true` annotations because the tools do not mutate app
-state and may summarize user-loaded ECAD data. Older positional browser APIs
-remain supported when exposed through `document.modelContext` and receive
-MCP-style JSON text content.
+state and may summarize user-loaded ECAD data. Registration awaits the native
+browser promise so failures from cross-document tool publication are counted
+before startup continues. Older positional browser APIs remain supported when
+exposed through `document.modelContext` and receive MCP-style JSON text content.
 
 ## Analytics
 
 When the production analytics tracker is available, ECAD Forge records
 privacy-safe WebMCP usage events:
 
-- `webmcp_available`: native WebMCP support was detected and registration ran.
+- `webmcp_available`: native WebMCP support was detected and registration completed.
 - `webmcp_tool_registration_failed`: one tool registration failed.
 - `webmcp_tool_called`: one registered tool handler was called.
 
