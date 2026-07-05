@@ -8,7 +8,7 @@ export class GitHubShareUrlWriter {
      * Replaces the current address with a root share URL containing `url=`.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
      * @param {{ history?: History, location?: Location }} [environment]
-     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} [options] Optional viewer state.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string, panelName?: string }} [options] Optional viewer state.
      * @returns {void}
      */
     static update(sourceUrl, environment = globalThis, options = {}) {
@@ -34,7 +34,7 @@ export class GitHubShareUrlWriter {
      * Builds a shareable ECAD Forge URL for one GitHub source.
      * @param {string} currentHref Current browser URL.
      * @param {string} sourceUrl Original GitHub URL supplied by the user.
-     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} [options] Optional viewer state.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string, panelName?: string }} [options] Optional viewer state.
      * @returns {string}
      */
     static build(currentHref, sourceUrl, options = {}) {
@@ -63,7 +63,7 @@ export class GitHubShareUrlWriter {
 
     /**
      * Returns true when explicit viewer state should be written.
-     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string }} options Options.
+     * @param {{ viewName?: string, documentPath?: string, componentKey?: string, netName?: string, panelName?: string }} options Options.
      * @returns {boolean}
      */
     static #hasViewOrDocumentOption(options) {
@@ -77,7 +77,8 @@ export class GitHubShareUrlWriter {
                 options || {},
                 'componentKey'
             ) ||
-            Object.prototype.hasOwnProperty.call(options || {}, 'netName')
+            Object.prototype.hasOwnProperty.call(options || {}, 'netName') ||
+            Object.prototype.hasOwnProperty.call(options || {}, 'panelName')
         )
     }
 }

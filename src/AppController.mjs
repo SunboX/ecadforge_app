@@ -65,7 +65,7 @@ export class AppController {
     /** @type {{ resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null} */
     #modelSearchService
 
-    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null} */
+    /** @type {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string, panel?: string } | null} */
     #startupSource
 
     /**
@@ -81,7 +81,7 @@ export class AppController {
      * selectedPartExportService?: { export: (options: object) => Promise<{ archiveName: string, archiveBytes: Uint8Array }> },
      * pcbAssemblyExportService?: { export: (options: object) => Promise<{ fileName: string, bytes: Uint8Array, contentType: string, diagnostics?: object[] }> },
      * modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null,
-     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null
+     * startupSource?: { type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string, panel?: string } | null
      * }} dependencies
      */
     constructor(dependencies) {
@@ -146,7 +146,9 @@ export class AppController {
             )
         })
         this.#view.bindSidebarTabSelection?.((tabName) => {
-            this.#state.setValue('activeSidebarTab', tabName)
+            AppControllerDeepLinkState.sync(
+                this.#state.setValue('activeSidebarTab', tabName)
+            )
         })
         this.#view.bindPcbLayerVisibilityChange?.((change) => {
             AppControllerPcbStateHandlers.handleLayerVisibility(
@@ -605,6 +607,7 @@ export class AppController {
         const startupDocument = String(startupSource.document || '')
         const startupComponent = String(startupSource.component || '')
         const startupNet = String(startupSource.net || '')
+        const startupPanel = String(startupSource.panel || '')
         if (!loadedStartupSource) {
             AppControllerDeepLinkState.restoreDocument(
                 this.#state,
@@ -616,6 +619,7 @@ export class AppController {
             startupComponent
         )
         AppControllerDeepLinkState.restoreNet(this.#state, startupNet)
+        AppControllerDeepLinkState.restorePanel(this.#state, startupPanel)
         AppControllerDeepLinkState.sync(this.#state.getSnapshot())
     }
 

@@ -175,8 +175,17 @@ export class PcbViewRenderer {
             componentMarkup,
             layerTargets
         )
+        const emphasizedMarkup =
+            PcbViewRenderer.#injectInternalLayerEmphasisStyle(
+                layerMarkup,
+                PcbViewRenderer.#resolveInternalLayerEmphasis(
+                    documentModel,
+                    hiddenLayers,
+                    side
+                )
+            )
         const visibleMarkup = PcbViewRenderer.#injectObjectOpacityStyle(
-            layerMarkup,
+            emphasizedMarkup,
             hiddenObjects,
             objectOpacities
         )
@@ -294,26 +303,32 @@ export class PcbViewRenderer {
     /**
      * Injects SVG-local CSS rules for hidden data-layer values.
      * @param {string} markup Renderer-owned SVG markup.
-     * @param {{ aliases: string[], selectors: string[] }} hiddenLayerTargets Layer targets to hide.
+     * @param {{ aliases: string[], drillCarrierAliases?: string[], selectors: string[] }} hiddenLayerTargets Layer targets to hide.
      * @returns {string}
      */
     static #injectLayerVisibilityStyle(markup, hiddenLayerTargets) {
+        const drillCarrierAliases = new Set(
+            (hiddenLayerTargets.drillCarrierAliases || []).map(String)
+        )
         const aliases = [
             ...new Set((hiddenLayerTargets.aliases || []).map(String))
-        ].filter(Boolean)
+        ].filter(
+            (alias) => alias && !drillCarrierAliases.has(String(alias))
+        )
+        const drillAliases = [...drillCarrierAliases].filter(Boolean)
         const selectors = [
             ...new Set((hiddenLayerTargets.selectors || []).map(String))
         ].filter(Boolean)
-        if (!aliases.length && !selectors.length) {
+        if (!aliases.length && !drillAliases.length && !selectors.length) {
             return markup
         }
 
         const rules = [
-            ...aliases.map(
-                (alias) =>
-                    "[data-layer='" +
-                    PcbViewRenderer.#escapeCssString(alias) +
-                    "']"
+            ...aliases.flatMap((alias) =>
+                PcbViewRenderer.#layerAliasSelectors(alias)
+            ),
+            ...drillAliases.flatMap((alias) =>
+                PcbViewRenderer.#drillCarrierLayerSelectors(alias)
             ),
             ...selectors
         ]
@@ -333,11 +348,11 @@ export class PcbViewRenderer {
      * @param {object} documentModel Document model.
      * @param {string[]} hiddenLayers Hidden layer keys.
      * @param {'top' | 'bottom'} side Active board side.
-     * @returns {{ aliases: string[], selectors: string[] }}
+     * @returns {{ aliases: string[], drillCarrierAliases: string[], selectors: string[] }}
      */
     static #resolveLayerVisibilityTargets(documentModel, hiddenLayers, side) {
         if (!Array.isArray(hiddenLayers) || !hiddenLayers.length) {
-            return { aliases: [], selectors: [] }
+            return { aliases: [], drillCarrierAliases: [], selectors: [] }
         }
 
         const aliases = PcbLayerVisibilityModel.resolveHiddenLayerAliases(
@@ -345,6 +360,9 @@ export class PcbViewRenderer {
             hiddenLayers
         )
         const hidden = new Set((hiddenLayers || []).map(String))
+        const keepDrillHolesVisible =
+            PcbViewRenderer.#hasVisibleCopperLayer(documentModel, hidden)
+        const drillCarrierAliases = new Set()
         const selectors = []
         PcbLayerVisibilityModel.resolveLayers(documentModel).forEach(
             (layer, index) => {
@@ -359,6 +377,14 @@ export class PcbViewRenderer {
                 ) {
                     return
                 }
+                if (
+                    keepDrillHolesVisible &&
+                    PcbViewRenderer.#isDrillCarrierLayer(layer, key)
+                ) {
+                    PcbViewRenderer.#layerAliases(layer, key).forEach(
+                        (alias) => drillCarrierAliases.add(alias)
+                    )
+                }
                 selectors.push(
                     ...PcbViewRenderer.#resolveRenderedLayerSelectors(
                         layer,
@@ -369,7 +395,109 @@ export class PcbViewRenderer {
             }
         )
 
-        return { aliases, selectors }
+        return { aliases, drillCarrierAliases: [...drillCarrierAliases], selectors }
+    }
+
+    /**
+     * Injects SVG-local contrast overrides for isolated internal copper views.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @param {{ visibleCount: number, opacity: string, trackAlpha: string, fillAlpha: string } | null} emphasis Internal layer emphasis.
+     * @returns {string}
+     */
+    static #injectInternalLayerEmphasisStyle(markup, emphasis) {
+        if (!emphasis) return markup
+
+        const rules =
+            '.pcb-svg { --pcb-subsurface-track-color: rgba(112, 84, 62, ' +
+            emphasis.trackAlpha +
+            '); --pcb-subsurface-fill: rgba(114, 84, 62, ' +
+            emphasis.fillAlpha +
+            '); --pcb-subsurface-copper-fill: rgba(114, 84, 62, ' +
+            emphasis.fillAlpha +
+            '); }' +
+            '.pcb-svg .pcb-copper--subsurface { opacity: ' +
+            emphasis.opacity +
+            '; }'
+
+        return String(markup).replace(
+            /(<svg\b[^>]*>)/,
+            '$1<style class="pcb-internal-layer-emphasis-style" data-visible-internal-layers="' +
+                PcbViewRenderer.#escapeHtml(String(emphasis.visibleCount)) +
+                '">' +
+                PcbViewRenderer.#escapeHtml(rules) +
+                '</style>'
+        )
+    }
+
+    /**
+     * Resolves contrast settings for partially isolated internal copper views.
+     * @param {object} documentModel Document model.
+     * @param {string[]} hiddenLayers Hidden layer keys.
+     * @param {'top' | 'bottom'} side Active board side.
+     * @returns {{ visibleCount: number, opacity: string, trackAlpha: string, fillAlpha: string } | null}
+     */
+    static #resolveInternalLayerEmphasis(documentModel, hiddenLayers, side) {
+        if (!Array.isArray(hiddenLayers) || !hiddenLayers.length) {
+            return null
+        }
+
+        const hidden = new Set(hiddenLayers.map(String))
+        const copperLayers = PcbLayerVisibilityModel.resolveLayers(
+            documentModel
+        )
+            .map((layer, index) => ({
+                layer,
+                key: PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+            }))
+            .filter(({ layer, key }) => {
+                const text = PcbViewRenderer.#layerSearchText(layer, key)
+                return (
+                    PcbViewRenderer.#isCopperLayer(text) &&
+                    !PcbViewRenderer.#isDrillCarrierLayer(layer, key)
+                )
+            })
+        let hiddenCopperCount = 0
+        let visibleInternalCount = 0
+        let hasVisibleSurfaceCopper = false
+        for (const { layer, key } of copperLayers) {
+            const hiddenLayer = PcbViewRenderer.#layerAliases(
+                layer,
+                key
+            ).some((alias) => hidden.has(alias))
+            if (hiddenLayer) {
+                hiddenCopperCount += 1
+                continue
+            }
+            const text = PcbViewRenderer.#layerSearchText(layer, key)
+            if (PcbViewRenderer.#isSurfaceLayer(layer, text, side)) {
+                hasVisibleSurfaceCopper = true
+            } else {
+                visibleInternalCount += 1
+            }
+        }
+        if (
+            !hiddenCopperCount ||
+            hasVisibleSurfaceCopper ||
+            !visibleInternalCount
+        ) {
+            return null
+        }
+
+        if (visibleInternalCount === 1) {
+            return {
+                visibleCount: 1,
+                opacity: '0.95',
+                trackAlpha: '0.78',
+                fillAlpha: '0.16'
+            }
+        }
+
+        return {
+            visibleCount: visibleInternalCount,
+            opacity: '0.72',
+            trackAlpha: '0.48',
+            fillAlpha: '0.1'
+        }
     }
 
     /**
@@ -389,16 +517,80 @@ export class PcbViewRenderer {
             ]
         }
 
-        if (PcbViewRenderer.#isFootprintLayer(layer, text)) {
-            return ['.pcb-footprints', '.pcb-texts']
-        }
         if (!PcbViewRenderer.#isCopperLayer(text)) {
+            return []
+        }
+        if (PcbViewRenderer.#isStackLayer(layer)) {
             return []
         }
         if (PcbViewRenderer.#isSurfaceLayer(layer, text, side)) {
             return ['.pcb-copper--surface']
         }
         return ['.pcb-copper--subsurface']
+    }
+
+    /**
+     * Returns true when at least one visible layer is copper.
+     * @param {object} documentModel Document model.
+     * @param {Set<string>} hidden Hidden layer keys.
+     * @returns {boolean}
+     */
+    static #hasVisibleCopperLayer(documentModel, hidden) {
+        return PcbLayerVisibilityModel.resolveLayers(documentModel).some(
+            (layer, index) => {
+                const key = PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+                const text = PcbViewRenderer.#layerSearchText(layer, key)
+                return (
+                    !PcbViewRenderer.#layerAliases(layer, key).some((alias) =>
+                        hidden.has(alias)
+                    ) &&
+                    PcbViewRenderer.#isCopperLayer(text) &&
+                    !PcbViewRenderer.#isDrillCarrierLayer(layer, key)
+                )
+            }
+        )
+    }
+
+    /**
+     * Builds exact SVG layer selectors for one layer alias.
+     * @param {string} alias Layer alias.
+     * @returns {string[]}
+     */
+    static #layerAliasSelectors(alias) {
+        const escapedAlias = PcbViewRenderer.#escapeCssString(alias)
+        const selectors = [
+            "[data-layer='" + escapedAlias + "']",
+            "[data-layer-name='" + escapedAlias + "']",
+            "[data-layer-key='" + escapedAlias + "']",
+            "[data-layer-display-name='" + escapedAlias + "']",
+            "[data-layer-view-key='" + escapedAlias + "']",
+            "[data-layer-view-display-name='" + escapedAlias + "']",
+            "[data-layer-id='" + escapedAlias + "']"
+        ]
+
+        if (/^-?\d+$/.test(String(alias).trim())) {
+            selectors.push(
+                "[data-layer-key='L" + escapedAlias + "']",
+                "[data-layer-view-key='L" + escapedAlias + "']"
+            )
+        }
+
+        return selectors
+    }
+
+    /**
+     * Builds selectors that hide drill-carrier copper while keeping holes open.
+     * @param {string} alias Layer alias.
+     * @returns {string[]}
+     */
+    static #drillCarrierLayerSelectors(alias) {
+        return PcbViewRenderer.#layerAliasSelectors(alias).flatMap(
+            (selector) => [
+                selector + ':not(.pcb-via):not(.pcb-pad)',
+                selector + '.pcb-via .pcb-via__pad',
+                selector + '.pcb-pad .pcb-pad__ring'
+            ]
+        )
     }
 
     /**
@@ -414,6 +606,7 @@ export class PcbViewRenderer {
             layer?.layer,
             layer?.id,
             layer?.layerId,
+            layer?.legacyLayerId,
             layer?.number
         ]
             .filter((value) => value !== undefined && value !== null)
@@ -428,25 +621,24 @@ export class PcbViewRenderer {
      */
     static #layerSearchText(layer, layerKey) {
         return PcbViewRenderer.#layerAliases(layer, layerKey)
-            .concat([layer?.type, layer?.kind, layer?.side])
+            .concat([layer?.type, layer?.kind, layer?.side, layer?.role])
             .filter((value) => value !== undefined && value !== null)
             .join(' ')
             .toLowerCase()
     }
 
     /**
-     * Returns true for layer types rendered as detail artwork.
+     * Returns true for layers that carry shared drill holes and copper rings.
      * @param {any} layer Layer metadata.
-     * @param {string} text Normalized layer text.
+     * @param {string} layerKey Stable layer key.
      * @returns {boolean}
      */
-    static #isFootprintLayer(layer, text) {
-        const layerId = Number(layer?.layerId ?? layer?.id ?? layer?.number)
+    static #isDrillCarrierLayer(layer, layerKey) {
+        const text = PcbViewRenderer.#layerSearchText(layer, layerKey)
         return (
-            [33, 34].includes(layerId) ||
-            /\b(assembly|courtyard|crtyd|dimension|drawing|drawings|dwg|fab|legend|mask|mechanical|overlay|paste|silk|silkscreen|silks)\b/.test(
+            /\bmulti[-_\s]?layer\b|\bmultilayer\b|\ball[-_\s]?layers\b/.test(
                 text
-            )
+            ) || /\b(via|pad)\s+holes?\b/.test(text)
         )
     }
 
@@ -466,6 +658,16 @@ export class PcbViewRenderer {
     }
 
     /**
+     * Returns true for explicit Altium layer-stack rows.
+     * @param {any} layer Layer metadata.
+     * @returns {boolean}
+     */
+    static #isStackLayer(layer) {
+        const layerId = Number(layer?.layerId ?? layer?.id ?? layer?.number)
+        return Number.isFinite(layerId) && layerId >= 0x01000000
+    }
+
+    /**
      * Returns true for copper/routing layers.
      * @param {string} text Normalized layer text.
      * @returns {boolean}
@@ -475,7 +677,10 @@ export class PcbViewRenderer {
             /\b(cu|copper)\b/.test(text) ||
             /\b(top|bottom)\s+layer\b/.test(text) ||
             /\bmid[-\s]?layer\b/.test(text) ||
-            /\binternal\s+plane\b/.test(text)
+            /\binternal\s+plane\b/.test(text) ||
+            /\binternal[-_\s]*\d+\b/.test(text) ||
+            /\binternal[-_\s]+layer\b/.test(text) ||
+            /\binner[-_\s]*\d+\b/.test(text)
         )
     }
 
@@ -772,29 +977,17 @@ export class PcbViewRenderer {
         ].join('|')
     }
 
-    /**
-     * Normalizes untrusted side input to the supported board-side names.
-     * @param {unknown} side Requested side.
-     * @returns {'top' | 'bottom'}
-     */
+    /** @returns {'top' | 'bottom'} Normalized supported board-side name. */
     static #normalizeSide(side) {
         return side === 'bottom' ? 'bottom' : 'top'
     }
 
-    /**
-     * Escapes a CSS single-quoted string value.
-     * @param {string} value Raw value.
-     * @returns {string}
-     */
+    /** @returns {string} Escaped CSS single-quoted string value. */
     static #escapeCssString(value) {
         return String(value).replaceAll('\\', '\\\\').replaceAll("'", "\\'")
     }
 
-    /**
-     * Escapes markup text.
-     * @param {string} value Raw text.
-     * @returns {string}
-     */
+    /** @returns {string} Escaped markup text. */
     static #escapeHtml(value) {
         return String(value)
             .replaceAll('&', '&amp;')

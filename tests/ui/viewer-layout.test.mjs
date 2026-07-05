@@ -767,7 +767,10 @@ test('landing GitHub URL input uses wrapper focus styling', async () => {
 
     assert.match(focusBlock, /\.github-open__input-wrap:focus-within/)
     assert.doesNotMatch(focusBlock, /\.github-open input:focus-visible/)
-    assert.match(focusBlock, /outline:\s*3px solid rgba\(15,\s*116,\s*108,\s*0\.22\);/)
+    assert.match(
+        focusBlock,
+        /outline:\s*3px solid rgba\(15,\s*116,\s*108,\s*0\.22\);/
+    )
     assert.match(focusBlock, /outline-offset:\s*3px;/)
     assert.match(
         inputWrapFocusBlock,
@@ -972,11 +975,19 @@ test('viewer sidebar layer rows reserve visibility action space', async () => {
     )
     assert.match(
         sidebarCss,
-        /\.viewer-sidebar__layer-row-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) 2\.2rem;/
+        /\.viewer-sidebar__layer-row-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) max-content 2\.2rem;/
     )
     assert.match(
         sidebarCss,
         /\.viewer-sidebar__row--layer\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\);/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__layer-group-summary\s*\{[\s\S]*grid-template-columns:\s*1\.3rem minmax\(0,\s*1fr\) max-content 2\.2rem;/
+    )
+    assert.match(
+        sidebarCss,
+        /\.viewer-sidebar__layer-only\s*\{[\s\S]*min-width:\s*2\.6rem;/
     )
     assert.match(
         sidebarCss,

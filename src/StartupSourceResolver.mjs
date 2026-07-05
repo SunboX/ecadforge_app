@@ -8,7 +8,7 @@ export class StartupSourceResolver {
     /**
      * Resolves a URL into a startup source descriptor.
      * @param {string} href Browser URL.
-     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string } | null}
+     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string, panel?: string } | null}
      */
     static resolve(href) {
         const url = new URL(String(href || ''), 'https://ecadforge.app/')
@@ -17,6 +17,7 @@ export class StartupSourceResolver {
         const documentPath = ViewDeepLinkState.resolveDocument(url.href)
         const componentKey = ViewDeepLinkState.resolveComponent(url.href)
         const netName = ViewDeepLinkState.resolveNet(url.href)
+        const panelName = ViewDeepLinkState.resolvePanel(url.href)
 
         if (demoId) {
             return StartupSourceResolver.#withDeepLinkState(
@@ -24,7 +25,8 @@ export class StartupSourceResolver {
                 view,
                 documentPath,
                 componentKey,
-                netName
+                netName,
+                panelName
             )
         }
 
@@ -35,7 +37,8 @@ export class StartupSourceResolver {
                 view,
                 documentPath,
                 componentKey,
-                netName
+                netName,
+                panelName
             )
         }
 
@@ -50,7 +53,8 @@ export class StartupSourceResolver {
                 view,
                 documentPath,
                 componentKey,
-                netName
+                netName,
+                panelName
             )
         }
 
@@ -62,7 +66,8 @@ export class StartupSourceResolver {
                 view,
                 documentPath,
                 componentKey,
-                netName
+                netName,
+                panelName
             )
         }
 
@@ -150,21 +155,24 @@ export class StartupSourceResolver {
      * @param {string} documentPath Requested document file path.
      * @param {string} componentKey Requested selected component key.
      * @param {string} netName Requested selected net name.
-     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string }}
+     * @param {string} panelName Requested sidebar panel id.
+     * @returns {{ type: string, id?: string, url?: string, path?: string, ref?: string, view?: string, document?: string, component?: string, net?: string, panel?: string }}
      */
     static #withDeepLinkState(
         source,
         view,
         documentPath,
         componentKey,
-        netName
+        netName,
+        panelName
     ) {
         return {
             ...source,
             ...(view ? { view } : {}),
             ...(documentPath ? { document: documentPath } : {}),
             ...(componentKey ? { component: componentKey } : {}),
-            ...(netName ? { net: netName } : {})
+            ...(netName ? { net: netName } : {}),
+            ...(panelName ? { panel: panelName } : {})
         }
     }
 }

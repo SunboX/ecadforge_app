@@ -11,7 +11,7 @@ export class AppControllerPcbStateHandlers {
     /**
      * Applies one PCB layer visibility change from the sidebar.
      * @param {import('./core/AppState.mjs').AppState} state App state.
-     * @param {{ documentId?: string, layerKey?: string, visible?: boolean }} change Layer visibility event.
+     * @param {{ action?: string, documentId?: string, layerKey?: string, layerKeys?: string[], visible?: boolean }} change Layer visibility event.
      * @returns {void}
      */
     static handleLayerVisibility(state, change) {
@@ -20,13 +20,25 @@ export class AppControllerPcbStateHandlers {
             snapshot,
             change
         )
-        const layerKey = String(change?.layerKey || '')
-        const nextHidden = PcbLayerVisibilityModel.withLayerVisibility(
-            snapshot.hiddenPcbLayers,
-            documentId,
-            layerKey,
-            change?.visible !== false
+        const layerKeys = AppControllerPcbStateHandlers.#layerKeys(change)
+        const documentModel = AppControllerPcbStateHandlers.#documentModel(
+            snapshot,
+            documentId
         )
+        const nextHidden =
+            String(change?.action || '') === 'only'
+                ? PcbLayerVisibilityModel.withOnlyLayers(
+                      snapshot.hiddenPcbLayers,
+                      documentId,
+                      documentModel,
+                      layerKeys
+                  )
+                : PcbLayerVisibilityModel.withLayerKeysVisibility(
+                      snapshot.hiddenPcbLayers,
+                      documentId,
+                      layerKeys,
+                      change?.visible !== false
+                  )
 
         state.setValue('hiddenPcbLayers', nextHidden)
     }
@@ -192,5 +204,38 @@ export class AppControllerPcbStateHandlers {
      */
     static #documentId(snapshot, change) {
         return String(change?.documentId || snapshot.activeDocumentId)
+    }
+
+    /**
+     * Resolves the active document model for layer visibility decisions.
+     * @param {{ documents?: { id: string, documentModel: object }[], documentModel?: object | null }} snapshot State snapshot.
+     * @param {string} documentId Active document id.
+     * @returns {object | null}
+     */
+    static #documentModel(snapshot, documentId) {
+        return (
+            snapshot.documents?.find((entry) => entry.id === documentId)
+                ?.documentModel ||
+            snapshot.documentModel ||
+            null
+        )
+    }
+
+    /**
+     * Resolves target layer keys from a visibility event.
+     * @param {{ layerKey?: string, layerKeys?: string[] } | null | undefined} change Layer visibility event.
+     * @returns {string[]}
+     */
+    static #layerKeys(change) {
+        const keys = Array.isArray(change?.layerKeys)
+            ? change.layerKeys
+            : [change?.layerKey]
+        return [
+            ...new Set(
+                keys
+                    .map((layerKey) => String(layerKey || '').trim())
+                    .filter(Boolean)
+            )
+        ]
     }
 }

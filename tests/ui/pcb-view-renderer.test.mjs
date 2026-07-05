@@ -443,6 +443,38 @@ test('PcbViewRenderer hides primitive PCB layers by sidebar layer key', () => {
 })
 
 /**
+ * Verifies Altium internal signal layer names use the copper visibility path
+ * even when they are named without the legacy "Mid-Layer" wording.
+ */
+test('PcbViewRenderer hides internal Altium signal layers as subsurface copper', () => {
+    const documentModel = createPrimitiveLayerPcbDocument()
+    documentModel.fileName = 'internal-routing-fake.PcbDoc'
+    documentModel.pcb.primitiveLayers = [
+        { name: 'Top Layer', layerId: 1 },
+        { name: 'Internal1', layerId: 2 },
+        { name: 'Internal2', layerId: 3 }
+    ]
+    documentModel.pcb.tracks = [
+        {
+            x1: 10,
+            y1: 20,
+            x2: 80,
+            y2: 20,
+            width: 4,
+            layerCode: 2,
+            layerId: 2
+        }
+    ]
+
+    const html = PcbViewRenderer.render(documentModel, 'top', null, [
+        'Internal1'
+    ])
+
+    assert.match(html, /\[data-layer='Internal1'\]\s*\{\s*display: none/)
+    assert.match(html, /\.pcb-copper--subsurface\s*\{\s*display: none/)
+})
+
+/**
  * Verifies PCB object opacity values are applied through SVG-local CSS.
  */
 test('PcbViewRenderer applies requested PCB object opacity categories', () => {

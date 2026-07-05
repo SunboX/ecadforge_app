@@ -160,6 +160,17 @@ const FALLBACK_MESSAGES = {
     'sidebar.infoTitle': 'Title',
     'sidebar.infoWidth': 'Width',
     'sidebar.lastUpdated': 'Last updated',
+    'sidebar.layerGroupCopper': 'Copper',
+    'sidebar.layerGroupMechanical': 'Mechanical',
+    'sidebar.layerGroupPasteMask': 'Paste Mask',
+    'sidebar.layerGroupSilkscreen': 'Silkscreen',
+    'sidebar.layerGroupSolderMask': 'Solder Mask',
+    'sidebar.layerOnly': 'Only',
+    'sidebar.layerOnlyGroupTitle': 'Show only {group} layers',
+    'sidebar.layerOnlyTitle': 'Show only layer: {layer}',
+    'sidebar.layerToggleGroupTitle':
+        'Toggle layer group visibility: {group}',
+    'sidebar.layerToggleTitle': 'Toggle layer visibility: {layer}',
     'sidebar.layers': 'Layers',
     'sidebar.model3d': '3D model',
     'sidebar.model3dEmpty':

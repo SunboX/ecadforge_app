@@ -2,7 +2,7 @@
     margin-bottom: 0.7rem;
 }
 
-.viewer-sidebar__component-group h4 {
+.viewer-sidebar__component-group > h4 {
     margin: 0;
     padding: 0.58rem 1.1rem;
     border-top: 1px solid rgba(95, 112, 124, 0.1);
@@ -12,6 +12,63 @@
     font-size: 0.82rem;
     font-weight: 700;
     line-height: 1.2;
+}
+
+.viewer-sidebar__layer-group {
+    border-top: 1px solid rgba(95, 112, 124, 0.1);
+    border-bottom: 1px solid rgba(95, 112, 124, 0.1);
+    background: rgba(15, 116, 108, 0.04);
+}
+
+.viewer-sidebar__layer-group-summary {
+    display: grid;
+    grid-template-columns: 1.3rem minmax(0, 1fr) max-content 2.2rem;
+    column-gap: 0.3rem;
+    align-items: center;
+    min-height: 2.55rem;
+    padding: 0.36rem 0.45rem 0.36rem 0.75rem;
+    background: rgba(15, 116, 108, 0.1);
+    cursor: pointer;
+    list-style: none;
+}
+
+.viewer-sidebar__layer-group-summary::-webkit-details-marker {
+    display: none;
+}
+
+.viewer-sidebar__layer-group-summary h4 {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: #305b58;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.viewer-sidebar__layer-group-disclosure {
+    display: grid;
+    place-items: center;
+    color: #476478;
+}
+
+.viewer-sidebar__layer-group-disclosure .icon {
+    width: 1rem;
+    height: 1rem;
+    transform: rotate(90deg);
+    transition: transform 0.14s ease;
+}
+
+.viewer-sidebar__layer-group:not([open])
+    .viewer-sidebar__layer-group-disclosure
+    .icon {
+    transform: rotate(0deg);
+}
+
+.viewer-sidebar__layer-group.is-hidden .viewer-sidebar__layer-group-summary h4 {
+    color: rgba(42, 52, 61, 0.55);
 }
 
 .viewer-sidebar__component-list {
@@ -27,7 +84,7 @@
 
 .viewer-sidebar__layer-row-shell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 2.2rem;
+    grid-template-columns: minmax(0, 1fr) max-content 2.2rem;
     align-items: stretch;
     border-bottom: 1px solid rgba(95, 112, 124, 0.14);
 }
@@ -279,6 +336,27 @@
 .viewer-sidebar__layer-visibility {
     width: 2.2rem;
     height: 2.2rem;
+}
+
+.viewer-sidebar__layer-only {
+    min-width: 2.6rem;
+    padding: 0 0.35rem;
+    border: 0;
+    background: transparent;
+    color: #476478;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.viewer-sidebar__layer-only:hover,
+.viewer-sidebar__layer-only:focus-visible {
+    color: #e35417;
+}
+
+.viewer-sidebar__layer-only.is-hidden {
+    color: rgba(42, 52, 61, 0.55);
 }
 
 .viewer-sidebar__layer-visibility .viewer-sidebar__visibility-icon {

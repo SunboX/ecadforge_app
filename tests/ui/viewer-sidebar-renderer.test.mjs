@@ -438,15 +438,15 @@ test('ViewerSidebarRenderer renders layer visibility actions on the row end', ()
     )
     assert.match(
         html,
-        /data-layer-group="front"><h4>Front<\/h4>[\s\S]+data-pcb-layer-key="Top Layer"/
+        /<details class="viewer-sidebar__component-group viewer-sidebar__layer-group" data-layer-group="copper" open><summary class="viewer-sidebar__layer-group-summary">[\s\S]+<h4>Copper<\/h4>[\s\S]+data-pcb-layer-key="Top Layer"/
     )
     assert.match(
         html,
-        /data-layer-group="back"><h4>Back<\/h4>[\s\S]+data-pcb-layer-key="Bottom Layer"/
+        /<details class="viewer-sidebar__component-group viewer-sidebar__layer-group" data-layer-group="copper" open>[\s\S]+data-pcb-layer-key="Bottom Layer"/
     )
     assert.match(
         html,
-        /<div class="viewer-sidebar__layer-row-shell"[^>]*data-layer-search="[^"]*top layer[^"]*"[^>]*><button class="viewer-sidebar__row viewer-sidebar__row--layer"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__swatch"[\s\S]*?<strong>Top Layer<\/strong><\/button><button class="viewer-sidebar__layer-visibility viewer-sidebar__component-copy"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__visibility-icon"/
+        /<div class="viewer-sidebar__layer-row-shell"[^>]*data-layer-search="[^"]*top layer[^"]*"[^>]*><button class="viewer-sidebar__row viewer-sidebar__row--layer"[^>]*data-pcb-layer-action="toggle"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__swatch"[\s\S]*?<strong>Top Layer<\/strong><\/button><button class="viewer-sidebar__layer-only"[^>]*data-pcb-layer-action="only"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?Only<\/button><button class="viewer-sidebar__layer-visibility viewer-sidebar__component-copy"[^>]*data-pcb-layer-action="toggle"[^>]*data-pcb-layer-key="Top Layer"[\s\S]*?<span class="viewer-sidebar__visibility-icon"/
     )
 })
 

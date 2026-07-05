@@ -29,17 +29,19 @@ export class PcbLayerVisibilityModel {
                 interactionGroups.physicalLayers.length ||
                 interactionGroups.virtualLayers.length
             ) {
-                return interactionGroups
+                return PcbLayerVisibilityModel.#filterLayerGroups(
+                    interactionGroups
+                )
             }
         }
 
-        return {
+        return PcbLayerVisibilityModel.#filterLayerGroups({
             physicalLayers:
                 PcbLayerVisibilityModel.#resolveLegacyPhysicalLayers(
                     documentModel
                 ),
             virtualLayers: []
-        }
+        })
     }
 
     /**
@@ -88,6 +90,170 @@ export class PcbLayerVisibilityModel {
         }
 
         return []
+    }
+
+    /**
+     * Filters physical rows to layers that can be meaningfully toggled.
+     * @param {{ physicalLayers: any[], virtualLayers: any[] }} groups Raw layer groups.
+     * @returns {{ physicalLayers: any[], virtualLayers: any[] }}
+     */
+    static #filterLayerGroups(groups) {
+        const physicalLayers = Array.isArray(groups?.physicalLayers)
+            ? groups.physicalLayers
+            : []
+        const virtualLayers = Array.isArray(groups?.virtualLayers)
+            ? groups.virtualLayers
+            : []
+        const referencedKeys =
+            PcbLayerVisibilityModel.#referencedPhysicalLayerKeys(virtualLayers)
+        const hasStackLayers = physicalLayers.some((layer, index) =>
+            PcbLayerVisibilityModel.#isStackLayer(
+                layer,
+                PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+            )
+        )
+
+        return {
+            physicalLayers: physicalLayers.filter((layer, index) =>
+                PcbLayerVisibilityModel.#isToggleableLayer(
+                    layer,
+                    PcbLayerVisibilityModel.resolveLayerKey(layer, index),
+                    referencedKeys,
+                    hasStackLayers
+                )
+            ),
+            virtualLayers
+        }
+    }
+
+    /**
+     * Collects physical layer keys referenced by virtual object controls.
+     * @param {any[]} virtualLayers Virtual layer metadata rows.
+     * @returns {Set<string>}
+     */
+    static #referencedPhysicalLayerKeys(virtualLayers) {
+        const keys = new Set()
+        for (const layer of virtualLayers) {
+            for (const key of layer?.physicalLayerKeys || []) {
+                keys.add(String(key))
+            }
+        }
+        return keys
+    }
+
+    /**
+     * Returns true when a physical layer should be shown as a visibility row.
+     * @param {any} layer Physical layer metadata.
+     * @param {string} layerKey Stable layer key.
+     * @param {Set<string>} referencedKeys Physical layer keys with objects.
+     * @param {boolean} hasStackLayers Whether explicit stack rows exist.
+     * @returns {boolean}
+     */
+    static #isToggleableLayer(layer, layerKey, referencedKeys, hasStackLayers) {
+        if (PcbLayerVisibilityModel.#isNonRenderedLayer(layer, layerKey)) {
+            return false
+        }
+        if (
+            PcbLayerVisibilityModel.#isUnusedGeneratedMechanicalLayer(
+                layer,
+                layerKey,
+                referencedKeys,
+                hasStackLayers
+            )
+        ) {
+            return false
+        }
+        return !PcbLayerVisibilityModel.#isUnusedGeneratedInternalLayer(
+            layer,
+            layerKey,
+            referencedKeys,
+            hasStackLayers
+        )
+    }
+
+    /**
+     * Returns true for stack materials and editor-only utility rows.
+     * @param {any} layer Physical layer metadata.
+     * @param {string} layerKey Stable layer key.
+     * @returns {boolean}
+     */
+    static #isNonRenderedLayer(layer, layerKey) {
+        const text = PcbLayerVisibilityModel.#layerSearchText(layer, layerKey)
+        const label = String(layerKey || '')
+            .trim()
+            .toLowerCase()
+
+        return (
+            /\b(dielectric|substrate|prepreg|core)\b/.test(text) ||
+            /^(connections|background|drc error markers|selections|visible grid \d+|pad holes|via holes)$/.test(
+                label
+            )
+        )
+    }
+
+    /**
+     * Returns true for unused default internal rows superseded by stack rows.
+     * @param {any} layer Physical layer metadata.
+     * @param {string} layerKey Stable layer key.
+     * @param {Set<string>} referencedKeys Physical layer keys with objects.
+     * @param {boolean} hasStackLayers Whether explicit stack rows exist.
+     * @returns {boolean}
+     */
+    static #isUnusedGeneratedInternalLayer(
+        layer,
+        layerKey,
+        referencedKeys,
+        hasStackLayers
+    ) {
+        if (!hasStackLayers || referencedKeys.has(String(layerKey))) {
+            return false
+        }
+        if (PcbLayerVisibilityModel.#isStackLayer(layer, layerKey)) {
+            return false
+        }
+
+        const text = PcbLayerVisibilityModel.#layerSearchText(layer, layerKey)
+        return /\bmid[-\s]?layer\s+\d+\b|\binternal\s+plane\s+\d+\b/.test(text)
+    }
+
+    /**
+     * Returns true for empty numbered mechanical slots from generated defaults.
+     * @param {any} layer Physical layer metadata.
+     * @param {string} layerKey Stable layer key.
+     * @param {Set<string>} referencedKeys Physical layer keys with objects.
+     * @param {boolean} hasStackLayers Whether explicit stack rows exist.
+     * @returns {boolean}
+     */
+    static #isUnusedGeneratedMechanicalLayer(
+        layer,
+        layerKey,
+        referencedKeys,
+        hasStackLayers
+    ) {
+        if (!hasStackLayers || referencedKeys.has(String(layerKey))) {
+            return false
+        }
+        if (PcbLayerVisibilityModel.#isStackLayer(layer, layerKey)) {
+            return false
+        }
+
+        const text = PcbLayerVisibilityModel.#layerSearchText(layer, layerKey)
+        const match = text.match(/\bmechanical\s+(\d+)\b/)
+        if (!match) return false
+
+        const number = Number(match[1])
+        return Number.isFinite(number) && number > 1
+    }
+
+    /**
+     * Returns true for explicit Altium layer-stack rows.
+     * @param {any} layer Physical layer metadata.
+     * @param {string} _layerKey Stable layer key.
+     * @returns {boolean}
+     */
+    static #isStackLayer(layer, _layerKey) {
+        const layerId = Number(layer?.layerId ?? layer?.id ?? layer?.number)
+        return Number.isFinite(layerId) && layerId >= 0x01000000
     }
 
     /**
@@ -159,6 +325,110 @@ export class PcbLayerVisibilityModel {
             hidden.delete(normalizedLayerKey)
         } else {
             hidden.add(normalizedLayerKey)
+        }
+        PcbLayerVisibilityModel.#writeHiddenKeys(
+            next,
+            normalizedDocumentId,
+            hidden
+        )
+
+        return next
+    }
+
+    /**
+     * Applies one visibility change to several layer keys.
+     * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Current map.
+     * @param {string} documentId Target document id.
+     * @param {string[]} layerKeys Target layer keys.
+     * @param {boolean} visible Whether the layers should be visible.
+     * @returns {{ [documentId: string]: string[] }}
+     */
+    static withLayerKeysVisibility(
+        hiddenPcbLayers,
+        documentId,
+        layerKeys,
+        visible
+    ) {
+        const next = PcbLayerVisibilityModel.#cloneMap(hiddenPcbLayers)
+        const normalizedDocumentId = String(documentId || '')
+        const normalizedLayerKeys =
+            PcbLayerVisibilityModel.#normalizeLayerKeys(layerKeys)
+        if (!normalizedDocumentId || !normalizedLayerKeys.length) {
+            return next
+        }
+
+        const hidden = PcbLayerVisibilityModel.resolveHiddenKeys(
+            next,
+            normalizedDocumentId
+        )
+        normalizedLayerKeys.forEach((layerKey) => {
+            if (visible) {
+                hidden.delete(layerKey)
+                return
+            }
+            hidden.add(layerKey)
+        })
+        PcbLayerVisibilityModel.#writeHiddenKeys(
+            next,
+            normalizedDocumentId,
+            hidden
+        )
+
+        return next
+    }
+
+    /**
+     * Hides all physical PCB layers except the requested visible layer keys.
+     * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Current map.
+     * @param {string} documentId Target document id.
+     * @param {any} documentModel Active document model.
+     * @param {string[]} layerKeys Layer keys that should remain visible.
+     * @returns {{ [documentId: string]: string[] }}
+     */
+    static withOnlyLayers(
+        hiddenPcbLayers,
+        documentId,
+        documentModel,
+        layerKeys
+    ) {
+        const next = PcbLayerVisibilityModel.#cloneMap(hiddenPcbLayers)
+        const normalizedDocumentId = String(documentId || '')
+        const visible = new Set(
+            PcbLayerVisibilityModel.#normalizeLayerKeys(layerKeys)
+        )
+        if (!normalizedDocumentId || !visible.size) {
+            return next
+        }
+
+        const layers = PcbLayerVisibilityModel.resolveLayers(documentModel).map(
+            (layer, index) => ({
+                layer,
+                key: PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+            })
+        )
+        const hidden = new Set(
+            layers
+                .filter(
+                    ({ layer, key }) =>
+                        !PcbLayerVisibilityModel.#matchesVisibleLayerKey(
+                            layer,
+                            key,
+                            visible
+                        )
+                )
+                .map(({ key }) => key)
+        )
+        const currentHidden = PcbLayerVisibilityModel.resolveHiddenKeys(
+            next,
+            normalizedDocumentId
+        )
+        if (PcbLayerVisibilityModel.#setEquals(currentHidden, hidden)) {
+            PcbLayerVisibilityModel.#writeHiddenKeys(
+                next,
+                normalizedDocumentId,
+                new Set()
+            )
+            return next
         }
         PcbLayerVisibilityModel.#writeHiddenKeys(
             next,
@@ -279,6 +549,49 @@ export class PcbLayerVisibilityModel {
     }
 
     /**
+     * Returns true when a layer matches one of the requested visible keys.
+     * @param {any} layer Layer metadata.
+     * @param {string} key Resolved layer key.
+     * @param {Set<string>} visible Requested visible keys.
+     * @returns {boolean}
+     */
+    static #matchesVisibleLayerKey(layer, key, visible) {
+        return PcbLayerVisibilityModel.#layerAliases(layer, key).some((alias) =>
+            visible.has(alias)
+        )
+    }
+
+    /**
+     * Returns true when two sets contain the same string values.
+     * @param {Set<string>} left First set.
+     * @param {Set<string>} right Second set.
+     * @returns {boolean}
+     */
+    static #setEquals(left, right) {
+        if (left.size !== right.size) return false
+        for (const value of left) {
+            if (!right.has(value)) return false
+        }
+        return true
+    }
+
+    /**
+     * Normalizes layer key input into a de-duplicated string list.
+     * @param {string[] | string | null | undefined} layerKeys Raw layer keys.
+     * @returns {string[]}
+     */
+    static #normalizeLayerKeys(layerKeys) {
+        const values = Array.isArray(layerKeys) ? layerKeys : [layerKeys]
+        return [
+            ...new Set(
+                values
+                    .map((layerKey) => String(layerKey || '').trim())
+                    .filter(Boolean)
+            )
+        ]
+    }
+
+    /**
      * Resolves hidden layer keys for one preset.
      * @param {any} documentModel Active document model.
      * @param {string} preset Preset id.
@@ -317,6 +630,7 @@ export class PcbLayerVisibilityModel {
             layer?.layer,
             layer?.id,
             layer?.layerId,
+            layer?.legacyLayerId,
             layer?.number
         ]
             .filter((value) => value !== undefined && value !== null)
@@ -376,7 +690,10 @@ export class PcbLayerVisibilityModel {
             /(^|[._\-\s])cu($|[._\-\s])/.test(text) ||
             /\b(top|bottom)\s+layer\b/.test(text) ||
             /\bmid[-\s]?layer\b/.test(text) ||
-            /\binternal\s+plane\b/.test(text)
+            /\binternal\s+plane\b/.test(text) ||
+            /\binternal[-_\s]*\d+\b/.test(text) ||
+            /\binternal[-_\s]+layer\b/.test(text) ||
+            /\binner[-_\s]*\d+\b/.test(text)
         )
     }
 

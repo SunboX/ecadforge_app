@@ -160,6 +160,11 @@ test('German locale uses native umlauts in visible app copy', async () => {
     )
     assert.equal(germanMessages['app.open'], 'Lokale Dateien öffnen')
     assert.equal(germanMessages['app.openFolder'], 'Ordner öffnen')
+    assert.equal(germanMessages['sidebar.layerOnly'], 'Nur')
+    assert.equal(
+        germanMessages['sidebar.layerOnlyTitle'],
+        'Nur Layer anzeigen: {layer}'
+    )
     assert.equal(
         germanMessages['app.dropCopy'],
         'Schaltpläne, PCB-Layouts, 3D-Boards, BOMs und Diagnosen direkt im Browser ansehen. Kein Upload, kein Account, keine serverseitige Vorverarbeitung.'

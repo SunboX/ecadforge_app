@@ -13,7 +13,7 @@ class FakeView {
     /** @type {((tabName: string) => void) | null} */
     #sidebarTabSelectionCallback
 
-    /** @type {((change: { documentId: string, layerKey: string, visible: boolean }) => void) | null} */
+    /** @type {((change: { action?: string, documentId: string, layerKey?: string, layerKeys?: string[], visible?: boolean }) => void) | null} */
     #layerVisibilityCallback
 
     /** @type {((change: { documentId: string, objectKey: string, opacity: number }) => void) | null} */
@@ -91,7 +91,7 @@ class FakeView {
     }
 
     /**
-     * @param {(change: { documentId: string, layerKey: string, visible: boolean }) => void} callback
+     * @param {(change: { action?: string, documentId: string, layerKey?: string, layerKeys?: string[], visible?: boolean }) => void} callback
      * @returns {void}
      */
     bindPcbLayerVisibilityChange(callback) {
@@ -225,7 +225,7 @@ class FakeView {
     }
 
     /**
-     * @param {{ documentId: string, layerKey: string, visible: boolean }} change
+     * @param {{ action?: string, documentId: string, layerKey?: string, layerKeys?: string[], visible?: boolean }} change
      * @returns {void}
      */
     toggleLayer(change) {

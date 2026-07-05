@@ -494,7 +494,6 @@ class FakeSidebarNode extends FakeNode {
         const button = this.#layers.get(layerKey)
         if (button) this.dispatch('click', { target: button })
     }
-
     /**
      * @param {string} objectKey
      * @param {number} opacity
@@ -802,8 +801,10 @@ test('AppView binds PCB layer visibility clicks', () => {
 
     assert.deepEqual(received, [
         {
+            action: 'toggle',
             documentId: 'doc-1',
             layerKey: 'Top Layer',
+            layerKeys: ['Top Layer'],
             visible: false
         }
     ])

@@ -63,22 +63,30 @@ export class ViewerSidebarEventBinder {
     /**
      * Binds PCB layer visibility changes.
      * @param {HTMLElement | null} mount Sidebar mount node.
-     * @param {(change: { documentId: string, layerKey: string, visible: boolean }) => void} callback Visibility callback.
+     * @param {(change: { action?: string, documentId: string, layerKey: string, layerKeys?: string[], visible: boolean, source?: string }) => void} callback Visibility callback.
      * @returns {void}
      */
     static bindPcbLayerVisibilityChange(mount, callback) {
-        ViewerSidebarEventBinder.#bindAttribute(
-            mount,
-            '[data-pcb-layer-key]',
-            (button) =>
-                callback({
-                    documentId: button.getAttribute('data-document-id') || '',
-                    layerKey: button.getAttribute('data-pcb-layer-key') || '',
-                    visible:
-                        button.getAttribute('data-pcb-layer-visible') ===
-                        'false'
-                })
-        )
+        mount?.addEventListener('click', (event) => {
+            const button =
+                ViewerSidebarEventBinder.#closest(
+                    event.target,
+                    '[data-pcb-layer-action]'
+                ) ||
+                ViewerSidebarEventBinder.#closest(
+                    event.target,
+                    '[data-pcb-layer-key]'
+                )
+            if (!button || typeof button.getAttribute !== 'function') return
+
+            event.preventDefault?.()
+            event.stopPropagation?.()
+            callback(
+                ViewerSidebarEventBinder.#layerVisibilityChangeFromButton(
+                    button
+                )
+            )
+        })
         mount?.addEventListener('pcb-layer-visibility-change', (event) => {
             if (!event?.detail || typeof event.detail !== 'object') return
 
@@ -481,6 +489,53 @@ export class ViewerSidebarEventBinder {
             event.preventDefault?.()
             callback(button)
         })
+    }
+
+    /**
+     * Builds a layer visibility event payload from a clicked control.
+     * @param {any} button Button-like element.
+     * @returns {{ action: string, documentId: string, layerKey: string, layerKeys: string[], visible: boolean }}
+     */
+    static #layerVisibilityChangeFromButton(button) {
+        const action = button.getAttribute('data-pcb-layer-action') || 'toggle'
+        const parsedKeys =
+            ViewerSidebarEventBinder.#parseLayerKeysAttribute(button)
+        const layerKey =
+            button.getAttribute('data-pcb-layer-key') || parsedKeys[0] || ''
+        const layerKeys = parsedKeys.length
+            ? parsedKeys
+            : [layerKey].filter(Boolean)
+
+        return {
+            action,
+            documentId: button.getAttribute('data-document-id') || '',
+            layerKey,
+            layerKeys,
+            visible:
+                action === 'only' ||
+                button.getAttribute('data-pcb-layer-visible') === 'false'
+        }
+    }
+
+    /**
+     * Parses the optional JSON-encoded layer key list from a layer control.
+     * @param {any} button Button-like element.
+     * @returns {string[]}
+     */
+    static #parseLayerKeysAttribute(button) {
+        const raw = button.getAttribute('data-pcb-layer-keys') || ''
+        if (!raw) return []
+
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed)
+                ? parsed
+                      .map((layerKey) => String(layerKey || ''))
+                      .filter(Boolean)
+                : []
+        } catch (_error) {
+            return []
+        }
     }
 
     /**

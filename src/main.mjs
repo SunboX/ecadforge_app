@@ -11,6 +11,7 @@ import { AppView } from './ui/AppView.mjs'
 import { I18nService } from './I18n.mjs'
 import { PrivacySafeAnalytics } from './PrivacySafeAnalytics.mjs'
 import { StartupSourceResolver } from './StartupSourceResolver.mjs'
+import { ViewDeepLinkState } from './ViewDeepLinkState.mjs'
 import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
 
 /**
@@ -24,6 +25,7 @@ async function bootstrap() {
     const state = new AppState({
         locale: i18n ? i18n.getLocale() : 'en',
         activeView: 'schematic',
+        activeSidebarTab: ViewDeepLinkState.resolvePanel(window.location.href),
         autoSearchMissingModels: EcadModelSearchPreference.read(
             resolveBrowserStorage()
         ),

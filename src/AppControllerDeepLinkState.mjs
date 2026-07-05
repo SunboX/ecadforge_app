@@ -10,7 +10,7 @@ import { ViewDeepLinkState } from './ViewDeepLinkState.mjs'
 export class AppControllerDeepLinkState {
     /**
      * Writes the current view and active document path into the browser URL.
-     * @param {{ activeView: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
+     * @param {{ activeView: string, activeSidebarTab?: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
      * @param {{ history?: History, location?: Location }} [environment] Browser environment.
      * @returns {void}
      */
@@ -19,14 +19,15 @@ export class AppControllerDeepLinkState {
             documentPath: snapshot.activeFileName,
             componentKey:
                 AppControllerDeepLinkState.#resolveActiveComponentKey(snapshot),
-            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot)
+            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot),
+            panelName: snapshot.activeSidebarTab
         })
     }
 
     /**
      * Writes one GitHub source URL with the current active document path.
      * @param {string} sourceUrl Shareable GitHub source URL.
-     * @param {{ activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
+     * @param {{ activeSidebarTab?: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
      * @param {{ history?: History, location?: Location }} [environment] Browser environment.
      * @returns {void}
      */
@@ -35,14 +36,15 @@ export class AppControllerDeepLinkState {
             documentPath: snapshot.activeFileName,
             componentKey:
                 AppControllerDeepLinkState.#resolveActiveComponentKey(snapshot),
-            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot)
+            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot),
+            panelName: snapshot.activeSidebarTab
         })
     }
 
     /**
      * Writes a bundled demo source URL with the current view and document path.
      * @param {string} demoId Bundled demo id.
-     * @param {{ activeView: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
+     * @param {{ activeView: string, activeSidebarTab?: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
      * @param {{ history?: History, location?: Location }} [environment] Browser environment.
      * @returns {void}
      */
@@ -76,7 +78,7 @@ export class AppControllerDeepLinkState {
      * Builds a reloadable bundled demo URL.
      * @param {string} currentHref Current browser URL.
      * @param {string} demoId Bundled demo id.
-     * @param {{ activeView: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
+     * @param {{ activeView: string, activeSidebarTab?: string, activeFileName: string, activeDocumentId?: string, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string } }} snapshot State snapshot.
      * @returns {string}
      */
     static #buildDemoShareUrl(currentHref, demoId, snapshot) {
@@ -95,7 +97,8 @@ export class AppControllerDeepLinkState {
             documentPath: snapshot.activeFileName,
             componentKey:
                 AppControllerDeepLinkState.#resolveActiveComponentKey(snapshot),
-            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot)
+            netName: AppControllerDeepLinkState.#resolveActiveNetName(snapshot),
+            panelName: snapshot.activeSidebarTab
         })
     }
 
@@ -179,6 +182,19 @@ export class AppControllerDeepLinkState {
             selectedNets: nextSelection,
             activeSidebarTab: 'nets'
         })
+    }
+
+    /**
+     * Restores a startup sidebar panel from a stable panel id.
+     * @param {{ setValue: (key: string, value: string) => object }} state App state container.
+     * @param {string} panelName Requested sidebar panel id.
+     * @returns {void}
+     */
+    static restorePanel(state, panelName) {
+        const panel = String(panelName || '').trim()
+        if (panel) {
+            state.setValue('activeSidebarTab', panel)
+        }
     }
 
     /**

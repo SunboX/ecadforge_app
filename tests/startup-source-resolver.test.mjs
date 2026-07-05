@@ -36,13 +36,14 @@ test('StartupSourceResolver recovers bundled demo sources from document-only URL
 test('StartupSourceResolver resolves GitHub URL inputs', () => {
     assert.deepEqual(
         StartupSourceResolver.resolve(
-            'https://ecadforge.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fa%2Fb%2Fmain%2Fboard.kicad_pcb&view=3d&document=Boards%2Fboard.kicad_pcb&component=U2'
+            'https://ecadforge.app/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fa%2Fb%2Fmain%2Fboard.kicad_pcb&view=3d&document=Boards%2Fboard.kicad_pcb&panel=layers&component=U2'
         ),
         {
             type: 'url',
             url: 'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
             view: '3d',
             document: 'Boards/board.kicad_pcb',
+            panel: 'layers',
             component: 'U2'
         }
     )

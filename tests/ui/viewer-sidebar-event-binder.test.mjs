@@ -123,6 +123,18 @@ class FakeButton {
             return this
         }
         if (
+            selector === '[data-pcb-layer-action]' &&
+            this.getAttribute('data-pcb-layer-action')
+        ) {
+            return this
+        }
+        if (
+            selector === '[data-pcb-layer-key]' &&
+            this.getAttribute('data-pcb-layer-key')
+        ) {
+            return this
+        }
+        if (
             selector === '[data-pcb-component-key]' &&
             this.getAttribute('data-pcb-component-key')
         ) {
@@ -497,6 +509,71 @@ test('ViewerSidebarEventBinder binds PCB net selection buttons', () => {
         }
     ])
     assert.equal(event.defaultPrevented, true)
+})
+
+/**
+ * Verifies single-row layer "only" buttons emit an action with the requested
+ * visible layer subset.
+ */
+test('ViewerSidebarEventBinder binds PCB layer only buttons', () => {
+    const mount = new FakeMount()
+    const changes = []
+    const button = new FakeButton({
+        'data-document-id': 'doc-1',
+        'data-pcb-layer-action': 'only',
+        'data-pcb-layer-keys': '["Top Layer"]'
+    })
+
+    ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(mount, (change) =>
+        changes.push(change)
+    )
+
+    const event = mount.click(button)
+
+    assert.deepEqual(changes, [
+        {
+            action: 'only',
+            documentId: 'doc-1',
+            layerKey: 'Top Layer',
+            layerKeys: ['Top Layer'],
+            visible: true
+        }
+    ])
+    assert.equal(event.defaultPrevented, true)
+    assert.equal(event.propagationStopped, true)
+})
+
+/**
+ * Verifies group layer actions emit all layer keys and invert the current group
+ * visibility state for batch toggles.
+ */
+test('ViewerSidebarEventBinder binds PCB layer group visibility buttons', () => {
+    const mount = new FakeMount()
+    const changes = []
+    const button = new FakeButton({
+        'data-document-id': 'doc-1',
+        'data-pcb-layer-action': 'toggle',
+        'data-pcb-layer-keys': '["Top Layer","inner 1"]',
+        'data-pcb-layer-visible': 'true'
+    })
+
+    ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(mount, (change) =>
+        changes.push(change)
+    )
+
+    const event = mount.click(button)
+
+    assert.deepEqual(changes, [
+        {
+            action: 'toggle',
+            documentId: 'doc-1',
+            layerKey: 'Top Layer',
+            layerKeys: ['Top Layer', 'inner 1'],
+            visible: false
+        }
+    ])
+    assert.equal(event.defaultPrevented, true)
+    assert.equal(event.propagationStopped, true)
 })
 
 /**

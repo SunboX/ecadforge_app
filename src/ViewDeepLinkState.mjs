@@ -6,7 +6,7 @@ export class ViewDeepLinkState {
      * Builds the same URL with the active view query parameter applied.
      * @param {string} currentHref Current browser URL.
      * @param {string} viewName Requested top-level viewer tab.
-     * @param {{ documentPath?: string, componentKey?: string, netName?: string }} [options] Optional document and selection state.
+     * @param {{ documentPath?: string, componentKey?: string, netName?: string, panelName?: string }} [options] Optional document, panel, and selection state.
      * @returns {string}
      */
     static build(currentHref, viewName, options = {}) {
@@ -22,6 +22,7 @@ export class ViewDeepLinkState {
         ViewDeepLinkState.#applyDocumentPath(url, options)
         ViewDeepLinkState.#applyComponentKey(url, options)
         ViewDeepLinkState.#applyNetName(url, options)
+        ViewDeepLinkState.#applyPanelName(url, options)
 
         return url.href
     }
@@ -63,7 +64,7 @@ export class ViewDeepLinkState {
      * Replaces the current history entry with a URL for the selected view.
      * @param {string} viewName Requested top-level viewer tab.
      * @param {{ history?: History, location?: Location }} [environment]
-     * @param {{ documentPath?: string, componentKey?: string, netName?: string }} [options] Optional document and selection state.
+     * @param {{ documentPath?: string, componentKey?: string, netName?: string, panelName?: string }} [options] Optional document, panel, and selection state.
      * @returns {void}
      */
     static update(viewName, environment = globalThis, options = {}) {
@@ -182,6 +183,16 @@ export class ViewDeepLinkState {
     }
 
     /**
+     * Resolves the active sidebar panel query parameter from a browser URL.
+     * @param {string} href Browser URL.
+     * @returns {string}
+     */
+    static resolvePanel(href) {
+        const url = new URL(String(href || '/'), 'https://ecadforge.app/')
+        return ViewDeepLinkState.#sanitizePanel(url.searchParams.get('panel'))
+    }
+
+    /**
      * Returns a supported view id, or an empty string when absent/invalid.
      * @param {unknown} value Candidate view id.
      * @returns {string}
@@ -273,6 +284,29 @@ export class ViewDeepLinkState {
     }
 
     /**
+     * Applies the optional active sidebar panel query parameter to a URL.
+     * @param {URL} url URL to update.
+     * @param {{ panelName?: string }} options Optional panel state.
+     * @returns {void}
+     */
+    static #applyPanelName(url, options) {
+        if (
+            !Object.prototype.hasOwnProperty.call(options || {}, 'panelName')
+        ) {
+            return
+        }
+
+        const panelName = ViewDeepLinkState.#sanitizePanel(options.panelName)
+
+        if (panelName && panelName !== 'project') {
+            url.searchParams.set('panel', panelName)
+            return
+        }
+
+        url.searchParams.delete('panel')
+    }
+
+    /**
      * Returns a URL-safe document path value, or an empty string.
      * @param {unknown} value Candidate document path.
      * @returns {string}
@@ -297,5 +331,30 @@ export class ViewDeepLinkState {
      */
     static #sanitizeNet(value) {
         return String(value || '').trim()
+    }
+
+    /**
+     * Returns a supported sidebar panel id, or an empty string.
+     * @param {unknown} value Candidate sidebar panel id.
+     * @returns {string}
+     */
+    static #sanitizePanel(value) {
+        const normalized = String(value || '')
+            .trim()
+            .toLowerCase()
+        const supported = new Set([
+            'project',
+            'layers',
+            'objects',
+            'components',
+            'nets',
+            'properties',
+            'model3d',
+            'info',
+            'preferences',
+            'help'
+        ])
+
+        return supported.has(normalized) ? normalized : ''
     }
 }
