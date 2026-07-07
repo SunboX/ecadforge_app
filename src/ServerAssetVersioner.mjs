@@ -98,7 +98,11 @@ export class ServerAssetVersioner {
             'pcb-scene3d-viewer/scene3d':
                 '/node_modules/pcb-scene3d-viewer/src/scene3d.mjs',
             earcut: '/node_modules/earcut/src/earcut.js',
-            fflate: '/node_modules/fflate/esm/browser.js'
+            fflate: '/node_modules/fflate/esm/browser.js',
+            'polygon-clipping':
+                '/node_modules/polygon-clipping/dist/polygon-clipping.esm.js',
+            'robust-predicates': '/node_modules/robust-predicates/index.js',
+            splaytree: '/node_modules/splaytree/dist/splaytree.js'
         }
 
         return dependencyMap[normalizedSpecifier] || ''
@@ -113,7 +117,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate)'
+            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate|polygon-clipping|robust-predicates|splaytree)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

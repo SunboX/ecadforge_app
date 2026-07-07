@@ -611,8 +611,7 @@ test('ECAD libraries resolve through configured registry package sources', async
 
     for (const packageName of toolkitPackageNames) {
         const packageDependency = pkg.dependencies[packageName]
-        const lockedDependency =
-            lock.packages['']?.dependencies?.[packageName]
+        const lockedDependency = lock.packages['']?.dependencies?.[packageName]
         const dependencyPackage = lock.packages[`node_modules/${packageName}`]
 
         assert.match(packageDependency, releaseRangePattern)
@@ -775,6 +774,18 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"fflate"\s*:\s*"\/node_modules\/fflate\/esm\/browser\.js"/
+    )
+    assert.match(
+        indexRaw,
+        /"polygon-clipping"\s*:\s*"\/node_modules\/polygon-clipping\/dist\/polygon-clipping\.esm\.js"/
+    )
+    assert.match(
+        indexRaw,
+        /"robust-predicates"\s*:\s*"\/node_modules\/robust-predicates\/index\.js"/
+    )
+    assert.match(
+        indexRaw,
+        /"splaytree"\s*:\s*"\/node_modules\/splaytree\/dist\/splaytree\.js"/
     )
     assert.match(
         indexRaw,

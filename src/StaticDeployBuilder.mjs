@@ -31,6 +31,32 @@ const browserDependencyAssets = [
         outputParts: ['node_modules', 'fflate', 'esm', 'browser.js']
     },
     {
+        sourceParts: [
+            'node_modules',
+            'polygon-clipping',
+            'dist',
+            'polygon-clipping.esm.js'
+        ],
+        outputParts: [
+            'node_modules',
+            'polygon-clipping',
+            'dist',
+            'polygon-clipping.esm.js'
+        ]
+    },
+    {
+        sourceParts: ['node_modules', 'robust-predicates', 'index.js'],
+        outputParts: ['node_modules', 'robust-predicates', 'index.js']
+    },
+    {
+        sourceParts: ['node_modules', 'robust-predicates', 'esm'],
+        outputParts: ['node_modules', 'robust-predicates', 'esm']
+    },
+    {
+        sourceParts: ['node_modules', 'splaytree', 'dist', 'splaytree.js'],
+        outputParts: ['node_modules', 'splaytree', 'dist', 'splaytree.js']
+    },
+    {
         sourceParts: ['node_modules', 'three', 'build', 'three.module.js'],
         outputParts: ['node_modules', 'three', 'build', 'three.module.js']
     },
@@ -183,7 +209,7 @@ export class StaticDeployBuilder {
         const indexHtml = await readFile(indexPath, 'utf8')
         const modulePaths = await StaticDeployBuilder.#collectMatchingFiles(
             outputRoot,
-            (filePath) => filePath.endsWith('.mjs')
+            (filePath) => filePath.endsWith('.mjs') || filePath.endsWith('.js')
         )
 
         await writeFile(

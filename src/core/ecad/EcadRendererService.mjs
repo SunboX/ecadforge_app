@@ -857,7 +857,8 @@ export class EcadRendererService {
                 side
             }),
             'pcb-svg--app-palette',
-            'pcb-svg--gerber'
+            'pcb-svg--gerber',
+            side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
         )
     }
     /**

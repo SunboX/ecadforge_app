@@ -1,5 +1,6 @@
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbRenderedFootprintBoundsResolver } from './PcbRenderedFootprintBoundsResolver.mjs'
+import { SvgTransformBoundsMapper } from './SvgTransformBoundsMapper.mjs'
 
 /**
  * Renders visible PCB component selection markers from component geometry.
@@ -62,11 +63,16 @@ export class PcbComponentSelectionMarkerRenderer {
                 viewBox
             )
         if (renderedBounds) {
+            const visualRenderedBounds =
+                PcbComponentSelectionMarkerRenderer.#resolveVisualRenderedMarkerBounds(
+                    markup,
+                    renderedBounds
+                )
             return String(markup).replace(
                 /<\/svg>/,
                 PcbComponentSelectionMarkerRenderer.#renderBoundsMarker(
                     key,
-                    renderedBounds
+                    visualRenderedBounds
                 ) + '</svg>'
             )
         }
@@ -333,6 +339,34 @@ export class PcbComponentSelectionMarkerRenderer {
             documentModel,
             bounds
         )
+    }
+
+    /**
+     * Maps rendered SVG marker bounds into the root SVG coordinate frame.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @param {{ x: number, y: number, width: number, height: number, rx: number }} bounds Rendered marker bounds.
+     * @returns {{ x: number, y: number, width: number, height: number, rx: number }}
+     */
+    static #resolveVisualRenderedMarkerBounds(markup, bounds) {
+        return SvgTransformBoundsMapper.map(
+            bounds,
+            PcbComponentSelectionMarkerRenderer.#resolvePcbSceneTransform(
+                markup
+            )
+        )
+    }
+
+    /**
+     * Resolves the PCB scene transform attribute when the renderer uses one.
+     * @param {string} markup Renderer-owned SVG markup.
+     * @returns {string}
+     */
+    static #resolvePcbSceneTransform(markup) {
+        const match = String(markup).match(
+            /<g\b(?=[^>]*\bclass="[^"]*\bpcb-scene\b[^"]*")[^>]*\btransform="([^"]+)"[^>]*>/u
+        )
+
+        return String(match?.[1] || '')
     }
 
     /**

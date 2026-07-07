@@ -35,7 +35,10 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
         "import('gerber-toolkit/renderers')",
         "import { PcbScene3dBuilder } from 'gerber-toolkit/scene3d'",
         "import { PcbScene3dRuntime } from 'pcb-scene3d-viewer'",
-        "import('pcb-scene3d-viewer/scene3d')"
+        "import('pcb-scene3d-viewer/scene3d')",
+        "import polygonClipping from 'polygon-clipping'",
+        "import { orient2d } from 'robust-predicates'",
+        "import SplayTree from 'splaytree'"
     ].join('\n')
 
     const rewritten = ServerAssetVersioner.rewriteJavaScriptModule(
@@ -78,6 +81,18 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     assert.match(
         rewritten,
         /import\('\/node_modules\/pcb-scene3d-viewer\/src\/scene3d\.mjs\?v=1\.4\.153'\)/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/polygon-clipping\/dist\/polygon-clipping\.esm\.js\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/robust-predicates\/index\.js\?v=1\.4\.153'/
+    )
+    assert.match(
+        rewritten,
+        /from '\/node_modules\/splaytree\/dist\/splaytree\.js\?v=1\.4\.153'/
     )
 })
 

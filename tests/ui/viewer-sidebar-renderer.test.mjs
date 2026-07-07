@@ -97,6 +97,26 @@ function createFabricationDocument() {
                         id: 'layer-bottom',
                         fileName: 'fabrication/bottom-copper.gbl',
                         role: 'bottom-copper'
+                    },
+                    {
+                        id: 'layer-top-mask',
+                        fileName: 'fabrication/top-mask.gts',
+                        role: 'top-soldermask'
+                    },
+                    {
+                        id: 'layer-top-silk',
+                        fileName: 'fabrication/top-silk.gto',
+                        role: 'top-silkscreen'
+                    },
+                    {
+                        id: 'layer-drill',
+                        fileName: 'fabrication/round-holes.txt',
+                        role: 'plated-drill'
+                    },
+                    {
+                        id: 'layer-slot',
+                        fileName: 'fabrication/slot-holes.txt',
+                        role: 'plated-drill'
                     }
                 ]
             }
@@ -370,6 +390,42 @@ test('ViewerSidebarRenderer renders board layers with swatches', () => {
         /data-pcb-layer-key="F\.SilkS"(?:(?!<\/button>)[\s\S])*style="--sidebar-swatch: rgba\(66, 93, 112, 0\.72\)"/
     )
     assert.doesNotMatch(html, />ID \d+</)
+})
+
+/**
+ * Verifies Gerber source layer rows show fabrication-role names instead of
+ * raw archive paths in the layer panel.
+ */
+test('ViewerSidebarRenderer renders friendly Gerber layer names', () => {
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(createFabricationDocument(), 'layers')
+    )
+
+    assert.match(html, /<strong>Top Layer<\/strong>/)
+    assert.match(html, /<strong>Bot Layer<\/strong>/)
+    assert.match(html, /<strong>Top Solder<\/strong>/)
+    assert.match(html, /<strong>Top Silk<\/strong>/)
+    assert.match(html, /<strong>Drl<\/strong>/)
+    assert.match(html, /<strong>Slot<\/strong>/)
+    assert.doesNotMatch(html, />fabrication\/top-copper\.gtl</)
+    assert.doesNotMatch(html, />fabrication\/bottom-copper\.gbl</)
+})
+
+/**
+ * Verifies Gerber layer naming is scoped to Gerber source layers.
+ */
+test('ViewerSidebarRenderer keeps non-Gerber role layer names', () => {
+    const documentModel = createBoardDocument()
+    documentModel.pcb.layers = [
+        { name: 'Signal Export', layerId: 1, role: 'top-copper' }
+    ]
+
+    const html = ViewerSidebarRenderer.render(
+        createSnapshot(documentModel, 'layers')
+    )
+
+    assert.match(html, /<strong>Signal Export<\/strong>/)
+    assert.doesNotMatch(html, /<strong>Top Layer<\/strong>/)
 })
 
 /**

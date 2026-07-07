@@ -124,6 +124,22 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/fflate/esm/browser.js'
     )
+    const polygonClippingSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/polygon-clipping/dist/polygon-clipping.esm.js'
+    )
+    const robustPredicatesSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/robust-predicates/index.js'
+    )
+    const robustOrient2dSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/robust-predicates/esm/orient2d.js'
+    )
+    const splaytreeSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/splaytree/dist/splaytree.js'
+    )
     const altiumFontSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/altium-toolkit/src/core/altium/PcbEmbeddedFontExtractor.mjs'
@@ -201,6 +217,41 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     )
     assertNotHtmlShell(fflateSource, 'node_modules/fflate/esm/browser.js')
     assert.match(fflateSource, /unzlibSync/)
+    assertNotHtmlShell(
+        polygonClippingSource,
+        'node_modules/polygon-clipping/dist/polygon-clipping.esm.js'
+    )
+    assert.match(polygonClippingSource, /export \{ index as default \}/)
+    assert.match(
+        polygonClippingSource,
+        new RegExp(
+            '/node_modules/splaytree/dist/splaytree\\.js\\?v=' + pkg.version
+        )
+    )
+    assert.match(
+        polygonClippingSource,
+        new RegExp(
+            '/node_modules/robust-predicates/index\\.js\\?v=' + pkg.version
+        )
+    )
+    assertNotHtmlShell(
+        robustPredicatesSource,
+        'node_modules/robust-predicates/index.js'
+    )
+    assert.match(
+        robustPredicatesSource,
+        new RegExp('\\./esm/orient2d\\.js\\?v=' + pkg.version)
+    )
+    assertNotHtmlShell(
+        robustOrient2dSource,
+        'node_modules/robust-predicates/esm/orient2d.js'
+    )
+    assert.match(robustOrient2dSource, /orient2d/)
+    assertNotHtmlShell(
+        splaytreeSource,
+        'node_modules/splaytree/dist/splaytree.js'
+    )
+    assert.match(splaytreeSource, /export \{\s*z as default\s*\}/)
     assert.match(
         altiumFontSource,
         new RegExp('/node_modules/fflate/esm/browser\\.js\\?v=' + pkg.version)

@@ -6,6 +6,19 @@ const PCB_LAYER_SWATCH_COLORS = {
     surface: 'rgba(199, 82, 45, 0.92)'
 }
 
+const GERBER_LAYER_ROLE_LABELS = {
+    'top-paste': 'Top Paste',
+    'top-silkscreen': 'Top Silk',
+    'top-soldermask': 'Top Solder',
+    'top-copper': 'Top Layer',
+    'bottom-copper': 'Bot Layer',
+    'bottom-soldermask': 'Bot Solder',
+    'bottom-silkscreen': 'Bot Silk',
+    'bottom-paste': 'Bot Paste',
+    'board-outline': 'Outline',
+    'drill-map': 'Drl Drawing'
+}
+
 const PRESETS = [
     ['all', 'sidebar.presetAll'],
     ['front', 'sidebar.presetFront'],
@@ -48,6 +61,7 @@ export class ViewerSidebarLayerRenderer {
             (layers.length
                 ? ViewerSidebarLayerRenderer.#renderLayerBrowser(
                       layers,
+                      documentModel,
                       documentId,
                       snapshot?.hiddenPcbLayers || {},
                       translate
@@ -61,16 +75,24 @@ export class ViewerSidebarLayerRenderer {
     /**
      * Renders searchable, grouped layer controls.
      * @param {any[]} layers Layer metadata.
+     * @param {any} documentModel Active document model.
      * @param {string} documentId Active document id.
      * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Hidden layer map.
      * @param {(key: string) => string} translate Translation lookup.
      * @returns {string}
      */
-    static #renderLayerBrowser(layers, documentId, hiddenPcbLayers, translate) {
+    static #renderLayerBrowser(
+        layers,
+        documentModel,
+        documentId,
+        hiddenPcbLayers,
+        translate
+    ) {
         const rows = layers.map((layer, index) =>
             ViewerSidebarLayerRenderer.#buildLayerRow(
                 layer,
                 index,
+                documentModel,
                 documentId,
                 hiddenPcbLayers
             )
@@ -87,11 +109,18 @@ export class ViewerSidebarLayerRenderer {
      * Builds one normalized layer row.
      * @param {any} layer Layer metadata.
      * @param {number} index Layer index.
+     * @param {any} documentModel Active document model.
      * @param {string} documentId Active document id.
      * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Hidden layer map.
      * @returns {{ color: string, documentId: string, group: string, key: string, name: string, order: number, search: string, visible: boolean }}
      */
-    static #buildLayerRow(layer, index, documentId, hiddenPcbLayers) {
+    static #buildLayerRow(
+        layer,
+        index,
+        documentModel,
+        documentId,
+        hiddenPcbLayers
+    ) {
         const key = PcbLayerVisibilityModel.resolveLayerKey(layer, index)
         const color = ViewerSidebarLayerRenderer.#resolveLayerSwatchColor(
             layer,
@@ -102,7 +131,11 @@ export class ViewerSidebarLayerRenderer {
             documentId,
             key
         )
-        const name = String(layer?.name || key)
+        const name = ViewerSidebarLayerRenderer.#resolveLayerName(
+            layer,
+            key,
+            documentModel
+        )
         const search = ViewerSidebarLayerRenderer.#layerSearchText(layer, key)
         const group = ViewerSidebarLayerRenderer.#resolveLayerGroup(layer, key)
 
@@ -118,9 +151,115 @@ export class ViewerSidebarLayerRenderer {
                 group,
                 index
             ),
-            search,
+            search: ViewerSidebarLayerRenderer.#buildLayerSearchText(
+                name,
+                search
+            ),
             visible
         }
+    }
+
+    /**
+     * Builds the user-facing layer row label.
+     * @param {any} layer Layer metadata.
+     * @param {string} key Stable layer key.
+     * @param {any} documentModel Active document model.
+     * @returns {string}
+     */
+    static #resolveLayerName(layer, key, documentModel) {
+        const displayName = String(layer?.displayName || '').trim()
+        if (displayName) return displayName
+
+        const gerberName = ViewerSidebarLayerRenderer.#resolveGerberLayerName(
+            layer,
+            key,
+            documentModel
+        )
+        if (gerberName) return gerberName
+
+        return String(layer?.name || key)
+    }
+
+    /**
+     * Resolves standard Gerber fabrication roles to familiar board layer names.
+     * @param {any} layer Layer metadata.
+     * @param {string} key Stable layer key.
+     * @param {any} documentModel Active document model.
+     * @returns {string}
+     */
+    static #resolveGerberLayerName(layer, key, documentModel) {
+        if (!ViewerSidebarLayerRenderer.#isGerberLayer(layer, documentModel)) {
+            return ''
+        }
+
+        const role = String(layer?.role || '')
+            .trim()
+            .toLowerCase()
+        if (role === 'plated-drill' || role === 'nonplated-drill') {
+            return ViewerSidebarLayerRenderer.#isSlotLayer(layer, key)
+                ? 'Slot'
+                : 'Drl'
+        }
+        if (GERBER_LAYER_ROLE_LABELS[role]) {
+            return GERBER_LAYER_ROLE_LABELS[role]
+        }
+
+        return ViewerSidebarLayerRenderer.#baseName(
+            layer?.name || layer?.fileName || key
+        )
+    }
+
+    /**
+     * Returns true when a row came from a Gerber fabrication source layer.
+     * @param {any} layer Layer metadata.
+     * @param {any} documentModel Active document model.
+     * @returns {boolean}
+     */
+    static #isGerberLayer(layer, documentModel) {
+        const sourceFormat = String(
+            layer?.sourceFormat || documentModel?.sourceFormat || ''
+        ).toLowerCase()
+        if (sourceFormat === 'gerber') return true
+
+        const sourceName = String(layer?.name || layer?.fileName || '')
+        return (
+            /\.g(?:tl|bl|to|bo|ts|bs|tp|bp|ko|m\d*)$/iu.test(sourceName) ||
+            /\.drl$|(?:round|slot)[-_\s]?holes?\.txt$/iu.test(sourceName)
+        )
+    }
+
+    /**
+     * Returns true when a drill layer represents routed slots.
+     * @param {any} layer Layer metadata.
+     * @param {string} key Stable layer key.
+     * @returns {boolean}
+     */
+    static #isSlotLayer(layer, key) {
+        return /\bslot[-_\s]?holes?\b|\bslots?\b/iu.test(
+            [key, layer?.name, layer?.fileName, layer?.displayName, layer?.id]
+                .filter((value) => value !== undefined && value !== null)
+                .join(' ')
+        )
+    }
+
+    /**
+     * Returns the final path segment for fallback fabrication layer labels.
+     * @param {unknown} value Raw path-like value.
+     * @returns {string}
+     */
+    static #baseName(value) {
+        const text = String(value || '').replace(/\\+/gu, '/')
+        return text.split('/').filter(Boolean).pop() || text
+    }
+
+    /**
+     * Builds searchable text that includes the rendered label and source data.
+     * @param {string} name Rendered layer label.
+     * @param {string} sourceText Source metadata search text.
+     * @returns {string}
+     */
+    static #buildLayerSearchText(name, sourceText) {
+        return [name, sourceText].filter(Boolean).join(' ').toLowerCase()
     }
 
     /**
@@ -619,7 +758,9 @@ export class ViewerSidebarLayerRenderer {
     static #layerSearchText(layer, layerKey) {
         return [
             layerKey,
+            layer?.displayName,
             layer?.name,
+            layer?.fileName,
             layer?.layer,
             layer?.type,
             layer?.kind,
@@ -711,7 +852,9 @@ export class ViewerSidebarLayerRenderer {
         return (
             layerId === 1 ||
             layerId === 0x01000001 ||
-            /\btop\s+layer\b|\bf[._-]cu\b|\bfront\s+copper\b/.test(text)
+            /\btop\s+layer\b|\btop[-_\s]?copper\b|\bf[._-]cu\b|\bfront\s+copper\b/.test(
+                text
+            )
         )
     }
 
@@ -726,7 +869,9 @@ export class ViewerSidebarLayerRenderer {
         return (
             layerId === 32 ||
             layerId === 0x0100ffff ||
-            /\bbottom\s+layer\b|\bb[._-]cu\b|\bback\s+copper\b/.test(text)
+            /\bbottom\s+layer\b|\bbot\s+layer\b|\bbottom[-_\s]?copper\b|\bb[._-]cu\b|\bback\s+copper\b/.test(
+                text
+            )
         )
     }
 

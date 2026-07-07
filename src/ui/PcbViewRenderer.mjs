@@ -1,5 +1,4 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
-import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
@@ -7,6 +6,7 @@ import { PcbComponentSideAttributeRenderer } from './PcbComponentSideAttributeRe
 import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMarkerRenderer.mjs'
 import { PcbDiagnosticFocusRenderer } from './PcbDiagnosticFocusRenderer.mjs'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
+import { PcbViewGerberLayerSelection } from './PcbViewGerberLayerSelection.mjs'
 import { PcbViewportToolbarRenderer } from './PcbViewportToolbarRenderer.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 import { UiText } from './UiText.mjs'
@@ -47,9 +47,10 @@ export class PcbViewRenderer {
     ) {
         const t = UiText.createTranslator(translate)
         const normalizedSide = PcbViewRenderer.#normalizeSide(side)
-        const gerberOptions = PcbViewRenderer.#resolveGerberOptions(
+        const gerberOptions = PcbViewGerberLayerSelection.resolve(
             documentModel,
-            viewerOptions
+            viewerOptions,
+            hiddenLayers
         )
         const measurement = PcbMeasurementRenderer.normalize(
             viewerOptions.measurement
@@ -138,7 +139,7 @@ export class PcbViewRenderer {
      * @param {string} selectedComponentKey Selected component key.
      * @param {{ [objectKey: string]: number }} objectOpacities Object opacity map.
      * @param {string} selectedNetName Selected net name.
-     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
+     * @param {{ renderMode: string, layerId: string, layerIds: string[], side?: string }} gerberOptions Gerber render options.
      * @param {{ tool: string, mode: string, start: object | null, end: object | null }} measurement Measurement state.
      * @param {string} hoveredNetName Hovered net name.
      * @param {boolean} showTraceLengths Whether trace labels are visible.
@@ -161,15 +162,19 @@ export class PcbViewRenderer {
         focusedDiagnosticId,
         translate
     ) {
+        const renderSide = PcbViewRenderer.#resolveRenderSide(
+            side,
+            gerberOptions
+        )
         const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
             documentModel,
-            side,
+            renderSide,
             gerberOptions
         )
         const layerTargets = PcbViewRenderer.#resolveLayerVisibilityTargets(
             documentModel,
             hiddenLayers,
-            side
+            renderSide
         )
         const layerMarkup = PcbViewRenderer.#injectLayerVisibilityStyle(
             componentMarkup,
@@ -181,7 +186,7 @@ export class PcbViewRenderer {
                 PcbViewRenderer.#resolveInternalLayerEmphasis(
                     documentModel,
                     hiddenLayers,
-                    side
+                    renderSide
                 )
             )
         const visibleMarkup = PcbViewRenderer.#injectObjectOpacityStyle(
@@ -207,7 +212,7 @@ export class PcbViewRenderer {
             traceLengthMarkup,
             documentModel,
             selectedComponentKey,
-            side
+            renderSide
         )
 
         const measuredMarkup = PcbMeasurementRenderer.injectOverlay(
@@ -227,7 +232,7 @@ export class PcbViewRenderer {
      * Renders or reuses the state-independent PCB SVG for one document side.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
-     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
+     * @param {{ renderMode: string, layerId: string, layerIds: string[], side?: string }} gerberOptions Gerber render options.
      * @returns {string}
      */
     static #renderBasePcbSvg(documentModel, side, gerberOptions) {
@@ -262,7 +267,7 @@ export class PcbViewRenderer {
      * Creates the state-independent PCB SVG for one document side.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
-     * @param {{ renderMode: string, layerId: string }} gerberOptions Gerber render options.
+     * @param {{ renderMode: string, layerId: string, layerIds?: string[], side?: string }} gerberOptions Gerber render options.
      * @returns {string}
      */
     static #createBasePcbSvg(documentModel, side, gerberOptions) {
@@ -906,63 +911,6 @@ export class PcbViewRenderer {
     }
 
     /**
-     * Resolves Gerber render options from the document and caller options.
-     * @param {object} documentModel Document model.
-     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[] }} viewerOptions View options.
-     * @returns {{ renderMode: string, layerId: string, layerIds: string[] }}
-     */
-    static #resolveGerberOptions(documentModel, viewerOptions) {
-        if (!PcbViewRenderer.#isGerberDocument(documentModel)) {
-            return { renderMode: '', layerId: '', layerIds: [] }
-        }
-
-        const layers = PcbViewRenderer.#gerberLayers(documentModel)
-        const requestedLayerIds = Array.isArray(viewerOptions.gerberLayerIds)
-            ? viewerOptions.gerberLayerIds.map(String).filter(Boolean)
-            : []
-        const requestedLayerId = String(viewerOptions.gerberLayerId || '')
-        if (!requestedLayerIds.length && requestedLayerId) {
-            requestedLayerIds.push(requestedLayerId)
-        }
-        const validLayerIds = requestedLayerIds.filter((layerId) =>
-            layers.some((layer) => String(layer?.id || '') === layerId)
-        )
-        const layerIds = validLayerIds.length
-            ? validLayerIds
-            : [String(layers[0]?.id || '')].filter(Boolean)
-        const layerId = layerIds[0] || ''
-        const renderMode =
-            viewerOptions.gerberRenderMode === 'separated' && layerIds.length
-                ? 'separated'
-                : 'composite'
-
-        return { renderMode, layerId, layerIds }
-    }
-
-    /**
-     * Resolves Gerber source layers.
-     * @param {object} documentModel Document model.
-     * @returns {object[]}
-     */
-    static #gerberLayers(documentModel) {
-        return Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
-    }
-
-    /**
-     * Returns true when a document is a Gerber fabrication document.
-     * @param {object} documentModel Document model.
-     * @returns {boolean}
-     */
-    static #isGerberDocument(documentModel) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'gerber'
-        )
-    }
-
-    /**
      * Builds a cache key for base PCB SVG markup.
      * @param {'top' | 'bottom'} side Active side.
      * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
@@ -975,6 +923,20 @@ export class PcbViewRenderer {
             String(gerberOptions.layerId || ''),
             (gerberOptions.layerIds || []).join(',')
         ].join('|')
+    }
+
+    /**
+     * Resolves the SVG render side for Gerber source-layer-only views.
+     * @param {'top' | 'bottom'} activeSide Active toolbar side.
+     * @param {{ side?: string }} gerberOptions Gerber render options.
+     * @returns {'top' | 'bottom'}
+     */
+    static #resolveRenderSide(activeSide, gerberOptions) {
+        return gerberOptions.side === 'bottom'
+            ? 'bottom'
+            : gerberOptions.side === 'top'
+              ? 'top'
+              : activeSide
     }
 
     /** @returns {'top' | 'bottom'} Normalized supported board-side name. */
