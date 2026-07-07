@@ -704,18 +704,37 @@ export class PcbLayerVisibilityModel {
      */
     static #isDrawingLayer(text) {
         if (
-            /\b(mask|soldermask|solder\s+mask|paste|drill|drl)\b/.test(text) &&
+            /\b(mask|soldermask|solder\s+mask|paste|adhes|adhesive|drill|drl)\b/.test(
+                text
+            ) &&
             !/\b(drill|drl)[-_\s]?map\b/.test(text)
         ) {
             return false
         }
 
         return (
-            /\b(silk|silkscreen|overlay|legend)\b/.test(text) ||
+            /\b(silk|silks|silkscreen|overlay|legend)\b/.test(text) ||
             /\b(edge|edge[-_\s]?cuts|outline|profile|dimension)\b/.test(text) ||
             /\b(drawing|drawings|dwg|mechanical|mech)\b/.test(text) ||
             /\b(fab|assembly|courtyard|crtyd)\b/.test(text) ||
-            /\b(drill|drl)[-_\s]?map\b/.test(text)
+            /\b(drill|drl)[-_\s]?map\b/.test(text) ||
+            PcbLayerVisibilityModel.#isKicadDocumentationLayer(text)
+        )
+    }
+
+    /**
+     * Returns true for standard KiCad board documentation layers.
+     * @param {string} text Search text.
+     * @returns {boolean}
+     */
+    static #isKicadDocumentationLayer(text) {
+        return (
+            /(^|[\s])(?:dwgs|cmts|eco\d+)\.user($|[\s])/.test(text) ||
+            /(^|[\s])edge\.cuts($|[\s])/.test(text) ||
+            /(^|[\s])margin($|[\s])/.test(text) ||
+            /(^|[\s])user\.(?:drawings?|comments?|eco\d+|margin)($|[\s])/.test(
+                text
+            )
         )
     }
 }

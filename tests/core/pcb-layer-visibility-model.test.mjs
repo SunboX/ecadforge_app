@@ -213,6 +213,59 @@ test('PcbLayerVisibilityModel keeps internal Altium signal layers visible for co
 })
 
 /**
+ * Verifies the drawings preset recognizes KiCad documentation layers without
+ * keeping copper, mask, paste, adhesive, or custom user layers visible.
+ */
+test('PcbLayerVisibilityModel keeps KiCad drawing layers visible for drawings preset', () => {
+    const layers = [
+        'F.Cu',
+        'B.Cu',
+        'F.Adhes',
+        'F.Paste',
+        'F.SilkS',
+        'F.Mask',
+        'Dwgs.User',
+        'Cmts.User',
+        'Eco1.User',
+        'Eco2.User',
+        'Edge.Cuts',
+        'Margin',
+        'F.CrtYd',
+        'F.Fab',
+        'User.1'
+    ]
+    const nextHidden = PcbLayerVisibilityModel.withPreset(
+        {},
+        'doc-kicad',
+        {
+            sourceFormat: 'kicad',
+            kind: 'pcb',
+            fileName: 'technical-layer-fake.kicad_pcb',
+            pcb: {
+                kicadBoard: {
+                    layers: layers.map((name) => ({ name })),
+                    drawings: layers.map((layer, index) => ({
+                        type: 'segment',
+                        layer,
+                        start: { x: index, y: 0 },
+                        end: { x: index + 0.1, y: 0 },
+                        strokeWidth: 0.1
+                    })),
+                    footprints: [],
+                    pads: [],
+                    texts: []
+                }
+            }
+        },
+        'drawings'
+    )
+
+    assert.deepEqual(nextHidden, {
+        'doc-kicad': ['F.Cu', 'B.Cu', 'F.Adhes', 'F.Paste', 'F.Mask', 'User.1']
+    })
+})
+
+/**
  * Verifies the "only" layer action hides every physical PCB layer except the
  * requested subset.
  */

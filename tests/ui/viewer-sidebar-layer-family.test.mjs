@@ -51,6 +51,65 @@ function createLayerFamilyBoardDocument() {
 }
 
 /**
+ * Builds a compact PCB model with KiCad-style technical and custom layers.
+ * @returns {object}
+ */
+function createKicadTechnicalLayerBoardDocument() {
+    const layers = [
+        'F.Cu',
+        'B.Cu',
+        'B.Adhes',
+        'F.Adhes',
+        'B.Paste',
+        'F.Paste',
+        'B.SilkS',
+        'F.SilkS',
+        'B.Mask',
+        'F.Mask',
+        'Dwgs.User',
+        'Cmts.User',
+        'Eco1.User',
+        'Eco2.User',
+        'Edge.Cuts',
+        'Margin',
+        'B.CrtYd',
+        'F.CrtYd',
+        'B.Fab',
+        'F.Fab',
+        'User.1',
+        'User.9'
+    ]
+
+    return {
+        fileName: 'technical-layer-fake.kicad_pcb',
+        sourceFormat: 'kicad',
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {
+            title: 'Technical layer fake',
+            layerCount: 25
+        },
+        pcb: {
+            boardOutline: { widthMil: 1000, heightMil: 500 },
+            kicadBoard: {
+                layers: layers.map((name) => ({ name })),
+                drawings: layers.map((layer, index) => ({
+                    type: 'segment',
+                    layer,
+                    start: { x: index, y: 0 },
+                    end: { x: index + 0.1, y: 0 },
+                    strokeWidth: 0.1
+                })),
+                footprints: [],
+                pads: [],
+                texts: []
+            }
+        },
+        bom: []
+    }
+}
+
+/**
  * Builds a viewer snapshot for one document.
  * @param {object} documentModel Document model.
  * @returns {object}
@@ -74,13 +133,11 @@ function translateLayerAction(key) {
     return (
         {
             'sidebar.layerOnly': 'Nur',
-            'sidebar.layerOnlyGroupTitle':
-                'Nur Layergruppe anzeigen: {group}',
+            'sidebar.layerOnlyGroupTitle': 'Nur Layergruppe anzeigen: {group}',
             'sidebar.layerOnlyTitle': 'Nur Layer anzeigen: {layer}',
             'sidebar.layerToggleGroupTitle':
                 'Layergruppen-Sichtbarkeit umschalten: {group}',
-            'sidebar.layerToggleTitle':
-                'Layer-Sichtbarkeit umschalten: {layer}'
+            'sidebar.layerToggleTitle': 'Layer-Sichtbarkeit umschalten: {layer}'
         }[key] || key
     )
 }
@@ -137,6 +194,50 @@ test('ViewerSidebarRenderer groups PCB layers by fabrication family', () => {
         'data-pcb-layer-key="Drill Guide"',
         'data-pcb-layer-key="Keep-Out Layer"',
         'data-pcb-layer-key="Drill Drawing"'
+    ])
+})
+
+/**
+ * Verifies KiCad technical layers use role-based groups instead of falling
+ * through to the generic Other section.
+ */
+test('ViewerSidebarRenderer groups KiCad technical layers by layer role', () => {
+    const html = ViewerSidebarRenderer.render(
+        createLayerSnapshot(createKicadTechnicalLayerBoardDocument())
+    )
+
+    assert.doesNotMatch(html, /data-layer-group="other"/)
+    assertMarkupOrder(html, [
+        'data-layer-group="copper"',
+        'data-pcb-layer-key="F.Cu"',
+        'data-pcb-layer-key="B.Cu"',
+        'data-layer-group="solder-mask"',
+        'data-pcb-layer-key="F.Mask"',
+        'data-pcb-layer-key="B.Mask"',
+        'data-layer-group="paste-mask"',
+        'data-pcb-layer-key="F.Paste"',
+        'data-pcb-layer-key="B.Paste"',
+        'data-layer-group="adhesive"',
+        'data-pcb-layer-key="F.Adhes"',
+        'data-pcb-layer-key="B.Adhes"',
+        'data-layer-group="silkscreen"',
+        'data-pcb-layer-key="F.SilkS"',
+        'data-pcb-layer-key="B.SilkS"',
+        'data-layer-group="mechanical"',
+        'data-pcb-layer-key="F.CrtYd"',
+        'data-pcb-layer-key="B.CrtYd"',
+        'data-pcb-layer-key="F.Fab"',
+        'data-pcb-layer-key="B.Fab"',
+        'data-layer-group="drawings"',
+        'data-pcb-layer-key="Dwgs.User"',
+        'data-pcb-layer-key="Cmts.User"',
+        'data-pcb-layer-key="Eco1.User"',
+        'data-pcb-layer-key="Eco2.User"',
+        'data-pcb-layer-key="Edge.Cuts"',
+        'data-pcb-layer-key="Margin"',
+        'data-layer-group="user"',
+        'data-pcb-layer-key="User.1"',
+        'data-pcb-layer-key="User.9"'
     ])
 })
 

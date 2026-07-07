@@ -34,6 +34,22 @@ function gerberLayer(x) {
 }
 
 /**
+ * Returns a minimal Excellon drill layer with a content-detected text suffix.
+ * @returns {string}
+ */
+function excellonLayer() {
+    return [
+        'M48',
+        'METRIC,TZ',
+        'T01C0.600',
+        '%',
+        'T01',
+        'X001000Y001000',
+        'M30'
+    ].join('\n')
+}
+
+/**
  * Builds a two-sided synthetic Gerber document.
  * @returns {object}
  */
@@ -206,6 +222,51 @@ test('EcadParserService groups Gerber fabrication batches', async () => {
     assert.equal(result.documents[0].sourceFormat, 'gerber')
     assert.equal(result.documents[0].pcb.fabrication.layers.length, 2)
     assert.equal(result.project.sourceFormat, 'gerber')
+})
+
+/**
+ * Verifies content-detected Excellon TXT drill layers stay with Gerber batches.
+ */
+test('EcadParserService includes content-detected text drill files in Gerber batches', async () => {
+    const service = new EcadParserService({
+        gerberProjectLoader: {
+            canLoadEntries(entries) {
+                return entries.some((entry) => entry.name.endsWith('.gtl'))
+            },
+            loadEntries(entries) {
+                return {
+                    documents: [
+                        {
+                            sourceFormat: 'gerber',
+                            kind: 'pcb',
+                            fileName: 'fabrication',
+                            pcb: {
+                                fabrication: {
+                                    layers: entries.map((entry) => ({
+                                        fileName: entry.name
+                                    }))
+                                }
+                            }
+                        }
+                    ],
+                    diagnostics: [],
+                    assets: [],
+                    project: { sourceFormat: 'gerber' }
+                }
+            }
+        }
+    })
+    const result = await service.parseEntries([
+        { name: 'board-F_Cu.gtl', buffer: textBuffer(gerberLayer('X001000')) },
+        { name: 'board-holes.TXT', buffer: textBuffer(excellonLayer()) }
+    ])
+
+    assert.deepEqual(
+        result.documents[0].pcb.fabrication.layers.map(
+            (layer) => layer.fileName
+        ),
+        ['board-F_Cu.gtl', 'board-holes.TXT']
+    )
 })
 
 /**

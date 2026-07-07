@@ -523,11 +523,17 @@ export class EcadParserService {
      */
     static #normalizeEntries(entries) {
         return (entries || [])
-            .map((entry) => ({
-                name: String(entry?.name || ''),
-                buffer: entry?.buffer,
-                role: EcadParserService.#resolveParserRole(entry?.name)
-            }))
+            .map((entry) => {
+                const buffer = entry?.buffer
+                return {
+                    name: String(entry?.name || ''),
+                    buffer,
+                    role: EcadParserService.#resolveParserRole(
+                        entry?.name,
+                        buffer
+                    )
+                }
+            })
             .filter(
                 (entry) =>
                     entry.name &&
@@ -541,9 +547,10 @@ export class EcadParserService {
      * Resolves parser roles, including companion assets that provide project
      * context during batch parsing.
      * @param {string} fileName Source file name.
+     * @param {ArrayBuffer} [buffer] Source bytes for content sniffing.
      * @returns {{ sourceFormat: string, fileType: string } | null}
      */
-    static #resolveParserRole(fileName) {
+    static #resolveParserRole(fileName, buffer = null) {
         const nativeRole = EcadFormatRegistry.resolveNativeRole(fileName)
         if (nativeRole) {
             return nativeRole
@@ -559,7 +566,27 @@ export class EcadParserService {
             return { sourceFormat: 'kicad', fileType: 'kicad-library' }
         }
 
+        if (EcadParserService.#looksLikeGerberFabricationText(buffer)) {
+            return { sourceFormat: 'gerber', fileType: 'fabrication-text' }
+        }
+
         return null
+    }
+
+    /**
+     * Returns true when unknown-name bytes look like Gerber or Excellon input.
+     * @param {ArrayBuffer | null | undefined} buffer Source bytes.
+     * @returns {boolean}
+     */
+    static #looksLikeGerberFabricationText(buffer) {
+        if (!(buffer instanceof ArrayBuffer)) {
+            return false
+        }
+
+        const sample = new TextDecoder('utf-8').decode(
+            new Uint8Array(buffer).slice(0, 4096)
+        )
+        return /%FS|%MO|%AD|G04|M48|T\d+C[0-9.]+/iu.test(sample)
     }
 
     /**

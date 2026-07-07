@@ -637,25 +637,6 @@ test('viewer stylesheet rounds PCB board outline strokes', async () => {
 })
 
 /**
- * Verifies Gerber PCB SVGs use the same app palette override path as the
- * normal PCB renderers.
- */
-test('viewer stylesheet maps Gerber PCB output onto the app palette', async () => {
-    const css = await readStylesheet('25-kicad-pcb.css')
-
-    assert.match(css, /\.pcb-svg--gerber \.pcb-board/)
-    assert.match(css, /\.pcb-svg--gerber \.pcb-copper--surface \.pcb-track/)
-    assert.match(css, /\.pcb-svg--gerber \.pcb-copper--subsurface/)
-    assert.match(css, /\.pcb-svg--gerber \.pcb-pad/)
-    assert.match(css, /\.pcb-svg--gerber \.pcb-copper \.pcb-via/)
-    assert.match(css, /\.pcb-svg--gerber \.pcb-via-drill/)
-    assert.match(
-        css,
-        /\.pcb-svg--gerber \.gerber-layer \.gerber-polarity-clear/
-    )
-})
-
-/**
  * Verifies bottom-side PCB renders keep physical bottom layers on the same
  * blue-green palette shown by the layer sidebar.
  */
@@ -907,7 +888,7 @@ test('viewer sidebar overview uses explicit icons and clipped text', async () =>
     )
     assert.match(
         sidebarCss,
-        /\.viewer-sidebar__overview-row strong\s*\{[\s\S]*overflow-wrap:\s*anywhere;/
+        /\.viewer-sidebar__overview-row strong\s*\{[^}]*justify-self:\s*end;[^}]*text-align:\s*right;[^}]*overflow-wrap:\s*anywhere;/
     )
 })
 

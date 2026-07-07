@@ -18,8 +18,11 @@ const LAYER_GROUPS = [
     ['copper', 'sidebar.layerGroupCopper'],
     ['solder-mask', 'sidebar.layerGroupSolderMask'],
     ['paste-mask', 'sidebar.layerGroupPasteMask'],
+    ['adhesive', 'sidebar.layerGroupAdhesive'],
     ['silkscreen', 'sidebar.layerGroupSilkscreen'],
     ['mechanical', 'sidebar.layerGroupMechanical'],
+    ['drawings', 'sidebar.layerGroupDrawings'],
+    ['user', 'sidebar.layerGroupUser'],
     ['other', 'sidebar.otherSide']
 ]
 
@@ -482,6 +485,9 @@ export class ViewerSidebarLayerRenderer {
         if (ViewerSidebarLayerRenderer.#isPasteMaskLayer(text)) {
             return 'paste-mask'
         }
+        if (ViewerSidebarLayerRenderer.#isAdhesiveLayer(text)) {
+            return 'adhesive'
+        }
         if (ViewerSidebarLayerRenderer.#isSilkscreenLayer(text)) {
             return 'silkscreen'
         }
@@ -490,6 +496,12 @@ export class ViewerSidebarLayerRenderer {
         }
         if (ViewerSidebarLayerRenderer.#isMechanicalLayer(text)) {
             return 'mechanical'
+        }
+        if (ViewerSidebarLayerRenderer.#isDrawingLayer(text)) {
+            return 'drawings'
+        }
+        if (ViewerSidebarLayerRenderer.#isUserLayer(text)) {
+            return 'user'
         }
 
         return 'other'
@@ -528,9 +540,17 @@ export class ViewerSidebarLayerRenderer {
         if (
             group === 'solder-mask' ||
             group === 'paste-mask' ||
+            group === 'adhesive' ||
             group === 'silkscreen'
         ) {
             return ViewerSidebarLayerRenderer.#surfaceSideOrder(text) + tieBreak
+        }
+
+        if (group === 'mechanical') {
+            return (
+                ViewerSidebarLayerRenderer.#mechanicalLayerOrder(text) +
+                tieBreak
+            )
         }
 
         if (group === 'other') {
@@ -549,6 +569,32 @@ export class ViewerSidebarLayerRenderer {
         if (/\b(front|top)\b|\bf[._-]/.test(text)) return 0
         if (/\b(back|bottom)\b|\bb[._-]/.test(text)) return 1000
         return 500
+    }
+
+    /**
+     * Returns an ordering number for common mechanical layer roles.
+     * @param {string} text Normalized layer text.
+     * @returns {number}
+     */
+    static #mechanicalLayerOrder(text) {
+        const mechanical = text.match(/\bmechanical\s+(\d+)\b/)
+        if (mechanical) {
+            const number = Number(mechanical[1])
+            return Number.isFinite(number) ? number : 0
+        }
+        if (/\bassembly\b/.test(text)) {
+            return 1000 + ViewerSidebarLayerRenderer.#surfaceSideOrder(text)
+        }
+        if (/\b(courtyard|crtyd)\b/.test(text)) {
+            return 2000 + ViewerSidebarLayerRenderer.#surfaceSideOrder(text)
+        }
+        if (/\bdimension\b/.test(text)) {
+            return 3000 + ViewerSidebarLayerRenderer.#surfaceSideOrder(text)
+        }
+        if (/\bfab\b/.test(text)) {
+            return 4000 + ViewerSidebarLayerRenderer.#surfaceSideOrder(text)
+        }
+        return 5000 + ViewerSidebarLayerRenderer.#surfaceSideOrder(text)
     }
 
     /**
@@ -601,8 +647,12 @@ export class ViewerSidebarLayerRenderer {
             return true
         }
 
-        return /\b(assembly|courtyard|crtyd|dimension|drawing|drawings|dwg|fab|legend|mask|mechanical|overlay|paste|silk|silkscreen|silks|solder)\b/.test(
-            text
+        return (
+            /\b(assembly|courtyard|crtyd|dimension|drawing|drawings|dwg|fab|legend|mask|mechanical|overlay|paste|silk|silkscreen|silks|solder)\b/.test(
+                text
+            ) ||
+            ViewerSidebarLayerRenderer.#isAdhesiveLayer(text) ||
+            ViewerSidebarLayerRenderer.#isDrawingLayer(text)
         )
     }
 
@@ -700,7 +750,9 @@ export class ViewerSidebarLayerRenderer {
      * @returns {boolean}
      */
     static #isSolderMaskLayer(text) {
-        return /\bsolder[-_\s]?mask\b|\b(top|bottom)\s+solder\b/.test(text)
+        return /\bsolder[-_\s]?mask\b|\b(top|bottom)\s+solder\b|(^|[._\-\s])mask($|[._\-\s])/.test(
+            text
+        )
     }
 
     /**
@@ -709,7 +761,18 @@ export class ViewerSidebarLayerRenderer {
      * @returns {boolean}
      */
     static #isPasteMaskLayer(text) {
-        return /\bpaste[-_\s]?mask\b|\b(top|bottom)\s+paste\b/.test(text)
+        return /\bpaste[-_\s]?mask\b|\b(top|bottom)\s+paste\b|(^|[._\-\s])paste($|[._\-\s])/.test(
+            text
+        )
+    }
+
+    /**
+     * Returns true for adhesive rows.
+     * @param {string} text Normalized layer text.
+     * @returns {boolean}
+     */
+    static #isAdhesiveLayer(text) {
+        return /\badhes(?:ive)?\b|(^|[._\-\s])adhes($|[._\-\s])/.test(text)
     }
 
     /**
@@ -722,6 +785,22 @@ export class ViewerSidebarLayerRenderer {
     }
 
     /**
+     * Returns true for board drawing and documentation rows.
+     * @param {string} text Normalized layer text.
+     * @returns {boolean}
+     */
+    static #isDrawingLayer(text) {
+        return (
+            /(^|[\s])(?:dwgs|cmts|eco\d+)\.user($|[\s])/.test(text) ||
+            /(^|[\s])edge\.cuts($|[\s])/.test(text) ||
+            /(^|[\s])margin($|[\s])/.test(text) ||
+            /(^|[\s])user\.(?:drawings?|comments?|eco\d+|margin)($|[\s])/.test(
+                text
+            )
+        )
+    }
+
+    /**
      * Returns true for mechanical/documentation rows.
      * @param {string} text Normalized layer text.
      * @returns {boolean}
@@ -730,6 +809,15 @@ export class ViewerSidebarLayerRenderer {
         return /\b(mechanical|mech|assembly|courtyard|crtyd|dimension|fab)\b/.test(
             text
         )
+    }
+
+    /**
+     * Returns true for custom numbered user rows.
+     * @param {string} text Normalized layer text.
+     * @returns {boolean}
+     */
+    static #isUserLayer(text) {
+        return /(^|[\s])user[._-]?\d+\b/.test(text)
     }
 
     /**

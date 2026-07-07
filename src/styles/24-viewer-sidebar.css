@@ -594,10 +594,22 @@ body.is-viewer-mode.is-viewer-report
 
 .viewer-sidebar__overview-row strong {
     min-width: 0;
+    justify-self: end;
     font-size: 0.9rem;
     line-height: 1.2;
-    text-align: left;
+    text-align: right;
     overflow-wrap: anywhere;
+}
+
+.viewer-sidebar__overview-value--stacked {
+    display: grid;
+    gap: 0.12rem;
+}
+
+.viewer-sidebar__overview-subvalue {
+    color: #5f707c;
+    font-size: 0.78rem;
+    font-weight: 600;
 }
 
 .viewer-sidebar__overview-meta {

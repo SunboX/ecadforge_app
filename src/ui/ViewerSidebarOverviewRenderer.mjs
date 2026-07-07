@@ -162,7 +162,7 @@ export class ViewerSidebarOverviewRenderer {
 
     /**
      * Renders one overview metric row.
-     * @param {{ key: string, icon: string, label: string, value: string }} row Row definition.
+     * @param {{ key: string, icon: string, label: string, value: string, secondaryValue?: string }} row Row definition.
      * @returns {string}
      */
     static #renderOverviewRow(row) {
@@ -174,9 +174,33 @@ export class ViewerSidebarOverviewRenderer {
             ViewerSidebarOverviewRenderer.#renderIcon(row.icon) +
             '</span><span class="viewer-sidebar__overview-label">' +
             ViewerSidebarOverviewRenderer.#escapeHtml(row.label) +
-            '</span><strong>' +
+            '</span>' +
+            ViewerSidebarOverviewRenderer.#renderOverviewValue(row) +
+            '</article>'
+        )
+    }
+
+    /**
+     * Renders the primary and optional secondary overview value.
+     * @param {{ value: string, secondaryValue?: string }} row Row definition.
+     * @returns {string}
+     */
+    static #renderOverviewValue(row) {
+        if (!row.secondaryValue) {
+            return (
+                '<strong>' +
+                ViewerSidebarOverviewRenderer.#escapeHtml(row.value || '-') +
+                '</strong>'
+            )
+        }
+
+        return (
+            '<strong class="viewer-sidebar__overview-value viewer-sidebar__overview-value--stacked">' +
+            '<span>' +
             ViewerSidebarOverviewRenderer.#escapeHtml(row.value || '-') +
-            '</strong></article>'
+            '</span><span class="viewer-sidebar__overview-subvalue">' +
+            ViewerSidebarOverviewRenderer.#escapeHtml(row.secondaryValue) +
+            '</span></strong>'
         )
     }
 
@@ -184,11 +208,16 @@ export class ViewerSidebarOverviewRenderer {
      * Builds overview row definitions for PCB and schematic documents.
      * @param {any} documentModel Active document model.
      * @param {(key: string) => string} translate Translation lookup.
-     * @returns {{ key: string, icon: string, label: string, value: string }[]}
+     * @returns {{ key: string, icon: string, label: string, value: string, secondaryValue?: string }[]}
      */
     static #overviewRows(documentModel, translate) {
         const summary = documentModel?.summary || {}
         if (documentModel?.pcb) {
+            const boardDimensions =
+                ViewerSidebarOverviewRenderer.#formatBoardDimensions(
+                    documentModel
+                )
+
             return [
                 {
                     key: 'active-file',
@@ -218,9 +247,8 @@ export class ViewerSidebarOverviewRenderer {
                     key: 'footprint',
                     icon: 'target',
                     label: translate('scene3d.footprint'),
-                    value: ViewerSidebarOverviewRenderer.#formatBoardDimensions(
-                        documentModel
-                    )
+                    value: boardDimensions.value,
+                    secondaryValue: boardDimensions.secondaryValue
                 },
                 {
                     key: 'placements',
@@ -416,21 +444,60 @@ export class ViewerSidebarOverviewRenderer {
     }
 
     /**
-     * Formats board dimensions.
+     * Formats board dimensions in imperial and metric units.
      * @param {any} documentModel Active document model.
-     * @returns {string}
+     * @returns {{ value: string, secondaryValue: string }}
      */
     static #formatBoardDimensions(documentModel) {
-        const width =
+        const width = ViewerSidebarOverviewRenderer.#positiveNumber(
             documentModel?.summary?.boardWidthMil ||
-            documentModel?.pcb?.boardOutline?.widthMil
-        const height =
+                documentModel?.pcb?.boardOutline?.widthMil
+        )
+        const height = ViewerSidebarOverviewRenderer.#positiveNumber(
             documentModel?.summary?.boardHeightMil ||
-            documentModel?.pcb?.boardOutline?.heightMil
+                documentModel?.pcb?.boardOutline?.heightMil
+        )
 
-        return width && height
-            ? String(width) + ' x ' + String(height) + ' mil'
-            : ''
+        if (!width || !height) {
+            return { value: '', secondaryValue: '' }
+        }
+
+        return {
+            value:
+                ViewerSidebarOverviewRenderer.#formatDimensionNumber(width) +
+                ' x ' +
+                ViewerSidebarOverviewRenderer.#formatDimensionNumber(height) +
+                ' mil',
+            secondaryValue:
+                ViewerSidebarOverviewRenderer.#formatDimensionNumber(
+                    width * 0.0254
+                ) +
+                ' x ' +
+                ViewerSidebarOverviewRenderer.#formatDimensionNumber(
+                    height * 0.0254
+                ) +
+                ' mm'
+        }
+    }
+
+    /**
+     * Formats a dimension number without unnecessary trailing decimals.
+     * @param {number} value Dimension value.
+     * @returns {string}
+     */
+    static #formatDimensionNumber(value) {
+        return value.toFixed(2).replace(/\.?0+$/, '')
+    }
+
+    /**
+     * Resolves a positive finite number.
+     * @param {unknown} value Candidate value.
+     * @returns {number | null}
+     */
+    static #positiveNumber(value) {
+        const number = Number(value)
+
+        return Number.isFinite(number) && number > 0 ? number : null
     }
 
     /**

@@ -311,6 +311,7 @@ test('ViewerSidebarRenderer renders the board overview in the info panel', () =>
     assert.match(html, /Footprint/)
     assert.match(html, /BOM groups/)
     assert.match(html, /1000 x 500 mil/)
+    assert.match(html, /25\.4 x 12\.7 mm/)
     assert.match(
         html,
         /data-overview-key="bom-groups"[\s\S]*<strong>2<\/strong>/

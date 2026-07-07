@@ -1,4 +1,5 @@
 import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 import { ViewportInteractionGateRenderer } from './ViewportInteractionGateRenderer.mjs'
 
@@ -10,7 +11,7 @@ export class AppViewScene3dShellRenderer {
      * Renders the active app 3D shell without the compact stats strip.
      * @param {any} documentModel Active document model.
      * @param {((key: string) => string) | null} [translate] Translation lookup.
-     * @param {{ autoSearchMissingModels?: boolean }} [options] Shell options.
+     * @param {{ autoSearchMissingModels?: boolean, initialToggles?: Record<string, boolean> }} [options] Shell options.
      * @returns {string}
      */
     static render(documentModel, translate = null, options = {}) {
@@ -18,13 +19,53 @@ export class AppViewScene3dShellRenderer {
             AppViewScene3dShellRenderer.#insertInteractionGate(
                 AppViewScene3dShellRenderer.#removeStatsStrip(
                     SvgPanelChromeStripper.stripMetadataHeader(
-                        Scene3dRenderer.render(documentModel, translate)
+                        Scene3dRenderer.render(documentModel, translate, {
+                            initialToggles:
+                                AppViewScene3dShellRenderer.#initialToggles(
+                                    documentModel,
+                                    options
+                                )
+                        })
                     )
                 ),
                 translate
             ),
             translate,
             options
+        )
+    }
+
+    /**
+     * Resolves app-owned initial 3D layer visibility defaults.
+     * @param {any} documentModel Active document model.
+     * @param {{ initialToggles?: Record<string, boolean> }} options Shell options.
+     * @returns {Record<string, boolean>}
+     */
+    static #initialToggles(documentModel, options) {
+        const initialToggles = { ...(options.initialToggles || {}) }
+        if (
+            !Object.prototype.hasOwnProperty.call(
+                initialToggles,
+                'external-models'
+            ) &&
+            AppViewScene3dShellRenderer.#isAltiumDocument(documentModel)
+        ) {
+            initialToggles['external-models'] = false
+        }
+
+        return initialToggles
+    }
+
+    /**
+     * Returns true for Altium PCB document models.
+     * @param {any} documentModel Active document model.
+     * @returns {boolean}
+     */
+    static #isAltiumDocument(documentModel) {
+        return (
+            String(
+                EcadFormatRegistry.sourceFormatForDocument(documentModel)
+            ) === 'altium'
         )
     }
 

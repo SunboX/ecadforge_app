@@ -16,6 +16,24 @@
     --pcb-copper-solid-fill: rgba(15, 116, 108, 0.56);
 }
 
+.pcb-svg--app-palette.pcb-svg--gerber {
+    --pcb-board-fill: #2a5f27;
+    --pcb-board-stroke: #1c5424;
+    --pcb-exposed-copper-fill: #d9a61d;
+    --pcb-exposed-copper-stroke: #9a7a1b;
+    --pcb-mask-covered-fill: rgba(84, 112, 37, 0.45);
+    --pcb-mask-covered-track-color: rgba(31, 91, 37, 0.92);
+    --pcb-mask-covered-pad-fill: rgba(42, 95, 39, 0.72);
+    --pcb-subsurface-fill: rgba(26, 79, 34, 0.24);
+    --pcb-subsurface-track-color: rgba(20, 74, 31, 0.58);
+    --pcb-surface-fill: var(--pcb-exposed-copper-fill);
+    --pcb-surface-track-color: var(--pcb-exposed-copper-stroke);
+    --pcb-copper-solid-fill: var(--pcb-exposed-copper-fill);
+    --pcb-via-ring-fill: var(--pcb-exposed-copper-fill);
+    --pcb-via-hole-fill: #f2f3f1;
+    --pcb-component-text: #f8fbef;
+}
+
 .pcb-svg--kicad .pcb-board {
     fill: var(--pcb-board-fill);
     stroke: var(--pcb-board-stroke);
@@ -114,10 +132,15 @@
     opacity: 0.82;
 }
 
-.pcb-svg--gerber .pcb-drawing--silk {
-    fill: rgba(66, 93, 112, 0.1);
-    stroke: rgba(66, 93, 112, 0.72);
-    opacity: 0.82;
+.pcb-svg--gerber
+    .gerber-role-top-silkscreen
+    .pcb-drawing--silk.gerber-polarity-dark,
+.pcb-svg--gerber
+    .gerber-role-bottom-silkscreen
+    .pcb-drawing--silk.gerber-polarity-dark {
+    fill: var(--pcb-component-text);
+    stroke: var(--pcb-component-text);
+    opacity: 0.94;
 }
 
 .pcb-svg--kicad :is(circle, rect).pcb-pad {
@@ -159,6 +182,37 @@
     fill: var(--pcb-via-ring-fill);
     stroke: var(--pcb-surface-track-color);
     opacity: 1;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-covered.pcb-region {
+    fill: var(--pcb-mask-covered-fill);
+    stroke: none;
+    opacity: 1;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-covered.pcb-track {
+    stroke: var(--pcb-mask-covered-track-color);
+    opacity: 0.92;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-covered.pcb-pad,
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-covered.pcb-via {
+    fill: var(--pcb-mask-covered-pad-fill);
+    stroke: var(--pcb-mask-covered-track-color);
+    opacity: 0.9;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-region,
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-pad,
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-via {
+    fill: var(--pcb-exposed-copper-fill);
+    stroke: var(--pcb-exposed-copper-stroke);
+    opacity: 0.98;
+}
+
+.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-track {
+    stroke: var(--pcb-exposed-copper-fill);
+    opacity: 0.98;
 }
 
 .pcb-svg--circuitjson .pcb-via {
