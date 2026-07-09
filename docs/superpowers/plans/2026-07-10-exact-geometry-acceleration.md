@@ -267,11 +267,16 @@ high-vertex container. Assert returned values are original array identities in
 original order. Add a test-only brute-force reference using the current bounds,
 centroid, every-vertex, area, and source-index rules.
 
+Pass a fresh `preparedPolygonCache` through the new optional argument and
+assert that every valid source polygon is represented after the call. This is
+the required RED assertion: the current implementation ignores the argument.
+
 - [ ] **Step 2: Establish the pre-change result**
 
 Run: `npm test -- tests/pcb-scene3d-drill-cutout-filter.test.mjs`
 
-Expected: semantic cases PASS; the generated scale case records the current timing.
+Expected: existing semantic cases PASS and the cache-contract assertion FAILS
+because the current implementation leaves the map empty.
 
 - [ ] **Step 3: Integrate prepared candidates**
 
@@ -337,11 +342,16 @@ output. Capture current flattened position arrays and assert exact equality
 after indexing. Include a 10,000-point cutout overlapping only a small triangle
 subset.
 
+Pass a fresh `preparedPolygonCache` in the filter options and assert it contains
+the valid source cutouts after filtering. This cache-contract assertion is the
+required RED behavior before production integration.
+
 - [ ] **Step 2: Establish baseline outputs**
 
 Run: `npm test -- tests/pcb-scene3d-cutout-geometry-filter.test.mjs tests/pcb-scene3d-cutout-geometry-equivalence.test.mjs`
 
-Expected: PASS and deterministic baseline buffers.
+Expected: deterministic baseline buffers remain correct and the cache-contract
+assertion FAILS because the current filter ignores the supplied map.
 
 - [ ] **Step 3: Replace local preparation and grid indexing**
 
@@ -596,11 +606,16 @@ git commit -m "fix: reuse exact copper fill coverage"
 
 Force `PcbScene3dCopperFillPolygonBoolean.resolveRemainingLoopSets` to return `null`, restoring it in `finally`. Test three overlapping fills, prefix-only clipping, later-fill exclusion, authored holes, a candidate inside an earlier hole, epsilon boundary touching, mirrored coordinates, and recursive subdivision. Assert exact position arrays and first-emitted ownership.
 
+Use generated point objects with counted coordinate getters and assert each
+earlier loop is prepared only once for the full build. This is the required RED
+assertion: the current fallback converts and rereads earlier loops repeatedly.
+
 - [ ] **Step 2: Establish fallback outputs**
 
 Run: `npm test -- tests/pcb-scene3d-copper-fill-overlap.test.mjs tests/pcb-scene3d-copper-fill-mesh-builder.test.mjs`
 
-Expected: existing semantics PASS and deterministic generated baseline buffers.
+Expected: existing semantics PASS, generated buffers are deterministic, and the
+single-preparation getter-count assertion FAILS on the repeated fallback path.
 
 - [ ] **Step 3: Replace repeated preparation**
 
