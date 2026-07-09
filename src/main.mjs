@@ -6,6 +6,7 @@ import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
 import { EcadModelSearchPreference } from './core/ecad/EcadModelSearchPreference.mjs'
 import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
+import { WebMcpRuntimeLoader } from './core/webmcp/WebMcpRuntimeLoader.mjs'
 import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
 import { AppView } from './ui/AppView.mjs'
 import { I18nService } from './I18n.mjs'
@@ -67,6 +68,7 @@ async function bootstrap() {
     })
 
     await controller.init()
+    await WebMcpRuntimeLoader.initialize()
     await webMcpAdapter.initialize()
     if (!startupSource) {
         HeroPreviewDemoLoader.schedule(view)

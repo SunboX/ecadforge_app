@@ -474,6 +474,27 @@ test('WebMcpAdapter ignores deprecated navigator-only model context', async () =
 })
 
 /**
+ * Verifies the adapter resolves package-provided model context at initialize
+ * time, after the WebMCP runtime has loaded.
+ */
+test('WebMcpAdapter resolves document model context during initialization', async () => {
+    const documentContext = createObjectModelContext()
+    setGlobalProperty('document', {})
+
+    try {
+        const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
+        globalThis.document.modelContext = documentContext.modelContext
+
+        const result = await adapter.initialize()
+
+        assert.equal(result.registered, 28)
+        assert.equal(documentContext.calls.length, 28)
+    } finally {
+        setGlobalProperty('document', originalDocument)
+    }
+})
+
+/**
  * Verifies legacy browser registrations still receive MCP text content.
  */
 test('WebMcpAdapter supports legacy positional model context', async () => {

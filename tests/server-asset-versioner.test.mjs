@@ -36,6 +36,7 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
         "import { PcbScene3dBuilder } from 'gerber-toolkit/scene3d'",
         "import { PcbScene3dRuntime } from 'pcb-scene3d-viewer'",
         "import('pcb-scene3d-viewer/scene3d')",
+        "import('@mcp-b/global/iife')",
         "import polygonClipping from 'polygon-clipping'",
         "import { orient2d } from 'robust-predicates'",
         "import SplayTree from 'splaytree'"
@@ -81,6 +82,10 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     assert.match(
         rewritten,
         /import\('\/node_modules\/pcb-scene3d-viewer\/src\/scene3d\.mjs\?v=1\.4\.153'\)/
+    )
+    assert.match(
+        rewritten,
+        /import\('\/node_modules\/@mcp-b\/global\/dist\/index\.iife\.js\?v=1\.4\.153'\)/
     )
     assert.match(
         rewritten,

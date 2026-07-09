@@ -628,6 +628,28 @@ test('ECAD libraries resolve through configured registry package sources', async
 })
 
 /**
+ * Verifies the packaged WebMCP runtime is installed from npm and locked.
+ */
+test('WebMCP runtime resolves through configured registry package source', async () => {
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const lockRaw = await readFile(new URL('package-lock.json', root), 'utf8')
+    const pkg = JSON.parse(packageRaw)
+    const lock = JSON.parse(lockRaw)
+    const packageDependency = pkg.dependencies['@mcp-b/global']
+    const lockedDependency = lock.packages['']?.dependencies?.['@mcp-b/global']
+    const dependencyPackage = lock.packages['node_modules/@mcp-b/global']
+
+    assert.match(packageDependency, /^\^\d+\.\d+\.\d+$/)
+    assert.equal(lockedDependency, packageDependency)
+    assert.match(
+        dependencyPackage?.resolved ?? '',
+        /^https:\/\/registry\.npmjs\.org\/@mcp-b\/global\/-\/global-/
+    )
+    assert.match(dependencyPackage?.integrity ?? '', /^sha512-/)
+    assert.equal(dependencyPackage?.link, undefined)
+})
+
+/**
  * Verifies browser parser, renderer, and 3D viewer imports route through the
  * app ECAD facade and owned sibling packages.
  */
@@ -699,6 +721,10 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     const indexRaw = await readFile(new URL('src/index.html', root), 'utf8')
 
     assert.match(indexRaw, /<script\s+type="importmap">/)
+    assert.match(
+        indexRaw,
+        /"@mcp-b\/global\/iife"\s*:\s*"\/node_modules\/@mcp-b\/global\/dist\/index\.iife\.js"/
+    )
     assert.match(
         indexRaw,
         /"altium-toolkit"\s*:\s*"\/node_modules\/altium-toolkit\/src\/index\.mjs"/
@@ -794,6 +820,24 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"three\/addons\/"\s*:\s*"\/node_modules\/three\/examples\/jsm\/"/
+    )
+})
+
+/**
+ * Verifies WebMCP runtime startup happens before ECAD Forge registers its
+ * loaded-session tools.
+ */
+test('browser entrypoint initializes WebMCP runtime before registering tools', async () => {
+    const mainRaw = await readFile(new URL('src/main.mjs', root), 'utf8')
+
+    assert.match(
+        mainRaw,
+        /import \{ WebMcpRuntimeLoader \} from '\.\/core\/webmcp\/WebMcpRuntimeLoader\.mjs'/
+    )
+    assert.match(mainRaw, /await WebMcpRuntimeLoader\.initialize\(\)/)
+    assert.ok(
+        mainRaw.indexOf('await WebMcpRuntimeLoader.initialize()') <
+            mainRaw.indexOf('await webMcpAdapter.initialize()')
     )
 })
 

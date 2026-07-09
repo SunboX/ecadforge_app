@@ -10,6 +10,9 @@ export class WebMcpAdapter {
     /** @type {object | null} */
     #modelContext
 
+    /** @type {boolean} */
+    #resolveModelContextOnInitialize
+
     /** @type {WebMcpToolRegistry} */
     #registry
 
@@ -18,9 +21,11 @@ export class WebMcpAdapter {
      */
     constructor(dependencies) {
         this.#analytics = dependencies?.analytics || null
+        this.#resolveModelContextOnInitialize =
+            dependencies?.modelContext === undefined
         this.#modelContext =
             dependencies?.modelContext === undefined
-                ? WebMcpAdapter.#getNativeModelContext()
+                ? null
                 : dependencies.modelContext
         this.#registry =
             dependencies?.registry ||
@@ -30,10 +35,12 @@ export class WebMcpAdapter {
     }
 
     /**
-     * Registers tools when native WebMCP support is available.
+     * Registers tools when WebMCP runtime support is available.
      * @returns {Promise<{ available: boolean, registered: number, failed: number }>}
      */
     async initialize() {
+        this.#modelContext = this.#resolveModelContext()
+
         if (
             !this.#modelContext ||
             typeof this.#modelContext.registerTool !== 'function'
@@ -64,6 +71,19 @@ export class WebMcpAdapter {
         })
 
         return { available: true, registered, failed }
+    }
+
+    /**
+     * Resolves the browser model context at startup time unless one was
+     * injected for tests or alternate runtimes.
+     * @returns {object | null}
+     */
+    #resolveModelContext() {
+        if (this.#resolveModelContextOnInitialize) {
+            return WebMcpAdapter.#getNativeModelContext()
+        }
+
+        return this.#modelContext
     }
 
     /**

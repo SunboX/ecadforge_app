@@ -1,17 +1,18 @@
 # WebMCP
 
-ECAD Forge registers read-only WebMCP tools when the browser exposes a native
-`document.modelContext` API. The tools query only designs that are already
-loaded in the current browser session.
-
-If the browser does not provide native WebMCP support, ECAD Forge silently
-continues as a normal viewer. No third-party widget or bridge is bundled.
+ECAD Forge loads the `@mcp-b/global` WebMCP runtime and registers read-only
+WebMCP tools through `document.modelContext`. The runtime preserves native
+browser WebMCP when available and provides the package runtime when native
+support is unavailable. The tools query only designs that are already loaded in
+the current browser session.
 
 The production app shell includes the Chrome WebMCP origin-trial token for
 `https://ecadforge.app/`. The local Express server and generated Apache deploy
 artifact set `Origin-Agent-Cluster: ?1` and `Permissions-Policy: tools=(self)`
 so same-origin documents can register tools while cross-origin iframes remain
 blocked unless a trusted host explicitly delegates `allow="tools"`.
+The package runtime is configured before import with same-origin tab and iframe
+transport allowlists, avoiding the package default wildcard origin policy.
 
 ## Privacy Model
 
@@ -23,10 +24,10 @@ Design selectors refer only to loaded documents. A selector can be omitted,
 `active`, a loaded document id, an exact loaded file name, or an unambiguous
 loaded file base name.
 
-ECAD Forge owns the native WebMCP registration, session snapshot lookup,
-source-format dispatch, bounded response shaping, loaded-session review, design
-audit, BOM lookup, component metadata search, focused net and diagnostic
-inspection, pin summaries, BOM-to-PCB comparison, and
+ECAD Forge owns runtime configuration, tool registration, session snapshot
+lookup, source-format dispatch, bounded response shaping, loaded-session
+review, design audit, BOM lookup, component metadata search, focused net and
+diagnostic inspection, pin summaries, BOM-to-PCB comparison, and
 schematic-to-PCB cross-reference summaries. It also owns compact PCB placement,
 PCB net, design-rule, board summary, and fabrication-readiness inspection.
 Netlist extraction, regex validation, component grouping, and connectivity
@@ -36,17 +37,18 @@ selected loaded document.
 Registered tool descriptors use the current object-form WebMCP API with an
 `execute` function. They include `readOnlyHint: true` and
 `untrustedContentHint: true` annotations because the tools do not mutate app
-state and may summarize user-loaded ECAD data. Registration awaits the native
-browser promise so failures from cross-document tool publication are counted
-before startup continues. Older positional browser APIs remain supported when
-exposed through `document.modelContext` and receive MCP-style JSON text content.
+state and may summarize user-loaded ECAD data. Runtime loading completes before
+tool registration, and registration awaits browser/package promises so failures
+from cross-document tool publication are counted before startup continues.
+Older positional browser APIs remain supported when exposed through
+`document.modelContext` and receive MCP-style JSON text content.
 
 ## Analytics
 
 When the production analytics tracker is available, ECAD Forge records
 privacy-safe WebMCP usage events:
 
-- `webmcp_available`: native WebMCP support was detected and registration completed.
+- `webmcp_available`: WebMCP runtime support was detected and registration completed.
 - `webmcp_tool_registration_failed`: one tool registration failed.
 - `webmcp_tool_called`: one registered tool handler was called.
 

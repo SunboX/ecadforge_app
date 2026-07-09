@@ -96,6 +96,10 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         'utf8'
     )
     const mainSource = await readFile(path.join(outputRoot, 'main.mjs'), 'utf8')
+    const webMcpLoaderSource = await readFile(
+        path.join(outputRoot, 'core', 'webmcp', 'WebMcpRuntimeLoader.mjs'),
+        'utf8'
+    )
     const parserWorkerSource = await readFile(
         path.join(outputRoot, 'workers', 'ecad-parser.worker.mjs'),
         'utf8'
@@ -119,6 +123,10 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     const scene3dViewerSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
+    )
+    const webMcpRuntimeSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/@mcp-b/global/dist/index.iife.js'
     )
     const fflateSource = await readRequiredOutputFile(
         outputRoot,
@@ -177,6 +185,13 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         mainSource,
         new RegExp('\\./AppController\\.mjs\\?v=' + pkg.version)
     )
+    assert.match(
+        webMcpLoaderSource,
+        new RegExp(
+            '/node_modules/@mcp-b/global/dist/index\\.iife\\.js\\?v=' +
+                pkg.version
+        )
+    )
     assert.doesNotMatch(
         parserWorkerSource,
         /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
@@ -215,6 +230,11 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         scene3dViewerSource,
         new RegExp('/node_modules/fflate/esm/browser\\.js\\?v=' + pkg.version)
     )
+    assertNotHtmlShell(
+        webMcpRuntimeSource,
+        'node_modules/@mcp-b/global/dist/index.iife.js'
+    )
+    assert.match(webMcpRuntimeSource, /initializeWebModelContext/)
     assertNotHtmlShell(fflateSource, 'node_modules/fflate/esm/browser.js')
     assert.match(fflateSource, /unzlibSync/)
     assertNotHtmlShell(

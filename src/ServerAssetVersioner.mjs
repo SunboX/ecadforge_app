@@ -60,6 +60,8 @@ export class ServerAssetVersioner {
     static resolveBrowserBareSpecifier(specifier) {
         const normalizedSpecifier = String(specifier || '')
         const dependencyMap = {
+            '@mcp-b/global/iife':
+                '/node_modules/@mcp-b/global/dist/index.iife.js',
             'altium-toolkit': '/node_modules/altium-toolkit/src/index.mjs',
             'altium-toolkit/parser':
                 '/node_modules/altium-toolkit/src/parser.mjs',
@@ -117,7 +119,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate|polygon-clipping|robust-predicates|splaytree)'
+            '((?:@mcp-b\\/global\\/iife)|(?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate|polygon-clipping|robust-predicates|splaytree)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

@@ -7,6 +7,22 @@ const originAgentClusterHeaderValue = '?1'
 const permissionsPolicyHeaderValue = 'tools=(self)'
 const browserDependencyAssets = [
     {
+        sourceParts: [
+            'node_modules',
+            '@mcp-b',
+            'global',
+            'dist',
+            'index.iife.js'
+        ],
+        outputParts: [
+            'node_modules',
+            '@mcp-b',
+            'global',
+            'dist',
+            'index.iife.js'
+        ]
+    },
+    {
         sourceParts: ['node_modules', 'altium-toolkit', 'src'],
         outputParts: ['node_modules', 'altium-toolkit', 'src']
     },

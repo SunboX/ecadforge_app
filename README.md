@@ -15,7 +15,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, aligned and knockout PCB text, reset/fit viewport control, top/bottom component filters, in-board view settings, persistent diagnostic focus, optional rats-nest connectivity, trace-length budget labels, solder-mask/paste inspection layers, source-net group metadata, group/anchor-offset overlays, bounds measurement zoom/selection, clipped SVG/PNG bounds export, and highlightable nets where available
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup for STEP, WRL, GLB, GLTF, STL, and OBJ assets, opt-in missing-model search, and single-file PCB assembly export as STEP, WRL, GLTF, or GLB with board, copper, silkscreen, pads, vias, resolved or fallback 3D components, OBJ sidecar material colors, translucent model materials, and configurable board-face artwork textures for GLTF/GLB downloads
-- Browser-native WebMCP tools for querying designs already loaded in the current session
+- WebMCP runtime and read-only tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback and a local SPICE simulation worker boundary that returns CircuitJSON experiment output
 - Runtime language switching with browser detection and Brazilian Portuguese support
 - Shared parser, renderer, and non-interactive scene-data cores from `altium-toolkit`, `kicad-toolkit`, `gerber-toolkit`, and `circuitjson-toolkit`
@@ -64,7 +64,9 @@ Production deployment is available at [https://ecadforge.app/](https://ecadforge
 
 ## WebMCP
 
-When the browser provides native WebMCP support, ECAD Forge registers read-only
+ECAD Forge loads the `@mcp-b/global` WebMCP runtime with same-origin transport
+options, preserving native browser WebMCP when present and providing the
+package runtime when native support is unavailable. It then registers read-only
 tools for the designs already loaded in the current session. Agents can list
 loaded designs, components, nets, search metadata, review coverage, audit
 metadata/connectivity issues, cross-reference schematic nets against PCB pads,

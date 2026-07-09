@@ -14,7 +14,7 @@
 - `src/core/AppState.mjs`: normalized view state container
 - `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
 - `src/core/simulation/*.mjs`: local SPICE simulation worker client and message contract
-- `src/core/webmcp/*.mjs`: browser-native WebMCP adapter plus read-only loaded-session dispatch to toolkit-owned netlist query services
+- `src/core/webmcp/*.mjs`: configured WebMCP runtime loader, adapter, and read-only loaded-session dispatch to toolkit-owned netlist query services
 - `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
 - `altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
 - `altium-toolkit/netlist-query`: normalized Altium netlist extraction, search validation, component grouping, and traversal rules
@@ -60,16 +60,18 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
 6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, mounts the 2D PCB interaction controller for board selection, view settings, reset/fit, opt-in hover focus, visibility-aware hover/bounds candidate previews, persistent diagnostic focus, measurement actions, and clipped bounds exports, and mounts the interactive 3D controller when needed
 7. The app uses `EcadScene3dService` to choose the Altium, KiCad, Gerber, or CircuitJSON scene-description path. Gerber documents render as fabrication-derived bare boards without component bodies. The local 3D runtime resolves embedded STEP payloads from the normalized PCB model first, falls back to companion STEP, WRL, GLB, GLTF, STL, or OBJ assets from the active session or hosted Git project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy. Whole-board assembly export reuses the same scene-description and model-resolution path, then writes mesh-derived STEP B-rep, WRL, GLTF, or GLB geometry for the board substrate, copper, silkscreen, pads, vias, resolved component models, and fallback bodies for unresolved models; mesh imports preserve translucent material alpha and OBJ sidecar material colors, and GLTF/GLB exports attach rendered top and bottom PCB artwork as configurable board-face textures when the active document can render PCB views.
-8. `WebMcpAdapter` registers read-only tools when native browser WebMCP support is available, awaits native registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
+8. `WebMcpRuntimeLoader` loads `@mcp-b/global` with same-origin tab and iframe transport options, preserving native WebMCP when present and providing package runtime support when native support is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
 9. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
 10. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
 ## WebMCP
 
 The WebMCP layer is loaded by `src/main.mjs` after the controller is created.
-It is dependency-free and feature-detects the current `document.modelContext`
-API. If native support is unavailable, registration is skipped and the viewer
-continues normally.
+`WebMcpRuntimeLoader` configures `@mcp-b/global` before importing it so tab and
+iframe transports accept only the current page origin. The package runtime
+preserves native `document.modelContext` support when present and provides the
+runtime/polyfill path when native support is unavailable. If the package fails
+to load, the viewer continues normally and WebMCP tool registration is skipped.
 
 The app shell provides the production WebMCP origin-trial token for
 `https://ecadforge.app/`. Local server responses and generated Apache deploys
@@ -80,10 +82,10 @@ Registered tools operate only on loaded session documents. `design` arguments
 can target `active`, a loaded document id, an exact loaded file name, or an
 unambiguous loaded file base name. Current WebMCP browsers receive object-form
 tool descriptors with `execute` handlers and read-only/untrusted-content
-annotations. The adapter awaits registration promises returned by native
-browsers so cross-document publication errors are reported through registration
-analytics. Older positional browser APIs remain supported with MCP-style JSON
-text results.
+annotations. The adapter awaits registration promises returned by the
+browser/runtime so cross-document publication errors are reported through
+registration analytics. Older positional browser APIs remain supported with
+MCP-style JSON text results.
 
 The app WebMCP service owns session selection, source-format dispatch, bounded
 list response shaping, design review, audit issue generation, BOM/component
@@ -121,4 +123,4 @@ schematic connectivity is unavailable.
 
 ## Static Deployment
 
-The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, copies the required browser dependency modules into `.deploy-src/node_modules/`, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, and `package.json` to `/`; the processed browser module tree reaches `/node_modules/` only through the `.deploy-src/` artifact upload.
+The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, copies the required browser dependency modules into `.deploy-src/node_modules/`, including the bundled `@mcp-b/global` runtime, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, and `package.json` to `/`; the processed browser module tree reaches `/node_modules/` only through the `.deploy-src/` artifact upload.
