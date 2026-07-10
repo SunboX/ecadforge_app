@@ -23,13 +23,32 @@ function createPcbDocument(sourceFormat) {
 }
 
 /**
- * Verifies Altium 3D scenes start from the board-detail view while keeping
- * external component models available as an explicit user option.
+ * Verifies Altium 3D scenes use the enabled external-model package default.
  */
-test('AppViewScene3dShellRenderer hides Altium external models initially', () => {
+test('AppViewScene3dShellRenderer keeps Altium external models initially visible', () => {
     const markup = AppViewScene3dShellRenderer.render(
         createPcbDocument('altium'),
         (key) => key
+    )
+
+    assert.match(
+        markup,
+        /<input type="checkbox" checked data-scene-3d-toggle="external-models" \/>External models/
+    )
+})
+
+/**
+ * Verifies caller-provided disabled state remains authoritative.
+ */
+test('AppViewScene3dShellRenderer respects an explicit disabled external model state', () => {
+    const markup = AppViewScene3dShellRenderer.render(
+        createPcbDocument('altium'),
+        (key) => key,
+        {
+            initialToggles: {
+                'external-models': false
+            }
+        }
     )
 
     assert.match(
