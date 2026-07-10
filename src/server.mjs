@@ -122,6 +122,38 @@ app.use(
     })
 )
 
+app.get(/^\/node_modules\/.+\.js$/i, async (req, res, next) => {
+    try {
+        const filePath = ServerRuntime.resolveStaticAssetPath(
+            vendorRoot,
+            req.path.replace(/^\/node_modules\/+/i, '/')
+        )
+
+        if (!filePath) {
+            res.status(404).send('Not Found')
+            return
+        }
+
+        const source = await readFile(filePath, 'utf8')
+        const versionKey = await ServerRuntime.resolveRequestedAssetVersion(
+            req.originalUrl,
+            projectRoot
+        )
+
+        res.type('text/javascript')
+        res.setHeader('Cache-Control', noStoreCacheControl)
+        res.send(
+            ServerAssetVersioner.rewriteJavaScriptModule(source, versionKey)
+        )
+    } catch (error) {
+        if (error && error.code === 'ENOENT') {
+            res.status(404).send('Not Found')
+            return
+        }
+        next(error)
+    }
+})
+
 app.get(
     /^\/node_modules\/(?:altium-toolkit|kicad-toolkit|gerber-toolkit|circuitjson-toolkit|pcb-scene3d-viewer)\/.+\.mjs$/i,
     async (req, res, next) => {

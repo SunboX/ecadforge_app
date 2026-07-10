@@ -309,6 +309,57 @@ test('server serves browser node_modules modules with no-store cache headers', a
 })
 
 /**
+ * Verifies transitive JavaScript modules served from node_modules are usable
+ * inside module workers, where the page import map is not available.
+ */
+test('server rewrites browser node_modules JavaScript module imports', async (t) => {
+    const packageRaw = await readFile(
+        new URL('../package.json', import.meta.url),
+        'utf8'
+    )
+    const pkg = JSON.parse(packageRaw)
+    const port = await allocatePort()
+    const childProcess = spawn(process.execPath, [serverEntryPath], {
+        env: { ...process.env, PORT: String(port) },
+        stdio: ['ignore', 'pipe', 'pipe']
+    })
+
+    t.after(async () => {
+        await stopChildProcess(childProcess)
+    })
+
+    await waitForServerListening(childProcess, port)
+
+    const response = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/node_modules/polygon-clipping/dist/polygon-clipping.esm.js?v=' +
+            encodeURIComponent(String(pkg.version))
+    )
+    const source = await response.text()
+
+    assert.equal(response.ok, true)
+    assert.doesNotMatch(source, /from ['"]splaytree['"]/)
+    assert.doesNotMatch(source, /from ['"]robust-predicates['"]/)
+    assert.match(
+        source,
+        new RegExp(
+            'from [\'"]\\/node_modules\\/splaytree\\/dist\\/splaytree\\.js\\?v=' +
+                pkg.version +
+                '[\'"]'
+        )
+    )
+    assert.match(
+        source,
+        new RegExp(
+            'from [\'"]\\/node_modules\\/robust-predicates\\/index\\.js\\?v=' +
+                pkg.version +
+                '[\'"]'
+        )
+    )
+})
+
+/**
  * Verifies the local browser server exposes the browser-safe fflate package
  * module used by the Altium Toolkit parser.
  */
