@@ -119,7 +119,7 @@ schematic connectivity is unavailable.
 - `GET /api/component-source.php?path=...`: PHP/shared-hosting alias for the same component-source proxy paths; the upstream timeout defaults to 5 seconds and can be tuned with `ECAD_FORGE_COMPONENT_SOURCE_TIMEOUT_SECONDS`
 - `GET /robots.txt`: crawler policy that allows public app crawling and points to the production sitemap
 - `GET /sitemap.xml`: production sitemap for the app shell and crawlable view URLs
-- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Toolkit `.mjs` files are rewritten by the local server so module workers receive absolute browser dependency URLs without relying on the page import map.
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Toolkit `.mjs` files and browser `.js` dependencies are rewritten by the local server so module workers receive versioned absolute browser dependency URLs without relying on the page import map. The `/vendor/occt-import-js/dist/*` and `/node_modules/occt-import-js/dist/*` aliases are intentionally registered first and serve the app-owned OCCT JavaScript and WASM assets raw so the generated importer bundle remains byte-for-byte unchanged.
 
 ## Static Deployment
 

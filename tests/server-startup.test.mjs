@@ -313,11 +313,6 @@ test('server serves browser node_modules modules with no-store cache headers', a
  * inside module workers, where the page import map is not available.
  */
 test('server rewrites browser node_modules JavaScript module imports', async (t) => {
-    const packageRaw = await readFile(
-        new URL('../package.json', import.meta.url),
-        'utf8'
-    )
-    const pkg = JSON.parse(packageRaw)
     const port = await allocatePort()
     const childProcess = spawn(process.execPath, [serverEntryPath], {
         env: { ...process.env, PORT: String(port) },
@@ -333,28 +328,25 @@ test('server rewrites browser node_modules JavaScript module imports', async (t)
     const response = await fetch(
         'http://127.0.0.1:' +
             String(port) +
-            '/node_modules/polygon-clipping/dist/polygon-clipping.esm.js?v=' +
-            encodeURIComponent(String(pkg.version))
+            '/node_modules/polygon-clipping/dist/polygon-clipping.esm.js?v=worker-route-test'
     )
     const source = await response.text()
 
     assert.equal(response.ok, true)
+    assert.match(
+        String(response.headers.get('content-type') || ''),
+        /^text\/javascript\b/i
+    )
     assert.doesNotMatch(source, /from ['"]splaytree['"]/)
     assert.doesNotMatch(source, /from ['"]robust-predicates['"]/)
-    assert.match(
-        source,
-        new RegExp(
-            'from [\'"]\\/node_modules\\/splaytree\\/dist\\/splaytree\\.js\\?v=' +
-                pkg.version +
-                '[\'"]'
+    assert.ok(
+        source.includes(
+            "from '/node_modules/splaytree/dist/splaytree.js?v=worker-route-test'"
         )
     )
-    assert.match(
-        source,
-        new RegExp(
-            'from [\'"]\\/node_modules\\/robust-predicates\\/index\\.js\\?v=' +
-                pkg.version +
-                '[\'"]'
+    assert.ok(
+        source.includes(
+            "from '/node_modules/robust-predicates/index.js?v=worker-route-test'"
         )
     )
 })
@@ -558,6 +550,13 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
         ),
         'utf8'
     )
+    const expectedInstalledJsSource = await readFile(
+        new URL(
+            '../node_modules/@sunbox/occt-import-js/dist/occt-import-js.js',
+            import.meta.url
+        ),
+        'utf8'
+    )
     const expectedWasmSource = await readFile(
         new URL(
             '../src/vendor/occt-import-js/dist/occt-import-js.wasm',
@@ -569,6 +568,11 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
             String(port) +
             '/vendor/occt-import-js/dist/occt-import-js.js'
     )
+    const nodeModulesJsResponse = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/node_modules/occt-import-js/dist/occt-import-js.js?v=worker-route-test'
+    )
     const wasmResponse = await fetch(
         'http://127.0.0.1:' +
             String(port) +
@@ -576,14 +580,20 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
     )
 
     assert.equal(jsResponse.ok, true)
+    assert.equal(nodeModulesJsResponse.ok, true)
     assert.equal(wasmResponse.ok, true)
     assert.equal(await jsResponse.text(), expectedJsSource)
+    assert.equal(await nodeModulesJsResponse.text(), expectedInstalledJsSource)
     assert.deepEqual(
         Buffer.from(await wasmResponse.arrayBuffer()),
         expectedWasmSource
     )
     assert.match(
         String(jsResponse.headers.get('cache-control') || ''),
+        /no-store/i
+    )
+    assert.match(
+        String(nodeModulesJsResponse.headers.get('cache-control') || ''),
         /no-store/i
     )
     assert.match(
