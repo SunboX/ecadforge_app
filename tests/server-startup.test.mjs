@@ -341,12 +341,12 @@ test('server rewrites browser node_modules JavaScript module imports', async (t)
     assert.doesNotMatch(source, /from ['"]robust-predicates['"]/)
     assert.ok(
         source.includes(
-            "from '/node_modules/splaytree/dist/splaytree.js?v=worker-route-test'"
+            '/node_modules/splaytree/dist/splaytree.js?v=worker-route-test'
         )
     )
     assert.ok(
         source.includes(
-            "from '/node_modules/robust-predicates/index.js?v=worker-route-test'"
+            '/node_modules/robust-predicates/index.js?v=worker-route-test'
         )
     )
 })
@@ -550,13 +550,6 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
         ),
         'utf8'
     )
-    const expectedInstalledJsSource = await readFile(
-        new URL(
-            '../node_modules/@sunbox/occt-import-js/dist/occt-import-js.js',
-            import.meta.url
-        ),
-        'utf8'
-    )
     const expectedWasmSource = await readFile(
         new URL(
             '../src/vendor/occt-import-js/dist/occt-import-js.wasm',
@@ -583,7 +576,7 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
     assert.equal(nodeModulesJsResponse.ok, true)
     assert.equal(wasmResponse.ok, true)
     assert.equal(await jsResponse.text(), expectedJsSource)
-    assert.equal(await nodeModulesJsResponse.text(), expectedInstalledJsSource)
+    assert.equal(await nodeModulesJsResponse.text(), expectedJsSource)
     assert.deepEqual(
         Buffer.from(await wasmResponse.arrayBuffer()),
         expectedWasmSource
