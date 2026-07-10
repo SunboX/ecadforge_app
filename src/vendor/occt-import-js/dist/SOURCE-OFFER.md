@@ -83,10 +83,17 @@ git -C occt checkout --detach d3056ef80c9668f395da40f5fd7be186cae4501f
 ```
 
 The runtime was produced with the source tree's Release configuration.
-Release optimization is explicitly `-O3`. With Emscripten available on `PATH`, run
-`npm run rebuild:dist`. The underlying cross-platform build script configures
-CMake with `-DCMAKE_BUILD_TYPE=Release`, builds the WebAssembly target, runs the
-source repository tests, and copies the generated assets into `dist/`.
+Release optimization is explicitly `-O3`. With Emscripten available on `PATH`,
+install the package tooling and rebuild from either prepared source tree:
+
+```sh
+npm install
+npm run rebuild:dist
+```
+
+The underlying cross-platform build script configures CMake with
+`-DCMAKE_BUILD_TYPE=Release`, builds the WebAssembly target, runs the source
+repository tests, and copies the generated assets into `dist/`.
 
 The Windows helper scripts retained in that source tree are:
 

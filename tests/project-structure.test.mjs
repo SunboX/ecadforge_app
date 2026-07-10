@@ -247,6 +247,7 @@ test('vendored OCCT importer records reproducible O3 source and asset hashes', a
         sourceOfferRaw,
         /git clone https:\/\/github\.com\/SunboX\/OCCT\.git occt/
     )
+    assert.match(sourceOfferRaw, /npm install[\s\S]*npm run rebuild:dist/)
 
     for (const hash of hashes) {
         assert.match(sourceOfferRaw, new RegExp(hash))
