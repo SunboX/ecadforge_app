@@ -6,25 +6,33 @@ ECAD Forge ships the following browser runtime assets in this directory:
 - `occt-import-js-worker.js`
 - `occt-import-js.wasm`
 
-These assets provide STEP, BREP, and IGES import support in the browser. They
-are based on `@sunbox/occt-import-js@0.0.25` and Open CASCADE Technology
+These assets provide STEP, BREP, and IGES import support in the browser. The
+vendored JavaScript and WebAssembly runtime was built from the SunboX
+local fork version `0.0.28` of `occt-import-js` and Open CASCADE Technology
 (OCCT).
+The worker remains the ECAD Forge-owned wrapper based on the LGPL-licensed
+upstream worker.
 
-## Upstream sources
+## Vendored runtime source
 
-- `occt-import-js` npm package: `@sunbox/occt-import-js@0.0.25`
-- npm tarball: `https://registry.npmjs.org/@sunbox/occt-import-js/-/occt-import-js-0.0.25.tgz`
-- npm integrity: `sha512-Vq+oRZXo6bXRk+ooa4zC9J+L8xqOSxuEEzswh4z8ydc13iZVAzEwlxdFYCFMPnIqKMFmxNm2mW0DxAArqyMyaw==`
-- npm shasum: `bc2ef1fd2b193933d9daf068b7fc765ce7e3a7c9`
-- repository metadata: `https://github.com/kovacsv/occt-import-js`
-- package source commit used for the vendored runtime assets:
-  `af7c78e33f3b85f8f84c0243c72b857aa3689ee7`
-- included source archive in this repository: `../../../../occt-import-js-0.0.25.tgz`
-- included source archive SHA-256:
-  `26fc1c5c712fac1c35b98b985aeced6761f2ec8c589818031b1546ac6f27037e`
+- fork repository: `https://github.com/SunboX/occt-import-js.git`
+- fork commit used for the vendored JavaScript and WebAssembly:
+  `a4837090efa592fab4dc28915b4be94c3f29b527`
+- included local npm-pack archive:
+  `../../../../occt-import-js-0.0.28.tgz`
+- local archive npm shasum: `4013b029ef897cd66ed3fadd9b46ab6133e48653`
+- local archive npm integrity:
+  `sha512-4BKpv+chiukPV6pUnim4KK3BechvbabN6xZ0BrYSrNXKrU92tLzGyqskC5ghgLASVeZ9x4ZZfq2jUeX6vwRgpg==`
+- local archive SHA-256:
+  `9666b4ebbf995f2f947f9b528a3998274a37ccc4d8e9d0e4057f72259d8c75f4`
 
-The `@sunbox/occt-import-js@0.0.25` package source records OCCT as a
-submodule:
+Version `0.0.28` is a local fork build and is not claimed to be published on
+the npmjs registry. ECAD Forge's `package.json` and `package-lock.json` still
+declare the separate registry dependency `@sunbox/occt-import-js@0.0.25`
+(`^0.0.25` in `package.json`); that installed dependency is distinct from the
+vendored browser runtime documented here.
+
+The local-fork source records OCCT as a submodule:
 
 - OCCT repository: `https://git.dev.opencascade.org/repos/occt.git`
 - OCCT submodule commit: `d3056ef80c9668f395da40f5fd7be186cae4501f`
@@ -40,18 +48,23 @@ submodule:
 
 The ECAD Forge vendored assets currently have these SHA-256 hashes:
 
-- `occt-import-js.js`: `942df5f04d8253858ba559332afe45ea40e3fb1141998950b9d631f53def0f21`
+- `occt-import-js.js`: `56d7372f3b4a8b6251ff807a2c78450b196a8909494f2618e700e5ceec5b09bf`
 - `occt-import-js-worker.js`: `d3acf79d58f3235b92faa4f69c4210aede38eeb9d856166f8e347eae52367756`
-- `occt-import-js.wasm`: `e8fcc9e9ec4a45395611504ecf130d991a08d2a09504315206865aa18f015f2d`
+- `occt-import-js.wasm`: `0cc8b335b8e7429ce208d2f8a4c74e757023e2544d017b2ecb75316dd986fba7`
 
 ## Rebuild and replacement notes
 
 To rebuild the importer, unpack the included source archive or check out the
-package source tree at commit
-`af7c78e33f3b85f8f84c0243c72b857aa3689ee7`, initialize the `occt` submodule
-at commit `d3056ef80c9668f395da40f5fd7be186cae4501f`, and follow the upstream
-Emscripten/CMake build flow. The Windows helper scripts in that source tree
-are:
+fork at commit `a4837090efa592fab4dc28915b4be94c3f29b527`, then initialize the `occt`
+submodule at commit `d3056ef80c9668f395da40f5fd7be186cae4501f`.
+
+The runtime was produced with the source tree's Release configuration.
+Release optimization is explicitly `-O3`. With Emscripten available on `PATH`, run
+`npm run rebuild:dist`. The underlying cross-platform build script configures
+CMake with `-DCMAKE_BUILD_TYPE=Release`, builds the WebAssembly target, runs the
+source repository tests, and copies the generated assets into `dist/`.
+
+The Windows helper scripts retained in that source tree are:
 
 - `tools\setup_emscripten_win.bat`
 - `tools\build_wasm_win_release.bat`

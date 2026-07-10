@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.9.30",
+    "version": "1.9.31",
     "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
     "license": "AGPL-3.0-or-later",

@@ -42,7 +42,7 @@ test('required project files exist', async () => {
         'COMMERCIAL-LICENSE.md',
         'CONTRIBUTING.md',
         'package.json',
-        'occt-import-js-0.0.25.tgz',
+        'occt-import-js-0.0.28.tgz',
         'LICENSE',
         'LICENSES/AGPL-3.0-or-later.txt',
         'LICENSES/CC-BY-SA-4.0.txt',
@@ -175,7 +175,6 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
         /provided by the Open CASCADE Technology software/
     )
     assert.match(sourceOfferRaw, /@sunbox\/occt-import-js@0\.0\.25/)
-    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.25\.tgz/)
     assert.match(packageLockRaw, /"@sunbox\/occt-import-js": "\^0\.0\.25"/)
     assert.match(packageLockRaw, /"version": "0\.0\.25"/)
     assert.match(sourceOfferRaw, /sha512-/)
@@ -189,6 +188,57 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
     assert.doesNotMatch(dep5Raw, /PolyForm Noncommercial/)
     assert.match(noticeRaw, /OCCT_LGPL_EXCEPTION\.txt/)
     assert.match(noticeRaw, /SOURCE-OFFER\.md/)
+})
+
+/**
+ * Verifies the vendored O3 importer runtime can be reproduced from the
+ * included local-fork source and that its documented hashes match the files.
+ */
+test('vendored OCCT importer records reproducible O3 source and asset hashes', async () => {
+    const sourceArchivePath = 'occt-import-js-0.0.28.tgz'
+
+    assert.equal(
+        await exists(sourceArchivePath),
+        true,
+        'Missing local-fork source archive: ' + sourceArchivePath
+    )
+
+    const [sourceOfferRaw, importerJs, importerWasm, sourceArchive] =
+        await Promise.all([
+            readFile(
+                new URL('src/vendor/occt-import-js/dist/SOURCE-OFFER.md', root),
+                'utf8'
+            ),
+            readFile(
+                new URL(
+                    'src/vendor/occt-import-js/dist/occt-import-js.js',
+                    root
+                )
+            ),
+            readFile(
+                new URL(
+                    'src/vendor/occt-import-js/dist/occt-import-js.wasm',
+                    root
+                )
+            ),
+            readFile(new URL(sourceArchivePath, root))
+        ])
+    const hashes = [importerJs, importerWasm, sourceArchive].map((contents) =>
+        createHash('sha256').update(contents).digest('hex')
+    )
+
+    assert.match(sourceOfferRaw, /local fork version `0\.0\.28`/)
+    assert.match(
+        sourceOfferRaw,
+        /https:\/\/github\.com\/SunboX\/occt-import-js\.git/
+    )
+    assert.match(sourceOfferRaw, /a4837090efa592fab4dc28915b4be94c3f29b527/)
+    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.28\.tgz/)
+    assert.match(sourceOfferRaw, /Release[^\n]*`-O3`/)
+
+    for (const hash of hashes) {
+        assert.match(sourceOfferRaw, new RegExp(hash))
+    }
 })
 
 /**

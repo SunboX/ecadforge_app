@@ -19,7 +19,7 @@ Copyright: 2026 André Fiedler
 License: CC-BY-SA-4.0
 
 Files:
- occt-import-js-0.0.25.tgz
+ occt-import-js-0.0.28.tgz
  src/vendor/occt-import-js/dist/license.occt-import-js.txt
  src/vendor/occt-import-js/dist/occt-import-js.js
 Copyright: Viktor Kovacs and occt-import-js contributors
