@@ -34,7 +34,7 @@ vendored browser runtime documented here.
 
 The local-fork source records OCCT as a submodule:
 
-- OCCT repository: `https://git.dev.opencascade.org/repos/occt.git`
+- OCCT repository: `https://github.com/SunboX/OCCT.git`
 - OCCT submodule commit: `d3056ef80c9668f395da40f5fd7be186cae4501f`
 
 ## Licenses
@@ -54,9 +54,33 @@ The ECAD Forge vendored assets currently have these SHA-256 hashes:
 
 ## Rebuild and replacement notes
 
-To rebuild the importer, unpack the included source archive or check out the
-fork at commit `a4837090efa592fab4dc28915b4be94c3f29b527`, then initialize the `occt`
-submodule at commit `d3056ef80c9668f395da40f5fd7be186cae4501f`.
+Use one of the following source preparation paths before rebuilding.
+
+### Git checkout
+
+Clone the wrapper repository, check out the recorded commit, and initialize
+its OCCT submodule. The wrapper commit's gitlink selects the recorded OCCT
+commit:
+
+```sh
+git clone https://github.com/SunboX/occt-import-js.git
+cd occt-import-js
+git checkout a4837090efa592fab4dc28915b4be94c3f29b527
+git submodule update --init --recursive
+```
+
+### Included npm-pack archive
+
+The included npm-pack archive contains the wrapper package files and its
+`.gitmodules` file. It does not contain Git metadata or the OCCT source tree.
+Consequently, `git submodule update` cannot populate `occt/` in an unpacked
+archive. Unpack the archive, enter its package root, and place the recorded
+OCCT source at `occt/` explicitly:
+
+```sh
+git clone https://github.com/SunboX/OCCT.git occt
+git -C occt checkout --detach d3056ef80c9668f395da40f5fd7be186cae4501f
+```
 
 The runtime was produced with the source tree's Release configuration.
 Release optimization is explicitly `-O3`. With Emscripten available on `PATH`, run

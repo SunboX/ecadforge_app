@@ -178,7 +178,8 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
     assert.match(packageLockRaw, /"@sunbox\/occt-import-js": "\^0\.0\.25"/)
     assert.match(packageLockRaw, /"version": "0\.0\.25"/)
     assert.match(sourceOfferRaw, /sha512-/)
-    assert.match(sourceOfferRaw, /git\.dev\.opencascade\.org\/repos\/occt\.git/)
+    assert.match(sourceOfferRaw, /github\.com\/SunboX\/OCCT\.git/)
+    assert.doesNotMatch(sourceOfferRaw, /git\.dev\.opencascade\.org/)
     assert.match(sourceOfferRaw, /tools\\build_wasm_win_release\.bat/)
     assert.match(packageLockRaw, /"license": "LGPL-2\.1"/)
     assert.match(
@@ -235,6 +236,17 @@ test('vendored OCCT importer records reproducible O3 source and asset hashes', a
     assert.match(sourceOfferRaw, /a4837090efa592fab4dc28915b4be94c3f29b527/)
     assert.match(sourceOfferRaw, /occt-import-js-0\.0\.28\.tgz/)
     assert.match(sourceOfferRaw, /Release[^\n]*`-O3`/)
+    assert.match(sourceOfferRaw, /### Git checkout/)
+    assert.match(sourceOfferRaw, /git submodule update --init --recursive/)
+    assert.match(sourceOfferRaw, /### Included npm-pack archive/)
+    assert.match(
+        sourceOfferRaw,
+        /does not contain Git metadata or the OCCT source tree/
+    )
+    assert.match(
+        sourceOfferRaw,
+        /git clone https:\/\/github\.com\/SunboX\/OCCT\.git occt/
+    )
 
     for (const hash of hashes) {
         assert.match(sourceOfferRaw, new RegExp(hash))
