@@ -24,6 +24,10 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
   components, material alpha/colors, and optional board-face artwork textures.
 - WebMCP runtime and read-only tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback and a local SPICE simulation worker boundary that returns CircuitJSON experiment output
+- KiCad browser workers accept the same public project entries as direct
+  loading, including complete multi-file projects and binary companion assets;
+  queued worker requests snapshot accepted input without app-side transport
+  fields or compatibility adapters
 - Runtime language switching with browser detection and Brazilian Portuguese support
 - Converged parser, renderer, query, interaction, and scene APIs from
   `altium-toolkit`, `kicad-toolkit`, `gerber-toolkit`, and
@@ -87,6 +91,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.10.3 release notes](docs/release-notes-v1.10.3.md)
 - [1.10.2 release notes](docs/release-notes-v1.10.2.md)
 - [1.10.1 release notes](docs/release-notes-v1.10.1.md)
 - [1.10.0 release notes](docs/release-notes-v1.10.0.md)
