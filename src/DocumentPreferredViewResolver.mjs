@@ -1,3 +1,7 @@
+import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadDocumentDiagnostics } from './core/ecad/EcadDocumentDiagnostics.mjs'
+import { EcadDocumentType } from './core/ecad/EcadDocumentType.mjs'
+
 /**
  * Chooses the first viewer tab for a freshly parsed document model.
  */
@@ -8,16 +12,43 @@ export class DocumentPreferredViewResolver {
      * @returns {string}
      */
     static resolve(documentModel) {
-        if (documentModel?.kind === 'schematic') {
+        if (EcadDocumentType.isSchematic(documentModel)) {
             return 'schematic'
         }
 
-        if (documentModel?.kind === 'pcb') {
+        if (EcadDocumentType.isPcb(documentModel)) {
             return 'pcb'
         }
 
+        if (EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+            const elements =
+                EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
+            if (
+                elements.some((element) =>
+                    String(element?.type || '').startsWith('pcb_')
+                )
+            ) {
+                return 'pcb'
+            }
+            if (
+                elements.some((element) =>
+                    String(element?.type || '').startsWith('schematic_')
+                )
+            ) {
+                return 'schematic'
+            }
+            if (
+                elements.some((element) => element?.type === 'source_component')
+            ) {
+                return 'bom'
+            }
+        }
+
         if (!documentModel?.pcb) {
-            return Array.isArray(documentModel?.diagnostics)
+            if (Array.isArray(documentModel?.diagnostics)) {
+                return 'diagnostics'
+            }
+            return EcadDocumentDiagnostics.resolve(documentModel).length
                 ? 'diagnostics'
                 : 'bom'
         }

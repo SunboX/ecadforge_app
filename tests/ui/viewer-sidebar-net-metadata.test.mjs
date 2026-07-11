@@ -27,7 +27,8 @@ test('ViewerSidebarNetRenderer renders CircuitJSON net color swatches', () => {
         {
             type: 'source_net',
             source_net_id: 'source_net_signal',
-            name: 'SIGNAL'
+            name: 'SIGNAL',
+            member_source_group_ids: []
         },
         {
             type: 'pcb_net',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbScene3dBuilder } from '../../node_modules/altium-toolkit/src/scene3d.mjs'
+import { PcbScene3dBuilder } from 'altium-toolkit/extensions'
 
 test('Altium scene builder prefers shape-based overlay regions when available', () => {
     const scene = PcbScene3dBuilder.build({

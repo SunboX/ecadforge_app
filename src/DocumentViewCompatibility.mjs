@@ -1,4 +1,5 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadDocumentDiagnostics } from './core/ecad/EcadDocumentDiagnostics.mjs'
 
 /**
  * Resolves which loaded document can render a requested top-level view.
@@ -46,11 +47,20 @@ export class DocumentViewCompatibility {
         }
 
         if (viewName === 'bom') {
-            return Array.isArray(documentModel.bom)
+            return (
+                Array.isArray(documentModel.bom) ||
+                DocumentViewCompatibility.#hasElementType(
+                    documentModel,
+                    'source_component'
+                )
+            )
         }
 
         if (viewName === 'diagnostics') {
-            return Array.isArray(documentModel.diagnostics)
+            return (
+                Array.isArray(documentModel.diagnostics) ||
+                EcadDocumentDiagnostics.resolve(documentModel).length > 0
+            )
         }
 
         return false
@@ -97,18 +107,29 @@ export class DocumentViewCompatibility {
      * @returns {boolean}
      */
     static #hasElementPrefix(documentModel, prefix) {
-        if (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) !==
-            'circuitjson'
-        ) {
+        if (!EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
             return false
         }
 
-        const elements = Array.isArray(documentModel)
-            ? documentModel
-            : documentModel.elements || documentModel.circuitJson || []
+        const elements =
+            EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
         return elements.some((element) =>
             String(element?.type || '').startsWith(prefix)
         )
+    }
+
+    /**
+     * Returns true when a standards-shaped document has one exact type.
+     * @param {object | object[]} documentModel Document model.
+     * @param {string} type Exact CircuitJSON element type.
+     * @returns {boolean}
+     */
+    static #hasElementType(documentModel, type) {
+        if (!EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+            return false
+        }
+        return EcadFormatRegistry.circuitJsonElementsForDocument(
+            documentModel
+        ).some((element) => String(element?.type || '') === type)
     }
 }

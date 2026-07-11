@@ -1,3 +1,4 @@
+import { EcadDocumentConnectivity } from '../core/ecad/EcadDocumentConnectivity.mjs'
 import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { SchematicMarkupTools } from './SchematicMarkupTools.mjs'
 
@@ -13,27 +14,73 @@ export class SchematicNetHighlightRenderer {
      * @returns {string}
      */
     static inject(markup, documentModel, selectedNetName) {
+        const canonical =
+            EcadFormatRegistry.isCircuitJsonDocument(documentModel)
         const schematic = documentModel?.schematic
         const nets = Array.isArray(schematic?.nets) ? schematic.nets : []
-        if (!nets.length) return markup
-
-        const isKicad =
+        const directCoordinates =
+            canonical ||
             EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'kicad'
-        const overlays = this.#resolveNetOverlays(schematic, nets, isKicad)
+                'kicad'
+        const overlays = canonical
+            ? this.#resolveCanonicalNetOverlays(documentModel)
+            : this.#resolveNetOverlays(schematic, nets, directCoordinates)
         if (!overlays.length) return markup
 
         const selectedKey = String(selectedNetName || '').trim()
         const selectedHighlight = overlays
             .filter((overlay) => selectedKey && overlay.name === selectedKey)
-            .map((overlay) => this.#renderNetHighlight(overlay, isKicad))
+            .map((overlay) =>
+                this.#renderNetHighlight(overlay, directCoordinates)
+            )
             .join('')
-        const hitTargets = this.#renderNetHitTargets(overlays, isKicad)
+        const hitTargets = this.#renderNetHitTargets(
+            overlays,
+            directCoordinates
+        )
 
         return this.#injectHighlightMarkup(
             this.#injectNetHighlightStyle(markup),
             selectedHighlight + hitTargets
         )
+    }
+
+    /**
+     * Resolves canonical schematic geometry through shared CircuitJSON
+     * connectivity instead of requiring a parser-specific schematic model.
+     * @param {object} documentModel Canonical CircuitJSON document.
+     * @returns {{ name: string, paths: string[] }[]}
+     */
+    static #resolveCanonicalNetOverlays(documentModel) {
+        const connectivity = EcadDocumentConnectivity.resolve(documentModel)
+        const netsById = new Map(
+            connectivity.nets.map((net) => [String(net.id || ''), net])
+        )
+        const tracesById = new Map(
+            connectivity.traces.map((trace) => [String(trace.id || ''), trace])
+        )
+        const pathsByName = new Map()
+        for (const element of EcadFormatRegistry.circuitJsonElementsForDocument(
+            documentModel
+        )) {
+            if (element?.type !== 'schematic_trace') continue
+            const sourceTraceId = String(element.source_trace_id || '')
+            const trace = tracesById.get(sourceTraceId)
+            if (!trace) continue
+            const paths = (Array.isArray(element.edges) ? element.edges : [])
+                .map((edge) => this.#resolveNetSegmentPath(edge, 0, true))
+                .filter(Boolean)
+            if (!paths.length) continue
+
+            for (const sourceNetId of trace.sourceNetIds || []) {
+                const net = netsById.get(String(sourceNetId || ''))
+                const name = String(net?.name || net?.id || '').trim()
+                if (!name) continue
+                if (!pathsByName.has(name)) pathsByName.set(name, [])
+                pathsByName.get(name).push(...paths)
+            }
+        }
+        return [...pathsByName].map(([name, paths]) => ({ name, paths }))
     }
 
     /**
@@ -87,8 +134,8 @@ export class SchematicNetHighlightRenderer {
     static #resolveNetSegmentPath(segment, contentHeight, isKicad) {
         const points = this.#resolveNetSegmentPoints(segment)
             .map((point) => this.#renderedPoint(point, contentHeight, isKicad))
-            .filter((point) =>
-                Number.isFinite(point.x) && Number.isFinite(point.y)
+            .filter(
+                (point) => Number.isFinite(point.x) && Number.isFinite(point.y)
             )
         if (points.length < 2) return ''
 

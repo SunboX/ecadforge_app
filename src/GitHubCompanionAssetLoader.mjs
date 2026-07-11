@@ -32,7 +32,7 @@ export class GitHubCompanionAssetLoader {
      * Fetches already-discovered companion asset files.
      * @param {{ rawUrl?: string, fileName?: string, relativePath?: string, format?: string }[]} assetFiles Companion asset descriptors.
      * @param {(rawUrl: string) => Promise<ArrayBuffer>} fetchArrayBuffer Binary fetcher.
-     * @returns {Promise<{ name: string, relativePath: string, bytes: Uint8Array, format: string }[]>}
+     * @returns {Promise<{ name: string, relativePath: string, data: Uint8Array, format: string, source: { uri: string, fileName: string } }[]>}
      */
     static async loadAssetFiles(assetFiles, fetchArrayBuffer) {
         const assets = []
@@ -47,13 +47,18 @@ export class GitHubCompanionAssetLoader {
 
             try {
                 const buffer = await fetchArrayBuffer(rawUrl)
+                const data = new Uint8Array(buffer)
                 assets.push({
                     name:
                         String(assetFile?.fileName || '') ||
                         GitHubCompanionAssetLoader.#basename(relativePath),
                     relativePath,
-                    bytes: new Uint8Array(buffer),
-                    format
+                    data,
+                    format,
+                    source: {
+                        uri: rawUrl,
+                        fileName: relativePath
+                    }
                 })
             } catch (_error) {
                 // Project-local model folders are optional. Keep parsing the

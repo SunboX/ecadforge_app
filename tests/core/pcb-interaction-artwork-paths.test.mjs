@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a compact board with route-based documentation artwork.

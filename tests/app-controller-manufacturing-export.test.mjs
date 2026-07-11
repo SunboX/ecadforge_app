@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { AppControllerPcbAssemblyExport } from '../src/AppControllerPcbAssemblyExport.mjs'
 
 /**
@@ -12,21 +13,50 @@ function decode(bytes) {
 }
 
 /**
- * Verifies manufacturing export formats are downloaded from parsed metadata
+ * Verifies manufacturing export formats are downloaded from canonical data
  * without invoking the 3D assembly export service.
  */
-test('AppControllerPcbAssemblyExport downloads manufacturing metadata formats', async () => {
+test('AppControllerPcbAssemblyExport downloads canonical manufacturing formats', async () => {
     const downloads = []
     const statuses = []
     let assemblyExportCalls = 0
-    const documentModel = {
+    const documentModel = Parser.parse({
         fileName: 'metadata-board.json',
-        manufacturing: {
-            pickAndPlaceRows: [{ designator: 'U1', x: 1, y: 2 }],
-            routingDsn: '(pcb metadata-board)',
-            fabricationNotes: [{ type: 'text', id: 'fab_text_1' }]
-        }
-    }
+        data: JSON.stringify([
+            {
+                type: 'pcb_board',
+                pcb_board_id: 'board_1',
+                center: { x: 0, y: 0 },
+                width: 10,
+                height: 5
+            },
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 1, y: 2 },
+                width: 3,
+                height: 2,
+                rotation: 0,
+                layer: 'top'
+            },
+            {
+                type: 'pcb_fabrication_note_text',
+                pcb_fabrication_note_text_id: 'fab_text_1',
+                pcb_component_id: 'pcb_u1',
+                layer: 'top',
+                text: 'Inspect assembly',
+                anchor_position: { x: 1, y: 2 },
+                font_size: 0.8
+            }
+        ])
+    })
 
     await AppControllerPcbAssemblyExport.handle({
         change: { documentId: 'doc-1', format: 'pick-place-csv' },
@@ -89,10 +119,7 @@ test('AppControllerPcbAssemblyExport downloads manufacturing metadata formats', 
     })
 
     assert.equal(assemblyExportCalls, 0)
-    assert.equal(
-        downloads[1].fileName,
-        'metadata-board-fabrication-notes.json'
-    )
+    assert.equal(downloads[1].fileName, 'metadata-board-fabrication-notes.json')
     assert.equal(downloads[1].contentType, 'application/json;charset=utf-8')
     assert.match(decode(downloads[1].bytes), /fab_text_1/)
     assert.deepEqual(statuses, [

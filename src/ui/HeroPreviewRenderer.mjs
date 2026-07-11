@@ -1,5 +1,6 @@
+import { DocumentViewCompatibility } from '../DocumentViewCompatibility.mjs'
+import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
-import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import { PcbScene3dShellRenderer as Scene3dRenderer } from 'pcb-scene3d-viewer'
 import { UiText } from './UiText.mjs'
 
@@ -140,9 +141,7 @@ export class HeroPreviewRenderer {
      * @returns {string}
      */
     static #renderDiagnostics(documentModel, translate) {
-        const diagnostics = Array.isArray(documentModel?.diagnostics)
-            ? documentModel.diagnostics
-            : []
+        const diagnostics = EcadDocumentDiagnostics.resolve(documentModel)
         if (!diagnostics.length) {
             return (
                 '<section class="hero-proof__diagnostics" data-hero-preview-view="diagnostics"><strong>' +
@@ -306,35 +305,7 @@ export class HeroPreviewRenderer {
      * @returns {boolean}
      */
     static #supportsView(documentModel, activeView) {
-        if (activeView === 'schematic') {
-            return Boolean(documentModel?.schematic)
-        }
-
-        if (activeView === 'pcb') {
-            return (
-                Boolean(documentModel?.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
-            )
-        }
-
-        if (activeView === '3d') {
-            return (
-                Boolean(documentModel?.pcb) ||
-                EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-                    'circuitjson'
-            )
-        }
-
-        if (activeView === 'bom') {
-            return Array.isArray(documentModel?.bom)
-        }
-
-        if (activeView === 'diagnostics') {
-            return Array.isArray(documentModel?.diagnostics)
-        }
-
-        return false
+        return DocumentViewCompatibility.supportsView(documentModel, activeView)
     }
 
     /**

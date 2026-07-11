@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Verifies trace segments are not drawn across route points on different
@@ -147,7 +147,8 @@ test('PcbInteractionPrimitiveModel surfaces source trace connectivity', () => {
         {
             type: 'source_net',
             source_net_id: 'source_net_sig',
-            name: 'SIG'
+            name: 'SIG',
+            member_source_group_ids: []
         },
         {
             type: 'source_port',

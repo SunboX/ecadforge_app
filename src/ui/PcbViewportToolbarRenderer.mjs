@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
 import { PcbViewSettingsRenderer } from './PcbViewSettingsRenderer.mjs'
 

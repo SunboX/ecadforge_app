@@ -2,7 +2,7 @@ import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { GitHubAltiumProjectManifest } from './GitHubAltiumProjectManifest.mjs'
 import { GitHubCompanionAssetLoader } from './GitHubCompanionAssetLoader.mjs'
 import { GitSourceUrlResolver } from './GitSourceUrlResolver.mjs'
-import { SExpressionParser } from 'kicad-toolkit/parser'
+import { SExpressionParser } from 'kicad-toolkit/extensions'
 
 /**
  * Loads supported ECAD files from hosted Git raw, blob, or tree URLs.
@@ -88,7 +88,7 @@ export class GitHubSourceLoader {
      * Fetches project-local model assets referenced by KiCad footprints.
      * @param {string} sourceRawUrl Raw URL for the selected project source.
      * @param {{ name?: string, relativePath?: string }[]} modelReferences Model references.
-     * @returns {Promise<{ name: string, relativePath: string, bytes: Uint8Array, format: string }[]>}
+     * @returns {Promise<{ name: string, relativePath: string, data: Uint8Array, format: string, source: { uri: string, fileName: string } }[]>}
      */
     async #loadReferencedModelAssets(sourceRawUrl, modelReferences) {
         const directoryUrl =
@@ -113,6 +113,7 @@ export class GitHubSourceLoader {
                     relativePath
                 )
                 const buffer = await this.#fetchArrayBuffer(modelUrl)
+                const data = new Uint8Array(buffer)
                 assets.push({
                     name:
                         String(relativePath)
@@ -120,8 +121,12 @@ export class GitHubSourceLoader {
                             .filter(Boolean)
                             .at(-1) || '',
                     relativePath,
-                    bytes: new Uint8Array(buffer),
-                    format
+                    data,
+                    format,
+                    source: {
+                        uri: modelUrl,
+                        fileName: relativePath
+                    }
                 })
             } catch (_error) {
                 // Keep the board load resilient when optional 3D assets are

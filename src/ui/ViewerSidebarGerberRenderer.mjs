@@ -1,3 +1,5 @@
+import { EcadGerberFabrication } from '../core/ecad/EcadGerberFabrication.mjs'
+
 /**
  * Renders Gerber-specific file controls inside the project sidebar.
  */
@@ -137,11 +139,9 @@ export class ViewerSidebarGerberRenderer {
      * @returns {object[]}
      */
     static #gerberLayers(documentModel) {
-        return Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers.filter((layer) =>
-                  Boolean(String(layer?.id || ''))
-              )
-            : []
+        return EcadGerberFabrication.layers(documentModel).filter((layer) =>
+            Boolean(String(layer?.id || ''))
+        )
     }
 
     /**
@@ -150,10 +150,7 @@ export class ViewerSidebarGerberRenderer {
      * @returns {boolean}
      */
     static #isGerberDocument(documentModel) {
-        return (
-            documentModel?.sourceFormat === 'gerber' ||
-            Array.isArray(documentModel?.pcb?.fabrication?.layers)
-        )
+        return EcadGerberFabrication.layers(documentModel).length > 0
     }
 
     /**

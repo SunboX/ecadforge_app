@@ -34,14 +34,14 @@ test('CircuitJsonSchemaDriftChecker reports schema drift', () => {
         true
     )
     assert.equal(
-        comparison.unexpectedIdFieldExceptions.includes('schematic_box'),
+        comparison.unexpectedIdFieldExceptions.includes('pcb_board'),
         true
     )
     assert.equal(
         comparison.unexpectedVariants.some(
             (variant) =>
                 variant.set === 'pcbSmtPadShapes' &&
-                variant.value === 'rounded_rect'
+                variant.value === 'rotated_rect'
         ),
         true
     )

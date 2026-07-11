@@ -799,18 +799,21 @@ test('AppController stores companion model assets alongside parsed pcb documents
     await view.chooseFiles([
         new FakeFile('board.PcbDoc'),
         new FakeFile('QFN32.wrl', new ArrayBuffer(8), 'Models/QFN32.wrl'),
-        new FakeFile('Sensor.glb', new ArrayBuffer(8), 'Models/Sensor.glb')
+        new FakeFile('Sensor.glb', new ArrayBuffer(8), 'Models/Sensor.glb'),
+        new FakeFile('Housing.3mf', new ArrayBuffer(8), 'Models/Housing.3mf')
     ])
 
     const snapshot = state.getSnapshot()
 
     assert.equal(snapshot.documents.length, 1)
     assert.equal(snapshot.documentModel, pcbDocument)
-    assert.equal(snapshot.sessionAssets.length, 2)
+    assert.equal(snapshot.sessionAssets.length, 3)
     assert.equal(snapshot.sessionAssets[0].format, 'wrl')
     assert.equal(snapshot.sessionAssets[0].relativePath, 'Models/QFN32.wrl')
     assert.equal(snapshot.sessionAssets[1].format, 'glb')
     assert.equal(snapshot.sessionAssets[1].relativePath, 'Models/Sensor.glb')
+    assert.equal(snapshot.sessionAssets[2].format, '3mf')
+    assert.equal(snapshot.sessionAssets[2].relativePath, 'Models/Housing.3mf')
 })
 
 /**

@@ -1,22 +1,21 @@
 import {
+    AltiumExtensionResolver,
     PcbScene3dBuilder as AltiumScene3dBuilder,
     PcbScene3dModelRegistry as AltiumScene3dModelRegistry,
     PcbScene3dScenePreparator as AltiumScene3dScenePreparator
-} from 'altium-toolkit/scene3d'
+} from 'altium-toolkit/extensions'
 import {
     PcbScene3dBuilder as KicadScene3dBuilder,
     KicadScene3dModelRegistryAdapter,
     KicadScene3dSilkscreenSmoothingAdapter,
     PcbScene3dScenePreparator as KicadScene3dScenePreparator
-} from 'kicad-toolkit/scene3d'
+} from 'kicad-toolkit/extensions'
 import {
     PcbScene3dBuilder as GerberScene3dBuilder,
     PcbScene3dScenePreparator as GerberScene3dScenePreparator
-} from 'gerber-toolkit/scene3d'
-import {
-    CircuitJsonCadModelAssetResolver,
-    PcbScene3dCircuitJsonAdapter
-} from 'pcb-scene3d-viewer/scene3d'
+} from 'gerber-toolkit/extensions'
+import { PcbScene3dCircuitJsonAdapter } from 'pcb-scene3d-viewer/scene3d'
+import { EcadCircuitJsonContext } from './EcadCircuitJsonContext.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
 
 /**
@@ -30,6 +29,11 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static build(documentModel, options = {}) {
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            return AltiumScene3dBuilder.build(altiumDocument, options)
+        }
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return EcadScene3dService.#buildCircuitJsonScene(
                 documentModel,
@@ -60,6 +64,11 @@ export class EcadScene3dService {
      * @returns {Promise<object>}
      */
     static async prepare(documentModel, options = {}) {
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            return AltiumScene3dScenePreparator.prepare(altiumDocument, options)
+        }
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return EcadScene3dService.#buildCircuitJsonScene(
                 documentModel,
@@ -93,6 +102,16 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static createModelRegistry(documentModel, sessionAssets) {
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            return AltiumScene3dModelRegistry.create(
+                sessionAssets || [],
+                Array.isArray(altiumDocument?.pcb?.embeddedModels)
+                    ? altiumDocument.pcb.embeddedModels
+                    : []
+            )
+        }
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return null
         }
@@ -148,80 +167,14 @@ export class EcadScene3dService {
      * @returns {object}
      */
     static #buildCircuitJsonScene(documentModel, options) {
-        if (!EcadScene3dService.#hasCircuitJsonSceneGeometry(documentModel)) {
+        const sourceContext = EcadCircuitJsonContext.prepare(documentModel, {
+            indexes: ['elements']
+        })
+        if (!EcadScene3dService.#hasCircuitJsonSceneGeometry(sourceContext)) {
             return documentModel
         }
 
-        const sceneDocument =
-            CircuitJsonCadModelAssetResolver.withModelAssetUrls(documentModel)
-        const sceneOptions =
-            CircuitJsonCadModelAssetResolver.withSessionAssetResolver(options)
-        const scene = PcbScene3dCircuitJsonAdapter.build(
-            sceneDocument,
-            sceneOptions
-        )
-        return {
-            ...scene,
-            pcb: {
-                boardOutline: EcadScene3dService.#boardOutline(scene.board),
-                components: (scene.components || []).map((component) =>
-                    EcadScene3dService.#pcbComponent(component)
-                )
-            },
-            bom: Array.isArray(documentModel?.bom) ? documentModel.bom : [],
-            pads: scene.detail?.pads || [],
-            tracks: scene.detail?.tracks || [],
-            vias: scene.detail?.vias || [],
-            zones: scene.detail?.polygons || [],
-            texts: scene.detail?.copperTexts || []
-        }
-    }
-
-    /**
-     * Builds app-compatible board outline metadata from a runtime board.
-     * @param {object} board Runtime board metadata.
-     * @returns {object}
-     */
-    static #boardOutline(board) {
-        return {
-            widthMil: EcadScene3dService.#roundMil(board?.widthMil),
-            heightMil: EcadScene3dService.#roundMil(board?.heightMil),
-            thicknessMil: EcadScene3dService.#roundMil(board?.thicknessMil),
-            minX: EcadScene3dService.#roundMil(board?.minX),
-            minY: EcadScene3dService.#roundMil(board?.minY),
-            centerX: EcadScene3dService.#roundMil(board?.centerX),
-            centerY: EcadScene3dService.#roundMil(board?.centerY),
-            segments: Array.isArray(board?.segments) ? board.segments : []
-        }
-    }
-
-    /**
-     * Builds app-compatible component summary metadata.
-     * @param {object} component Runtime component metadata.
-     * @returns {object}
-     */
-    static #pcbComponent(component) {
-        return {
-            designator: String(component?.designator || ''),
-            layer: String(component?.mountSide || 'top'),
-            rotation: Number(component?.rotationDeg || 0),
-            x: EcadScene3dService.#roundMil(component?.boardPositionMil?.x),
-            y: EcadScene3dService.#roundMil(component?.boardPositionMil?.y),
-            pattern: String(component?.pattern || ''),
-            source: String(component?.source || '')
-        }
-    }
-
-    /**
-     * Rounds mil values to stable display precision.
-     * @param {unknown} value Numeric value.
-     * @returns {number}
-     */
-    static #roundMil(value) {
-        const number = Number(value || 0)
-        return Number.isFinite(number)
-            ? Math.round(number * 1_000_000) / 1_000_000
-            : 0
+        return PcbScene3dCircuitJsonAdapter.build(sourceContext, options)
     }
 
     /**
@@ -253,13 +206,7 @@ export class EcadScene3dService {
      * @returns {object[]}
      */
     static #circuitJsonElements(documentModel) {
-        if (Array.isArray(documentModel)) return documentModel
-        if (Array.isArray(documentModel?.elements))
-            return documentModel.elements
-        if (Array.isArray(documentModel?.circuitJson)) {
-            return documentModel.circuitJson
-        }
-        return []
+        return EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
     }
 
     /**
@@ -268,10 +215,7 @@ export class EcadScene3dService {
      * @returns {boolean}
      */
     static #isCircuitJson(documentModel) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'circuitjson'
-        )
+        return EcadFormatRegistry.isCircuitJsonDocument(documentModel)
     }
 
     /**

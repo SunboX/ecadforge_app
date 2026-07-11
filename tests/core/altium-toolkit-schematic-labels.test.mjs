@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SchematicSvgRenderer } from '../../node_modules/altium-toolkit/src/renderers.mjs'
+import { SchematicSvgRenderer } from 'altium-toolkit/extensions'
 
 test('altium-toolkit positions schematic electrical pin numbers near markers', () => {
     const markup = SchematicSvgRenderer.render({

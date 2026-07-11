@@ -1,5 +1,6 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { EcadDocumentComponents } from '../core/ecad/EcadDocumentComponents.mjs'
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
 import { PcbComponentSideAttributeRenderer } from './PcbComponentSideAttributeRenderer.mjs'
@@ -317,9 +318,7 @@ export class PcbViewRenderer {
         )
         const aliases = [
             ...new Set((hiddenLayerTargets.aliases || []).map(String))
-        ].filter(
-            (alias) => alias && !drillCarrierAliases.has(String(alias))
-        )
+        ].filter((alias) => alias && !drillCarrierAliases.has(String(alias)))
         const drillAliases = [...drillCarrierAliases].filter(Boolean)
         const selectors = [
             ...new Set((hiddenLayerTargets.selectors || []).map(String))
@@ -365,8 +364,10 @@ export class PcbViewRenderer {
             hiddenLayers
         )
         const hidden = new Set((hiddenLayers || []).map(String))
-        const keepDrillHolesVisible =
-            PcbViewRenderer.#hasVisibleCopperLayer(documentModel, hidden)
+        const keepDrillHolesVisible = PcbViewRenderer.#hasVisibleCopperLayer(
+            documentModel,
+            hidden
+        )
         const drillCarrierAliases = new Set()
         const selectors = []
         PcbLayerVisibilityModel.resolveLayers(documentModel).forEach(
@@ -386,8 +387,8 @@ export class PcbViewRenderer {
                     keepDrillHolesVisible &&
                     PcbViewRenderer.#isDrillCarrierLayer(layer, key)
                 ) {
-                    PcbViewRenderer.#layerAliases(layer, key).forEach(
-                        (alias) => drillCarrierAliases.add(alias)
+                    PcbViewRenderer.#layerAliases(layer, key).forEach((alias) =>
+                        drillCarrierAliases.add(alias)
                     )
                 }
                 selectors.push(
@@ -400,7 +401,11 @@ export class PcbViewRenderer {
             }
         )
 
-        return { aliases, drillCarrierAliases: [...drillCarrierAliases], selectors }
+        return {
+            aliases,
+            drillCarrierAliases: [...drillCarrierAliases],
+            selectors
+        }
     }
 
     /**
@@ -465,10 +470,9 @@ export class PcbViewRenderer {
         let visibleInternalCount = 0
         let hasVisibleSurfaceCopper = false
         for (const { layer, key } of copperLayers) {
-            const hiddenLayer = PcbViewRenderer.#layerAliases(
-                layer,
-                key
-            ).some((alias) => hidden.has(alias))
+            const hiddenLayer = PcbViewRenderer.#layerAliases(layer, key).some(
+                (alias) => hidden.has(alias)
+            )
             if (hiddenLayer) {
                 hiddenCopperCount += 1
                 continue
@@ -543,7 +547,10 @@ export class PcbViewRenderer {
     static #hasVisibleCopperLayer(documentModel, hidden) {
         return PcbLayerVisibilityModel.resolveLayers(documentModel).some(
             (layer, index) => {
-                const key = PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+                const key = PcbLayerVisibilityModel.resolveLayerKey(
+                    layer,
+                    index
+                )
                 const text = PcbViewRenderer.#layerSearchText(layer, key)
                 return (
                     !PcbViewRenderer.#layerAliases(layer, key).some((alias) =>
@@ -866,9 +873,7 @@ export class PcbViewRenderer {
      * @returns {object[]}
      */
     static #resolveSideComponents(documentModel, side) {
-        const components = Array.isArray(documentModel?.pcb?.components)
-            ? documentModel.pcb.components
-            : []
+        const components = EcadDocumentComponents.resolve(documentModel)
         const classified = components.map((component) => ({
             component,
             side: PcbComponentSelectionModel.resolveComponentSide(component)

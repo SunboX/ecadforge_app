@@ -14,6 +14,10 @@ export class PcbHitTestPointResolver {
      * @returns {{ x: number, y: number }}
      */
     static resolve(documentModel, svgNode, point, side = 'top') {
+        if (EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+            return point
+        }
+
         const sourceFormat =
             EcadFormatRegistry.sourceFormatForDocument(documentModel)
         if (sourceFormat === 'gerber') {

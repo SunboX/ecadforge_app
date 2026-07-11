@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CircuitJsonManufacturingDownloadBuilder } from 'circuitjson-toolkit/renderers'
+import { CircuitJsonManufacturingDownloadBuilder } from 'circuitjson-toolkit/extensions'
 
 /**
  * Decodes UTF-8 download bytes.

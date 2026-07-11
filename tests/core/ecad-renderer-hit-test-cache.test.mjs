@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionIndex as AltiumPcbInteractionIndex } from 'altium-toolkit/renderers'
+import { PcbInteractionIndex as AltiumPcbInteractionIndex } from 'altium-toolkit/extensions'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
 test('EcadRendererService reuses PCB interaction indexes across hit tests', () => {

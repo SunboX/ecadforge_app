@@ -527,8 +527,8 @@ test('server rewrites browser Scene3D viewer module bare imports', async (t) => 
 })
 
 /**
- * Verifies the browser-runnable STEP importer assets are served from the local
- * vendor path with the same cache policy as other runtime assets.
+ * Verifies the browser-runnable STEP importer assets are served directly from
+ * the installed package without rewriting generated ESM or wasm bytes.
  */
 test('server serves browser STEP importer javascript and wasm assets', async (t) => {
     const port = await allocatePort()
@@ -545,45 +545,40 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
 
     const expectedJsSource = await readFile(
         new URL(
-            '../src/vendor/occt-import-js/dist/occt-import-js.js',
+            '../node_modules/@sunbox/occt-import-js/dist/occt-import-js.js',
             import.meta.url
         ),
         'utf8'
     )
     const expectedWasmSource = await readFile(
         new URL(
-            '../src/vendor/occt-import-js/dist/occt-import-js.wasm',
+            '../node_modules/@sunbox/occt-import-js/dist/occt-import-js.wasm',
             import.meta.url
         )
-    )
-    const jsResponse = await fetch(
-        'http://127.0.0.1:' +
-            String(port) +
-            '/vendor/occt-import-js/dist/occt-import-js.js'
     )
     const nodeModulesJsResponse = await fetch(
         'http://127.0.0.1:' +
             String(port) +
-            '/node_modules/occt-import-js/dist/occt-import-js.js?v=worker-route-test'
+            '/node_modules/@sunbox/occt-import-js/dist/occt-import-js.js?v=worker-route-test'
     )
     const wasmResponse = await fetch(
         'http://127.0.0.1:' +
             String(port) +
-            '/vendor/occt-import-js/dist/occt-import-js.wasm'
+            '/node_modules/@sunbox/occt-import-js/dist/occt-import-js.wasm'
+    )
+    const removedVendorResponse = await fetch(
+        'http://127.0.0.1:' +
+            String(port) +
+            '/vendor/occt-import-js/dist/occt-import-js.js'
     )
 
-    assert.equal(jsResponse.ok, true)
     assert.equal(nodeModulesJsResponse.ok, true)
     assert.equal(wasmResponse.ok, true)
-    assert.equal(await jsResponse.text(), expectedJsSource)
+    assert.equal(removedVendorResponse.status, 404)
     assert.equal(await nodeModulesJsResponse.text(), expectedJsSource)
     assert.deepEqual(
         Buffer.from(await wasmResponse.arrayBuffer()),
         expectedWasmSource
-    )
-    assert.match(
-        String(jsResponse.headers.get('cache-control') || ''),
-        /no-store/i
     )
     assert.match(
         String(nodeModulesJsResponse.headers.get('cache-control') || ''),
@@ -596,27 +591,24 @@ test('server serves browser STEP importer javascript and wasm assets', async (t)
 })
 
 /**
- * Verifies the vendored STEP importer worker keeps the app-owned wasm loading
- * cache while loading the ESM-shaped importer as a module.
+ * Verifies the installed STEP importer owns its module-compatible worker.
  */
-test('vendored STEP importer worker caches wasm binary instantiation inputs', async () => {
+test('installed STEP importer worker loads its ESM factory without a classic-script shim', async () => {
     const workerSource = await readFile(
         new URL(
-            '../src/vendor/occt-import-js/dist/occt-import-js-worker.js',
+            '../node_modules/@sunbox/occt-import-js/dist/occt-import-js-worker.js',
             import.meta.url
         ),
         'utf8'
     )
 
     assert.match(workerSource, /wasmBinaryPromise/)
-    assert.match(workerSource, /function InstantiateWasm/)
-    assert.match(
-        workerSource,
-        /WebAssembly\.instantiate\(wasmBinary, imports\)/
-    )
-    assert.match(workerSource, /credentials:\s*'same-origin'/)
-    assert.match(workerSource, /new URL\(self\.location\.href\)\.search/)
-    assert.match(workerSource, /import\(\s*importerUrl\.href\s*\)/)
+    assert.match(workerSource, /occtFactory/u)
+    assert.match(workerSource, /wasmBinary\s*:\s*wasmBinary/u)
+    assert.match(workerSource, /occt\.ReadFile/u)
+    assert.match(workerSource, /credentials\s*:\s*'same-origin'/)
+    assert.match(workerSource, /assetUrl\.search\s*=\s*workerUrl\.search/u)
+    assert.match(workerSource, /import\s*\(\s*importerUrl\.href\s*\)/)
     assert.doesNotMatch(workerSource, /importScripts/)
 })
 
@@ -706,7 +698,7 @@ test('server serves versioned HTML and module imports', async (t) => {
     )
     assert.match(
         parserServiceSource,
-        /from ['"]\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=/
+        /from ['"]\/node_modules\/circuitjson-toolkit\/src\/parser\.mjs\?v=/
     )
     assert.match(
         parserServiceSource,

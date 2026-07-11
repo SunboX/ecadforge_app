@@ -1,6 +1,7 @@
-import { LoadedDesignNetlistService as AltiumLoadedDesignNetlistService } from 'altium-toolkit/netlist-query'
-import { LoadedDesignNetlistService as KicadLoadedDesignNetlistService } from 'kicad-toolkit/netlist-query'
+import { LoadedDesignNetlistService as AltiumLoadedDesignNetlistService } from 'altium-toolkit/extensions'
+import { LoadedDesignNetlistService as KicadLoadedDesignNetlistService } from 'kicad-toolkit/extensions'
 import { EcadFormatRegistry } from '../ecad/EcadFormatRegistry.mjs'
+import { EcadDocumentType } from '../ecad/EcadDocumentType.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 import { WebMcpDesignInspector } from './WebMcpDesignInspector.mjs'
 import { WebMcpFocusedInspector } from './WebMcpFocusedInspector.mjs'
@@ -665,6 +666,7 @@ export class LoadedDesignNetlistService {
             .filter((entry) => entry?.id && entry?.documentModel)
             .map((entry) => {
                 const documentModel = entry.documentModel
+                const fileName = EcadDocumentType.fileName(documentModel)
                 return {
                     id: String(entry.id),
                     active: String(entry.id) === activeDocumentId,
@@ -673,10 +675,8 @@ export class LoadedDesignNetlistService {
                         LoadedDesignNetlistService.#sourceFormatForDocument(
                             documentModel
                         ),
-                    fileName: String(documentModel?.fileName || ''),
-                    baseName: LoadedDesignNetlistService.#baseName(
-                        documentModel?.fileName
-                    )
+                    fileName,
+                    baseName: LoadedDesignNetlistService.#baseName(fileName)
                 }
             })
     }
@@ -687,14 +687,11 @@ export class LoadedDesignNetlistService {
      * @returns {string}
      */
     static #sourceFormatForDocument(documentModel) {
-        if (documentModel?.sourceFormat) {
-            return String(documentModel.sourceFormat)
-        }
-
+        const fileName = EcadDocumentType.fileName(documentModel)
         return (
-            EcadFormatRegistry.resolveNativeRole(documentModel?.fileName)
-                ?.sourceFormat ||
-            EcadFormatRegistry.sourceFormatForDocument(documentModel)
+            EcadFormatRegistry.sourceFormatForDocument(documentModel) ||
+            EcadFormatRegistry.resolveNativeRole(fileName)?.sourceFormat ||
+            ''
         )
     }
 

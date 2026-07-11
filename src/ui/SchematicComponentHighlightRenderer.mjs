@@ -25,6 +25,14 @@ export class SchematicComponentHighlightRenderer {
      * @returns {string}
      */
     static inject(markup, documentModel, selectedComponentKey = '') {
+        if (EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+            return this.#injectCanonical(
+                markup,
+                documentModel,
+                selectedComponentKey
+            )
+        }
+
         const schematic = documentModel?.schematic
         const components = Array.isArray(schematic?.components)
             ? schematic.components
@@ -62,6 +70,93 @@ export class SchematicComponentHighlightRenderer {
             renderedMarkup,
             this.#renderHitTargets(targets)
         )
+    }
+
+    /**
+     * Adds direct-coordinate targets for canonical CircuitJSON components.
+     * @param {string} markup Rendered schematic markup.
+     * @param {object} documentModel Canonical document.
+     * @param {string} selectedComponentKey Selected component key.
+     * @returns {string} Highlighted markup.
+     */
+    static #injectCanonical(markup, documentModel, selectedComponentKey) {
+        const targets = this.#canonicalTargets(documentModel)
+        if (!targets.length) return markup
+
+        const selectedKey = String(selectedComponentKey || '').trim()
+        let renderedMarkup = this.#injectHighlightStyle(markup)
+        for (const target of targets) {
+            if (!selectedKey || target.key !== selectedKey) continue
+            renderedMarkup = this.#injectHighlightMarkup(
+                renderedMarkup,
+                this.#renderHighlight(target.key, target.box)
+            )
+        }
+        return this.#injectHighlightMarkup(
+            renderedMarkup,
+            this.#renderHitTargets(targets)
+        )
+    }
+
+    /**
+     * Builds canonical component targets from standard element geometry.
+     * @param {object} documentModel Canonical document.
+     * @returns {{ key: string, box: { x: number, y: number, width: number, height: number, radius: number } }[]} Component targets.
+     */
+    static #canonicalTargets(documentModel) {
+        const elements =
+            EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
+        const sourceNames = new Map(
+            elements
+                .filter((element) => element?.type === 'source_component')
+                .map((element) => [
+                    String(element.source_component_id || ''),
+                    String(element.name || element.source_component_id || '')
+                ])
+        )
+        return elements
+            .filter((element) =>
+                ['schematic_component', 'schematic_symbol'].includes(
+                    element?.type
+                )
+            )
+            .map((component, index) => {
+                const center = component?.center || component?.position
+                const size = component?.size || {
+                    width: component?.width,
+                    height: component?.height
+                }
+                const x = Number(center?.x)
+                const y = Number(center?.y)
+                const width = Number(size?.width)
+                const height = Number(size?.height)
+                const key =
+                    sourceNames.get(
+                        String(component?.source_component_id || '')
+                    ) || String(component?.name || 'Component ' + (index + 1))
+                if (
+                    !key ||
+                    !Number.isFinite(x) ||
+                    !Number.isFinite(y) ||
+                    !Number.isFinite(width) ||
+                    !Number.isFinite(height)
+                ) {
+                    return null
+                }
+                return {
+                    key,
+                    box: this.#padBounds(
+                        {
+                            minX: x - width / 2,
+                            minY: y - height / 2,
+                            maxX: x + width / 2,
+                            maxY: y + height / 2
+                        },
+                        true
+                    )
+                }
+            })
+            .filter(Boolean)
     }
 
     /**

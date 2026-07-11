@@ -9,11 +9,26 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 1. The app starts via `npm start` and serves the browser app locally.
 2. The app accepts standalone native `.SchDoc` and `.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, Gerber/Excellon files, fabrication ZIPs, CircuitJSON `.json` files, companion `.PrjPcb`/`WRL`/`STEP` assets, and project-folder selections through drag-and-drop or file selection.
 3. Parsing runs client-side in browser JavaScript with worker offload and main-thread fallback.
-4. The app normalizes recovered native data into a shared viewer model.
+4. The app normalizes shared data as CircuitJSON, accepts canonical toolkit
+   document envelopes, and retains native compatibility data when it has no
+   source-neutral equivalent.
+   Normal app intake uses only the common toolkit `Parser` and `ProjectLoader`
+   contracts; source-specific ZIP, project-context, validation, and asset
+   behavior must not be reconstructed in the app.
 5. The `Schematic` tab renders recovered schematic geometry, hierarchy markers, embedded-image placements, and text.
 6. The `PCB` tab renders recovered board outline, layer metadata, fabrication layers, standards-shaped element-array board geometry, detail artwork, diagnostics overlays, source-connectivity rats-nest lines, trace-length budget labels, solder-mask/paste inspection layers, group/anchor-offset overlays, and component placements where available. PCB viewports include an interaction gate to reduce accidental pan/zoom, fit/reset viewport control, numeric layer visibility shortcuts, in-board view settings for object and component-side visibility, and route rendering guards that avoid drawing continuous trace segments across explicit layer changes.
 7. Clicking a PCB footprint or schematic symbol selects the shared component, opens the matching `Footprints` or `Symbols` sidebar panel, and highlights and scrolls the selected row into view there. Multipart schematic symbols share one `Symbols` row and highlight every visible part for the selected component. Clicking a schematic wire, PCB trace/pad/via/zone, or net row selects the shared net, opens the `Nets` sidebar panel, and renders the net in the viewer highlight color with a subtle glow. PCB hover and bounds interactions honor hidden layers, hidden object families, and top/bottom component filters, publish candidate previews to the sidebar, and mark matching footprint/net rows, with an opt-in hover-focus toolbar mode for zooming to hovered primitive bounds. The PCB toolbar provides distance and bounds measurement tools that work in board coordinates, snap to primitive center/edge/corner anchors where geometry is available, can show snap targets while measuring, and can copy, zoom to, select contents from, or export clipped SVG/PNG snapshots for completed bounds measurements. In-board diagnostic rows group related issues into collapsible sections, persist the focused issue, preview related primitives until the focus changes, animate the viewport to matching bounds, and show copied state when messages are copied.
-8. The `3D` tab renders an interactive PCB scene with an interaction gate, orbit, pan, zoom, procedural board/package geometry, bare-board Gerber fabrication geometry, embedded STEP extraction from lone `.PcbDoc` files, companion-model resolution when matching STEP, WRL, GLB, GLTF, STL, OBJ, or 3MF session assets are available, CircuitJSON CAD model asset resolution through stored session assets, single-file STEP/WRL/GLTF/GLB assembly export for board geometry, copper, silkscreen, pads, vias, resolved component models, fallback component bodies when models are unavailable, OBJ sidecar material colors, translucent model materials, bounding-box CAD display flags, rendered board-face artwork textures for GLTF/GLB exports when PCB views are available, and an opt-in missing-model search that can fetch STEP or WRL assets from known KiCad model-library paths, close same-folder KiCad package matches, or the configured component source and retain fetched models as session assets for immediate view and export reuse.
+8. The `3D` tab renders an interactive PCB scene with an interaction gate,
+   orbit, pan, zoom, procedural board/package geometry, bare-board Gerber
+   fabrication geometry, embedded STEP extraction, and direct canonical
+   document/session resolution for STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and
+   3MF assets. Safe project-relative GLTF BIN, OBJ MTL, and WRL texture
+   companions resolve without an app wrapper or network access. URL loading is
+   explicit and collision-safe caches distinguish equal basenames by source
+   path. Whole-board STEP/WRL/GLTF/GLB export includes board detail, supported
+   component meshes or fallback bodies, material alpha/colors, bounding-box CAD
+   flags, and optional GLTF/GLB board-face artwork textures. Opt-in missing-model
+   search retains fetched STEP/WRL assets as session data for view/export reuse.
 9. The `BOM` tab renders grouped component rows from recovered metadata.
 10. The `Diagnostics` tab exposes parser recovery, connectivity, and warning messages. PCB views with in-board diagnostics also provide grouped issue navigation, marker focus, and message copy actions.
 11. The UI reads app metadata (version) from `/api/app-meta` and falls back to `/api/app-meta.php` on PHP-only hosts, with both endpoints sourcing the version from `package.json`.
@@ -25,6 +40,9 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 17. The app loads the `@mcp-b/global` WebMCP runtime with same-origin tab and iframe transport options, preserves native browser WebMCP support when available through `document.modelContext`, and registers read-only loaded-session tools for listing loaded designs, listing/searching components and nets, reviewing design coverage, auditing metadata/connectivity issues, listing diagnostics, querying direct net membership, querying BOM rows, listing pin connections, listing component type counts, listing single-pin nets, cross-referencing schematic nets against PCB pads, comparing schematic/PCB and BOM/PCB parity, summarizing loaded design state, querying component pins, inspecting PCB component placement, inspecting PCB net geometry, summarizing PCB board/routing/stackup data, listing PCB design rules, reviewing fabrication-readiness signals, and tracing extended connectivity.
 18. The app shell provides the production WebMCP origin-trial token for `https://ecadforge.app/`, an import-map entry for the packaged WebMCP runtime, and the served/deployed app applies `Origin-Agent-Cluster: ?1` plus `Permissions-Policy: tools=(self)`.
 19. SPICE simulation requests run through a browser worker boundary and return complete simulation CircuitJSON, graph-only transient elements, graph summaries, and diagnostics from local input data.
+20. Canonical documents reuse one CircuitJSON context across rendering,
+    interaction, BOM derivation, and 3D preparation; retained native features
+    remain available through explicit toolkit `/extensions` entrypoints.
 
 ## 3. Non-Functional Requirements
 
@@ -40,10 +58,17 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 ## 4. Architecture
 
 1. `src/core/`: state and domain primitives.
-2. `altium-toolkit`: binary-to-printable recovery, targeted OLE-backed recovery where required, normalized Altium parsing, deterministic schematic/PCB/BOM rendering, and complete non-interactive 3D scene-description building.
-3. `kicad-toolkit`: KiCad 9 S-expression parsing, project loading, normalized KiCad schematic/PCB/BOM rendering, and complete data-only 3D scene-description building.
-4. `gerber-toolkit`: Gerber/Excellon parsing, fabrication ZIP expansion, source-layer normalization, deterministic PCB SVG rendering, bare-board 3D scene-description building, and interaction helpers.
-5. `circuitjson-toolkit`: CircuitJSON parsing and standards-native board/assembly/simulation data loading.
+2. The Altium, KiCad, Gerber, and CircuitJSON toolkit roots expose the same
+   common API and canonical document behavior.
+3. Each source toolkit `/extensions` entrypoint retains its native-only
+   parser, renderer, query, scene, worker, and inspection functionality.
+4. `circuitjson-toolkit` owns immutable shared documents, reusable contexts and
+   indexes, rendering, interaction, query, manufacturing, simulation, and
+   canonical scene services.
+5. `pcb-scene3d-viewer` accepts canonical documents, prepared contexts, pure
+   arrays, and retained native scene descriptions, and directly resolves
+   canonical CAD model metadata plus document/session assets without an app
+   adapter.
 6. `src/core/simulation/`: local SPICE simulation worker client and message handler.
 7. `src/ui/`: app shell, local interaction controllers, and interactive 3D runtime modules.
 8. `src/AppController.mjs`: orchestration and action layer.
@@ -74,7 +99,14 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 6. The UI can load Gerber/Excellon files or a fabrication ZIP and show a composite PCB fabrication view with a separated-layer option.
 7. The UI can load standalone CircuitJSON board files and show a populated 2D PCB view with layer visibility, numeric layer shortcuts, reset/fit viewport control, in-board view settings for trace lengths, rats-nest, solder mask/paste, silkscreen, fabrication notes, courtyards, groups, anchor offsets, and top/bottom components, component/net selection with explicit PCB net highlight colors, hover/bounds candidate previews in the sidebar that honor visibility filters, opt-in hover focus, net hover context, diagnostics overlays, persistent diagnostic focus navigation with singular or plural related-primitive previews, exact primitive-geometry copper clearance checks, rats-nest connectivity, source-net group metadata, trace-length budget labels, solder-mask/paste overlays, group and anchor-offset overlays, measurement copy, bounds zoom/selection, clipped SVG/PNG bounds export, and trace segments split safely at explicit layer changes. Standards-shaped PCB geometry covers rounded and rotated SMT pads, route-level via geometry, legacy round hole aliases, plated holes with polygon pads, oval/rotated-rectangle solder paste, polygon board outlines, rectangular copper pours, aligned and knockout PCB text, silkscreen, fabrication, and note path artwork with stroke/dash styling, shape-specific courtyard rows, and circle/path/polygon/rect cutout and keepout variants.
 8. The `BOM`, `3D`, and `Diagnostics` tabs render from compatible normalized models without crashing.
-9. The `3D` tab remains usable from a lone `.PcbDoc`, renders bare-board Gerber fabrication scenes behind an interaction gate, renders embedded STEP payloads when the board file contains them, upgrades to matching companion STEP, WRL, GLB, GLTF, STL, OBJ, or 3MF models when the user also loads matching files in the same session, resolves CircuitJSON CAD model asset metadata through stored session assets, honors translucent and bounding-box CAD display flags, exports a full PCB assembly as STEP, WRL, GLTF, or GLB while adding board-face artwork textures to GLTF/GLB downloads, preserving mesh material alpha, applying OBJ sidecar material colors, and adding fallback component bodies for unresolved component models, and can search known KiCad model-library paths, close same-folder KiCad package matches, or the configured component source for missing models only when the user enables the checkbox. Models found during 3D scene preparation are stored in the session so later exports and reopened views reuse them without another lookup.
+9. The `3D` tab remains usable from a lone `.PcbDoc` and from canonical
+   CircuitJSON documents, renders bare-board Gerber scenes, embedded STEP, and
+   matching local STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, or 3MF models, and
+   resolves canonical CAD model metadata plus document/session companions
+   directly in `pcb-scene3d-viewer`. It honors material alpha, vertex/material
+   colors, and bounding-box flags; whole-board STEP/WRL/GLTF/GLB export adds
+   fallback bodies and optional board-face textures. Missing-model network
+   search runs only after explicit user opt-in and stores results for reuse.
 10. Docs and spec files are present and linked from `README.md`.
 11. The app version shown in UI matches the single-source version in `package.json`.
 12. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.

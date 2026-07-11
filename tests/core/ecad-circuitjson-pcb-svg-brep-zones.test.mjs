@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/renderers'
+import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/extensions'
 import { PcbViewRenderer } from '../../src/ui/PcbViewRenderer.mjs'
 
 /**

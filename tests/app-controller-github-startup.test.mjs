@@ -228,7 +228,7 @@ test('AppController stores GitHub companion model assets and references', async 
                         {
                             name: 'body.step',
                             relativePath: 'parts/body.step',
-                            bytes: new Uint8Array([1, 2, 3]),
+                            data: new Uint8Array([1, 2, 3]),
                             format: 'step'
                         }
                     ],
@@ -262,6 +262,10 @@ test('AppController stores GitHub companion model assets and references', async 
     assert.equal(snapshot.sessionAssets[0].name, 'body.step')
     assert.equal(snapshot.sessionAssets[0].relativePath, 'parts/body.step')
     assert.equal(snapshot.sessionAssets[0].format, 'step')
+    assert.deepEqual(
+        [...new Uint8Array(await snapshot.sessionAssets[0].file.arrayBuffer())],
+        [1, 2, 3]
+    )
     assert.equal(component.modelName, 'body.step')
     assert.equal(component.modelPath, '${KIPRJMOD}/parts/body.step')
     assert.equal(component.modelTransform.rotationDeg.z, 90)
@@ -275,8 +279,7 @@ function createGitHubBoardSource() {
     return {
         sourceType: 'github',
         formatFamily: 'kicad',
-        boardUrl:
-            'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
+        boardUrl: 'https://raw.githubusercontent.com/a/b/main/board.kicad_pcb',
         entries: [
             {
                 name: 'board.kicad_pcb',

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { ViewerSidebarOverviewRenderer } from '../../src/ui/ViewerSidebarOverviewRenderer.mjs'
 
 /**
@@ -12,69 +13,47 @@ function translate(key) {
 }
 
 /**
- * Builds a parsed board model with coverage and manufacturing metadata.
+ * Builds a canonical board model with coverage and manufacturing data.
  * @returns {object}
  */
 function createMetadataDocument() {
-    return {
+    return Parser.parse({
         fileName: 'metadata-board.json',
-        kind: 'pcb',
-        pcb: {
-            boardOutline: { widthMil: 100, heightMil: 80 },
-            components: []
-        },
-        summary: {
-            title: 'Metadata board',
-            layerCount: 2,
-            trackCount: 1,
-            viaCount: 0
-        },
-        diagnostics: [],
-        supportMatrix: {
-            totals: {
-                knownElementTypes: 6,
-                presentElementTypes: 4,
-                renderedElementTypes: 3,
-                diagnosticElementTypes: 1,
-                unknownPresentElementTypes: 1
-            },
-            rows: [
-                {
-                    type: 'pcb_board',
-                    present: true,
-                    capabilities: { pcb: 'rendered' }
-                },
-                {
-                    type: 'pcb_component',
-                    present: true,
-                    capabilities: {
-                        pcb: 'rendered',
-                        manufacturing: 'pick-and-place'
-                    }
-                },
-                {
-                    type: 'custom_widget',
-                    present: true,
-                    capabilities: { pcb: 'metadata-only' },
-                    notes: ['Preserved for downstream tools.']
-                }
-            ]
-        },
-        manufacturing: {
-            pickAndPlaceRows: [{ designator: 'U1', x: 1, y: 2 }],
-            routingDsn: '(pcb metadata-board)',
-            fabricationNotes: [{ type: 'text', id: 'fab_text_1' }]
-        },
-        simulationResultCircuitJson: [
+        data: JSON.stringify([
             {
-                type: 'simulation_transient_voltage_graph',
-                simulation_transient_voltage_graph_id: 'simulation_graph_vout',
-                name: 'VOUT',
-                voltage_levels: [0, 3.3],
-                timestamps_ms: [0, 1]
+                type: 'pcb_board',
+                pcb_board_id: 'board_1',
+                center: { x: 0, y: 0 },
+                width: 10,
+                height: 5
+            },
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 1, y: 2 },
+                width: 3,
+                height: 2,
+                rotation: 0,
+                layer: 'top'
+            },
+            {
+                type: 'pcb_fabrication_note_text',
+                pcb_fabrication_note_text_id: 'fab_text_1',
+                pcb_component_id: 'pcb_u1',
+                layer: 'top',
+                text: 'Inspect assembly',
+                anchor_position: { x: 1, y: 2 },
+                font_size: 0.8
             }
-        ]
-    }
+        ])
+    })
 }
 
 /**
@@ -89,13 +68,14 @@ test('ViewerSidebarOverviewRenderer renders metadata coverage and downloads', ()
     )
 
     assert.match(html, /viewer-sidebar__support-coverage/)
+    assert.match(html, /sidebar\.boardOverview/)
+    assert.match(html, /metadata-board\.json/)
+    assert.match(html, /393\.7 x 196\.85 mil/)
+    assert.match(html, /1 scene3d\.componentsSuffix/)
     assert.match(html, /Format coverage/)
     assert.match(html, /4 present/)
     assert.match(html, /3 rendered/)
-    assert.match(html, /custom_widget/)
-    assert.match(html, /Preserved for downstream tools\./)
-    assert.match(html, /viewer-sidebar__simulation-results/)
-    assert.match(html, /data-simulation-graph-id="simulation_graph_vout"/)
+    assert.match(html, /No present coverage gaps\./)
     assert.match(html, /data-document-id="doc-1"/)
     assert.match(html, /data-pcb-assembly-export-format="pick-place-csv"/)
     assert.match(html, /data-pcb-assembly-export-format="routing-dsn"/)

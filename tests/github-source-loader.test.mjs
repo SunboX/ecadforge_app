@@ -398,13 +398,17 @@ test('GitHubSourceLoader fetches Altium project-local board assembly assets', as
         result.assets.map((asset) => ({
             name: asset.name,
             relativePath: asset.relativePath,
-            format: asset.format
+            format: asset.format,
+            data: [...asset.data],
+            hasLegacyBytes: Object.hasOwn(asset, 'bytes')
         })),
         [
             {
                 name: 'FixtureBoard.step',
                 relativePath: '3D Bodies/FixtureBoard.step',
-                format: 'step'
+                format: 'step',
+                data: [...new TextEncoder().encode('ISO-10303-21;')],
+                hasLegacyBytes: false
             }
         ]
     )
@@ -504,13 +508,17 @@ test('GitHubSourceLoader fetches project-local KiCad 3D model assets', async () 
         result.assets.map((asset) => ({
             name: asset.name,
             relativePath: asset.relativePath,
-            format: asset.format
+            format: asset.format,
+            data: [...asset.data],
+            hasLegacyBytes: Object.hasOwn(asset, 'bytes')
         })),
         [
             {
                 name: 'body.step',
                 relativePath: 'parts/body.step',
-                format: 'step'
+                format: 'step',
+                data: [...new TextEncoder().encode('ISO-10303-21;')],
+                hasLegacyBytes: false
             }
         ]
     )

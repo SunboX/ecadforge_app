@@ -1,4 +1,7 @@
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { EcadDocumentBom } from '../core/ecad/EcadDocumentBom.mjs'
+import { EcadDocumentComponents } from '../core/ecad/EcadDocumentComponents.mjs'
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
 
 /**
  * Renders the sidebar component and footprint browser.
@@ -41,7 +44,7 @@ export class ViewerSidebarComponentRenderer {
      * @returns {string}
      */
     static panelTitle(documentModel, translate) {
-        return documentModel?.schematic
+        return EcadDocumentType.isSchematic(documentModel)
             ? translate('sidebar.symbols')
             : translate('sidebar.footprints')
     }
@@ -74,7 +77,7 @@ export class ViewerSidebarComponentRenderer {
                 snapshot?.documents || []
             )
         )
-        const renderedRows = documentModel?.schematic
+        const renderedRows = EcadDocumentType.isSchematic(documentModel)
             ? ViewerSidebarComponentRenderer.#deduplicateRowsByKey(rows)
             : rows
 
@@ -82,7 +85,7 @@ export class ViewerSidebarComponentRenderer {
             ViewerSidebarComponentRenderer.#renderSearch(title, translate) +
             ViewerSidebarComponentRenderer.#renderGroups(
                 renderedRows,
-                Boolean(documentModel?.pcb),
+                EcadDocumentType.isPcb(documentModel),
                 title,
                 translate
             )
@@ -109,7 +112,7 @@ export class ViewerSidebarComponentRenderer {
         previewKey,
         sessionDocuments
     ) {
-        const isPcb = Boolean(documentModel?.pcb)
+        const isPcb = EcadDocumentType.isPcb(documentModel)
         const key = PcbComponentSelectionModel.resolveComponentKey(
             component,
             index
@@ -363,11 +366,9 @@ export class ViewerSidebarComponentRenderer {
      */
     static #resolveBomValue(documentModel, componentKey, rejectedTexts) {
         const key = String(componentKey || '').trim()
-        if (!key || !Array.isArray(documentModel?.bom)) {
-            return ''
-        }
+        if (!key) return ''
 
-        for (const row of documentModel.bom) {
+        for (const row of EcadDocumentBom.resolve(documentModel)) {
             if (
                 ViewerSidebarComponentRenderer.#bomDesignators(row).includes(
                     key
@@ -380,7 +381,7 @@ export class ViewerSidebarComponentRenderer {
                     ViewerSidebarComponentRenderer.#isDisplayableComponentValue(
                         value,
                         rejectedTexts,
-                        Boolean(documentModel?.pcb && !documentModel?.schematic)
+                        EcadDocumentType.isPcb(documentModel)
                     )
                 ) {
                     return value
@@ -711,9 +712,8 @@ export class ViewerSidebarComponentRenderer {
         ).trim()
         if (selectedKey) return selectedKey
 
-        const candidate = (Array.isArray(preview?.candidates)
-            ? preview.candidates
-            : []
+        const candidate = (
+            Array.isArray(preview?.candidates) ? preview.candidates : []
         ).find((row) => String(row?.componentKey || '').trim())
         return String(candidate?.componentKey || '').trim()
     }
@@ -777,15 +777,7 @@ export class ViewerSidebarComponentRenderer {
      * @returns {any[]}
      */
     static #resolveComponents(documentModel) {
-        if (Array.isArray(documentModel?.pcb?.components)) {
-            return documentModel.pcb.components
-        }
-
-        if (Array.isArray(documentModel?.schematic?.components)) {
-            return documentModel.schematic.components
-        }
-
-        return []
+        return EcadDocumentComponents.resolve(documentModel)
     }
 
     /**

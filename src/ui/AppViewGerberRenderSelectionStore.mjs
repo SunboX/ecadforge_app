@@ -1,3 +1,5 @@
+import { EcadGerberFabrication } from '../core/ecad/EcadGerberFabrication.mjs'
+
 /**
  * Stores Gerber render selections owned by AppView sidebar chrome.
  */
@@ -127,9 +129,7 @@ export class AppViewGerberRenderSelectionStore {
             (String(snapshot?.activeDocumentId || '') === documentId
                 ? snapshot?.documentModel
                 : null)
-        return Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
+        return EcadGerberFabrication.layers(documentModel)
     }
 
     /**

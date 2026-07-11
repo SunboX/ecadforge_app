@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { AltiumParser } from '../../node_modules/altium-toolkit/src/parser.mjs'
+import {
+    AltiumParser,
+    PcbScene3dBuilder,
+    SchematicSvgRenderer
+} from 'altium-toolkit/extensions'
 import { PcbTextPrimitiveParser } from '../../node_modules/altium-toolkit/src/core/altium/PcbTextPrimitiveParser.mjs'
-import { SchematicSvgRenderer } from '../../node_modules/altium-toolkit/src/renderers.mjs'
-import { PcbScene3dBuilder } from '../../node_modules/altium-toolkit/src/scene3d.mjs'
 
 /**
  * Creates one generic binary Altium text primitive stream.
@@ -448,7 +450,10 @@ test('altium-toolkit keeps rail labels anchored above their cap', () => {
         markup,
         /<text class="schematic-power-port-label" x="150" y="36" fill="var\(--schematic-power-color\)" text-anchor="middle" font-size="9"/
     )
-    assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="23\.75"/)
+    assert.doesNotMatch(
+        markup,
+        /schematic-power-port-label" x="150" y="23\.75"/
+    )
     assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="34"/)
     assert.doesNotMatch(markup, /schematic-power-port-label" x="150" y="43"/)
 })

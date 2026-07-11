@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 import { SvgViewBoxParser } from './SvgViewBoxParser.mjs'
 
 /**
@@ -123,8 +123,7 @@ export class PcbMeasurementInteractionController {
         const action = String(
             button.getAttribute('data-pcb-measure-action') || ''
         )
-        const bounds =
-            PcbMeasurementInteractionController.#buttonBounds(button)
+        const bounds = PcbMeasurementInteractionController.#buttonBounds(button)
         if (action && bounds) {
             this.#onAction?.({ action, bounds })
         }

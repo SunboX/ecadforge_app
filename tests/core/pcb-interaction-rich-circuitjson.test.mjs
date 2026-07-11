@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/renderers'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/extensions'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 import { createRichCircuitJsonDocument } from '../helpers/FakePcbInteractionDocuments.mjs'
 
 /**
@@ -21,7 +21,8 @@ function createConnectivityDocument() {
         {
             type: 'source_net',
             source_net_id: 'source_net_1',
-            name: 'SIG'
+            name: 'SIG',
+            member_source_group_ids: []
         },
         {
             type: 'source_port',
@@ -300,7 +301,7 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
             sourceGroupId: 'source_group_1',
             subcircuitId: '',
             componentIds: ['pcb_u1'],
-            memberIds: ['pcb_u1'],
+            memberIds: ['pcb_u1', 'breakout_1'],
             anchor: { x: 0, y: 0 },
             depth: 0
         }
@@ -321,28 +322,21 @@ test('PcbInteractionPrimitiveModel builds rich CircuitJSON PCB primitives', () =
         id: 'err_1',
         kind: 'error',
         severity: 'error',
-        category: 'clearance',
-        code: 'clearance',
+        category: 'routing',
+        code: 'pcb_trace_error',
         message: 'Trace clearance is below the configured rule.',
-        point: { x: 0.2250000000000001, y: 0.825 },
+        point: { x: 0.5, y: -1 },
         componentKey: 'U1',
         netName: 'SIG',
         bounds: {
-            minX: -1.5,
-            minY: -0.15,
-            maxX: 1.95,
-            maxY: 1.8,
-            width: 3.45,
-            height: 1.95
+            minX: -1.1,
+            minY: -1.1,
+            maxX: 2.1,
+            maxY: -0.9,
+            width: 3.2,
+            height: 0.2
         },
-        relatedPrimitiveIds: [
-            'pad_rot',
-            'pad_asym',
-            'pad_pill',
-            'pad_poly',
-            'pad_rot:solder-mask',
-            'pad_asym:solder-mask'
-        ]
+        relatedPrimitiveIds: ['trace_sig:segment:0']
     })
 })
 

@@ -1,6 +1,11 @@
 import { ViewerSidebarManufacturingActions } from './ViewerSidebarManufacturingActions.mjs'
 import { ViewerSidebarSupportCoverageRenderer } from './ViewerSidebarSupportCoverageRenderer.mjs'
 import { SimulationResultPanelRenderer } from './SimulationResultPanelRenderer.mjs'
+import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
+import { EcadDocumentBom } from '../core/ecad/EcadDocumentBom.mjs'
+import { EcadDocumentSupportMatrix } from '../core/ecad/EcadDocumentSupportMatrix.mjs'
+import { EcadDocumentSummary } from '../core/ecad/EcadDocumentSummary.mjs'
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
 
 /**
  * Renders the loaded-document overview shown in the viewer sidebar.
@@ -14,7 +19,7 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {string}
      */
     static render(documentModel, translate, options = {}) {
-        const title = documentModel?.pcb
+        const title = EcadDocumentType.isPcb(documentModel)
             ? translate('sidebar.boardOverview')
             : translate('sidebar.sheetOverview')
 
@@ -37,7 +42,7 @@ export class ViewerSidebarOverviewRenderer {
                 translate
             ) +
             ViewerSidebarSupportCoverageRenderer.render(
-                documentModel?.supportMatrix
+                EcadDocumentSupportMatrix.resolve(documentModel)
             ) +
             SimulationResultPanelRenderer.render(documentModel) +
             ViewerSidebarOverviewRenderer.#renderOverviewMeta(
@@ -58,7 +63,8 @@ export class ViewerSidebarOverviewRenderer {
     static #renderOverviewActions(documentModel, translate, options) {
         const documentId = String(options?.documentId || '')
         const actions =
-            documentModel?.pcb && options.showModelZipExport === true
+            EcadDocumentType.isPcb(documentModel) &&
+            options.showModelZipExport === true
                 ? [
                       {
                           attribute: 'data-pcb-assembly-export-format="step"',
@@ -116,6 +122,7 @@ export class ViewerSidebarOverviewRenderer {
             translate
         )
         const revision =
+            documentModel?.source?.revision ||
             documentModel?.summary?.revision ||
             documentModel?.revision ||
             documentModel?.pcb?.revision ||
@@ -211,8 +218,8 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {{ key: string, icon: string, label: string, value: string, secondaryValue?: string }[]}
      */
     static #overviewRows(documentModel, translate) {
-        const summary = documentModel?.summary || {}
-        if (documentModel?.pcb) {
+        const summary = EcadDocumentSummary.resolve(documentModel)
+        if (summary.kind === 'pcb') {
             const boardDimensions =
                 ViewerSidebarOverviewRenderer.#formatBoardDimensions(
                     documentModel
@@ -223,7 +230,7 @@ export class ViewerSidebarOverviewRenderer {
                     key: 'active-file',
                     icon: 'file',
                     label: translate('app.activeFile'),
-                    value: documentModel?.fileName || '-'
+                    value: summary.fileName || '-'
                 },
                 {
                     key: 'diagnostics',
@@ -315,7 +322,7 @@ export class ViewerSidebarOverviewRenderer {
                 key: 'active-file',
                 icon: 'file',
                 label: translate('app.activeFile'),
-                value: documentModel?.fileName || '-'
+                value: summary.fileName || '-'
             },
             {
                 key: 'diagnostics',
@@ -339,10 +346,7 @@ export class ViewerSidebarOverviewRenderer {
                 key: 'size',
                 icon: 'outline',
                 label: translate('sidebar.infoSize'),
-                value:
-                    documentModel?.schematic?.sheet?.size ||
-                    documentModel?.schematic?.sheet?.paper ||
-                    '-'
+                value: summary.sheetSize || '-'
             },
             {
                 key: 'components',
@@ -377,7 +381,7 @@ export class ViewerSidebarOverviewRenderer {
      */
     static #renderOverviewMeta(documentModel, translate) {
         const modified = ViewerSidebarOverviewRenderer.#firstValue(
-            documentModel,
+            documentModel?.source || documentModel,
             ['modifiedAt', 'lastModified', 'sourceModifiedAt']
         )
 
@@ -403,7 +407,7 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {string}
      */
     static #renderMiniature(documentModel) {
-        if (!documentModel?.pcb) {
+        if (!EcadDocumentType.isPcb(documentModel)) {
             return (
                 '<svg viewBox="0 0 120 90" class="viewer-sidebar__miniature viewer-sidebar__miniature--schematic">' +
                 '<rect x="18" y="16" width="84" height="58" rx="4" />' +
@@ -436,9 +440,7 @@ export class ViewerSidebarOverviewRenderer {
      */
     static #documentTitle(documentModel, translate) {
         return (
-            documentModel?.summary?.title ||
-            documentModel?.title ||
-            documentModel?.fileName ||
+            EcadDocumentSummary.resolve(documentModel).title ||
             translate('summary.document')
         )
     }
@@ -449,13 +451,12 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {{ value: string, secondaryValue: string }}
      */
     static #formatBoardDimensions(documentModel) {
+        const summary = EcadDocumentSummary.resolve(documentModel)
         const width = ViewerSidebarOverviewRenderer.#positiveNumber(
-            documentModel?.summary?.boardWidthMil ||
-                documentModel?.pcb?.boardOutline?.widthMil
+            summary.boardWidthMil
         )
         const height = ViewerSidebarOverviewRenderer.#positiveNumber(
-            documentModel?.summary?.boardHeightMil ||
-                documentModel?.pcb?.boardOutline?.heightMil
+            summary.boardHeightMil
         )
 
         if (!width || !height) {
@@ -522,11 +523,9 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {number}
      */
     static #placementCount(documentModel) {
-        if (Array.isArray(documentModel?.pcb?.components)) {
-            return documentModel.pcb.components.length
-        }
-
-        const summaryCount = Number(documentModel?.summary?.componentCount)
+        const summaryCount = Number(
+            EcadDocumentSummary.resolve(documentModel).placementCount
+        )
         return Number.isFinite(summaryCount) ? summaryCount : 0
     }
 
@@ -536,9 +535,8 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {number}
      */
     static #bomGroupCount(documentModel) {
-        if (Array.isArray(documentModel?.bom)) {
-            return documentModel.bom.length
-        }
+        const bomRows = EcadDocumentBom.resolve(documentModel)
+        if (bomRows.length) return bomRows.length
 
         const summaryCount = Number(
             documentModel?.summary?.bomGroupCount ??
@@ -554,9 +552,7 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {string}
      */
     static #formatDiagnosticsCount(documentModel, translate) {
-        const count = Array.isArray(documentModel?.diagnostics)
-            ? documentModel.diagnostics.length
-            : 0
+        const count = EcadDocumentDiagnostics.resolve(documentModel).length
 
         return String(count) + ' ' + translate('summary.records')
     }
@@ -567,7 +563,9 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {number}
      */
     static #outlineSegmentCount(documentModel) {
-        const summaryCount = Number(documentModel?.summary?.outlineSegmentCount)
+        const summaryCount = Number(
+            EcadDocumentSummary.resolve(documentModel).outlineSegmentCount
+        )
         if (Number.isFinite(summaryCount) && summaryCount > 0) {
             return summaryCount
         }
@@ -594,12 +592,13 @@ export class ViewerSidebarOverviewRenderer {
      * @returns {number}
      */
     static #lineSegmentCount(documentModel) {
-        const summaryCount = Number(documentModel?.summary?.lineSegmentCount)
+        const summary = EcadDocumentSummary.resolve(documentModel)
+        const summaryCount = Number(summary.lineSegmentCount)
         if (Number.isFinite(summaryCount) && summaryCount >= 0) {
             return summaryCount
         }
 
-        const trackCount = Number(documentModel?.summary?.trackCount)
+        const trackCount = Number(summary.trackCount)
         if (Number.isFinite(trackCount) && trackCount >= 0) {
             return trackCount
         }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbFontMetricsParser } from 'altium-toolkit/parser'
+import { PcbFontMetricsParser } from 'altium-toolkit/extensions'
 
 /**
  * Builds a minimal sfnt payload with the metric tables used by the parser.

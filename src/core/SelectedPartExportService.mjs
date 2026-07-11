@@ -1,13 +1,15 @@
 import { zipSync } from 'fflate'
-import { SelectedPartAltiumExportAdapter } from 'altium-toolkit/parser'
-import { SelectedPartCircuitJsonExportAdapter } from 'circuitjson-toolkit/renderers'
+import { SelectedPartAltiumExportAdapter } from 'altium-toolkit/extensions'
+import { SelectedPartCircuitJsonExportAdapter } from 'circuitjson-toolkit/extensions'
 import {
     CircuitJsonKicadProjectExporter,
     KicadSelectedPartExporter
-} from 'kicad-toolkit/parser'
+} from 'kicad-toolkit/extensions'
 import { SelectedPartKicadExportAdapter } from './SelectedPartKicadExportAdapter.mjs'
 import { SelectedPartResolver } from './SelectedPartResolver.mjs'
 import { SelectedPartStitchedModelExporter } from './SelectedPartStitchedModelExporter.mjs'
+import { EcadDocumentType } from './ecad/EcadDocumentType.mjs'
+import { EcadFormatRegistry } from './ecad/EcadFormatRegistry.mjs'
 
 /**
  * Builds downloadable ZIP archives for the currently selected component.
@@ -649,11 +651,10 @@ export class SelectedPartExportService {
             schema: 'ecad-forge-selected-part-export-v1',
             document: {
                 id: options.documentId,
-                fileName: options.documentModel?.fileName || '',
-                sourceFormat:
-                    options.documentModel?.sourceFormat ||
-                    options.documentModel?.fileType ||
-                    ''
+                fileName: EcadDocumentType.fileName(options.documentModel),
+                sourceFormat: EcadFormatRegistry.sourceFormatForDocument(
+                    options.documentModel
+                )
             },
             selectedPart: {
                 designator: options.selectedPart.designator || '',

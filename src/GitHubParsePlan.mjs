@@ -1,4 +1,5 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadDocumentType } from './core/ecad/EcadDocumentType.mjs'
 
 /**
  * Builds prioritized parser batches for GitHub project deep links.
@@ -64,7 +65,7 @@ export class GitHubParsePlan {
             (existingDocuments || [])
                 .map((entry) =>
                     GitHubParsePlan.#normalizePath(
-                        entry?.documentModel?.fileName
+                        EcadDocumentType.fileName(entry?.documentModel)
                     )
                 )
                 .filter(Boolean)
@@ -72,7 +73,9 @@ export class GitHubParsePlan {
 
         return {
             documents: (parseResult?.documents || []).filter((document) => {
-                const path = GitHubParsePlan.#normalizePath(document?.fileName)
+                const path = GitHubParsePlan.#normalizePath(
+                    EcadDocumentType.fileName(document)
+                )
                 return !path || !existingPaths.has(path)
             }),
             assets: Array.isArray(parseResult?.assets)

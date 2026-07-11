@@ -1,4 +1,4 @@
-import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/renderers'
+import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Injects persistent PCB diagnostic focus and related-primitive preview styles.

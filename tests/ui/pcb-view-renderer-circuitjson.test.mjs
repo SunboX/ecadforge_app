@@ -19,12 +19,15 @@ function createCircuitJsonPcbDocument() {
         {
             type: 'source_component',
             source_component_id: 'source_u1',
-            name: 'U1'
+            name: 'U1',
+            ftype: 'simple_chip'
         },
         {
             type: 'source_component',
             source_component_id: 'source_r1',
-            name: 'R1'
+            name: 'R1',
+            ftype: 'simple_resistor',
+            resistance: '1k'
         },
         {
             type: 'pcb_component',

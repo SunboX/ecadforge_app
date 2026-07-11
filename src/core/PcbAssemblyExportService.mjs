@@ -1,5 +1,6 @@
 import { EcadScene3dService } from './ecad/EcadScene3dService.mjs'
 import { PcbAssemblyBoardTextureRenderer } from './PcbAssemblyBoardTextureRenderer.mjs'
+import { EcadDocumentSummary } from './ecad/EcadDocumentSummary.mjs'
 import {
     PcbAssemblyGeometryBuildProgress,
     PcbAssemblyGeometryBuilder,
@@ -440,12 +441,9 @@ export class PcbAssemblyExportService {
      * @returns {string}
      */
     static #assemblyBaseName(documentModel) {
+        const summary = EcadDocumentSummary.resolve(documentModel)
         return (
-            String(
-                documentModel?.fileName ||
-                    documentModel?.summary?.title ||
-                    'pcb'
-            )
+            String(summary.fileName || summary.title || 'pcb')
                 .replace(/\.[^.]+$/u, '')
                 .replace(/[^A-Za-z0-9_.-]+/gu, '-')
                 .replace(/^-+|-+$/gu, '')

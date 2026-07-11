@@ -111,7 +111,10 @@ test('LocalFileSelectionCollector appends companion directory files for KiCad se
                 new FakeFileHandle('QFN.kicad_mod')
             ])
         ]),
-        new FakeDirectoryHandle('models', [new FakeFileHandle('body.step')]),
+        new FakeDirectoryHandle('models', [
+            new FakeFileHandle('body.step'),
+            new FakeFileHandle('body.3mf')
+        ]),
         new FakeFileHandle('notes.txt')
     ])
     const pickerOptions = []
@@ -140,12 +143,13 @@ test('LocalFileSelectionCollector appends companion directory files for KiCad se
             'demo.kicad_pcb',
             'symbols/logic.kicad_sym',
             'footprints/QFN.pretty/QFN.kicad_mod',
-            'models/body.step'
+            'models/body.step',
+            'models/body.3mf'
         ]
     )
     assert.equal(
         await collectedFiles
-            .at(-1)
+            .find((file) => file.name === 'body.step')
             .arrayBuffer()
             .then((buffer) => buffer.byteLength),
         'body.step'.length
@@ -211,7 +215,10 @@ test('LocalFileSelectionCollector collects supported files from a directory pick
         new FakeDirectoryHandle('symbols', [
             new FakeFileHandle('logic.kicad_sym')
         ]),
-        new FakeDirectoryHandle('models', [new FakeFileHandle('body.wrl')]),
+        new FakeDirectoryHandle('models', [
+            new FakeFileHandle('body.wrl'),
+            new FakeFileHandle('body.3mf')
+        ]),
         new FakeFileHandle('notes.txt')
     ])
 
@@ -234,7 +241,8 @@ test('LocalFileSelectionCollector collects supported files from a directory pick
             'demo.kicad_pro',
             'demo.kicad_pcb',
             'symbols/logic.kicad_sym',
-            'models/body.wrl'
+            'models/body.wrl',
+            'models/body.3mf'
         ]
     )
 })

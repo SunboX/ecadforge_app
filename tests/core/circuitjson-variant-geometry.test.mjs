@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
-import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
+import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a synthetic board with schema variant geometry rows.

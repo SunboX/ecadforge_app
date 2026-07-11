@@ -1,3 +1,5 @@
+import { EcadFormatRegistry } from './ecad/EcadFormatRegistry.mjs'
+
 /**
  * Resolves one selected component into symbol, footprint, and diagnostics data.
  */
@@ -14,6 +16,13 @@ export class SelectedPartResolver {
             options.documents
         )
         const designator = String(options.selectedComponentKey || '').trim()
+        const canonical = SelectedPartResolver.#resolveCanonical(
+            documentModels,
+            designator
+        )
+        if (canonical) {
+            return SelectedPartResolver.#canonicalResult(canonical, designator)
+        }
         const schematicComponent = SelectedPartResolver.#findSchematicComponent(
             documentModels,
             designator
@@ -68,6 +77,373 @@ export class SelectedPartResolver {
             ),
             diagnostics
         }
+    }
+
+    /**
+     * Resolves selected component relationships from canonical CircuitJSON.
+     * @param {object[]} documentModels Candidate document models.
+     * @param {string} designator Selected component key.
+     * @returns {{ source: object | null, schematic: object | null, pcb: object | null, elements: object[] } | null}
+     */
+    static #resolveCanonical(documentModels, designator) {
+        const canonicalDocuments = documentModels.filter((documentModel) =>
+            EcadFormatRegistry.isCircuitJsonDocument(documentModel)
+        )
+        if (!canonicalDocuments.length) return null
+
+        const elements = canonicalDocuments.flatMap((documentModel) =>
+            EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
+        )
+        const sourceComponents = elements.filter(
+            (element) => element?.type === 'source_component'
+        )
+        const pcbComponents = elements.filter(
+            (element) => element?.type === 'pcb_component'
+        )
+        const schematicComponents = elements.filter((element) =>
+            ['schematic_component', 'schematic_symbol'].includes(element?.type)
+        )
+        let source = sourceComponents.find((component) =>
+            SelectedPartResolver.#matchesCanonicalSource(component, designator)
+        )
+        let pcb = pcbComponents.find((component) =>
+            SelectedPartResolver.#matchesCanonicalPlacement(
+                component,
+                source,
+                designator
+            )
+        )
+        let schematic = schematicComponents.find((component) =>
+            SelectedPartResolver.#matchesCanonicalPlacement(
+                component,
+                source,
+                designator
+            )
+        )
+        const inferredSourceId = String(
+            pcb?.source_component_id || schematic?.source_component_id || ''
+        )
+        if (!source && inferredSourceId) {
+            source = sourceComponents.find(
+                (component) =>
+                    String(component?.source_component_id || '') ===
+                    inferredSourceId
+            )
+        }
+        const sourceId = String(source?.source_component_id || inferredSourceId)
+        if (!pcb && sourceId) {
+            pcb = pcbComponents.find(
+                (component) =>
+                    String(component?.source_component_id || '') === sourceId
+            )
+        }
+        if (!schematic && sourceId) {
+            schematic = schematicComponents.find(
+                (component) =>
+                    String(component?.source_component_id || '') === sourceId
+            )
+        }
+
+        return {
+            source: source || null,
+            schematic: schematic || null,
+            pcb: pcb || null,
+            elements
+        }
+    }
+
+    /**
+     * Builds the public selected-part shape from canonical relationships.
+     * @param {{ source: object | null, schematic: object | null, pcb: object | null, elements: object[] }} canonical Canonical selection.
+     * @param {string} designator Selected component key.
+     * @returns {{ designator: string, symbol: object, footprint: object, diagnostics: object[] }}
+     */
+    static #canonicalResult(canonical, designator) {
+        const diagnostics = []
+        if (!designator) {
+            diagnostics.push(
+                SelectedPartResolver.#diagnostic(
+                    'error',
+                    'selected_part_missing_selection',
+                    'No selected component is available for export.'
+                )
+            )
+        }
+        if (!canonical.source && !canonical.schematic) {
+            diagnostics.push(
+                SelectedPartResolver.#diagnostic(
+                    'error',
+                    'selected_part_missing_symbol',
+                    'No schematic symbol data was found for the selected component.'
+                )
+            )
+        }
+        if (!canonical.pcb) {
+            diagnostics.push(
+                SelectedPartResolver.#diagnostic(
+                    'error',
+                    'selected_part_missing_footprint',
+                    'No PCB footprint data was found for the selected component.'
+                )
+            )
+        }
+        return {
+            designator,
+            symbol: SelectedPartResolver.#canonicalSymbol(
+                canonical,
+                designator
+            ),
+            footprint: SelectedPartResolver.#canonicalFootprint(
+                canonical,
+                designator
+            ),
+            diagnostics
+        }
+    }
+
+    /**
+     * Returns true when a canonical source component matches the selection.
+     * @param {object} component Source component.
+     * @param {string} designator Selected component key.
+     * @returns {boolean}
+     */
+    static #matchesCanonicalSource(component, designator) {
+        if (!designator) return false
+        return [
+            component?.name,
+            component?.display_name,
+            component?.source_component_id
+        ].some((value) => String(value || '').trim() === designator)
+    }
+
+    /**
+     * Returns true when a canonical placement matches the selection or source.
+     * @param {object} component Placement element.
+     * @param {object | undefined} source Selected source component.
+     * @param {string} designator Selected component key.
+     * @returns {boolean}
+     */
+    static #matchesCanonicalPlacement(component, source, designator) {
+        const sourceId = String(source?.source_component_id || '')
+        return Boolean(
+            (sourceId && component?.source_component_id === sourceId) ||
+            [
+                component?.pcb_component_id,
+                component?.schematic_component_id,
+                component?.schematic_symbol_id,
+                component?.name
+            ].some((value) => String(value || '').trim() === designator)
+        )
+    }
+
+    /**
+     * Builds a selected symbol from source and schematic CircuitJSON elements.
+     * @param {{ source: object | null, schematic: object | null, elements: object[] }} canonical Canonical selection.
+     * @param {string} designator Selected component key.
+     * @returns {object}
+     */
+    static #canonicalSymbol(canonical, designator) {
+        const source = canonical.source || {}
+        const schematic = canonical.schematic || {}
+        const sourceId = String(
+            source.source_component_id || schematic.source_component_id || ''
+        )
+        const pins = canonical.elements
+            .filter(
+                (element) =>
+                    element?.type === 'source_port' &&
+                    String(element.source_component_id || '') === sourceId
+            )
+            .map((pin, index) => ({
+                ...pin,
+                name: String(
+                    pin.name || pin.most_frequently_referenced_by_name || ''
+                ),
+                number:
+                    pin.pin_number ??
+                    SelectedPartResolver.#array(pin.port_hints)[0] ??
+                    index + 1
+            }))
+        const center = schematic.center || { x: 0, y: 0 }
+        return {
+            name: String(
+                source.name ||
+                    source.display_name ||
+                    schematic.name ||
+                    designator ||
+                    'Component'
+            ),
+            value: String(
+                source.manufacturer_part_number ||
+                    source.display_value ||
+                    source.value ||
+                    ''
+            ),
+            pins,
+            origin: {
+                x: SelectedPartResolver.#number(center.x, 0),
+                y: SelectedPartResolver.#number(center.y, 0)
+            },
+            ownerKeys: [
+                sourceId,
+                String(
+                    schematic.schematic_component_id ||
+                        schematic.schematic_symbol_id ||
+                        ''
+                )
+            ].filter(Boolean),
+            lines: [],
+            polygons: [],
+            rectangles: [],
+            roundedRectangles: [],
+            ellipses: [],
+            arcs: [],
+            texts: [],
+            rawNode: null,
+            raw: { source, schematic }
+        }
+    }
+
+    /**
+     * Builds a selected footprint from canonical PCB primitives and CAD assets.
+     * @param {{ source: object | null, pcb: object | null, elements: object[] }} canonical Canonical selection.
+     * @param {string} designator Selected component key.
+     * @returns {object}
+     */
+    static #canonicalFootprint(canonical, designator) {
+        const source = canonical.source || {}
+        const pcb = canonical.pcb || {}
+        const pcbComponentId = String(pcb.pcb_component_id || '')
+        const owned = canonical.elements.filter(
+            (element) =>
+                pcbComponentId &&
+                String(element?.pcb_component_id || '') === pcbComponentId
+        )
+        const pads = owned
+            .filter((element) =>
+                ['pcb_smtpad', 'pcb_plated_hole'].includes(element.type)
+            )
+            .map((pad, index) => SelectedPartResolver.#canonicalPad(pad, index))
+        const cadModels = owned.filter(
+            (element) => element.type === 'cad_component'
+        )
+        const center = pcb.center || { x: 0, y: 0 }
+        const footprintName = String(
+            pcb?.metadata?.kicad_footprint?.footprintName ||
+                source.footprint ||
+                source.footprint_name ||
+                source.ftype ||
+                designator ||
+                'Component'
+        )
+        return {
+            name: footprintName,
+            component: {
+                x: SelectedPartResolver.#number(center.x, 0),
+                y: SelectedPartResolver.#number(center.y, 0),
+                rotation: SelectedPartResolver.#number(pcb.rotation, 0),
+                layer: String(
+                    pcb.layer && typeof pcb.layer === 'object'
+                        ? pcb.layer.name || ''
+                        : pcb.layer || ''
+                )
+            },
+            pads,
+            tracks: owned.filter((element) =>
+                ['pcb_trace', 'pcb_silkscreen_line'].includes(element.type)
+            ),
+            arcs: owned.filter((element) =>
+                ['pcb_silkscreen_circle'].includes(element.type)
+            ),
+            fills: owned.filter((element) =>
+                ['pcb_silkscreen_rect'].includes(element.type)
+            ),
+            regions: owned.filter((element) =>
+                ['pcb_silkscreen_path', 'pcb_silkscreen_graphic'].includes(
+                    element.type
+                )
+            ),
+            shapeBasedRegions: [],
+            texts: owned.filter((element) =>
+                ['pcb_silkscreen_text', 'pcb_copper_text'].includes(
+                    element.type
+                )
+            ),
+            models: cadModels.flatMap((model) =>
+                SelectedPartResolver.#canonicalModelReferences(model)
+            ),
+            rawNode: pcb?.metadata?.kicad_footprint || null,
+            raw: { source, pcb, owned }
+        }
+    }
+
+    /**
+     * Projects a canonical pad into the selected-part export shape.
+     * @param {object} pad Canonical PCB pad or plated hole.
+     * @param {number} index Stable pad position.
+     * @returns {object}
+     */
+    static #canonicalPad(pad, index) {
+        const diameter = SelectedPartResolver.#number(
+            pad.outer_diameter ?? pad.diameter ?? pad.radius * 2,
+            1
+        )
+        return {
+            ...pad,
+            number:
+                SelectedPartResolver.#array(pad.port_hints)[0] ||
+                pad.name ||
+                String(index + 1),
+            x: SelectedPartResolver.#number(pad.x ?? pad.center?.x, 0),
+            y: SelectedPartResolver.#number(pad.y ?? pad.center?.y, 0),
+            width: SelectedPartResolver.#number(
+                pad.width ?? pad.outer_width,
+                diameter
+            ),
+            height: SelectedPartResolver.#number(
+                pad.height ?? pad.outer_height,
+                diameter
+            )
+        }
+    }
+
+    /**
+     * Extracts every public model reference from a canonical CAD component.
+     * @param {object} model CAD component element.
+     * @returns {object[]}
+     */
+    static #canonicalModelReferences(model) {
+        const references = []
+        const formats = ['step', 'wrl', 'glb', 'gltf', 'stl', 'obj', '3mf']
+        for (const format of formats) {
+            const path = String(model?.[`model_${format}_url`] || '').trim()
+            if (!path) continue
+            references.push({
+                name: path.split('/').at(-1) || '',
+                path,
+                relativePath: path,
+                format,
+                transform: null,
+                raw: model
+            })
+        }
+        if (model?.model_asset) {
+            const asset = model.model_asset
+            const path = String(
+                asset.project_relative_path || asset.url || ''
+            ).trim()
+            if (path) {
+                references.push({
+                    name: path.split('/').at(-1) || '',
+                    path,
+                    relativePath: String(asset.project_relative_path || ''),
+                    format: path.split('.').at(-1)?.toLowerCase() || '',
+                    transform: null,
+                    raw: model
+                })
+            }
+        }
+        return references
     }
 
     /**

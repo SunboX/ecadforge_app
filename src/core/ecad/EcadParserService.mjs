@@ -1,42 +1,66 @@
-import { AltiumParser } from 'altium-toolkit/parser'
-import { CircuitJsonParser } from 'circuitjson-toolkit'
-import { unzipSync } from 'fflate'
-import { GerberParser, GerberProjectLoader } from 'gerber-toolkit/parser'
-import { KicadParser, KicadProjectLoader } from 'kicad-toolkit/parser'
+import { Parser as AltiumParser } from 'altium-toolkit/parser'
+import { ProjectLoader as AltiumProjectLoader } from 'altium-toolkit/project'
+import { Parser as CircuitJsonParser } from 'circuitjson-toolkit/parser'
+import { ProjectLoader as CircuitJsonProjectLoader } from 'circuitjson-toolkit/project'
+import { Parser as GerberParser } from 'gerber-toolkit/parser'
+import { ProjectLoader as GerberProjectLoader } from 'gerber-toolkit/project'
+import { Parser as KicadParser } from 'kicad-toolkit/parser'
+import { ProjectLoader as KicadProjectLoader } from 'kicad-toolkit/project'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+
+const MODEL_COMPANION_FORMATS = new Set([
+    'wrl',
+    'vrml',
+    'step',
+    'glb',
+    'gltf',
+    'stl',
+    'obj',
+    '3mf'
+])
 
 /**
  * Dispatches ECAD source entries to the owned format toolkits.
  */
 export class EcadParserService {
-    /** @type {{ parseArrayBuffer: (fileName: string, buffer: ArrayBuffer) => object }} */
+    /** @type {{ parse: (input: { fileName: string, data: ArrayBuffer }) => object }} */
     #altiumParser
 
-    /** @type {{ parseArrayBuffer: (fileName: string, buffer: ArrayBuffer) => object }} */
+    /** @type {{ loadAsync: (entries: { name: string, data: ArrayBuffer }[], options?: object) => Promise<object> }} */
+    #altiumProjectLoader
+
+    /** @type {{ parse: (input: { fileName: string, data: ArrayBuffer }) => object }} */
     #kicadParser
 
-    /** @type {{ loadEntries: (entries: { name: string, bytes: Uint8Array }[], options?: object) => Promise<object> | object }} */
+    /** @type {{ loadAsync: (entries: { name: string, data: ArrayBuffer }[], options?: object) => Promise<object> }} */
     #kicadProjectLoader
 
-    /** @type {{ parseBytes: (bytes: ArrayBuffer | Uint8Array, options?: object) => object[] }} */
+    /** @type {{ parse: (input: { fileName: string, data: ArrayBuffer }) => object }} */
     #circuitJsonParser
 
-    /** @type {{ parseArrayBuffer: (fileName: string, buffer: ArrayBuffer, options?: object) => object }} */
+    /** @type {{ loadAsync: (entries: { name: string, data: ArrayBuffer }[], options?: object) => Promise<object> }} */
+    #circuitJsonProjectLoader
+
+    /** @type {{ parse: (input: { fileName: string, data: ArrayBuffer }) => object }} */
     #gerberParser
 
-    /** @type {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean, loadEntries: (entries: { name: string, bytes: Uint8Array }[], options?: object) => Promise<object> | object }} */
+    /** @type {{ supports?: (entries: { name: string, data: ArrayBuffer }[]) => boolean, loadAsync: (entries: { name: string, data: ArrayBuffer }[], options?: object) => Promise<object> }} */
     #gerberProjectLoader
 
     /**
-     * @param {{ altiumParser?: any, kicadParser?: any, kicadProjectLoader?: any, circuitJsonParser?: any, gerberParser?: any, gerberProjectLoader?: any }} [dependencies]
+     * @param {{ altiumParser?: any, altiumProjectLoader?: any, kicadParser?: any, kicadProjectLoader?: any, circuitJsonParser?: any, circuitJsonProjectLoader?: any, gerberParser?: any, gerberProjectLoader?: any }} [dependencies]
      */
     constructor(dependencies = {}) {
         this.#altiumParser = dependencies.altiumParser || AltiumParser
+        this.#altiumProjectLoader =
+            dependencies.altiumProjectLoader || AltiumProjectLoader
         this.#kicadParser = dependencies.kicadParser || KicadParser
         this.#kicadProjectLoader =
             dependencies.kicadProjectLoader || KicadProjectLoader
         this.#circuitJsonParser =
             dependencies.circuitJsonParser || CircuitJsonParser
+        this.#circuitJsonProjectLoader =
+            dependencies.circuitJsonProjectLoader || CircuitJsonProjectLoader
         this.#gerberParser = dependencies.gerberParser || GerberParser
         this.#gerberProjectLoader =
             dependencies.gerberProjectLoader || GerberProjectLoader
@@ -55,26 +79,21 @@ export class EcadParserService {
         }
 
         if (role.sourceFormat === 'kicad') {
-            return EcadParserService.#prepareAppDocument(
-                this.#kicadParser.parseArrayBuffer(fileName, buffer)
-            )
+            return this.#parse(this.#kicadParser, fileName, buffer)
         }
 
         if (role.sourceFormat === 'circuitjson') {
-            return EcadParserService.#prepareAppDocument(
-                this.#parseCircuitJsonArrayBuffer(fileName, buffer)
-            )
+            return this.#parseCircuitJsonArrayBuffer(fileName, buffer)
         }
 
         if (role.sourceFormat === 'gerber') {
-            return EcadParserService.#prepareAppDocument(
-                this.#gerberParser.parseArrayBuffer(fileName, buffer)
-            )
+            return this.#parse(this.#gerberParser, fileName, buffer)
         }
 
-        return EcadParserService.#prepareAppDocument(
-            this.#altiumParser.parseArrayBuffer(fileName, buffer)
-        )
+        return this.#parse(this.#altiumParser, fileName, buffer, {
+            extensions: ['altium.native-model'],
+            decodeAssets: 'full'
+        })
     }
 
     /**
@@ -97,114 +116,120 @@ export class EcadParserService {
             normalizedEntries,
             this.#gerberProjectLoader
         )
+        const modelCompanions = normalizedEntries.filter(
+            (entry) => entry.role?.sourceFormat === 'companion'
+        )
         const gerberEntryNames = new Set(
             gerberEntries.map((entry) => entry.name)
+        )
+        const kicadParseEntries = EcadParserService.#withModelCompanions(
+            kicadEntries.filter((entry) => !gerberEntryNames.has(entry.name)),
+            modelCompanions
         )
         const documents = []
         const diagnostics = []
         const assets = []
         let project = null
 
-        for (const entry of altiumEntries) {
-            try {
-                documents.push(
-                    this.#altiumParser.parseArrayBuffer(
-                        entry.name,
-                        entry.buffer
+        const groups = [
+            [
+                this.#altiumProjectLoader,
+                EcadParserService.#withModelCompanions(
+                    altiumEntries,
+                    modelCompanions
+                ),
+                'Altium project',
+                {
+                    extensions: ['altium.native-model'],
+                    decodeAssets: 'full'
+                }
+            ],
+            [
+                this.#circuitJsonProjectLoader,
+                EcadParserService.#withModelCompanions(
+                    circuitJsonEntries,
+                    modelCompanions
+                ),
+                'CircuitJSON project',
+                { decodeAssets: 'full' }
+            ],
+            [
+                this.#gerberProjectLoader,
+                EcadParserService.#withModelCompanions(
+                    gerberEntries,
+                    modelCompanions
+                ),
+                'Gerber fabrication package',
+                { extensions: ['gerber.native-model'] }
+            ],
+            [
+                this.#kicadProjectLoader,
+                kicadParseEntries,
+                'KiCad project',
+                { decodeAssets: 'full' }
+            ]
+        ]
+        const loadedGroups = await Promise.all(
+            groups
+                .filter(([_loader, groupEntries]) => groupEntries.length)
+                .map(([loader, groupEntries, label, loaderOptions]) =>
+                    this.#loadProjectEntries(
+                        loader,
+                        groupEntries,
+                        label,
+                        loaderOptions
                     )
                 )
-            } catch (error) {
-                diagnostics.push(
-                    EcadParserService.#buildParseDiagnostic(entry.name, error)
-                )
-            }
-        }
-
-        for (const entry of circuitJsonEntries) {
-            try {
-                documents.push(
-                    this.#parseCircuitJsonArrayBuffer(entry.name, entry.buffer)
-                )
-            } catch (error) {
-                diagnostics.push(
-                    EcadParserService.#buildParseDiagnostic(entry.name, error)
-                )
-            }
-        }
-
-        if (gerberEntries.length) {
-            try {
-                const result = await this.#gerberProjectLoader.loadEntries(
-                    gerberEntries.map((entry) => ({
-                        name: entry.name,
-                        bytes: new Uint8Array(entry.buffer)
-                    }))
-                )
-                documents.push(
-                    ...EcadParserService.#documentsFromResult(result)
-                )
-                diagnostics.push(...(result.diagnostics || []))
-                assets.push(...(result.assets || []))
-                project = result.project || project
-            } catch (error) {
-                diagnostics.push(
-                    EcadParserService.#buildParseDiagnostic(
-                        gerberEntries[0]?.name || 'Gerber fabrication package',
-                        error
-                    )
-                )
-            }
-        }
-
-        const kicadParseEntries = EcadParserService.#expandKicadArchiveEntries(
-            kicadEntries.filter((entry) => !gerberEntryNames.has(entry.name))
         )
-        const kicadNativeEntries = kicadParseEntries.filter(
-            (entry) => entry.role?.sourceFormat === 'kicad'
-        )
-
-        if (
-            kicadParseEntries.length === 1 &&
-            kicadNativeEntries.length === 1 &&
-            kicadNativeEntries[0].role.fileType !== 'zip'
-        ) {
-            documents.push(
-                this.#kicadParser.parseArrayBuffer(
-                    kicadNativeEntries[0].name,
-                    kicadNativeEntries[0].buffer
-                )
-            )
-        }
-
-        if (
-            kicadParseEntries.length > 1 ||
-            kicadNativeEntries.length > 1 ||
-            kicadParseEntries[0]?.role?.fileType === 'zip'
-        ) {
-            const result = await this.#kicadProjectLoader.loadEntries(
-                kicadParseEntries.map((entry) => ({
-                    name: entry.name,
-                    bytes: new Uint8Array(entry.buffer)
-                }))
-            )
+        for (const loaded of loadedGroups) {
+            if (loaded.diagnostic) {
+                diagnostics.push(loaded.diagnostic)
+                continue
+            }
+            const result = loaded.result
             documents.push(...EcadParserService.#documentsFromResult(result))
             diagnostics.push(...(result.diagnostics || []))
             assets.push(...(result.assets || []))
-            project = result.project || null
+            project = result.project || project
         }
 
         if (!documents.length && diagnostics.length) {
             throw new Error(diagnostics[0].message)
         }
 
-        EcadParserService.#attachAltiumProjectContext(documents)
-        EcadParserService.#attachDiagnosticsToDocuments(documents, diagnostics)
-
         return {
-            documents: EcadParserService.#prepareAppDocuments(documents),
+            documents,
             diagnostics,
-            assets,
+            assets: EcadParserService.#uniqueAssets(assets),
             project
+        }
+    }
+
+    /**
+     * Loads one normalized source group through the shared project contract.
+     * @param {{ loadAsync: (entries: { name: string, data: ArrayBuffer }[]) => Promise<object> }} loader Common project loader.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries App entries.
+     * @param {string} label Fallback diagnostic source.
+     * @param {object} options Common project-loader options.
+     * @returns {Promise<{ result: object | null, diagnostic: object | null }>} Load attempt.
+     */
+    async #loadProjectEntries(loader, entries, label, options) {
+        try {
+            return {
+                result: await loader.loadAsync(
+                    EcadParserService.#projectEntries(entries),
+                    options
+                ),
+                diagnostic: null
+            }
+        } catch (error) {
+            return {
+                result: null,
+                diagnostic: EcadParserService.#buildParseDiagnostic(
+                    entries[0]?.name || label,
+                    error
+                )
+            }
         }
     }
 
@@ -215,7 +240,19 @@ export class EcadParserService {
      * @returns {object[]}
      */
     #parseCircuitJsonArrayBuffer(fileName, buffer) {
-        return this.#circuitJsonParser.parseBytes(buffer, { fileName })
+        return this.#parse(this.#circuitJsonParser, fileName, buffer)
+    }
+
+    /**
+     * Parses one file through the shared toolkit parser contract.
+     * @param {{ parse: (input: { fileName: string, data: ArrayBuffer }, options?: object) => object }} parser Common parser.
+     * @param {string} fileName Source file name.
+     * @param {ArrayBuffer} buffer Source bytes.
+     * @param {object} [options] Common parser options.
+     * @returns {object} Canonical document envelope.
+     */
+    #parse(parser, fileName, buffer, options = {}) {
+        return parser.parse({ fileName, data: buffer }, options)
     }
 
     /**
@@ -241,43 +278,6 @@ export class EcadParserService {
     }
 
     /**
-     * Normalizes parsed documents to the app runtime shape.
-     * @param {object[]} documents Parsed documents.
-     * @returns {object[]}
-     */
-    static #prepareAppDocuments(documents) {
-        return documents.map((document) =>
-            EcadParserService.#prepareAppDocument(document)
-        )
-    }
-
-    /**
-     * Removes parser-only payloads that the browser app does not render or
-     * query after parsing.
-     * @param {object} document Parsed document.
-     * @returns {object}
-     */
-    static #prepareAppDocument(document) {
-        if (!document || typeof document !== 'object') {
-            return document
-        }
-
-        EcadParserService.#stripRawPcbRecords(document)
-        return document
-    }
-
-    /**
-     * Drops large raw PCB record sidecars while preserving derived PCB data.
-     * @param {object} document Parsed document.
-     * @returns {void}
-     */
-    static #stripRawPcbRecords(document) {
-        if (document?.pcb && typeof document.pcb === 'object') {
-            delete document.pcb.rawRecords
-        }
-    }
-
-    /**
      * Creates one file-scoped parser diagnostic.
      * @param {string} fileName Source file name.
      * @param {unknown} error Parser error.
@@ -297,191 +297,6 @@ export class EcadParserService {
     }
 
     /**
-     * Adds batch diagnostics to parsed documents so the existing diagnostics
-     * view can surface source-folder parse failures.
-     * @param {object[]} documents Parsed documents.
-     * @param {{ severity: string, fileName: string, message: string }[]} diagnostics Batch diagnostics.
-     */
-    static #attachDiagnosticsToDocuments(documents, diagnostics) {
-        if (!diagnostics.length) {
-            return
-        }
-
-        for (const document of documents) {
-            document.diagnostics = [
-                ...(Array.isArray(document.diagnostics)
-                    ? document.diagnostics
-                    : []),
-                ...diagnostics
-            ]
-        }
-    }
-
-    /**
-     * Attaches Altium project special-string context to schematic documents.
-     * @param {object[]} documents Parsed documents.
-     */
-    static #attachAltiumProjectContext(documents) {
-        const projects = (documents || []).filter((document) =>
-            EcadParserService.#isAltiumProjectDocument(document)
-        )
-        if (!projects.length) {
-            return
-        }
-
-        const currentValues =
-            EcadParserService.#buildCurrentAltiumSpecialStringValues()
-        for (const document of documents || []) {
-            if (!EcadParserService.#isAltiumSchematicDocument(document)) {
-                continue
-            }
-
-            const projectDocument =
-                EcadParserService.#findAltiumProjectForDocument(
-                    document,
-                    projects
-                ) || projects[0]
-            document.projectParameters = {
-                ...EcadParserService.#extractAltiumProjectParameters(
-                    projectDocument
-                ),
-                ...currentValues,
-                ProjectName: EcadParserService.#baseName(
-                    projectDocument?.fileName
-                ),
-                DataSourceFileName: EcadParserService.#baseName(
-                    projectDocument?.fileName
-                ),
-                DocumentName: EcadParserService.#baseName(document.fileName),
-                DocumentFullPathAndName: String(document.fileName || ''),
-                ...(document.projectParameters || {})
-            }
-        }
-    }
-
-    /**
-     * Returns true when one parsed document is an Altium project file.
-     * @param {object} document Parsed document.
-     * @returns {boolean}
-     */
-    static #isAltiumProjectDocument(document) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(document) === 'altium' &&
-            (document?.kind === 'project' || document?.fileType === 'PrjPcb')
-        )
-    }
-
-    /**
-     * Returns true when one parsed document is an Altium schematic.
-     * @param {object} document Parsed document.
-     * @returns {boolean}
-     */
-    static #isAltiumSchematicDocument(document) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(document) === 'altium' &&
-            document?.kind === 'schematic' &&
-            Boolean(document?.schematic)
-        )
-    }
-
-    /**
-     * Finds the project file that lists a schematic document.
-     * @param {object} document Schematic document.
-     * @param {object[]} projects Parsed project documents.
-     * @returns {object | null}
-     */
-    static #findAltiumProjectForDocument(document, projects) {
-        const documentPath = EcadParserService.#normalizePath(
-            document?.fileName
-        )
-        const documentBaseName = EcadParserService.#baseName(documentPath)
-        const exactMatch = projects.find((projectDocument) =>
-            EcadParserService.#altiumProjectMentionsDocument(
-                projectDocument,
-                documentPath,
-                documentBaseName,
-                false
-            )
-        )
-
-        return (
-            exactMatch ||
-            projects.find((projectDocument) =>
-                EcadParserService.#altiumProjectMentionsDocument(
-                    projectDocument,
-                    documentPath,
-                    documentBaseName,
-                    true
-                )
-            ) ||
-            null
-        )
-    }
-
-    /**
-     * Returns true when a project document references one schematic path.
-     * @param {object} projectDocument Parsed project document.
-     * @param {string} documentPath Normalized schematic path.
-     * @param {string} documentBaseName Normalized schematic basename.
-     * @param {boolean} allowBaseNameFallback Whether basename-only matches are allowed.
-     * @returns {boolean}
-     */
-    static #altiumProjectMentionsDocument(
-        projectDocument,
-        documentPath,
-        documentBaseName,
-        allowBaseNameFallback
-    ) {
-        const projectEntries = Array.isArray(
-            projectDocument?.project?.documents
-        )
-            ? projectDocument.project.documents
-            : []
-
-        return projectEntries.some((entry) => {
-            const entryPath = EcadParserService.#normalizePath(
-                entry?.fileName || entry?.name || entry?.path
-            )
-            if (!entryPath) {
-                return false
-            }
-
-            return (
-                entryPath === documentPath ||
-                documentPath.endsWith('/' + entryPath) ||
-                entryPath.endsWith('/' + documentPath) ||
-                (allowBaseNameFallback &&
-                    EcadParserService.#baseName(entryPath) === documentBaseName)
-            )
-        })
-    }
-
-    /**
-     * Extracts a project parameter map from supported Altium project shapes.
-     * @param {object} projectDocument Parsed project document.
-     * @returns {Record<string, string | number | boolean | null | undefined>}
-     */
-    static #extractAltiumProjectParameters(projectDocument) {
-        return {
-            ...(projectDocument?.project?.parameters?.map || {}),
-            ...(projectDocument?.projectParameters || {})
-        }
-    }
-
-    /**
-     * Builds current date/time special-string values for Altium templates.
-     * @returns {{ CurrentDate: string, CurrentTime: string }}
-     */
-    static #buildCurrentAltiumSpecialStringValues() {
-        const now = new Date()
-
-        return {
-            CurrentDate: now.toLocaleDateString('en-US'),
-            CurrentTime: now.toLocaleTimeString('en-US')
-        }
-    }
-
-    /**
      * Normalizes one source path for cross-platform comparisons.
      * @param {string | undefined} fileName Source path.
      * @returns {string}
@@ -490,18 +305,6 @@ export class EcadParserService {
         return String(fileName || '')
             .replace(/\\+/gu, '/')
             .replace(/\/+/gu, '/')
-    }
-
-    /**
-     * Returns the final path segment from one source path.
-     * @param {string | undefined} fileName Source path.
-     * @returns {string}
-     */
-    static #baseName(fileName) {
-        const normalized = EcadParserService.#normalizePath(fileName)
-        const parts = normalized.split('/')
-
-        return parts[parts.length - 1] || normalized
     }
 
     /**
@@ -544,6 +347,18 @@ export class EcadParserService {
     }
 
     /**
+     * Converts app intake entries to the shared project-loader input shape.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} entries App entries.
+     * @returns {{ name: string, data: ArrayBuffer }[]} Common project entries.
+     */
+    static #projectEntries(entries) {
+        return entries.map((entry) => ({
+            name: entry.name,
+            data: entry.buffer
+        }))
+    }
+
+    /**
      * Resolves parser roles, including companion assets that provide project
      * context during batch parsing.
      * @param {string} fileName Source file name.
@@ -564,6 +379,10 @@ export class EcadParserService {
 
         if (companionFormat === 'kicad-library') {
             return { sourceFormat: 'kicad', fileType: 'kicad-library' }
+        }
+
+        if (MODEL_COMPANION_FORMATS.has(companionFormat)) {
+            return { sourceFormat: 'companion', fileType: companionFormat }
         }
 
         if (EcadParserService.#looksLikeGerberFabricationText(buffer)) {
@@ -590,82 +409,6 @@ export class EcadParserService {
     }
 
     /**
-     * Expands KiCad ZIP entries so hidden archive members can be filtered.
-     * @param {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]} entries KiCad candidate entries.
-     * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } | null }[]}
-     */
-    static #expandKicadArchiveEntries(entries) {
-        return (entries || []).flatMap((entry) => {
-            if (entry.role?.fileType !== 'zip') {
-                return [entry]
-            }
-
-            return EcadParserService.#expandKicadArchiveEntry(entry)
-        })
-    }
-
-    /**
-     * Expands one KiCad archive entry into visible project files and assets.
-     * @param {{ name: string, buffer: ArrayBuffer }} entry Archive entry.
-     * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } | null }[]}
-     */
-    static #expandKicadArchiveEntry(entry) {
-        const archiveEntries = unzipSync(new Uint8Array(entry.buffer))
-
-        return Object.entries(archiveEntries)
-            .filter(([name]) => EcadParserService.#isKicadArchiveEntry(name))
-            .map(([name, bytes]) => ({
-                name,
-                buffer: EcadParserService.#arrayBufferFromBytes(bytes),
-                role: EcadParserService.#resolveParserRole(name)
-            }))
-    }
-
-    /**
-     * Returns true when an archive member should be passed to KiCad loading.
-     * @param {string} fileName Archive member path.
-     * @returns {boolean}
-     */
-    static #isKicadArchiveEntry(fileName) {
-        if (!EcadParserService.#isVisibleProjectPath(fileName)) {
-            return false
-        }
-
-        const role = EcadParserService.#resolveParserRole(fileName)
-        if (role?.sourceFormat === 'kicad') {
-            return true
-        }
-
-        const companionFormat =
-            EcadFormatRegistry.resolveCompanionFormat(fileName)
-        if (
-            [
-                'kicad-library',
-                'step',
-                'wrl',
-                'glb',
-                'gltf',
-                'stl',
-                'obj'
-            ].includes(companionFormat)
-        ) {
-            return true
-        }
-
-        return EcadParserService.#isKicadContextFile(fileName)
-    }
-
-    /**
-     * Returns true for KiCad project context files.
-     * @param {string} fileName Source file name.
-     * @returns {boolean}
-     */
-    static #isKicadContextFile(fileName) {
-        const baseName = EcadParserService.#baseName(fileName).toLowerCase()
-        return baseName === 'fp-lib-table' || baseName === 'sym-lib-table'
-    }
-
-    /**
      * Returns true when a project path is visible user source, not metadata.
      * @param {string} fileName Source path.
      * @returns {boolean}
@@ -689,38 +432,18 @@ export class EcadParserService {
     }
 
     /**
-     * Copies a byte view into a standalone ArrayBuffer.
-     * @param {Uint8Array} bytes Byte view.
-     * @returns {ArrayBuffer}
-     */
-    static #arrayBufferFromBytes(bytes) {
-        return bytes.buffer.slice(
-            bytes.byteOffset,
-            bytes.byteOffset + bytes.byteLength
-        )
-    }
-
-    /**
      * Resolves parsed documents from a toolkit result.
      * @param {object} result Parser result.
      * @returns {object[]}
      */
     static #documentsFromResult(result) {
-        if (Array.isArray(result?.documents)) {
-            return result.documents
-        }
-
-        if (result?.kind || result?.pcb || result?.schematic) {
-            return [result]
-        }
-
-        return []
+        return Array.isArray(result?.documents) ? result.documents : []
     }
 
     /**
      * Resolves entries that should be handled by the Gerber package loader.
      * @param {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]} entries Normalized entries.
-     * @param {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean }} gerberProjectLoader Gerber project loader.
+     * @param {{ supports?: (entries: { name: string, data: ArrayBuffer }[]) => boolean }} gerberProjectLoader Gerber project loader.
      * @returns {{ name: string, buffer: ArrayBuffer, role: { sourceFormat: string, fileType: string } }[]}
      */
     static #resolveGerberEntries(entries, gerberProjectLoader) {
@@ -741,22 +464,56 @@ export class EcadParserService {
 
     /**
      * Checks whether the Gerber loader accepts a set of entries.
-     * @param {{ canLoadEntries?: (entries: { name: string, bytes: Uint8Array }[]) => boolean }} gerberProjectLoader Gerber project loader.
+     * @param {{ supports?: (entries: { name: string, data: ArrayBuffer }[]) => boolean }} gerberProjectLoader Gerber project loader.
      * @param {{ name: string, buffer: ArrayBuffer }[]} entries Candidate entries.
      * @returns {boolean}
      */
     static #canLoadGerberEntries(gerberProjectLoader, entries) {
-        if (typeof gerberProjectLoader?.canLoadEntries !== 'function') {
+        if (typeof gerberProjectLoader?.supports !== 'function') {
             return false
         }
 
         return Boolean(
-            gerberProjectLoader.canLoadEntries(
-                entries.map((entry) => ({
-                    name: entry.name,
-                    bytes: new Uint8Array(entry.buffer)
-                }))
+            gerberProjectLoader.supports(
+                EcadParserService.#projectEntries(entries)
             )
         )
+    }
+
+    /**
+     * Routes model companions through every active project owner.
+     * @param {object[]} projectEntries Native project entries.
+     * @param {object[]} companions Generic model companion entries.
+     * @returns {object[]} Project entries with model companions.
+     */
+    static #withModelCompanions(projectEntries, companions) {
+        return projectEntries.length
+            ? [...projectEntries, ...companions]
+            : projectEntries
+    }
+
+    /**
+     * Deduplicates canonical assets retained by overlapping project groups.
+     * @param {object[]} assets Canonical project assets.
+     * @returns {object[]} Stable unique assets.
+     */
+    static #uniqueAssets(assets) {
+        const unique = new Map()
+        for (const asset of assets) {
+            const key = [
+                String(asset?.kind || ''),
+                String(asset?.name || ''),
+                String(asset?.source?.entryName || '')
+            ].join('\u0000')
+            const previous = unique.get(key)
+            const previousHasPayload =
+                previous?.data !== null && previous?.data !== undefined
+            const nextHasPayload =
+                asset?.data !== null && asset?.data !== undefined
+            if (!previous || (!previousHasPayload && nextHasPayload)) {
+                unique.set(key, asset)
+            }
+        }
+        return [...unique.values()]
     }
 }

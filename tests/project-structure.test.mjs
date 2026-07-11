@@ -42,7 +42,6 @@ test('required project files exist', async () => {
         'COMMERCIAL-LICENSE.md',
         'CONTRIBUTING.md',
         'package.json',
-        'occt-import-js-0.0.28.tgz',
         'LICENSE',
         'LICENSES/AGPL-3.0-or-later.txt',
         'LICENSES/CC-BY-SA-4.0.txt',
@@ -68,13 +67,12 @@ test('required project files exist', async () => {
         'src/sitemap.xml',
         'src/style.css',
         'src/server.mjs',
-        'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
-        'src/vendor/occt-import-js/dist/license.occt.txt',
-        'src/vendor/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt',
-        'src/vendor/occt-import-js/dist/SOURCE-OFFER.md',
-        'src/vendor/occt-import-js/dist/occt-import-js-worker.js',
-        'src/vendor/occt-import-js/dist/occt-import-js.js',
-        'src/vendor/occt-import-js/dist/occt-import-js.wasm',
+        'node_modules/@sunbox/occt-import-js/dist/license.occt-import-js.txt',
+        'node_modules/@sunbox/occt-import-js/dist/license.occt.txt',
+        'node_modules/@sunbox/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt',
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js-worker.js',
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js.js',
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js.wasm',
         'src/core/AppState.mjs',
         'src/ui/AppView.mjs',
         'src/ui/SchematicViewportController.mjs',
@@ -85,6 +83,16 @@ test('required project files exist', async () => {
         'src/i18n/en.json',
         'src/i18n/de.json',
         'src/core/ecad/EcadFormatRegistry.mjs',
+        'src/core/ecad/EcadGerberFabrication.mjs',
+        'src/core/ecad/EcadDocumentBom.mjs',
+        'src/core/ecad/EcadDocumentComponents.mjs',
+        'src/core/ecad/EcadDocumentConnectivity.mjs',
+        'src/core/ecad/EcadDocumentDiagnostics.mjs',
+        'src/core/ecad/EcadDocumentSupportMatrix.mjs',
+        'src/core/ecad/EcadDocumentSummary.mjs',
+        'src/core/ecad/EcadDocumentType.mjs',
+        'src/core/ecad/EcadLocalizedBomRenderer.mjs',
+        'src/core/ecad/EcadPcbInspectionModel.mjs',
         'src/core/ecad/EcadParserService.mjs',
         'src/core/ecad/EcadRendererService.mjs',
         'src/core/ecad/EcadScene3dService.mjs',
@@ -136,33 +144,29 @@ test('project licensing metadata uses AGPL dual licensing', async () => {
     assert.match(dep5Raw, /License: AGPL-3\.0-or-later/)
     assert.match(dep5Raw, /License: CC-BY-SA-4\.0/)
     assert.doesNotMatch(dep5Raw, /LicenseRef-PolyForm-Noncommercial-1\.0\.0/)
-    assert.match(dep5Raw, /LicenseRef-OCCT-exception-1\.0/)
+    assert.doesNotMatch(dep5Raw, /src\/vendor\/occt-import-js/u)
 })
 
 /**
- * Verifies vendored occt-import-js and OCCT notices match their upstream LGPL
- * terms and include rebuild/source-offer guidance for the shipped WASM.
+ * Verifies installed occt-import-js and OCCT notices match their upstream LGPL
+ * terms and link to corresponding source for the shipped WASM.
  */
-test('vendored OCCT importer notices preserve LGPL terms and source guidance', async () => {
-    const dep5Raw = await readFile(new URL('.reuse/dep5', root), 'utf8')
+test('installed OCCT importer notices preserve LGPL terms and source links', async () => {
     const noticeRaw = await readFile(new URL('NOTICE.md', root), 'utf8')
-    const packageLockRaw = await readFile(
-        new URL('package-lock.json', root),
-        'utf8'
+    const packageRaw = await readFile(new URL('package.json', root), 'utf8')
+    const packageLock = JSON.parse(
+        await readFile(new URL('package-lock.json', root), 'utf8')
     )
+    const pkg = JSON.parse(packageRaw)
     const importNoticeRaw = await readFile(
         new URL(
-            'src/vendor/occt-import-js/dist/license.occt-import-js.txt',
+            'node_modules/@sunbox/occt-import-js/dist/license.occt-import-js.txt',
             root
         ),
         'utf8'
     )
     const occtExceptionRaw = await readFile(
-        new URL('src/vendor/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt', root),
-        'utf8'
-    )
-    const sourceOfferRaw = await readFile(
-        new URL('src/vendor/occt-import-js/dist/SOURCE-OFFER.md', root),
+        new URL('LICENSES/LicenseRef-OCCT-exception-1.0.txt', root),
         'utf8'
     )
 
@@ -174,84 +178,45 @@ test('vendored OCCT importer notices preserve LGPL terms and source guidance', a
         occtExceptionRaw,
         /provided by the Open CASCADE Technology software/
     )
-    assert.match(sourceOfferRaw, /@sunbox\/occt-import-js@0\.0\.25/)
-    assert.match(packageLockRaw, /"@sunbox\/occt-import-js": "\^0\.0\.25"/)
-    assert.match(packageLockRaw, /"version": "0\.0\.25"/)
-    assert.match(sourceOfferRaw, /sha512-/)
-    assert.match(sourceOfferRaw, /github\.com\/SunboX\/OCCT\.git/)
-    assert.doesNotMatch(sourceOfferRaw, /git\.dev\.opencascade\.org/)
-    assert.match(sourceOfferRaw, /tools\\build_wasm_win_release\.bat/)
-    assert.match(packageLockRaw, /"license": "LGPL-2\.1"/)
-    assert.match(
-        dep5Raw,
-        /src\/vendor\/occt-import-js\/dist\/occt-import-js\.wasm[\s\S]*License: LGPL-2\.1/
+    assert.equal(pkg.dependencies['@sunbox/occt-import-js'], '^0.0.28')
+    assert.equal(
+        packageLock.packages['node_modules/@sunbox/occt-import-js'].version,
+        '0.0.28'
     )
-    assert.doesNotMatch(dep5Raw, /PolyForm Noncommercial/)
-    assert.match(noticeRaw, /OCCT_LGPL_EXCEPTION\.txt/)
-    assert.match(noticeRaw, /SOURCE-OFFER\.md/)
+    assert.match(noticeRaw, /github\.com\/SunboX\/occt-import-js/u)
+    assert.match(noticeRaw, /github\.com\/SunboX\/OCCT/u)
+    assert.match(noticeRaw, /occt-import-js\/(?:tree|releases\/tag)\/0\.0\.28/u)
+    assert.match(noticeRaw, /2b4fe0d9ff0b2ffffb361475a869f0de51547f10/u)
+    assert.match(noticeRaw, /d3056ef80c9668f395da40f5fd7be186cae4501f/u)
+    assert.match(noticeRaw, /rebuild instructions/iu)
+    assert.match(noticeRaw, /LicenseRef-OCCT-exception-1\.0\.txt/u)
 })
 
 /**
- * Verifies the vendored O3 importer runtime can be reproduced from the
- * included local-fork source and that its documented hashes match the files.
+ * Verifies the installed importer owns the ESM-compatible worker/runtime.
  */
-test('vendored OCCT importer records reproducible O3 source and asset hashes', async () => {
-    const sourceArchivePath = 'occt-import-js-0.0.28.tgz'
-
-    assert.equal(
-        await exists(sourceArchivePath),
-        true,
-        'Missing local-fork source archive: ' + sourceArchivePath
-    )
-
-    const [sourceOfferRaw, importerJs, importerWasm, sourceArchive] =
+test('installed OCCT importer owns its module-compatible browser worker', async () => {
+    const packageRoot = 'node_modules/@sunbox/occt-import-js/'
+    const [packageRaw, workerSource, importerSource, wasmSource] =
         await Promise.all([
+            readFile(new URL(packageRoot + 'package.json', root), 'utf8'),
             readFile(
-                new URL('src/vendor/occt-import-js/dist/SOURCE-OFFER.md', root),
+                new URL(packageRoot + 'dist/occt-import-js-worker.js', root),
                 'utf8'
             ),
-            readFile(
-                new URL(
-                    'src/vendor/occt-import-js/dist/occt-import-js.js',
-                    root
-                )
-            ),
-            readFile(
-                new URL(
-                    'src/vendor/occt-import-js/dist/occt-import-js.wasm',
-                    root
-                )
-            ),
-            readFile(new URL(sourceArchivePath, root))
+            readFile(new URL(packageRoot + 'dist/occt-import-js.js', root)),
+            readFile(new URL(packageRoot + 'dist/occt-import-js.wasm', root))
         ])
-    const hashes = [importerJs, importerWasm, sourceArchive].map((contents) =>
-        createHash('sha256').update(contents).digest('hex')
-    )
 
-    assert.match(sourceOfferRaw, /local fork version `0\.0\.28`/)
-    assert.match(
-        sourceOfferRaw,
-        /https:\/\/github\.com\/SunboX\/occt-import-js\.git/
-    )
-    assert.match(sourceOfferRaw, /a4837090efa592fab4dc28915b4be94c3f29b527/)
-    assert.match(sourceOfferRaw, /occt-import-js-0\.0\.28\.tgz/)
-    assert.match(sourceOfferRaw, /Release[^\n]*`-O3`/)
-    assert.match(sourceOfferRaw, /### Git checkout/)
-    assert.match(sourceOfferRaw, /git submodule update --init --recursive/)
-    assert.match(sourceOfferRaw, /### Included npm-pack archive/)
-    assert.match(
-        sourceOfferRaw,
-        /does not contain Git metadata or the OCCT source tree/
-    )
-    assert.match(
-        sourceOfferRaw,
-        /git clone https:\/\/github\.com\/SunboX\/OCCT\.git occt/
-    )
-    assert.match(sourceOfferRaw, /npm install[\s\S]*npm run rebuild:dist/)
-
-    for (const hash of hashes) {
-        assert.match(sourceOfferRaw, new RegExp(hash))
-    }
+    assert.equal(JSON.parse(packageRaw).version, '0.0.28')
+    assert.match(workerSource, /import\s*\(/u)
+    assert.match(workerSource, /occt-import-js\.js/u)
+    assert.match(workerSource, /occt-import-js\.wasm/u)
+    assert.doesNotMatch(workerSource, /importScripts/u)
+    assert.equal(importerSource.byteLength > 0, true)
+    assert.equal(wasmSource.byteLength > 0, true)
+    assert.equal(await exists('occt-import-js-0.0.28.tgz'), false)
+    assert.equal(await exists('src/vendor/occt-import-js/dist'), false)
 })
 
 /**
@@ -751,9 +716,13 @@ test('browser parser and render core resolve through ECAD facade', async () => {
         workerSource,
         /from ['"]\.\.\/core\/ecad\/EcadParserService\.mjs['"]/
     )
-    assert.match(viewSource, /from ['"]altium-toolkit\/renderers['"]/)
-    assert.match(viewSource, /from ['"]gerber-toolkit\/renderers['"]/)
-    assert.match(viewSource, /from ['"]kicad-toolkit\/renderers['"]/)
+    assert.match(viewSource, /from ['"]altium-toolkit\/extensions['"]/)
+    assert.match(viewSource, /from ['"]gerber-toolkit\/extensions['"]/)
+    assert.match(viewSource, /from ['"]kicad-toolkit\/extensions['"]/)
+    assert.match(
+        viewSource,
+        /from ['"]\.\/EcadCircuitJsonRendererService\.mjs['"]/
+    )
     assert.doesNotMatch(
         mainSource,
         /from ['"](?:pcb-scene3d-viewer|\.\/core\/ecad\/EcadScene3dService\.mjs)['"]/
@@ -798,10 +767,6 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     )
     assert.match(
         indexRaw,
-        /"altium-toolkit\/netlist-query"\s*:\s*"\/node_modules\/altium-toolkit\/src\/netlist-query\.mjs"/
-    )
-    assert.match(
-        indexRaw,
         /"altium-toolkit\/renderers"\s*:\s*"\/node_modules\/altium-toolkit\/src\/renderers\.mjs"/
     )
     assert.match(
@@ -815,10 +780,6 @@ test('app shell defines a Three.js import map for static hosting', async () => {
     assert.match(
         indexRaw,
         /"kicad-toolkit\/parser"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/parser\.mjs"/
-    )
-    assert.match(
-        indexRaw,
-        /"kicad-toolkit\/netlist-query"\s*:\s*"\/node_modules\/kicad-toolkit\/src\/netlist-query\.mjs"/
     )
     assert.match(
         indexRaw,
@@ -943,9 +904,9 @@ test('3d runtime source resolves browser dependencies through deployed asset pat
         externalModelGroupLoaderSource,
         /\/node_modules\/three\/examples\/jsm\/loaders\/VRMLLoader\.js/
     )
-    assert.match(stepLoaderSource, /\/vendor\/occt-import-js\/dist\//)
-    assert.doesNotMatch(
+    assert.match(
         stepLoaderSource,
-        /\/node_modules\/occt-import-js\/dist\//
+        /\/node_modules\/@sunbox\/occt-import-js\/dist\//
     )
+    assert.doesNotMatch(stepLoaderSource, /\/vendor\/occt-import-js\/dist\//)
 })

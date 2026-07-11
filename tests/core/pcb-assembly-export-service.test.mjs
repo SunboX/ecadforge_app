@@ -140,12 +140,22 @@ function createCircuitJsonPcbDocument() {
         {
             type: 'pcb_trace',
             pcb_trace_id: 'trace_top',
-            x1: -3,
-            y1: 0,
-            x2: 3,
-            y2: 0,
-            width: 0.35,
-            layer: 'top',
+            route: [
+                {
+                    route_type: 'wire',
+                    x: -3,
+                    y: 0,
+                    width: 0.35,
+                    layer: 'top'
+                },
+                {
+                    route_type: 'wire',
+                    x: 3,
+                    y: 0,
+                    width: 0.35,
+                    layer: 'top'
+                }
+            ],
             net: 'SIG'
         }
     ]

@@ -1,3 +1,5 @@
+import { EcadDocumentComponents } from './ecad/EcadDocumentComponents.mjs'
+
 /**
  * Resolves PCB component selection state shared by sidebar and rendering.
  */
@@ -57,9 +59,7 @@ export class PcbComponentSelectionModel {
         const key = String(componentKey || '').trim()
         if (!key) return ''
 
-        const components = Array.isArray(documentModel?.pcb?.components)
-            ? documentModel.pcb.components
-            : []
+        const components = EcadDocumentComponents.resolve(documentModel)
         for (let index = 0; index < components.length; index += 1) {
             const component = components[index]
             if (
@@ -87,9 +87,7 @@ export class PcbComponentSelectionModel {
     static withSelection(selectedPcbComponents, documentId, componentKey) {
         const normalizedDocumentId = String(documentId || '').trim()
         const normalizedComponentKey = String(componentKey || '').trim()
-        const next = PcbComponentSelectionModel.cloneMap(
-            selectedPcbComponents
-        )
+        const next = PcbComponentSelectionModel.cloneMap(selectedPcbComponents)
         if (!normalizedDocumentId) {
             return next
         }
@@ -122,9 +120,7 @@ export class PcbComponentSelectionModel {
         const targetDocumentId = String(documentId || '').trim()
         const normalizedComponentKey = String(componentKey || '').trim()
         const normalizedClearKey = String(clearKey || '').trim()
-        const next = PcbComponentSelectionModel.cloneMap(
-            selectedPcbComponents
-        )
+        const next = PcbComponentSelectionModel.cloneMap(selectedPcbComponents)
 
         if (!normalizedComponentKey) {
             Object.keys(next).forEach((entryDocumentId) => {
@@ -180,10 +176,7 @@ export class PcbComponentSelectionModel {
      * @returns {boolean}
      */
     static documentHasComponentKey(documentModel, componentKey) {
-        const components = [
-            ...(documentModel?.schematic?.components || []),
-            ...(documentModel?.pcb?.components || [])
-        ]
+        const components = EcadDocumentComponents.resolve(documentModel)
         return components.some(
             (component, index) =>
                 PcbComponentSelectionModel.resolveComponentKey(

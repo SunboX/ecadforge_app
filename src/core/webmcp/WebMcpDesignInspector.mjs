@@ -1,4 +1,7 @@
-import { ComponentGrouping } from 'altium-toolkit/netlist-query'
+import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadDocumentBom } from '../ecad/EcadDocumentBom.mjs'
+import { EcadDocumentComponents } from '../ecad/EcadDocumentComponents.mjs'
+import { EcadDocumentConnectivity } from '../ecad/EcadDocumentConnectivity.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 
 /**
@@ -144,7 +147,7 @@ export class WebMcpDesignInspector {
             String(review.summary.components) +
             ' components, ' +
             String(review.summary.nets) +
-            ' schematic nets, ' +
+            ' nets, ' +
             String(review.summary.diagnostics) +
             ' diagnostics, and ' +
             String(issues.length) +
@@ -160,7 +163,9 @@ export class WebMcpDesignInspector {
                     ').',
                 'Connectivity is available for ' +
                     String(review.summary.designs_with_connectivity) +
-                    ' design.',
+                    (review.summary.designs_with_connectivity === 1
+                        ? ' design.'
+                        : ' designs.'),
                 'Metadata coverage: ' +
                     String(metadata.with_mpn) +
                     '/' +
@@ -272,7 +277,7 @@ export class WebMcpDesignInspector {
         const items = []
 
         for (const entry of entries) {
-            for (const row of entry.documentModel?.bom || []) {
+            for (const row of EcadDocumentBom.resolve(entry.documentModel)) {
                 const designators = WebMcpDesignInspector.#designators(row)
                 for (const refdes of designators) {
                     items.push(
@@ -312,19 +317,9 @@ export class WebMcpDesignInspector {
         for (const entry of entries) {
             const design = WebMcpDesignAnalyzer.entryName(entry)
             const keyPrefix = (entry.baseName || entry.id) + ':'
-            for (const component of entry.documentModel?.schematic
-                ?.components || []) {
-                WebMcpDesignInspector.#mergeComponentRecord(records, {
-                    key: keyPrefix + WebMcpDesignInspector.#refdes(component),
-                    design,
-                    refdes: WebMcpDesignInspector.#refdes(component),
-                    description: component?.description || component?.comment,
-                    value: component?.value,
-                    mpn: WebMcpDesignInspector.#componentMpn(component)
-                })
-            }
-            for (const component of entry.documentModel?.pcb?.components ||
-                []) {
+            for (const component of EcadDocumentComponents.resolve(
+                entry.documentModel
+            )) {
                 WebMcpDesignInspector.#mergeComponentRecord(records, {
                     key: keyPrefix + WebMcpDesignInspector.#refdes(component),
                     design,
@@ -407,7 +402,8 @@ export class WebMcpDesignInspector {
     static #pinConnectionRows(documentModel) {
         const rows = {}
 
-        for (const net of documentModel?.schematic?.nets || []) {
+        for (const net of EcadDocumentConnectivity.resolve(documentModel)
+            .nets) {
             const netName = String(net?.name || '').trim()
             if (!netName) continue
             for (const pin of net?.pins || []) {
@@ -436,7 +432,8 @@ export class WebMcpDesignInspector {
     static #schematicNetMap(documentModel) {
         const map = new Map()
 
-        for (const net of documentModel?.schematic?.nets || []) {
+        for (const net of EcadDocumentConnectivity.resolve(documentModel)
+            .nets) {
             const name = String(net?.name || '').trim()
             if (!name) continue
             const pins = []
@@ -459,7 +456,8 @@ export class WebMcpDesignInspector {
     static #pcbNetMap(documentModel) {
         const map = new Map()
 
-        for (const net of documentModel?.pcb?.nets || []) {
+        for (const net of EcadDocumentConnectivity.resolve(documentModel)
+            .nets) {
             const name = String(net?.name || '').trim()
             if (!name) continue
             map.set(name, [
@@ -471,7 +469,7 @@ export class WebMcpDesignInspector {
             return WebMcpDesignInspector.#sortedNetMap(map)
         }
 
-        for (const component of documentModel?.pcb?.components || []) {
+        for (const component of EcadDocumentComponents.resolve(documentModel)) {
             const refdes = WebMcpDesignInspector.#refdes(component)
             if (!refdes) continue
             for (const pad of component?.pads || []) {

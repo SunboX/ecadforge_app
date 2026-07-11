@@ -1,4 +1,5 @@
-import { ComponentGrouping } from 'altium-toolkit/netlist-query'
+import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadPcbInspectionModel } from '../ecad/EcadPcbInspectionModel.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 import { WebMcpPcbFabricationInspector } from './WebMcpPcbFabricationInspector.mjs'
 
@@ -12,7 +13,7 @@ export class WebMcpPcbInspector {
      * @returns {boolean}
      */
     static hasPcbData(documentModel) {
-        const pcb = documentModel?.pcb
+        const pcb = EcadPcbInspectionModel.resolve(documentModel)
         return Boolean(
             pcb &&
             (WebMcpPcbInspector.#array(pcb.components).length ||
@@ -35,7 +36,7 @@ export class WebMcpPcbInspector {
         const requestedRefdes = String(args.refdes || '').trim()
         if (!requestedRefdes) return { error: 'refdes is required.' }
 
-        const pcb = entry.documentModel?.pcb || {}
+        const pcb = EcadPcbInspectionModel.resolve(entry.documentModel)
         const component = WebMcpPcbInspector.#array(pcb.components).find(
             (candidate) =>
                 WebMcpPcbInspector.#refdes(candidate).toLowerCase() ===
@@ -84,7 +85,7 @@ export class WebMcpPcbInspector {
      */
     static queryPcbNet(entry, args = {}) {
         const netName = WebMcpPcbInspector.#resolveNetName(
-            entry.documentModel?.pcb || {},
+            EcadPcbInspectionModel.resolve(entry.documentModel),
             args.net_name
         )
         if (!String(args.net_name || '').trim()) {
@@ -99,7 +100,7 @@ export class WebMcpPcbInspector {
             }
         }
 
-        const pcb = entry.documentModel?.pcb || {}
+        const pcb = EcadPcbInspectionModel.resolve(entry.documentModel)
         const pads = WebMcpPcbInspector.#netPads(pcb, netName)
         const tracks = WebMcpPcbInspector.#netTracks(pcb, netName)
         const vias = WebMcpPcbInspector.#netVias(pcb, netName)
@@ -132,7 +133,7 @@ export class WebMcpPcbInspector {
      * @returns {object}
      */
     static summarizePcb(entry) {
-        const pcb = entry.documentModel?.pcb || {}
+        const pcb = EcadPcbInspectionModel.resolve(entry.documentModel)
         const pads = WebMcpPcbInspector.#allPads(pcb)
         const vias = WebMcpPcbInspector.#array(pcb.vias)
         const layers = WebMcpPcbInspector.#layerNames(pcb)
@@ -183,7 +184,7 @@ export class WebMcpPcbInspector {
      */
     static listDesignRules(entry) {
         const rules = WebMcpPcbInspector.#ruleRows(
-            entry.documentModel?.pcb || {}
+            EcadPcbInspectionModel.resolve(entry.documentModel)
         )
             .map((rule) => WebMcpPcbInspector.#compactRule(rule))
             .sort((left, right) =>

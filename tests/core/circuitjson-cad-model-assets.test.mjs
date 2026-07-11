@@ -99,6 +99,7 @@ test('EcadScene3dService resolves CircuitJSON 3MF CAD model assets', async () =>
     )
     cadComponent.model_asset = {
         project_relative_path: 'models/U1.3mf',
+        url: 'https://assets.invalid/models/U1.3mf',
         mimetype: 'model/3mf'
     }
     cadComponent.model_unit_to_mm_scale_factor = 1

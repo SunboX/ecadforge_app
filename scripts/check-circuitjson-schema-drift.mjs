@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
-import { CircuitJsonElementValidator } from 'circuitjson-toolkit'
+import { CircuitJsonElementValidator } from 'circuitjson-toolkit/extensions'
 
 const DEFAULT_SNAPSHOT_PATH = 'spec/circuitjson-schema-snapshot.json'
 

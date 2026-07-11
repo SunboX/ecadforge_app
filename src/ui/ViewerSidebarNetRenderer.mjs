@@ -1,4 +1,6 @@
 import { NetSelectionModel } from '../core/NetSelectionModel.mjs'
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 
 /**
  * Renders the sidebar net browser.
@@ -60,9 +62,7 @@ export class ViewerSidebarNetRenderer {
             selectedNets,
             documentId
         )
-        const showDetail =
-            !documentModel?.pcb &&
-            String(documentModel?.kind || '').toLowerCase() !== 'pcb'
+        const showDetail = !EcadDocumentType.isPcb(documentModel)
         const rowsByKey = new Map()
         ViewerSidebarNetRenderer.#resolveNetEntries(documentModel).forEach(
             (net, index) => {
@@ -208,12 +208,7 @@ export class ViewerSidebarNetRenderer {
      * @returns {any[]}
      */
     static #elements(documentModel) {
-        if (Array.isArray(documentModel)) return documentModel
-        if (Array.isArray(documentModel?.elements)) return documentModel.elements
-        if (Array.isArray(documentModel?.circuitJson)) {
-            return documentModel.circuitJson
-        }
-        return []
+        return EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
     }
 
     /**
@@ -362,9 +357,8 @@ export class ViewerSidebarNetRenderer {
         )
         if (selectedName) return selectedName
 
-        const candidate = (Array.isArray(preview?.candidates)
-            ? preview.candidates
-            : []
+        const candidate = (
+            Array.isArray(preview?.candidates) ? preview.candidates : []
         ).find((row) => ViewerSidebarNetRenderer.#candidateNetName(row))
         return ViewerSidebarNetRenderer.#candidateNetName(candidate)
     }

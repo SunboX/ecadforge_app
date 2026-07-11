@@ -1,4 +1,5 @@
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
+import { EcadFormatRegistry } from './ecad/EcadFormatRegistry.mjs'
 
 /**
  * Resolves schematic and PCB net selection state shared by sidebar and views.
@@ -207,6 +208,13 @@ export class NetSelectionModel {
      */
     static #explicitNetNames(documentModel) {
         return [
+            ...EcadFormatRegistry.circuitJsonElementsForDocument(
+                documentModel
+            ).filter(
+                (element) =>
+                    element?.type === 'source_net' ||
+                    element?.type === 'pcb_net'
+            ),
             ...(Array.isArray(documentModel?.nets) ? documentModel.nets : []),
             ...(Array.isArray(documentModel?.schematic?.nets)
                 ? documentModel.schematic.nets

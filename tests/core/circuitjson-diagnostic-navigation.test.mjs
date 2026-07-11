@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/renderers'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/extensions'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a board with source-level pin diagnostics.

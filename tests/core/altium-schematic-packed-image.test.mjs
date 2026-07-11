@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { zlibSync } from 'fflate'
-import { OleCompoundDocumentWriter } from 'altium-toolkit/parser'
+import {
+    AltiumExtensionResolver,
+    OleCompoundDocumentWriter
+} from 'altium-toolkit/extensions'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
@@ -113,9 +116,11 @@ test('EcadParserService resolves packed Altium schematic image payloads', () => 
         'neutral-packed.SchDoc',
         createPackedImageSchematicBuffer()
     )
-    const image = documentModel.schematic.images[0]
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
+    const image = nativeModel.schematic.images[0]
     const markup = EcadRendererService.renderSchematic(documentModel)
 
+    assert.equal(Object.hasOwn(documentModel, 'schematic'), false)
     assert.equal(image.diagnosticState, 'embedded')
     assert.equal(image.mimeType, 'image/bmp')
     assert.ok(image.dataBase64.length > 0)

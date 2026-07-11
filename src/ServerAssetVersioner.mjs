@@ -1,3 +1,23 @@
+const COMMON_TOOLKIT_NAMES = new Set([
+    'altium-toolkit',
+    'circuitjson-toolkit',
+    'gerber-toolkit',
+    'kicad-toolkit'
+])
+const COMMON_TOOLKIT_SUBPATHS = new Set([
+    'capabilities',
+    'extensions',
+    'interaction',
+    'manufacturing',
+    'parser',
+    'project',
+    'query',
+    'renderers',
+    'scene3d',
+    'simulation',
+    'testing'
+])
+
 /**
  * Rewrites served frontend assets so browser caches track the current app
  * version across full ESM import graphs.
@@ -59,42 +79,25 @@ export class ServerAssetVersioner {
      */
     static resolveBrowserBareSpecifier(specifier) {
         const normalizedSpecifier = String(specifier || '')
+        const [toolkitName, toolkitSubpath = '', ...remainingPath] =
+            normalizedSpecifier.split('/')
+        if (
+            COMMON_TOOLKIT_NAMES.has(toolkitName) &&
+            remainingPath.length === 0 &&
+            (!toolkitSubpath || COMMON_TOOLKIT_SUBPATHS.has(toolkitSubpath))
+        ) {
+            return (
+                '/node_modules/' +
+                toolkitName +
+                '/src/' +
+                (toolkitSubpath || 'index') +
+                '.mjs'
+            )
+        }
+
         const dependencyMap = {
             '@mcp-b/global/iife':
                 '/node_modules/@mcp-b/global/dist/index.iife.js',
-            'altium-toolkit': '/node_modules/altium-toolkit/src/index.mjs',
-            'altium-toolkit/parser':
-                '/node_modules/altium-toolkit/src/parser.mjs',
-            'altium-toolkit/netlist-query':
-                '/node_modules/altium-toolkit/src/netlist-query.mjs',
-            'altium-toolkit/renderers':
-                '/node_modules/altium-toolkit/src/renderers.mjs',
-            'altium-toolkit/scene3d':
-                '/node_modules/altium-toolkit/src/scene3d.mjs',
-            'altium-toolkit/workers/altium-parser.worker.mjs':
-                '/node_modules/altium-toolkit/src/workers/altium-parser.worker.mjs',
-            'kicad-toolkit': '/node_modules/kicad-toolkit/src/index.mjs',
-            'kicad-toolkit/parser':
-                '/node_modules/kicad-toolkit/src/parser.mjs',
-            'kicad-toolkit/netlist-query':
-                '/node_modules/kicad-toolkit/src/netlist-query.mjs',
-            'kicad-toolkit/renderers':
-                '/node_modules/kicad-toolkit/src/renderers.mjs',
-            'kicad-toolkit/scene3d':
-                '/node_modules/kicad-toolkit/src/scene3d.mjs',
-            'kicad-toolkit/workers/kicad-parser.worker.mjs':
-                '/node_modules/kicad-toolkit/src/workers/kicad-parser.worker.mjs',
-            'circuitjson-toolkit':
-                '/node_modules/circuitjson-toolkit/src/index.mjs',
-            'circuitjson-toolkit/renderers':
-                '/node_modules/circuitjson-toolkit/src/renderers.mjs',
-            'gerber-toolkit': '/node_modules/gerber-toolkit/src/index.mjs',
-            'gerber-toolkit/parser':
-                '/node_modules/gerber-toolkit/src/parser.mjs',
-            'gerber-toolkit/renderers':
-                '/node_modules/gerber-toolkit/src/renderers.mjs',
-            'gerber-toolkit/scene3d':
-                '/node_modules/gerber-toolkit/src/scene3d.mjs',
             'pcb-scene3d-viewer':
                 '/node_modules/pcb-scene3d-viewer/src/index.mjs',
             'pcb-scene3d-viewer/scene3d':
@@ -119,7 +122,7 @@ export class ServerAssetVersioner {
      */
     static rewriteBareJavaScriptSpecifiers(source, versionKey) {
         const specifierPattern =
-            '((?:@mcp-b\\/global\\/iife)|(?:altium-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/altium-parser\\.worker\\.mjs))?|kicad-toolkit(?:\\/(?:parser|netlist-query|renderers|scene3d|workers\\/kicad-parser\\.worker\\.mjs))?|gerber-toolkit(?:\\/(?:parser|renderers|scene3d))?|circuitjson-toolkit(?:\\/renderers)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate|polygon-clipping|robust-predicates|splaytree)'
+            '((?:@mcp-b\\/global\\/iife)|(?:(?:altium|circuitjson|gerber|kicad)-toolkit(?:\\/[a-z0-9._\\/-]+)?|pcb-scene3d-viewer(?:\\/scene3d)?)|earcut|fflate|polygon-clipping|robust-predicates|splaytree)'
         const patterns = [
             new RegExp('(from\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),
             new RegExp('(import\\s+[\'"])' + specifierPattern + '([\'"])', 'g'),

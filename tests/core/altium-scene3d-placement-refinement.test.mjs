@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbScene3dBuilder } from '../../node_modules/altium-toolkit/src/scene3d.mjs'
+import { PcbScene3dBuilder } from 'altium-toolkit/extensions'
 
 /**
  * Creates a synthetic stair-step outline that represents a rasterized rounded

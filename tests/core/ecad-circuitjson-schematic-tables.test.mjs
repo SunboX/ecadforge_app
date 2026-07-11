@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CircuitJsonSchematicSvgRenderer } from 'circuitjson-toolkit/renderers'
+import { CircuitJsonSchematicSvgRenderer } from 'circuitjson-toolkit/extensions'
 
 /**
  * Verifies table grid metadata drives schematic table and cell geometry.

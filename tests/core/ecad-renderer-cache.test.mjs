@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
     PcbSvgRenderer as AltiumPcbSvgRenderer,
     SchematicSvgRenderer as AltiumSchematicSvgRenderer
-} from 'altium-toolkit/renderers'
+} from 'altium-toolkit/extensions'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
 /**

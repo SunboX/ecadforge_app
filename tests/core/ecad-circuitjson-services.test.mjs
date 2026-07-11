@@ -3,9 +3,16 @@ import test from 'node:test'
 import { DocumentPreferredViewResolver } from '../../src/DocumentPreferredViewResolver.mjs'
 import { DocumentViewCompatibility } from '../../src/DocumentViewCompatibility.mjs'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
+import { EcadCircuitJsonRendererService } from '../../src/core/ecad/EcadCircuitJsonRendererService.mjs'
+import { EcadDocumentDiagnostics } from '../../src/core/ecad/EcadDocumentDiagnostics.mjs'
+import { EcadFormatRegistry } from '../../src/core/ecad/EcadFormatRegistry.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { EcadScene3dService } from '../../src/core/ecad/EcadScene3dService.mjs'
-import { CircuitJsonSchematicSvgRenderer } from 'circuitjson-toolkit/renderers'
+import { ManufacturingService } from 'circuitjson-toolkit/manufacturing'
+import {
+    CircuitJsonSchematicSvgRenderer,
+    CircuitJsonSupportMatrixBuilder
+} from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a compact board source buffer.
@@ -19,7 +26,8 @@ function createBoardSource() {
                 pcb_board_id: 'board_1',
                 center: { x: 0, y: 0 },
                 width: 10,
-                height: 5
+                height: 5,
+                num_layers: 2
             }
         ])
     )
@@ -36,13 +44,17 @@ test('EcadParserService parses standalone CircuitJSON JSON files', async () => {
         { name: 'board.json', buffer: source.buffer }
     ])
 
-    assert.equal(Array.isArray(documentModel), true)
-    assert.equal(documentModel.sourceFormat, 'circuitjson')
-    assert.equal(documentModel.kind, 'pcb')
+    assert.equal(Array.isArray(documentModel), false)
+    assert.equal(documentModel.schema, 'ecad-toolkit.document.v1')
+    assert.equal(Array.isArray(documentModel.model), true)
+    assert.equal(documentModel.source.format, 'circuitjson')
+    assert.equal(DocumentPreferredViewResolver.resolve(documentModel), 'pcb')
     assert.equal(result.documents.length, 1)
-    assert.equal(result.documents[0].sourceFormat, 'circuitjson')
+    assert.equal(result.documents[0].source.format, 'circuitjson')
     assert.equal(
-        EcadScene3dService.build(documentModel).pcb.boardOutline.widthMil,
+        Math.round(
+            EcadScene3dService.build(documentModel).board.widthMil * 1_000_000
+        ) / 1_000_000,
         393.700787
     )
     assert.equal(
@@ -82,7 +94,7 @@ test('EcadParserService rejects invalid standalone CircuitJSON fields', () => {
 
     assert.throws(
         () => EcadParserService.parseArrayBuffer('board.json', source.buffer),
-        /pcb_board center is required/
+        /pcb_board.*pinned upstream schema/
     )
 })
 
@@ -97,9 +109,9 @@ test('EcadParserService preserves CircuitJSON identity through structured clone'
     )
     const clonedDocument = structuredClone(documentModel)
 
-    assert.equal(clonedDocument.fileName, 'board.json')
-    assert.equal(clonedDocument.kind, 'pcb')
-    assert.equal(clonedDocument.sourceFormat, 'circuitjson')
+    assert.equal(clonedDocument.source.fileName, 'board.json')
+    assert.equal(clonedDocument.source.format, 'circuitjson')
+    assert.equal(clonedDocument.schema, 'ecad-toolkit.document.v1')
     assert.equal(DocumentPreferredViewResolver.resolve(clonedDocument), 'pcb')
 })
 
@@ -141,7 +153,16 @@ test('EcadRendererService renders CircuitJSON schematic documents', () => {
                 type: 'schematic_net_label',
                 schematic_net_label_id: 'label_1',
                 text: 'VCC',
+                source_net_id: 'source_net_vcc',
+                anchor_side: 'left',
+                center: { x: 15, y: 5 },
                 anchor_position: { x: 15, y: 5 }
+            },
+            {
+                type: 'source_net',
+                source_net_id: 'source_net_vcc',
+                name: 'VCC',
+                member_source_group_ids: []
             }
         ])
     )
@@ -151,7 +172,6 @@ test('EcadRendererService renders CircuitJSON schematic documents', () => {
     )
     const markup = EcadRendererService.renderSchematic(documentModel)
 
-    assert.equal(documentModel.kind, 'schematic')
     assert.equal(
         DocumentViewCompatibility.supportsView(documentModel, 'schematic'),
         true
@@ -185,17 +205,24 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
                 ftype: 'simple_op_amp'
             },
             {
-                type: 'schematic_symbol',
-                schematic_symbol_id: 'symbol_u1',
+                type: 'schematic_component',
+                schematic_component_id: 'symbol_u1',
                 source_component_id: 'source_u1',
                 center: { x: 12, y: 10 },
-                width: 8,
-                height: 6
+                size: { width: 8, height: 6 }
+            },
+            {
+                type: 'source_port',
+                source_port_id: 'source_port_in',
+                source_component_id: 'source_u1',
+                name: 'IN+',
+                pin_number: 1
             },
             {
                 type: 'schematic_port',
                 schematic_port_id: 'port_in',
-                name: 'IN+',
+                source_port_id: 'source_port_in',
+                display_pin_label: 'IN+',
                 center: { x: 5, y: 10 },
                 facing_direction: 'right'
             },
@@ -203,9 +230,11 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
                 type: 'schematic_group',
                 schematic_group_id: 'group_analog',
                 name: 'Analog',
+                source_group_id: 'source_group_analog',
                 center: { x: 12, y: 10 },
                 width: 12,
-                height: 8
+                height: 8,
+                schematic_component_ids: ['symbol_u1']
             },
             {
                 type: 'schematic_rect',
@@ -225,8 +254,9 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
                 schematic_arc_id: 'arc_1',
                 center: { x: 24, y: 8 },
                 radius: 3,
-                start_angle: 0,
-                end_angle: 90
+                start_angle_degrees: 0,
+                end_angle_degrees: 90,
+                direction: 'clockwise'
             },
             {
                 type: 'schematic_path',
@@ -240,9 +270,9 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
             {
                 type: 'schematic_table',
                 schematic_table_id: 'table_1',
-                center: { x: 30, y: 18 },
-                width: 8,
-                height: 4
+                anchor_position: { x: 26, y: 16 },
+                column_widths: [4, 4],
+                row_heights: [2, 2]
             },
             {
                 type: 'schematic_table_cell',
@@ -251,36 +281,41 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
                 text: 'A1',
                 center: { x: 28, y: 17 },
                 width: 4,
-                height: 2
+                height: 2,
+                start_column_index: 0,
+                end_column_index: 0,
+                start_row_index: 0,
+                end_row_index: 0
             },
             {
                 type: 'schematic_text',
                 schematic_text_id: 'text_1',
                 text: 'GAIN',
-                anchor_position: { x: 18, y: 6 },
+                position: { x: 18, y: 6 },
                 font_size: 1.4,
-                ccw_rotation: 15
+                rotation: 15
             },
             {
                 type: 'schematic_voltage_probe',
                 schematic_voltage_probe_id: 'probe_vout',
                 name: 'VOUT',
-                center: { x: 34, y: 8 }
+                position: { x: 34, y: 8 },
+                schematic_trace_id: 'trace_vout'
             },
             {
                 type: 'schematic_debug_object',
-                schematic_debug_object_id: 'debug_1',
-                message: 'Debug bounds',
+                shape: 'rect',
+                label: 'Debug bounds',
                 center: { x: 18, y: 10 },
-                width: 5,
-                height: 3
+                size: { width: 5, height: 3 }
             },
             {
                 type: 'schematic_layout_error',
                 schematic_layout_error_id: 'layout_1',
                 error_type: 'schematic_layout_error',
                 message: 'Symbol overlaps a port',
-                center: { x: 10, y: 10 }
+                schematic_group_id: 'group_analog',
+                source_group_id: 'source_group_analog'
             }
         ])
     )
@@ -290,7 +325,7 @@ test('EcadRendererService renders expanded CircuitJSON schematic elements', () =
     )
     const markup = EcadRendererService.renderSchematic(documentModel)
 
-    assert.match(markup, /class="[^"]*\bschematic-symbol\b/)
+    assert.match(markup, /class="[^"]*\bschematic-component\b/)
     assert.match(markup, /data-component-key="U1"/)
     assert.match(markup, /class="[^"]*\bschematic-port\b/)
     assert.match(markup, />IN\+</)
@@ -344,11 +379,15 @@ test('CircuitJsonSchematicSvgRenderer renders symbol preview primitives', () => 
         {
             type: 'schematic_line',
             schematic_line_id: 'line_1',
-            start: { x: 1, y: 1 },
-            end: { x: 3, y: 1 },
+            x1: 1,
+            y1: 1,
+            x2: 3,
+            y2: 1,
             stroke_width: 0.12,
-            stroke_color: '#123456',
-            stroke_dasharray: [0.25, 0.1]
+            color: '#123456',
+            is_dashed: true,
+            dash_length: 0.25,
+            dash_gap: 0.1
         },
         {
             type: 'schematic_rect',
@@ -363,9 +402,11 @@ test('CircuitJsonSchematicSvgRenderer renders symbol preview primitives', () => 
         {
             type: 'schematic_arc',
             schematic_arc_id: 'arc_1',
-            start: { x: 1, y: 0 },
-            mid: { x: 0.70710678, y: 0.70710678 },
-            end: { x: 0, y: 1 },
+            center: { x: 0, y: 0 },
+            radius: 1,
+            start_angle_degrees: 0,
+            end_angle_degrees: 90,
+            direction: 'clockwise',
             stroke_width: 0.08
         },
         {
@@ -450,20 +491,23 @@ test('EcadParserService derives CircuitJSON BOM rows from source components', ()
         translate: (key) => key
     })
 
-    assert.deepEqual(documentModel.bom, [
-        {
-            designators: ['R1', 'R2'],
-            quantity: 2,
-            value: '10k',
-            pattern: 'simple_resistor',
-            source: 'RC0402-10K',
-            supplierPartNumber: 'DIST-10K',
-            supplierPartNumbers: { supplier: 'DIST-10K' },
-            sourceFtype: 'simple_resistor',
-            componentType: 'resistor',
-            componentIcon: 'resistor'
-        }
-    ])
+    assert.deepEqual(
+        EcadCircuitJsonRendererService.buildBomRows(documentModel),
+        [
+            {
+                designators: ['R1', 'R2'],
+                quantity: 2,
+                value: '10k',
+                pattern: 'simple_resistor',
+                source: 'RC0402-10K',
+                supplierPartNumber: 'DIST-10K',
+                supplierPartNumbers: { supplier: 'DIST-10K' },
+                sourceFtype: 'simple_resistor',
+                componentType: 'resistor',
+                componentIcon: 'resistor'
+            }
+        ]
+    )
     assert.match(
         markup,
         /R1, <mark class="bom-table__selected-designator">R2<\/mark>/
@@ -471,9 +515,9 @@ test('EcadParserService derives CircuitJSON BOM rows from source components', ()
 })
 
 /**
- * Verifies parser metadata includes schema coverage and manufacturing outputs.
+ * Verifies shared services expose schema coverage and manufacturing outputs.
  */
-test('EcadParserService exposes CircuitJSON coverage and manufacturing metadata', () => {
+test('shared CircuitJSON services expose coverage and manufacturing outputs', () => {
     const source = new TextEncoder().encode(
         JSON.stringify([
             {
@@ -496,7 +540,9 @@ test('EcadParserService exposes CircuitJSON coverage and manufacturing metadata'
                 source_component_id: 'source_u1',
                 center: { x: 1.5, y: -0.5 },
                 layer: 'top',
-                rotation: 45
+                rotation: 45,
+                width: 1,
+                height: 1
             },
             {
                 type: 'pcb_smtpad',
@@ -507,8 +553,7 @@ test('EcadParserService exposes CircuitJSON coverage and manufacturing metadata'
                 y: -0.7,
                 width: 0.5,
                 height: 0.25,
-                layer: 'top',
-                net: 'SIG'
+                layer: 'top'
             }
         ])
     )
@@ -516,16 +561,22 @@ test('EcadParserService exposes CircuitJSON coverage and manufacturing metadata'
         'metadata-board.json',
         source.buffer
     )
+    const supportMatrix = CircuitJsonSupportMatrixBuilder.build(
+        documentModel.model
+    )
+    const manufacturing = ManufacturingService.inspect(documentModel)
+    const routingDsn = new TextDecoder().decode(
+        ManufacturingService.export(documentModel, { id: 'routing-dsn' }).data
+    )
 
-    assert.equal(documentModel.supportMatrix.sourceFormat, 'circuitjson')
-    assert.equal(documentModel.supportMatrix.totals.presentElementTypes, 4)
+    assert.equal(supportMatrix.sourceFormat, 'circuitjson')
+    assert.equal(supportMatrix.totals.presentElementTypes, 4)
     assert.equal(
-        documentModel.supportMatrix.rows.find(
-            (row) => row.type === 'pcb_component'
-        ).capabilities.manufacturing,
+        supportMatrix.rows.find((row) => row.type === 'pcb_component')
+            .capabilities.manufacturing,
         'pick-and-place'
     )
-    assert.deepEqual(documentModel.manufacturing.pickAndPlaceRows, [
+    assert.deepEqual(manufacturing.placements, [
         {
             designator: 'U1',
             componentId: 'pcb_u1',
@@ -540,7 +591,7 @@ test('EcadParserService exposes CircuitJSON coverage and manufacturing metadata'
             manufacturerPartNumber: 'MCU-1'
         }
     ])
-    assert.match(documentModel.manufacturing.routingDsn, /\(component U1/)
+    assert.match(routingDsn, /\(component U1/)
 })
 
 /**
@@ -562,7 +613,20 @@ test('EcadScene3dService builds CircuitJSON PCB scene descriptions', () => {
                 {
                     type: 'source_component',
                     source_component_id: 'source_u1',
-                    name: 'U1'
+                    name: 'U1',
+                    ftype: 'simple_chip'
+                },
+                {
+                    type: 'source_net',
+                    source_net_id: 'source_net_sig',
+                    name: 'SIG',
+                    member_source_group_ids: []
+                },
+                {
+                    type: 'source_trace',
+                    source_trace_id: 'source_trace_sig',
+                    connected_source_net_ids: ['source_net_sig'],
+                    connected_source_port_ids: []
                 },
                 {
                     type: 'pcb_component',
@@ -571,6 +635,7 @@ test('EcadScene3dService builds CircuitJSON PCB scene descriptions', () => {
                     center: { x: 1, y: 1 },
                     width: 1.2,
                     height: 0.8,
+                    rotation: 0,
                     layer: 'top'
                 },
                 {
@@ -582,17 +647,28 @@ test('EcadScene3dService builds CircuitJSON PCB scene descriptions', () => {
                     y: 0.6,
                     width: 0.8,
                     height: 0.35,
-                    layer: 'top',
-                    net: 'SIG'
+                    layer: 'top'
                 },
                 {
                     type: 'pcb_trace',
                     pcb_trace_id: 'trace_1',
+                    source_trace_id: 'source_trace_sig',
                     route: [
-                        { x: 1, y: 0.6, layer: 'top', width: 0.18 },
-                        { x: 3, y: 0.6, layer: 'top', width: 0.18 }
-                    ],
-                    net: 'SIG'
+                        {
+                            route_type: 'wire',
+                            x: 1,
+                            y: 0.6,
+                            layer: 'top',
+                            width: 0.18
+                        },
+                        {
+                            route_type: 'wire',
+                            x: 3,
+                            y: 0.6,
+                            layer: 'top',
+                            width: 0.18
+                        }
+                    ]
                 }
             ])
         ).buffer
@@ -600,8 +676,11 @@ test('EcadScene3dService builds CircuitJSON PCB scene descriptions', () => {
     const scene = EcadScene3dService.build(documentModel)
 
     assert.equal(scene.sourceFormat, 'circuitjson')
-    assert.equal(scene.pcb.boardOutline.widthMil, 393.700787)
-    assert.equal(scene.pcb.components[0].designator, 'U1')
+    assert.equal(
+        Math.round(scene.board.widthMil * 1_000_000) / 1_000_000,
+        393.700787
+    )
+    assert.equal(scene.components[0].designator, 'U1')
     assert.equal(scene.detail.pads.length, 1)
     assert.equal(scene.detail.tracks.length, 1)
 })
@@ -623,7 +702,10 @@ test('EcadParserService surfaces CircuitJSON diagnostics', () => {
                 type: 'pcb_trace_missing_error',
                 pcb_trace_missing_error_id: 'missing_trace_1',
                 error_type: 'pcb_trace_missing_error',
-                message: 'Trace was not routed'
+                message: 'Trace was not routed',
+                source_trace_id: 'source_trace_1',
+                pcb_component_ids: [],
+                pcb_port_ids: []
             }
         ])
     )
@@ -632,18 +714,23 @@ test('EcadParserService surfaces CircuitJSON diagnostics', () => {
         source.buffer
     )
 
-    assert.deepEqual(documentModel.diagnostics, [
+    assert.deepEqual(EcadDocumentDiagnostics.resolve(documentModel), [
         {
             severity: 'error',
             sourceFormat: 'circuitjson',
             type: 'pcb_trace_missing_error',
             category: 'connectivity',
             message: 'Trace was not routed',
-            elementId: 'missing_trace_1'
+            elementId: 'missing_trace_1',
+            sourceTraceId: 'source_trace_1'
         }
     ])
     assert.equal(
         DocumentViewCompatibility.supportsView(documentModel, 'diagnostics'),
         true
+    )
+    assert.equal(
+        EcadFormatRegistry.sourceFormatForDocument(documentModel),
+        'circuitjson'
     )
 })

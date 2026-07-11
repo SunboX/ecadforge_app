@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { KicadParser } from 'kicad-toolkit/parser'
-import { KicadStrokeFont } from 'kicad-toolkit/renderers'
+import { KicadParser } from 'kicad-toolkit/extensions'
+import { KicadStrokeFont } from 'kicad-toolkit/extensions'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
 /**

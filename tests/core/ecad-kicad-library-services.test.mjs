@@ -27,9 +27,10 @@ test('EcadFormatRegistry detects standalone KiCad library files', () => {
  */
 test('EcadParserService parses standalone KiCad library files', async () => {
     const parsedFileNames = []
+    const loadedFileNames = []
     const service = new EcadParserService({
         kicadParser: {
-            parseArrayBuffer(fileName) {
+            parse({ fileName }) {
                 parsedFileNames.push(fileName)
                 return {
                     sourceFormat: 'kicad',
@@ -37,6 +38,23 @@ test('EcadParserService parses standalone KiCad library files', async () => {
                         ? 'footprint-library'
                         : 'symbol-library',
                     fileName,
+                    diagnostics: []
+                }
+            }
+        },
+        kicadProjectLoader: {
+            loadAsync(entries) {
+                loadedFileNames.push(...entries.map((entry) => entry.name))
+                return {
+                    documents: [
+                        {
+                            sourceFormat: 'kicad',
+                            kind: 'symbol-library',
+                            fileName: entries[0].name,
+                            diagnostics: []
+                        }
+                    ],
+                    assets: [],
                     diagnostics: []
                 }
             }
@@ -52,10 +70,8 @@ test('EcadParserService parses standalone KiCad library files', async () => {
 
     assert.equal(footprintDocument.kind, 'footprint-library')
     assert.equal(result.documents[0].kind, 'symbol-library')
-    assert.deepEqual(parsedFileNames, [
-        'lib/R_0603.kicad_mod',
-        'lib/Device.kicad_sym'
-    ])
+    assert.deepEqual(parsedFileNames, ['lib/R_0603.kicad_mod'])
+    assert.deepEqual(loadedFileNames, ['lib/Device.kicad_sym'])
     assert.equal(
         DocumentPreferredViewResolver.resolve(footprintDocument),
         'diagnostics'

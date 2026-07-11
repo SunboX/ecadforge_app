@@ -14,11 +14,51 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - Schematic SVG view derived from recovered record geometry, text, symbols, and highlightable nets
 - PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, aligned and knockout PCB text, reset/fit viewport control, top/bottom component filters, in-board view settings, persistent diagnostic focus, optional rats-nest connectivity, trace-length budget labels, solder-mask/paste inspection layers, source-net group metadata, group/anchor-offset overlays, bounds measurement zoom/selection, clipped SVG/PNG bounds export, and highlightable nets where available
 - BOM grouping from recovered component metadata
-- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber fabrication scenes, embedded STEP extraction, companion-model lookup for STEP, WRL, GLB, GLTF, STL, and OBJ assets, opt-in missing-model search, and single-file PCB assembly export as STEP, WRL, GLTF, or GLB with board, copper, silkscreen, pads, vias, resolved or fallback 3D components, OBJ sidecar material colors, translucent model materials, and configurable board-face artwork textures for GLTF/GLB downloads
+- Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber
+  fabrication scenes with canonical plated-slot geometry, embedded STEP
+  extraction, and companion-model lookup for
+  STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF assets. Safe local GLTF BIN,
+  OBJ MTL, and WRL texture companions resolve directly; remote model loading
+  remains opt-in. Single-file PCB assembly export supports STEP, WRL, GLTF, or
+  GLB with board, copper, silkscreen, pads, vias, resolved or fallback 3D
+  components, material alpha/colors, and optional board-face artwork textures.
 - WebMCP runtime and read-only tools for querying designs already loaded in the current session
 - Worker-backed parse flow with main-thread fallback and a local SPICE simulation worker boundary that returns CircuitJSON experiment output
 - Runtime language switching with browser detection and Brazilian Portuguese support
-- Shared parser, renderer, and non-interactive scene-data cores from `altium-toolkit`, `kicad-toolkit`, `gerber-toolkit`, and `circuitjson-toolkit`
+- Converged parser, renderer, query, interaction, and scene APIs from
+  `altium-toolkit`, `kicad-toolkit`, `gerber-toolkit`, and
+  `circuitjson-toolkit`, with reusable CircuitJSON document contexts
+- Normal intake calls the same common `Parser` and `ProjectLoader` contracts
+  for every format; ZIP expansion, project context, and validation remain in
+  the source libraries rather than app compatibility shims
+- Independent toolkit project groups parse concurrently while their documents,
+  diagnostics, and assets keep deterministic toolkit order
+- Canonical Altium and KiCad schematic graphics—including paths, text frames,
+  tables, hierarchy sheet symbols, and asset-backed images—render directly
+  through the shared CircuitJSON renderer; app state never receives copied
+  legacy `schematic` or `pcb` fields
+- Altium project strings, image bytes, and hidden component designators are
+  resolved by the toolkit projection; retained native extensions remain
+  available only to callers that explicitly request source-specific APIs
+- Canonical CAD model metadata and document/session assets flow directly into
+  `pcb-scene3d-viewer` without URL-promotion or resolver wrappers in the app
+- STEP rendering uses the installed `@sunbox/occt-import-js` JavaScript, WASM,
+  and package-owned worker directly; local and static servers expose the same
+  scoped package path without app-vendored copies or a custom worker
+- Local and hosted Altium, KiCad, and CircuitJSON project parsing retains
+  canonical model assets in full; directory companions and ZIP members keep
+  their exact bytes, project-relative paths, and source identity
+- KiCad `${KIPRJMOD}` model references arrive as canonical `cad_component`
+  rows linked to exact project asset paths. Multiple visible models retain
+  separate rows; parsed board thickness determines top/bottom surface height,
+  while board placement stays separate from model-local transforms
+- Gerber ZIP detection claims only real fabrication packages, leaving KiCad ZIP
+  projects on the KiCad loader path
+- Local, folder, project, and session intake recognizes 3MF and `.vrml` as
+  first-class companion-model formats before handing exact source bytes to the
+  viewer
+- Exact source paths keep same-basename model assets distinct while repeated
+  placements and explicitly fetched assets share viewer-owned caches
 - Local Express dev server in `src/server.mjs`
 
 ## Project Structure
@@ -47,6 +87,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.10.0 release notes](docs/release-notes-v1.10.0.md)
 - [Specification](spec/web-app-specification.md)
 
 ## Start
@@ -56,7 +97,11 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000/` and load one or more native Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files, KiCad project ZIPs, Gerber/Excellon files, Gerber ZIP archives, CircuitJSON `.json` files, companion `WRL`, or companion `STEP` files. KiCad projects can also be selected as folders from the header.
+Open `http://localhost:3000/` and load one or more native Altium
+`.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`/`.kicad_sch`/`.kicad_pcb` files,
+KiCad project ZIPs, Gerber/Excellon files, Gerber ZIP archives, CircuitJSON
+`.json` files, or companion STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF
+files. KiCad projects can also be selected as folders from the header.
 
 Demo projects are available at `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, and `/?demo=altium`. GitHub-hosted files can be opened with `/?url=<raw-or-github-blob-url>` or `/?github=owner/repo/path/to/file&ref=<optional-ref>` when the remote host allows browser fetching. Share links can also include `view=<tab>`, `document=<loaded-file-path>`, `component=<designator>`, and `net=<net-name>` to restore the active tab, document, selected component, and selected net.
 
@@ -139,7 +184,7 @@ required by the AGPL and the notice files in this repository.
 
 Documentation and non-code media are licensed under Creative Commons
 Attribution-ShareAlike 4.0 (`CC-BY-SA-4.0`) where marked in `.reuse/dep5`.
-Vendored third-party artifacts and package-manager dependencies retain their
-own licenses and notices. The vendored OCCT importer preserves LGPL notices,
-the Open CASCADE exception, and rebuild/source guidance under
-`src/vendor/occt-import-js/dist/`.
+Package-manager dependencies retain their own licenses and notices. The
+installed OCCT importer preserves its LGPL notices and Open CASCADE exception
+under `node_modules/@sunbox/occt-import-js/dist/`; source links are recorded in
+`NOTICE.md`.

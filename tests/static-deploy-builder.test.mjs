@@ -124,6 +124,36 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
     )
+    const occtImporterPath =
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js.js'
+    const occtWorkerPath =
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js-worker.js'
+    const occtWasmPath =
+        'node_modules/@sunbox/occt-import-js/dist/occt-import-js.wasm'
+    const occtExceptionPath =
+        'node_modules/@sunbox/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt'
+    const [
+        occtImporterSource,
+        occtWorkerSource,
+        occtWasmSource,
+        occtExceptionSource
+    ] = await Promise.all([
+        readFile(path.join(outputRoot, occtImporterPath)),
+        readFile(path.join(outputRoot, occtWorkerPath)),
+        readFile(path.join(outputRoot, occtWasmPath)),
+        readFile(path.join(outputRoot, occtExceptionPath))
+    ])
+    const [
+        installedOcctImporter,
+        installedOcctWorker,
+        installedOcctWasm,
+        installedOcctException
+    ] = await Promise.all([
+        readFile(path.join(rootPath, occtImporterPath)),
+        readFile(path.join(rootPath, occtWorkerPath)),
+        readFile(path.join(rootPath, occtWasmPath)),
+        readFile(path.join(rootPath, occtExceptionPath))
+    ])
     const webMcpRuntimeSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/@mcp-b/global/dist/index.iife.js'
@@ -206,22 +236,22 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         altiumParserSource,
         'node_modules/altium-toolkit/src/parser.mjs'
     )
-    assert.match(altiumParserSource, /AltiumParser/)
+    assert.match(altiumParserSource, /export { Parser }/)
     assertNotHtmlShell(
         kicadParserSource,
         'node_modules/kicad-toolkit/src/parser.mjs'
     )
-    assert.match(kicadParserSource, /KicadParser/)
+    assert.match(kicadParserSource, /export { Parser }/)
     assertNotHtmlShell(
         circuitJsonToolkitSource,
         'node_modules/circuitjson-toolkit/src/index.mjs'
     )
-    assert.match(circuitJsonToolkitSource, /CircuitJsonParser/)
+    assert.match(circuitJsonToolkitSource, /Parser/)
     assertNotHtmlShell(
         gerberToolkitSource,
         'node_modules/gerber-toolkit/src/parser.mjs'
     )
-    assert.match(gerberToolkitSource, /GerberProjectLoader/)
+    assert.match(gerberToolkitSource, /export { Parser }/)
     assertNotHtmlShell(
         scene3dViewerSource,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
@@ -230,6 +260,12 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         scene3dViewerSource,
         new RegExp('/node_modules/fflate/esm/browser\\.js\\?v=' + pkg.version)
     )
+    assert.deepEqual(occtImporterSource, installedOcctImporter)
+    assert.deepEqual(occtWorkerSource, installedOcctWorker)
+    assert.deepEqual(occtWasmSource, installedOcctWasm)
+    assert.deepEqual(occtExceptionSource, installedOcctException)
+    assert.match(String(occtWorkerSource), /import\s*\(/u)
+    assert.doesNotMatch(String(occtWorkerSource), /importScripts/u)
     assertNotHtmlShell(
         webMcpRuntimeSource,
         'node_modules/@mcp-b/global/dist/index.iife.js'

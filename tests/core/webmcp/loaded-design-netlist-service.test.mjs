@@ -353,9 +353,9 @@ test('LoadedDesignNetlistService reviews loaded design coverage', () => {
             loaded_designs: 2,
             supported_designs: 2,
             components: 6,
-            nets: 3,
+            nets: 6,
             diagnostics: 0,
-            designs_with_connectivity: 1
+            designs_with_connectivity: 2
         },
         metadata_coverage: {
             components: 3,
@@ -389,9 +389,9 @@ test('LoadedDesignNetlistService reviews loaded design coverage', () => {
                 sourceFormat: 'altium',
                 active: false,
                 components: 3,
-                nets: 0,
+                nets: 3,
                 diagnostics: 0,
-                hasConnectivity: false
+                hasConnectivity: true
             }
         ],
         top_issues: []
@@ -555,10 +555,10 @@ test('LoadedDesignNetlistService summarizes loaded design state', () => {
 
     assert.deepEqual(service.summarizeDesign(), {
         summary:
-            '2 supported designs loaded: 6 components, 3 schematic nets, 0 diagnostics, and 1 audit issues.',
+            '2 supported designs loaded: 6 components, 6 nets, 0 diagnostics, and 1 audit issues.',
         highlights: [
             'Active design: Logic Sheet (logic.SchDoc).',
-            'Connectivity is available for 1 design.',
+            'Connectivity is available for 2 designs.',
             'Metadata coverage: 3/3 components have MPNs and 3/3 have footprints.'
         ],
         next_steps: [

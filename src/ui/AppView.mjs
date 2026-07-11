@@ -1,5 +1,6 @@
 import { Scene3dControllerFactory } from '../Scene3dControllerFactory.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
+import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
 import { AppViewBomPanelRenderer } from './AppViewBomPanelRenderer.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
@@ -55,13 +56,10 @@ export class AppView {
     #expandedSidebarMarkup
     /** @type {object | null} */
     #lastSnapshot
-
     /** @type {AppViewGerberRenderSelectionStore} */
     #gerberRenderSelections
-
     /** @type {AppViewSidebarFilterState} */
     #sidebarFilterState
-
     /** @type {HTMLElement | null} */
     #contentNode
 
@@ -377,8 +375,14 @@ export class AppView {
      * @returns {void}
      */
     bindPcbLayerVisibilityChange(callback) {
-        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(this.#documentRailNode, callback)
-        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(this.#contentNode, callback)
+        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(
+            this.#documentRailNode,
+            callback
+        )
+        ViewerSidebarEventBinder.bindPcbLayerVisibilityChange(
+            this.#contentNode,
+            callback
+        )
     }
 
     /**
@@ -957,7 +961,7 @@ export class AppView {
         }
 
         this.#contentNode.innerHTML = DocumentRailRenderer.renderDiagnostics(
-            snapshot.documentModel.diagnostics || [],
+            EcadDocumentDiagnostics.resolve(snapshot.documentModel),
             this.#translate
         )
     }

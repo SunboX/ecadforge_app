@@ -1,3 +1,5 @@
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
+
 /**
  * Exports clipped snapshots from the currently rendered PCB SVG.
  */
@@ -15,10 +17,7 @@ export class PcbMeasurementSnapshotExporter {
         if (!svg || typeof options?.downloadBytes !== 'function') return false
 
         options.downloadBytes(
-            PcbMeasurementSnapshotExporter.#fileName(
-                options.fileBase,
-                'svg'
-            ),
+            PcbMeasurementSnapshotExporter.#fileName(options.fileBase, 'svg'),
             new TextEncoder().encode(svg),
             'image/svg+xml'
         )
@@ -64,9 +63,8 @@ export class PcbMeasurementSnapshotExporter {
                 return false
             }
             context.drawImage(image, 0, 0, size.width, size.height)
-            const blob = await PcbMeasurementSnapshotExporter.#canvasBlob(
-                canvas
-            )
+            const blob =
+                await PcbMeasurementSnapshotExporter.#canvasBlob(canvas)
             if (!blob) return false
 
             const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -123,7 +121,9 @@ export class PcbMeasurementSnapshotExporter {
      * @returns {string}
      */
     static fileBase(documentModel) {
-        const rawName = String(documentModel?.fileName || 'board')
+        const rawName = String(
+            EcadDocumentType.fileName(documentModel) || 'board'
+        )
             .split(/[\\/]/u)
             .pop()
             .replace(/\.[^.]+$/u, '')
@@ -222,9 +222,7 @@ export class PcbMeasurementSnapshotExporter {
      */
     static #fileName(fileBase, extension) {
         return (
-            (String(fileBase || '').trim() || 'board') +
-            '-bounds.' +
-            extension
+            (String(fileBase || '').trim() || 'board') + '-bounds.' + extension
         )
     }
 

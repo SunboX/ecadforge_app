@@ -1,4 +1,8 @@
 import { EcadRendererService } from '../core/ecad/EcadRendererService.mjs'
+import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
+import { EcadDocumentBom } from '../core/ecad/EcadDocumentBom.mjs'
+import { EcadDocumentSummary } from '../core/ecad/EcadDocumentSummary.mjs'
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
 import { DocumentViewCompatibility } from '../DocumentViewCompatibility.mjs'
 import { UiText } from './UiText.mjs'
 
@@ -70,6 +74,7 @@ export class DocumentRailRenderer {
         const t = UiText.createTranslator(translate)
         const isActive = entry.id === activeDocumentId
         const documentModel = entry.documentModel
+        const summary = EcadDocumentSummary.resolve(documentModel)
         const previewMarkup = DocumentRailRenderer.#renderDocumentPreview(
             entry.id,
             documentModel,
@@ -90,8 +95,8 @@ export class DocumentRailRenderer {
             '</span>' +
             '<span class="document-rail__name">' +
             DocumentRailRenderer.#escapeHtml(
-                documentModel?.fileName ||
-                    documentModel?.summary?.title ||
+                summary.fileName ||
+                    summary.title ||
                     t('summary.document')
             ) +
             '</span>' +
@@ -136,34 +141,37 @@ export class DocumentRailRenderer {
         if (activeView === 'bom') {
             return DocumentRailRenderer.#renderPreviewSummary(
                 'BOM',
-                String(documentModel?.bom?.length || 0) +
+                String(EcadDocumentBom.resolve(documentModel).length) +
                     ' ' +
                     translate('preview.groupedRows'),
-                documentModel?.kind === 'schematic'
+                EcadDocumentType.isSchematic(documentModel)
                     ? translate('preview.recoveredFromSheet')
                     : translate('preview.recoveredFromBoard')
             )
         }
 
         if (activeView === '3d') {
+            const summary = EcadDocumentSummary.resolve(documentModel)
             return DocumentRailRenderer.#renderPreviewSummary(
                 '3D',
-                String(documentModel?.summary?.boardWidthMil || 0) +
+                String(summary.boardWidthMil || 0) +
                     ' x ' +
-                    String(documentModel?.summary?.boardHeightMil || 0) +
+                    String(summary.boardHeightMil || 0) +
                     ' mil',
-                String(documentModel?.summary?.componentCount || 0) +
+                String(summary.placementCount || 0) +
                     ' ' +
                     translate('preview.placementsSuffix')
             )
         }
 
+        const diagnosticsCount =
+            EcadDocumentDiagnostics.resolve(documentModel).length
         return DocumentRailRenderer.#renderPreviewSummary(
             translate('view.diagnostics'),
-            String(documentModel?.diagnostics?.length || 0) +
+            String(diagnosticsCount) +
                 ' ' +
                 translate('diagnostics.messagesSuffix'),
-            documentModel?.diagnostics?.length
+            diagnosticsCount > 0
                 ? translate('preview.parserFindings')
                 : translate('preview.noDiagnosticsEmitted')
         )

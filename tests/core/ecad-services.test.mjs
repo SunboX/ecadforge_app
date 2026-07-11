@@ -1,9 +1,30 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { AltiumExtensionResolver } from 'altium-toolkit/extensions'
 import { EcadFormatRegistry } from '../../src/core/ecad/EcadFormatRegistry.mjs'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { EcadScene3dService } from '../../src/core/ecad/EcadScene3dService.mjs'
+
+/**
+ * Builds a minimal canonical document returned by common parser fakes.
+ * @param {string} format Source format.
+ * @param {string} fileName Source file name.
+ * @returns {object} Canonical document.
+ */
+function createCanonicalDocument(format, fileName) {
+    return {
+        schema: 'ecad-toolkit.document.v1',
+        id: format + '-' + fileName,
+        modelSchema: { name: 'circuit-json', version: '0.0.446' },
+        model: [],
+        source: { format, fileName, fileType: 'test' },
+        extensions: {},
+        assets: [],
+        diagnostics: [],
+        statistics: { elementCount: 0 }
+    }
+}
 
 /**
  * Verifies the format registry accepts the expanded ECAD intake surface.
@@ -30,10 +51,12 @@ test('EcadFormatRegistry detects Altium, KiCad, ZIP, and companion assets', () =
         'circuitjson'
     )
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.step'), 'step')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.vrml'), 'vrml')
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.glb'), 'glb')
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.gltf'), 'gltf')
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.stl'), 'stl')
     assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.obj'), 'obj')
+    assert.equal(EcadFormatRegistry.resolveCompanionFormat('Body.3mf'), '3mf')
     assert.equal(
         EcadFormatRegistry.resolveCompanionFormat('symbols.kicad_sym'),
         'kicad-library'
@@ -45,18 +68,22 @@ test('EcadFormatRegistry detects Altium, KiCad, ZIP, and companion assets', () =
  */
 test('EcadParserService dispatches mixed Altium and KiCad batches', async () => {
     const service = new EcadParserService({
-        altiumParser: {
-            parseArrayBuffer(fileName) {
-                return { sourceFormat: 'altium', kind: 'pcb', fileName }
+        altiumProjectLoader: {
+            loadAsync(entries) {
+                return {
+                    documents: entries.map((entry) =>
+                        createCanonicalDocument('altium', entry.name)
+                    ),
+                    assets: [],
+                    diagnostics: []
+                }
             }
         },
         kicadProjectLoader: {
-            loadEntries(entries) {
+            loadAsync(entries) {
                 return {
                     documents: entries.map((entry) => ({
-                        sourceFormat: 'kicad',
-                        kind: 'schematic',
-                        fileName: entry.name
+                        ...createCanonicalDocument('kicad', entry.name)
                     })),
                     assets: [{ name: 'model.step' }],
                     diagnostics: [{ severity: 'info', message: 'ok' }]
@@ -71,7 +98,7 @@ test('EcadParserService dispatches mixed Altium and KiCad batches', async () => 
     ])
 
     assert.deepEqual(
-        result.documents.map((document) => document.sourceFormat),
+        result.documents.map((document) => document.source.format),
         ['altium', 'kicad', 'kicad']
     )
     assert.equal(result.assets[0].name, 'model.step')
@@ -84,15 +111,25 @@ test('EcadParserService dispatches mixed Altium and KiCad batches', async () => 
  */
 test('EcadParserService reports damaged Altium entries as diagnostics', async () => {
     const service = new EcadParserService({
-        altiumParser: {
-            parseArrayBuffer(fileName) {
-                if (fileName.endsWith('.PcbDoc')) {
-                    throw new Error(
-                        'OLE compound document is not sector-aligned.'
-                    )
+        altiumProjectLoader: {
+            loadAsync(entries) {
+                const schematicEntry = entries.find((entry) =>
+                    entry.name.endsWith('.SchDoc')
+                )
+                return {
+                    documents: [
+                        createCanonicalDocument('altium', schematicEntry.name)
+                    ],
+                    assets: [],
+                    diagnostics: [
+                        {
+                            severity: 'error',
+                            fileName: 'board.PcbDoc',
+                            message:
+                                'Failed to parse board.PcbDoc: OLE compound document is not sector-aligned.'
+                        }
+                    ]
                 }
-
-                return { sourceFormat: 'altium', kind: 'schematic', fileName }
             }
         }
     })
@@ -102,17 +139,14 @@ test('EcadParserService reports damaged Altium entries as diagnostics', async ()
     ])
 
     assert.deepEqual(
-        result.documents.map((document) => document.fileName),
+        result.documents.map((document) => document.source.fileName),
         ['logic.SchDoc']
     )
     assert.equal(result.diagnostics.length, 1)
     assert.equal(result.diagnostics[0].severity, 'error')
     assert.equal(result.diagnostics[0].fileName, 'board.PcbDoc')
     assert.match(result.diagnostics[0].message, /board\.PcbDoc.*sector-aligned/)
-    assert.match(
-        result.documents[0].diagnostics[0].message,
-        /board\.PcbDoc.*sector-aligned/
-    )
+    assert.deepEqual(result.documents[0].diagnostics, [])
 })
 
 /**
@@ -136,11 +170,13 @@ test('EcadParserService parses uppercase Altium schematic fields', () => {
         'uppercase-fields.SchDoc',
         source.buffer
     )
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
 
-    assert.equal(documentModel.schematic.sheet.width, 200)
-    assert.equal(documentModel.schematic.lines.length, 1)
-    assert.equal(documentModel.schematic.pins.length, 1)
-    assert.equal(documentModel.schematic.texts.length, 1)
+    assert.equal(Object.hasOwn(documentModel, 'schematic'), false)
+    assert.equal(nativeModel.schematic.sheet.width, 200)
+    assert.equal(nativeModel.schematic.lines.length, 1)
+    assert.equal(nativeModel.schematic.pins.length, 1)
+    assert.equal(nativeModel.schematic.texts.length, 1)
 })
 
 /**
@@ -165,9 +201,10 @@ test('EcadParserService preserves owner-bound schematic component labels', () =>
         'owner-bound-labels.SchDoc',
         source.buffer
     )
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
 
-    assert.equal(documentModel.schematic.components[0].designator, 'U7')
-    assert.equal(documentModel.schematic.components[0].value, 'CONTROL-HUB')
+    assert.equal(nativeModel.schematic.components[0].designator, 'U7')
+    assert.equal(nativeModel.schematic.components[0].value, 'CONTROL-HUB')
 })
 
 /**
@@ -199,12 +236,13 @@ test('EcadParserService renders prefixed Altium schematic records without intern
         'prefixed-records.SchDoc',
         source.buffer
     )
-    const visibleTexts = documentModel.schematic.texts.map((text) => text.text)
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
+    const visibleTexts = nativeModel.schematic.texts.map((text) => text.text)
     const markup = EcadRendererService.renderSchematic(documentModel)
 
-    assert.equal(documentModel.schematic.sheet.width, 300)
-    assert.equal(documentModel.schematic.sheet.borderOn, true)
-    assert.deepEqual(documentModel.schematic.polygons[0].points, [
+    assert.equal(nativeModel.schematic.sheet.width, 300)
+    assert.equal(nativeModel.schematic.sheet.borderOn, true)
+    assert.deepEqual(nativeModel.schematic.polygons[0].points, [
         { x: 20, y: 80 },
         { x: 80, y: 80 },
         { x: 80, y: 30 },
@@ -217,7 +255,7 @@ test('EcadParserService renders prefixed Altium schematic records without intern
     assert.equal(visibleTexts.includes('HIDDEN_DEVICE'), false)
     assert.equal(visibleTexts.includes('True'), false)
     assert.equal(
-        documentModel.schematic.lines.some((line) => line.lineStyle === 3),
+        nativeModel.schematic.lines.some((line) => line.lineStyle === 3),
         true
     )
     assert.match(markup, /stroke-dasharray="16 10 3 10" stroke-linecap="round"/)

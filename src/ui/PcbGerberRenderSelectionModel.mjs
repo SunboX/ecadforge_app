@@ -1,3 +1,5 @@
+import { EcadGerberFabrication } from '../core/ecad/EcadGerberFabrication.mjs'
+
 /**
  * Resolves Gerber render selection state for the 2D PCB controller.
  */
@@ -8,10 +10,7 @@ export class PcbGerberRenderSelectionModel {
      * @returns {boolean}
      */
     static isGerberDocument(documentModel) {
-        return (
-            documentModel?.sourceFormat === 'gerber' ||
-            Array.isArray(documentModel?.pcb?.fabrication?.layers)
-        )
+        return EcadGerberFabrication.layers(documentModel).length > 0
     }
 
     /**
@@ -33,18 +32,16 @@ export class PcbGerberRenderSelectionModel {
         if (!requested.length && fallback) {
             requested.push(fallback)
         }
-        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
+        const layers = EcadGerberFabrication.layers(documentModel)
         const availableIds = new Set(
             layers.map((layer) => String(layer?.id || '')).filter(Boolean)
         )
         const selectedIds = requested.filter((id) => availableIds.has(id))
         return selectedIds.length
             ? selectedIds
-            : [PcbGerberRenderSelectionModel.#firstLayerId(documentModel)].filter(
-                  Boolean
-              )
+            : [
+                  PcbGerberRenderSelectionModel.#firstLayerId(documentModel)
+              ].filter(Boolean)
     }
 
     /**
@@ -78,9 +75,7 @@ export class PcbGerberRenderSelectionModel {
      * @returns {string}
      */
     static #firstLayerId(documentModel) {
-        const layers = Array.isArray(documentModel?.pcb?.fabrication?.layers)
-            ? documentModel.pcb.fabrication.layers
-            : []
+        const layers = EcadGerberFabrication.layers(documentModel)
 
         return String(layers[0]?.id || '')
     }

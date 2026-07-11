@@ -10,7 +10,7 @@ test('EcadParserService passes KiCad library entries to project loader', async (
     const seenEntries = []
     const service = new EcadParserService({
         kicadProjectLoader: {
-            loadEntries(entries) {
+            loadAsync(entries) {
                 seenEntries.push(...entries.map((entry) => entry.name))
                 return {
                     documents: [

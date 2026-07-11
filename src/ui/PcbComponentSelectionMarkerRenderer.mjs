@@ -1,4 +1,5 @@
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
+import { EcadDocumentComponents } from '../core/ecad/EcadDocumentComponents.mjs'
 import { PcbRenderedFootprintBoundsResolver } from './PcbRenderedFootprintBoundsResolver.mjs'
 import { SvgTransformBoundsMapper } from './SvgTransformBoundsMapper.mjs'
 
@@ -23,9 +24,8 @@ export class PcbComponentSelectionMarkerRenderer {
                 documentModel,
                 key
             )
-        const viewBox = PcbRenderedFootprintBoundsResolver.resolveSvgViewBox(
-            markup
-        )
+        const viewBox =
+            PcbRenderedFootprintBoundsResolver.resolveSvgViewBox(markup)
         const primitiveBounds = componentRecord
             ? PcbComponentSelectionMarkerRenderer.#resolveComponentPrimitiveMarkerBounds(
                   documentModel,
@@ -161,9 +161,7 @@ export class PcbComponentSelectionMarkerRenderer {
             '" y="' +
             PcbComponentSelectionMarkerRenderer.#formatSvgNumber(bounds.y) +
             '" width="' +
-            PcbComponentSelectionMarkerRenderer.#formatSvgNumber(
-                bounds.width
-            ) +
+            PcbComponentSelectionMarkerRenderer.#formatSvgNumber(bounds.width) +
             '" height="' +
             PcbComponentSelectionMarkerRenderer.#formatSvgNumber(
                 bounds.height
@@ -176,9 +174,7 @@ export class PcbComponentSelectionMarkerRenderer {
             '" y="' +
             PcbComponentSelectionMarkerRenderer.#formatSvgNumber(bounds.y) +
             '" width="' +
-            PcbComponentSelectionMarkerRenderer.#formatSvgNumber(
-                bounds.width
-            ) +
+            PcbComponentSelectionMarkerRenderer.#formatSvgNumber(bounds.width) +
             '" height="' +
             PcbComponentSelectionMarkerRenderer.#formatSvgNumber(
                 bounds.height
@@ -220,9 +216,7 @@ export class PcbComponentSelectionMarkerRenderer {
      * @returns {{ component: object, index: number, key: string } | null}
      */
     static #resolveComponentRecordByKey(documentModel, selectedComponentKey) {
-        const components = Array.isArray(documentModel?.pcb?.components)
-            ? documentModel.pcb.components
-            : []
+        const components = EcadDocumentComponents.resolve(documentModel)
 
         for (let index = 0; index < components.length; index += 1) {
             const component = components[index]
@@ -328,10 +322,7 @@ export class PcbComponentSelectionMarkerRenderer {
         side
     ) {
         if (!bounds) return null
-        if (
-            side !== 'bottom' ||
-            !/\bpcb-svg--altium\b/.test(String(markup))
-        ) {
+        if (side !== 'bottom' || !/\bpcb-svg--altium\b/.test(String(markup))) {
             return bounds
         }
 
@@ -444,10 +435,9 @@ export class PcbComponentSelectionMarkerRenderer {
         }
 
         for (const field of ['ownerIndex', 'ownerComponentIndex']) {
-            const value =
-                PcbComponentSelectionMarkerRenderer.#finiteNumber(
-                    primitive?.[field]
-                )
+            const value = PcbComponentSelectionMarkerRenderer.#finiteNumber(
+                primitive?.[field]
+            )
             if (
                 value !== null &&
                 (explicitOwnerIds.has(value) || fallbackOwnerIds.has(value))
@@ -558,23 +548,16 @@ export class PcbComponentSelectionMarkerRenderer {
     static #resolvePadBounds(pad, side) {
         const x = PcbComponentSelectionMarkerRenderer.#finiteNumber(pad?.x)
         const y = PcbComponentSelectionMarkerRenderer.#finiteNumber(pad?.y)
-        const width =
-            PcbComponentSelectionMarkerRenderer.#firstFiniteNumber(
-                side === 'bottom'
-                    ? [pad?.sizeBottomX, pad?.sizeX, pad?.width, pad?.diameter]
-                    : [pad?.sizeTopX, pad?.sizeX, pad?.width, pad?.diameter]
-            )
-        const height =
-            PcbComponentSelectionMarkerRenderer.#firstFiniteNumber(
-                side === 'bottom'
-                    ? [
-                          pad?.sizeBottomY,
-                          pad?.sizeY,
-                          pad?.height,
-                          pad?.diameter
-                      ]
-                    : [pad?.sizeTopY, pad?.sizeY, pad?.height, pad?.diameter]
-            )
+        const width = PcbComponentSelectionMarkerRenderer.#firstFiniteNumber(
+            side === 'bottom'
+                ? [pad?.sizeBottomX, pad?.sizeX, pad?.width, pad?.diameter]
+                : [pad?.sizeTopX, pad?.sizeX, pad?.width, pad?.diameter]
+        )
+        const height = PcbComponentSelectionMarkerRenderer.#firstFiniteNumber(
+            side === 'bottom'
+                ? [pad?.sizeBottomY, pad?.sizeY, pad?.height, pad?.diameter]
+                : [pad?.sizeTopY, pad?.sizeY, pad?.height, pad?.diameter]
+        )
         if (x === null || y === null || width === null || height === null) {
             return null
         }

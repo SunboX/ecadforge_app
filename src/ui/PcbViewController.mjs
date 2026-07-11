@@ -3,7 +3,7 @@ import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 import {
     PcbCandidateSelectionModel,
     PcbDiagnosticFocusModel
-} from 'circuitjson-toolkit/renderers'
+} from 'circuitjson-toolkit/extensions'
 import { PcbBoardClickGuard } from './PcbBoardClickGuard.mjs'
 import { PcbDiagnosticNavigationController } from './PcbDiagnosticNavigationController.mjs'
 import { PcbGerberRenderSelectionModel } from './PcbGerberRenderSelectionModel.mjs'
@@ -554,10 +554,7 @@ export class PcbViewController {
             : null
         const clickable = Boolean(componentCandidate || netCandidate)
 
-        if (
-            EcadFormatRegistry.sourceFormatForDocument(this.#documentModel) ===
-            'circuitjson'
-        ) {
+        if (EcadFormatRegistry.isCircuitJsonDocument(this.#documentModel)) {
             this.#setHoveredNetName(
                 PcbCandidateSelectionModel.netName(netCandidate)
             )
@@ -925,7 +922,9 @@ export class PcbViewController {
      */
     #focusDiagnostic(diagnosticId) {
         const focusedId = String(diagnosticId || '').trim()
-        const focus = PcbDiagnosticFocusModel.build(this.#documentModel).get(focusedId)
+        const focus = PcbDiagnosticFocusModel.build(this.#documentModel).get(
+            focusedId
+        )
         if (!focus) return
 
         this.#focusedDiagnosticId = focusedId

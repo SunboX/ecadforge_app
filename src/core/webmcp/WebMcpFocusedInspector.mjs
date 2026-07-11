@@ -1,4 +1,8 @@
-import { ComponentGrouping } from 'altium-toolkit/netlist-query'
+import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadDocumentBom } from '../ecad/EcadDocumentBom.mjs'
+import { EcadDocumentComponents } from '../ecad/EcadDocumentComponents.mjs'
+import { EcadDocumentConnectivity } from '../ecad/EcadDocumentConnectivity.mjs'
+import { EcadDocumentDiagnostics } from '../ecad/EcadDocumentDiagnostics.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 
 /**
@@ -17,7 +21,9 @@ export class WebMcpFocusedInspector {
             .toLowerCase()
         if (!requested) return { error: 'net_name is required.' }
 
-        const net = (entry.documentModel?.schematic?.nets || []).find(
+        const net = EcadDocumentConnectivity.resolve(
+            entry.documentModel
+        ).nets.find(
             (candidate) =>
                 String(candidate?.name || '').toLowerCase() === requested
         )
@@ -87,7 +93,9 @@ export class WebMcpFocusedInspector {
         const diagnostics = []
 
         for (const entry of entries) {
-            for (const diagnostic of entry.documentModel?.diagnostics || []) {
+            for (const diagnostic of EcadDocumentDiagnostics.resolve(
+                entry.documentModel
+            )) {
                 diagnostics.push(
                     WebMcpFocusedInspector.#withoutUndefined({
                         design: WebMcpDesignAnalyzer.entryName(entry),
@@ -185,7 +193,9 @@ export class WebMcpFocusedInspector {
         const nets = []
 
         for (const entry of entries) {
-            for (const net of entry.documentModel?.schematic?.nets || []) {
+            for (const net of EcadDocumentConnectivity.resolve(
+                entry.documentModel
+            ).nets) {
                 const pins = WebMcpFocusedInspector.#pinIds(net?.pins || [])
                 if (pins.length !== 1) continue
                 nets.push({
@@ -234,7 +244,7 @@ export class WebMcpFocusedInspector {
     static #bomComponentMap(entry) {
         const components = new Map()
 
-        for (const row of entry.documentModel?.bom || []) {
+        for (const row of EcadDocumentBom.resolve(entry.documentModel)) {
             for (const refdes of WebMcpFocusedInspector.#designators(row)) {
                 components.set(refdes, {
                     refdes,
@@ -257,7 +267,9 @@ export class WebMcpFocusedInspector {
     static #pcbComponentMap(entry) {
         const components = new Map()
 
-        for (const component of entry.documentModel?.pcb?.components || []) {
+        for (const component of EcadDocumentComponents.resolve(
+            entry.documentModel
+        )) {
             const refdes = WebMcpFocusedInspector.#refdes(component)
             if (!refdes) continue
             components.set(refdes, {
@@ -279,13 +291,10 @@ export class WebMcpFocusedInspector {
      */
     static #componentRefdesList(documentModel) {
         return [
-            ...(documentModel?.schematic?.components || []).map((component) =>
+            ...EcadDocumentComponents.resolve(documentModel).map((component) =>
                 WebMcpFocusedInspector.#refdes(component)
             ),
-            ...(documentModel?.pcb?.components || []).map((component) =>
-                WebMcpFocusedInspector.#refdes(component)
-            ),
-            ...(documentModel?.bom || []).flatMap((row) =>
+            ...EcadDocumentBom.resolve(documentModel).flatMap((row) =>
                 WebMcpFocusedInspector.#designators(row)
             )
         ].filter(Boolean)

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a compact board with solved copper area geometry.
@@ -19,7 +19,8 @@ function createSolvedAreaDocument() {
         {
             type: 'source_net',
             source_net_id: 'source_net_1',
-            name: 'GND'
+            name: 'GND',
+            member_source_group_ids: []
         },
         {
             type: 'pcb_copper_pour',

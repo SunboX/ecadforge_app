@@ -34,13 +34,13 @@ export class AppControllerParserData {
 
     /**
      * Normalizes one parser asset record for session state.
-     * @param {{ name?: string, bytes?: Uint8Array, relativePath?: string, format?: string }} asset Parser asset.
+     * @param {{ name?: string, data?: Uint8Array, relativePath?: string, format?: string }} asset Parser asset.
      * @returns {{ name: string, relativePath: string, file: any, format: string }}
      */
     static buildParsedAsset(asset) {
         const relativePath = String(asset?.relativePath || asset?.name || '')
         const name = String(asset?.name || relativePath.split('/').pop() || '')
-        const bytes = asset?.bytes || new Uint8Array()
+        const bytes = asset?.data || new Uint8Array()
         const format =
             String(asset?.format || '') ||
             EcadFormatRegistry.resolveCompanionFormat(name)

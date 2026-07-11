@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { EcadModelSourceClient } from '../../src/core/ecad/EcadModelSourceClient.mjs'
 import { EcadMissingModelSearchService } from '../../src/core/ecad/EcadMissingModelSearchService.mjs'
 import { EcadModelSearchPreference } from '../../src/core/ecad/EcadModelSearchPreference.mjs'
@@ -139,6 +140,80 @@ test('EcadMissingModelSearchService downloads and caches matching model assets',
     assert.equal(first[0].relativePath, 'models/FAKE_WIDGET_0603.step')
     assert.equal(first[0].format, 'step')
     assert.equal(second[0], first[0])
+})
+
+test('EcadMissingModelSearchService resolves canonical CircuitJSON component models', async () => {
+    const requested = []
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async (component, options) => {
+                requested.push({
+                    designator: component.designator,
+                    term: options.term
+                })
+                return {
+                    name: 'body.step',
+                    format: 'step',
+                    bytes: new TextEncoder().encode('ISO-10303-21;')
+                }
+            }
+        }
+    })
+    const documentModel = Parser.parse({
+        fileName: 'board.json',
+        data: JSON.stringify([
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 0, y: 0 },
+                width: 2,
+                height: 2,
+                rotation: 0,
+                layer: 'top'
+            },
+            {
+                type: 'cad_component',
+                cad_component_id: 'cad_u1',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                position: { x: 0, y: 0, z: 0 },
+                model_step_url: 'models/FAKE_WIDGET_QFN.step'
+            },
+            {
+                type: 'source_component',
+                source_component_id: 'source_u2',
+                name: 'U2',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u2',
+                source_component_id: 'source_u2',
+                center: { x: 4, y: 0 },
+                width: 2,
+                height: 2,
+                rotation: 0,
+                layer: 'top',
+                do_not_place: true
+            }
+        ])
+    })
+
+    const result = await service.resolveSessionAssets(documentModel, {
+        enabled: true,
+        sessionAssets: []
+    })
+
+    assert.deepEqual(requested, [{ designator: 'U1', term: 'FAKE_WIDGET_QFN' }])
+    assert.equal(result[0].relativePath, 'models/FAKE_WIDGET_QFN.step')
+    assert.equal(result[0].componentKey, 'U1')
 })
 
 test('EcadMissingModelSearchService skips do-not-populate components', async () => {

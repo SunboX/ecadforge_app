@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/renderers'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbDiagnosticFocusModel } from 'circuitjson-toolkit/extensions'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a compact board with a diagnostic that references plural IDs.
@@ -63,9 +63,8 @@ test('PcbInteractionPrimitiveModel resolves plural diagnostic relations', () => 
     const diagnostic = model.diagnostics.find(
         (row) => row.id === 'pad_gap_error'
     )
-    const focus = PcbDiagnosticFocusModel.build(documentModel).get(
-        'pad_gap_error'
-    )
+    const focus =
+        PcbDiagnosticFocusModel.build(documentModel).get('pad_gap_error')
 
     assert.deepEqual(diagnostic.relatedPrimitiveIds, ['pad_a', 'pad_b'])
     assert.deepEqual(diagnostic.bounds, {

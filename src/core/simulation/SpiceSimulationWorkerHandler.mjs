@@ -1,4 +1,4 @@
-import { SpiceSimulationService } from 'circuitjson-toolkit'
+import { SpiceSimulationService } from 'circuitjson-toolkit/extensions'
 
 /**
  * Handles worker messages for local SPICE simulation requests.

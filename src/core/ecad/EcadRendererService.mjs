@@ -1,4 +1,5 @@
 import {
+    AltiumExtensionResolver,
     BomTableRenderer as AltiumBomTableRenderer,
     preparePcbSideResolvedRenderModel as prepareAltiumPcbSideResolvedRenderModel,
     AltiumPcbBottomViewMirror,
@@ -7,7 +8,7 @@ import {
     PcbInteractionLayerModel as AltiumPcbInteractionLayerModel,
     PcbSvgRenderer as AltiumPcbSvgRenderer,
     SchematicSvgRenderer as AltiumSchematicSvgRenderer
-} from 'altium-toolkit/renderers'
+} from 'altium-toolkit/extensions'
 import {
     BomTableRenderer as KicadBomTableRenderer,
     KicadPcbRenderOutlineAdapter,
@@ -16,31 +17,18 @@ import {
     PcbInteractionLayerModel as KicadPcbInteractionLayerModel,
     PcbSvgRenderer as KicadPcbSvgRenderer,
     SchematicSvgRenderer as KicadSchematicSvgRenderer
-} from 'kicad-toolkit/renderers'
-import {
-    CircuitJsonPcbSvgRenderer,
-    CircuitJsonSchematicSvgRenderer,
-    PcbInteractionPrimitiveModel
-} from 'circuitjson-toolkit/renderers'
+} from 'kicad-toolkit/extensions'
 import {
     GerberPcbSvgRenderer,
     PcbInteractionIndex as GerberPcbInteractionIndex,
     PcbInteractionLayerModel as GerberPcbInteractionLayerModel
-} from 'gerber-toolkit/renderers'
+} from 'gerber-toolkit/extensions'
 import { PcbComponentSelectionModel } from '../PcbComponentSelectionModel.mjs'
-import { EcadBomRowAttributes } from './EcadBomRowAttributes.mjs'
+import { EcadCircuitJsonRendererService } from './EcadCircuitJsonRendererService.mjs'
+import { EcadDocumentBom } from './EcadDocumentBom.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
-
-const BOM_TRANSLATION_FALLBACKS = {
-    'bom.designators': 'Designators',
-    'bom.empty': 'No BOM rows were recovered from this file.',
-    'bom.pattern': 'Pattern',
-    'bom.quantity': 'Qty',
-    'bom.source': 'Source',
-    'bom.value': 'Value',
-    'preview.groupedRows': 'grouped rows',
-    'view.bom': 'BOM'
-}
+import { EcadGerberFabrication } from './EcadGerberFabrication.mjs'
+import { EcadLocalizedBomRenderer } from './EcadLocalizedBomRenderer.mjs'
 
 /**
  * Chooses format-specific renderers for normalized document models.
@@ -60,13 +48,28 @@ export class EcadRendererService {
                 EcadRendererService.#schematicSvgCache,
                 documentModel,
                 'schematic',
-                () => CircuitJsonSchematicSvgRenderer.render(documentModel)
+                () =>
+                    EcadCircuitJsonRendererService.renderSchematic(
+                        documentModel
+                    )
             )
         }
-
-        EcadRendererService.#assertSchematicRendererBackedDocument(
-            documentModel
-        )
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#schematicSvgCache,
+                documentModel,
+                'schematic',
+                () =>
+                    AltiumSchematicSvgRenderer.render(
+                        altiumDocument,
+                        EcadRendererService.#altiumSchematicRenderOptions(
+                            altiumDocument
+                        )
+                    )
+            )
+        }
         return EcadRendererService.#renderCached(
             EcadRendererService.#schematicSvgCache,
             documentModel,
@@ -75,9 +78,7 @@ export class EcadRendererService {
                 EcadRendererService.#isKiCad(documentModel)
                     ? KicadSchematicSvgRenderer.render(documentModel)
                     : AltiumSchematicSvgRenderer.render(
-                          EcadRendererService.#altiumSchematicRenderDocument(
-                              documentModel
-                          ),
+                          documentModel,
                           EcadRendererService.#altiumSchematicRenderOptions(
                               documentModel
                           )
@@ -93,12 +94,46 @@ export class EcadRendererService {
     static renderPcb(documentModel, options = {}) {
         const side = EcadRendererService.#normalizePcbSide(options.side)
         const renderKey = EcadRendererService.#pcbRenderCacheKey(side, options)
-        if (EcadRendererService.#isCircuitJson(documentModel)) {
+        const gerberDocument =
+            EcadGerberFabrication.nativeDocument(documentModel)
+        if (gerberDocument) {
             return EcadRendererService.#renderCached(
                 EcadRendererService.#pcbSvgCache,
                 documentModel,
                 renderKey,
-                () => CircuitJsonPcbSvgRenderer.render(documentModel, { side })
+                () =>
+                    EcadRendererService.#renderGerberPcb(
+                        gerberDocument,
+                        options,
+                        side
+                    )
+            )
+        }
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            const renderDocumentModel =
+                AltiumPcbFootprintPadAxisNormalizer.apply(altiumDocument)
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#pcbSvgCache,
+                documentModel,
+                renderKey,
+                () =>
+                    EcadRendererService.#renderAltiumPcb(
+                        renderDocumentModel,
+                        side
+                    )
+            )
+        }
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#pcbSvgCache,
+                documentModel,
+                side,
+                () =>
+                    EcadCircuitJsonRendererService.renderPcb(documentModel, {
+                        side
+                    })
             )
         }
 
@@ -135,11 +170,49 @@ export class EcadRendererService {
      */
     static hitTestPcb(documentModel, point, options = {}) {
         const side = EcadRendererService.#normalizePcbSide(options.side)
+        const gerberDocument =
+            EcadGerberFabrication.nativeDocument(documentModel)
+        if (gerberDocument) {
+            return EcadRendererService.#withResolvedPcbComponentKeys(
+                gerberDocument,
+                GerberPcbInteractionIndex.hitTestItems(
+                    EcadRendererService.#pcbInteractionItems(
+                        gerberDocument,
+                        GerberPcbInteractionIndex
+                    ),
+                    point,
+                    options
+                )
+            )
+        }
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            const hitTestDocumentModel =
+                AltiumPcbFootprintPadAxisNormalizer.apply(altiumDocument)
+            return EcadRendererService.#withResolvedPcbComponentKeys(
+                hitTestDocumentModel,
+                AltiumPcbInteractionIndex.hitTestItems(
+                    EcadRendererService.#pcbInteractionItems(
+                        hitTestDocumentModel,
+                        AltiumPcbInteractionIndex
+                    ),
+                    point,
+                    { ...options, side }
+                )
+            )
+        }
         if (EcadRendererService.#isCircuitJson(documentModel)) {
-            return PcbInteractionPrimitiveModel.hitTest(documentModel, point, {
-                ...options,
-                side
-            })
+            return EcadCircuitJsonRendererService.hitTestPcb(
+                documentModel,
+                point,
+                {
+                    side,
+                    hiddenLayers: options.hiddenLayers,
+                    hiddenObjects: options.hiddenObjects,
+                    tolerance: options.tolerance
+                }
+            )
         }
 
         const isKiCad = EcadRendererService.#isKiCad(documentModel)
@@ -190,8 +263,18 @@ export class EcadRendererService {
      * @returns {{ physicalLayers: object[], virtualLayers: object[] }}
      */
     static resolvePcbInteractionLayers(documentModel) {
+        const gerberDocument =
+            EcadGerberFabrication.nativeDocument(documentModel)
+        if (gerberDocument) {
+            return GerberPcbInteractionLayerModel.resolve(gerberDocument)
+        }
+        const altiumDocument =
+            AltiumExtensionResolver.nativeModel(documentModel)
+        if (altiumDocument) {
+            return AltiumPcbInteractionLayerModel.resolve(altiumDocument)
+        }
         if (EcadRendererService.#isCircuitJson(documentModel)) {
-            return PcbInteractionPrimitiveModel.resolveLayerGroups(
+            return EcadCircuitJsonRendererService.resolvePcbInteractionLayers(
                 documentModel
             )
         }
@@ -211,19 +294,18 @@ export class EcadRendererService {
      * @returns {string}
      */
     static renderBom(documentModel, options = {}) {
-        const rows = documentModel?.bom || []
+        const rows = EcadDocumentBom.resolve(documentModel)
         const translate = options.translate || null
-        const selectedComponentKey =
-            EcadRendererService.#normalizeBomSelectionKey(
-                options.selectedComponentKey
-            )
         if (typeof translate === 'function') {
-            return EcadRendererService.#renderLocalizedBom(
-                documentModel,
-                rows,
+            return EcadLocalizedBomRenderer.render(rows, {
+                isKiCad: EcadRendererService.#isKiCad(documentModel),
                 translate,
-                selectedComponentKey
-            )
+                selectedComponentKey: options.selectedComponentKey
+            })
+        }
+
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return EcadCircuitJsonRendererService.renderBom(documentModel)
         }
 
         return EcadRendererService.#isKiCad(documentModel)
@@ -258,10 +340,7 @@ export class EcadRendererService {
      * @returns {boolean}
      */
     static #isCircuitJson(documentModel) {
-        return (
-            EcadFormatRegistry.sourceFormatForDocument(documentModel) ===
-            'circuitjson'
-        )
+        return EcadFormatRegistry.isCircuitJsonDocument(documentModel)
     }
     /**
      * Applies the format-owned rectangular pad axis normalization.
@@ -272,45 +351,6 @@ export class EcadRendererService {
         return EcadRendererService.#isKiCad(documentModel)
             ? KicadPcbFootprintPadAxisNormalizer.apply(documentModel)
             : AltiumPcbFootprintPadAxisNormalizer.apply(documentModel)
-    }
-    /**
-     * Returns a render-only Altium schematic model with hidden fallback labels suppressed.
-     * @param {object} documentModel Document model.
-     * @returns {object}
-     */
-    static #altiumSchematicRenderDocument(documentModel) {
-        const components = documentModel?.schematic?.components || []
-        if (
-            !components.some(
-                (component) => component?.schematicDesignatorVisible === false
-            )
-        ) {
-            return documentModel
-        }
-
-        return {
-            ...documentModel,
-            schematic: {
-                ...documentModel.schematic,
-                components: components.map((component) =>
-                    component?.schematicDesignatorVisible === false
-                        ? { ...component, designator: '' }
-                        : component
-                )
-            }
-        }
-    }
-    /**
-     * Throws when a document does not have a schematic SVG renderer.
-     * @param {object} documentModel Document model.
-     * @returns {void}
-     */
-    static #assertSchematicRendererBackedDocument(documentModel) {
-        if (EcadRendererService.#isCircuitJson(documentModel)) {
-            throw new Error(
-                'Element-array documents do not provide schematic SVG rendering.'
-            )
-        }
     }
     /**
      * Builds Altium schematic renderer options from document context.
@@ -470,300 +510,6 @@ export class EcadRendererService {
             (typeof documentModel === 'object' ||
                 typeof documentModel === 'function')
         )
-    }
-    /**
-     * Renders BOM rows with app-localized table chrome.
-     * @param {object} documentModel Document model.
-     * @param {object[]} rows BOM rows.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {string}
-     */
-    static #renderLocalizedBom(
-        documentModel,
-        rows,
-        translate,
-        selectedComponentKey
-    ) {
-        const normalizedRows = Array.isArray(rows) ? rows : []
-        const isKiCad = EcadRendererService.#isKiCad(documentModel)
-
-        if (!normalizedRows.length) {
-            return EcadRendererService.#renderLocalizedBomEmpty(
-                isKiCad,
-                translate
-            )
-        }
-
-        const tableMarkup = EcadRendererService.#renderLocalizedBomTable(
-            normalizedRows,
-            EcadRendererService.#resolveBomColumnKeys(isKiCad),
-            translate,
-            selectedComponentKey
-        )
-
-        if (isKiCad) {
-            return tableMarkup
-        }
-
-        return (
-            '<section class="bom-panel"><header class="bom-panel__header"><h3>' +
-            EcadRendererService.#escapeHtml(
-                EcadRendererService.#translateBom(translate, 'view.bom')
-            ) +
-            '</h3><p>' +
-            normalizedRows.length +
-            ' ' +
-            EcadRendererService.#escapeHtml(
-                EcadRendererService.#translateBom(
-                    translate,
-                    'preview.groupedRows'
-                )
-            ) +
-            '</p></header>' +
-            tableMarkup +
-            '</section>'
-        )
-    }
-    /**
-     * Renders an empty BOM message with the source-format wrapper class.
-     * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderLocalizedBomEmpty(isKiCad, translate) {
-        const className = isKiCad ? 'bom-empty' : 'altium-renderer-empty'
-
-        return (
-            '<section class="' +
-            className +
-            '">' +
-            EcadRendererService.#escapeHtml(
-                EcadRendererService.#translateBom(translate, 'bom.empty')
-            ) +
-            '</section>'
-        )
-    }
-    /**
-     * Renders the localized BOM table element.
-     * @param {object[]} rows BOM rows.
-     * @param {string[]} columnKeys Ordered column keys.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {string}
-     */
-    static #renderLocalizedBomTable(
-        rows,
-        columnKeys,
-        translate,
-        selectedComponentKey
-    ) {
-        let headerMarkup = ''
-        let bodyMarkup = ''
-
-        for (const columnKey of columnKeys) {
-            headerMarkup += EcadRendererService.#renderLocalizedBomHeaderCell(
-                columnKey,
-                translate
-            )
-        }
-
-        for (const row of rows) {
-            bodyMarkup += EcadRendererService.#renderLocalizedBomRow(
-                row,
-                columnKeys,
-                selectedComponentKey
-            )
-        }
-
-        return (
-            '<table class="bom-table"><thead><tr>' +
-            headerMarkup +
-            '</tr></thead><tbody>' +
-            bodyMarkup +
-            '</tbody></table>'
-        )
-    }
-    /**
-     * Renders one localized BOM header cell.
-     * @param {string} columnKey BOM column key.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @returns {string}
-     */
-    static #renderLocalizedBomHeaderCell(columnKey, translate) {
-        return (
-            '<th>' +
-            EcadRendererService.#escapeHtml(
-                EcadRendererService.#translateBom(translate, 'bom.' + columnKey)
-            ) +
-            '</th>'
-        )
-    }
-    /**
-     * Renders one BOM row using the requested column order.
-     * @param {object} row BOM row.
-     * @param {string[]} columnKeys Ordered column keys.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {string}
-     */
-    static #renderLocalizedBomRow(row, columnKeys, selectedComponentKey) {
-        let cellMarkup = ''
-        const selected = EcadRendererService.#bomRowHasDesignator(
-            row,
-            selectedComponentKey
-        )
-
-        for (const columnKey of columnKeys) {
-            cellMarkup += EcadRendererService.#renderLocalizedBomCell(
-                row,
-                columnKey,
-                selectedComponentKey
-            )
-        }
-        const attributes = EcadBomRowAttributes.render(row)
-
-        if (!selected) {
-            return '<tr' + attributes + '>' + cellMarkup + '</tr>'
-        }
-
-        return (
-            '<tr class="bom-table__row--selected" data-bom-selected-component-key="' +
-            EcadRendererService.#escapeHtml(selectedComponentKey) +
-            '"' +
-            attributes +
-            '>' +
-            cellMarkup +
-            '</tr>'
-        )
-    }
-
-    /**
-     * Renders one localized BOM cell.
-     * @param {object} row BOM row.
-     * @param {string} columnKey BOM column key.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {string}
-     */
-    static #renderLocalizedBomCell(row, columnKey, selectedComponentKey) {
-        if (columnKey === 'designators') {
-            return (
-                '<td>' +
-                EcadRendererService.#renderLocalizedBomDesignators(
-                    row,
-                    selectedComponentKey
-                ) +
-                '</td>'
-            )
-        }
-
-        return (
-            '<td>' +
-            EcadRendererService.#escapeHtml(
-                EcadRendererService.#readBomCellValue(row, columnKey)
-            ) +
-            '</td>'
-        )
-    }
-    /**
-     * Renders BOM designators with the selected component emphasized.
-     * @param {object} row BOM row.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {string}
-     */
-    static #renderLocalizedBomDesignators(row, selectedComponentKey) {
-        const designators = EcadRendererService.#bomDesignators(row)
-        if (!designators.length) {
-            return EcadRendererService.#escapeHtml(
-                EcadRendererService.#readBomCellValue(row, 'designators')
-            )
-        }
-
-        return designators
-            .map((designator) =>
-                designator === selectedComponentKey
-                    ? '<mark class="bom-table__selected-designator">' +
-                      EcadRendererService.#escapeHtml(designator) +
-                      '</mark>'
-                    : EcadRendererService.#escapeHtml(designator)
-            )
-            .join(', ')
-    }
-    /**
-     * Returns true when a BOM row includes one exact designator.
-     * @param {object} row BOM row.
-     * @param {string} selectedComponentKey Selected component key.
-     * @returns {boolean}
-     */
-    static #bomRowHasDesignator(row, selectedComponentKey) {
-        return Boolean(
-            selectedComponentKey &&
-            EcadRendererService.#bomDesignators(row).includes(
-                selectedComponentKey
-            )
-        )
-    }
-    /**
-     * Returns normalized BOM row designators.
-     * @param {object} row BOM row.
-     * @returns {string[]}
-     */
-    static #bomDesignators(row) {
-        if (!Array.isArray(row?.designators)) {
-            return []
-        }
-
-        return row.designators.map((designator) => String(designator).trim())
-    }
-    /**
-     * Normalizes one selected component key.
-     * @param {unknown} value Selected component candidate.
-     * @returns {string}
-     */
-    static #normalizeBomSelectionKey(value) {
-        return String(value || '').trim()
-    }
-    /**
-     * Reads one BOM row cell value.
-     * @param {object} row BOM row.
-     * @param {string} columnKey BOM column key.
-     * @returns {string}
-     */
-    static #readBomCellValue(row, columnKey) {
-        if (columnKey === 'designators') {
-            return Array.isArray(row?.designators)
-                ? row.designators.join(', ')
-                : ''
-        }
-
-        if (columnKey === 'quantity') {
-            return String(row?.quantity || row?.designators?.length || 0)
-        }
-
-        return String(row?.[columnKey] || '')
-    }
-    /**
-     * Returns the renderer-compatible BOM column order.
-     * @param {boolean} isKiCad Whether the document uses the KiCad renderer shape.
-     * @returns {string[]}
-     */
-    static #resolveBomColumnKeys(isKiCad) {
-        return isKiCad
-            ? ['designators', 'quantity', 'value', 'pattern', 'source']
-            : ['designators', 'quantity', 'pattern', 'value', 'source']
-    }
-    /**
-     * Translates one BOM UI key with an English fallback.
-     * @param {(key: string) => string} translate Translation lookup.
-     * @param {string} key Message key.
-     * @returns {string}
-     */
-    static #translateBom(translate, key) {
-        const value = translate(key)
-        if (!value || value === key) {
-            return BOM_TRANSLATION_FALLBACKS[key] || key
-        }
-
-        return value
     }
     /**
      * Renders KiCad PCB SVG with an app-scoped marker class for palette fixes.
@@ -969,18 +715,6 @@ export class EcadRendererService {
                 .map(String)
                 .join(',')
         ].join('|')
-    }
-    /**
-     * Escapes text for safe insertion into renderer-owned HTML.
-     * @param {unknown} value Raw value.
-     * @returns {string}
-     */
-    static #escapeHtml(value) {
-        return String(value ?? '')
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
     }
     /**
      * Normalizes the app-level PCB side option.

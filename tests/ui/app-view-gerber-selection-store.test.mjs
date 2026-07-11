@@ -101,3 +101,38 @@ test('AppViewGerberRenderSelectionStore resets to composite', () => {
         layerIds: []
     })
 })
+
+test('AppViewGerberRenderSelectionStore reads canonical Gerber source extensions', () => {
+    const store = new AppViewGerberRenderSelectionStore()
+    const nativeDocument = createSnapshot().documentModel
+    const documentModel = {
+        schema: 'ecad-toolkit.document.v1',
+        source: { fileName: 'fabrication.zip', format: 'gerber' },
+        model: [
+            {
+                type: 'pcb_board',
+                pcb_board_id: 'board_1',
+                center: { x: 0, y: 0 },
+                width: 10,
+                height: 5
+            }
+        ],
+        extensions: { gerber: { native: nativeDocument } }
+    }
+    const snapshot = {
+        activeDocumentId: 'doc-1',
+        documentModel,
+        documents: [{ id: 'doc-1', documentModel }]
+    }
+
+    const result = store.apply(
+        {
+            documentId: 'doc-1',
+            renderMode: 'separated',
+            layerId: 'bottom-copper'
+        },
+        snapshot
+    )
+
+    assert.deepEqual(result?.selection.layerIds, ['bottom-copper'])
+})

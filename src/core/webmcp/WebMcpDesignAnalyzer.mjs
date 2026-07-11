@@ -1,4 +1,10 @@
-import { ComponentGrouping } from 'altium-toolkit/netlist-query'
+import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadDocumentBom } from '../ecad/EcadDocumentBom.mjs'
+import { EcadDocumentComponents } from '../ecad/EcadDocumentComponents.mjs'
+import { EcadDocumentConnectivity } from '../ecad/EcadDocumentConnectivity.mjs'
+import { EcadDocumentDiagnostics } from '../ecad/EcadDocumentDiagnostics.mjs'
+import { EcadDocumentSummary } from '../ecad/EcadDocumentSummary.mjs'
+import { EcadDocumentType } from '../ecad/EcadDocumentType.mjs'
 
 /**
  * Builds WebMCP review, audit, pagination, and cross-reference summaries.
@@ -236,8 +242,8 @@ export class WebMcpDesignAnalyzer {
      */
     static hasSchematicNets(documentModel) {
         return Boolean(
-            Array.isArray(documentModel?.schematic?.nets) &&
-            documentModel.schematic.nets.length
+            EcadDocumentType.isSchematic(documentModel) &&
+            EcadDocumentConnectivity.resolve(documentModel).nets.length
         )
     }
 
@@ -247,13 +253,11 @@ export class WebMcpDesignAnalyzer {
      * @returns {boolean}
      */
     static hasPcbPads(documentModel) {
+        const summary = EcadDocumentSummary.resolve(documentModel)
         return Boolean(
-            (Array.isArray(documentModel?.pcb?.nets) &&
-                documentModel.pcb.nets.length) ||
-            (Array.isArray(documentModel?.pcb?.components) &&
-                documentModel.pcb.components.some((component) =>
-                    Array.isArray(component?.pads)
-                ))
+            EcadDocumentType.isPcb(documentModel) &&
+            (summary.padCount ||
+                EcadDocumentConnectivity.resolve(documentModel).nets.length)
         )
     }
 
@@ -264,7 +268,7 @@ export class WebMcpDesignAnalyzer {
      */
     static entryName(entry) {
         return (
-            String(entry?.documentModel?.summary?.title || '') ||
+            EcadDocumentSummary.resolve(entry?.documentModel).title ||
             entry?.baseName ||
             entry?.fileName ||
             entry?.id ||
@@ -284,8 +288,9 @@ export class WebMcpDesignAnalyzer {
         return {
             id: entry.id,
             name: WebMcpDesignAnalyzer.entryName(entry),
-            fileName: entry.fileName,
-            kind: String(documentModel?.kind || 'document'),
+            fileName:
+                entry.fileName || EcadDocumentType.fileName(documentModel),
+            kind: EcadDocumentType.kind(documentModel),
             sourceFormat: entry.sourceFormat,
             active: entry.active,
             components:
@@ -341,14 +346,9 @@ export class WebMcpDesignAnalyzer {
 
         for (const entry of entries) {
             const counts = new Map()
-            for (const refdes of [
-                ...WebMcpDesignAnalyzer.#componentDesignators(
-                    entry.documentModel?.schematic?.components
-                ),
-                ...WebMcpDesignAnalyzer.#componentDesignators(
-                    entry.documentModel?.pcb?.components
-                )
-            ]) {
+            for (const refdes of WebMcpDesignAnalyzer.#componentDesignators(
+                EcadDocumentComponents.resolve(entry.documentModel)
+            )) {
                 counts.set(refdes, (counts.get(refdes) || 0) + 1)
             }
 
@@ -416,11 +416,11 @@ export class WebMcpDesignAnalyzer {
         const issues = []
 
         for (const entry of entries) {
-            const nets = Array.isArray(entry.documentModel?.schematic?.nets)
-                ? entry.documentModel.schematic.nets
-                : []
+            const nets = EcadDocumentConnectivity.resolve(
+                entry.documentModel
+            ).nets
             if (
-                String(entry.documentModel?.kind || '') === 'schematic' &&
+                EcadDocumentType.isSchematic(entry.documentModel) &&
                 !nets.length
             ) {
                 issues.push({
@@ -462,22 +462,9 @@ export class WebMcpDesignAnalyzer {
         for (const entry of entries) {
             const designKey = entry.baseName || entry.id
             const design = WebMcpDesignAnalyzer.entryName(entry)
-            for (const component of entry.documentModel?.schematic
-                ?.components || []) {
-                const refdes = WebMcpDesignAnalyzer.#refdes(component)
-                if (!refdes) continue
-                WebMcpDesignAnalyzer.#mergeMetadataRecord(records, {
-                    key: designKey + ':' + refdes,
-                    design,
-                    refdes,
-                    value: component?.value,
-                    description: component?.description || component?.comment,
-                    mpn: WebMcpDesignAnalyzer.#componentMpn(component)
-                })
-            }
-
-            for (const component of entry.documentModel?.pcb?.components ||
-                []) {
+            for (const component of EcadDocumentComponents.resolve(
+                entry.documentModel
+            )) {
                 const refdes = WebMcpDesignAnalyzer.#refdes(component)
                 if (!refdes) continue
                 WebMcpDesignAnalyzer.#mergeMetadataRecord(records, {
@@ -494,7 +481,7 @@ export class WebMcpDesignAnalyzer {
                 })
             }
 
-            for (const row of entry.documentModel?.bom || []) {
+            for (const row of EcadDocumentBom.resolve(entry.documentModel)) {
                 for (const refdes of row?.designators || []) {
                     const normalizedRefdes = String(refdes || '').trim()
                     if (!normalizedRefdes) continue
@@ -574,7 +561,7 @@ export class WebMcpDesignAnalyzer {
      */
     static #schematicPinsForNet(documentModel, netName) {
         const pins = new Set()
-        const net = (documentModel?.schematic?.nets || []).find(
+        const net = EcadDocumentConnectivity.resolve(documentModel).nets.find(
             (candidate) =>
                 String(candidate?.name || '').toLowerCase() ===
                 String(netName || '').toLowerCase()
@@ -601,7 +588,8 @@ export class WebMcpDesignAnalyzer {
         const pads = new Set()
         const normalizedNet = String(netName || '').toLowerCase()
 
-        for (const net of documentModel?.pcb?.nets || []) {
+        for (const net of EcadDocumentConnectivity.resolve(documentModel)
+            .nets) {
             if (String(net?.name || '').toLowerCase() !== normalizedNet) {
                 continue
             }
@@ -618,7 +606,7 @@ export class WebMcpDesignAnalyzer {
             }
         }
 
-        for (const component of documentModel?.pcb?.components || []) {
+        for (const component of EcadDocumentComponents.resolve(documentModel)) {
             const refdes = WebMcpDesignAnalyzer.#refdes(component)
             if (!refdes) continue
             for (const pad of component?.pads || []) {
@@ -646,8 +634,8 @@ export class WebMcpDesignAnalyzer {
      */
     static #schematicNetNames(documentModel) {
         return WebMcpDesignAnalyzer.#naturalSorted(
-            (documentModel?.schematic?.nets || [])
-                .map((net) => String(net?.name || '').trim())
+            EcadDocumentConnectivity.resolve(documentModel)
+                .nets.map((net) => String(net?.name || '').trim())
                 .filter(Boolean)
         )
     }
@@ -660,12 +648,13 @@ export class WebMcpDesignAnalyzer {
     static #pcbNetNames(documentModel) {
         const names = new Set()
 
-        for (const net of documentModel?.pcb?.nets || []) {
+        for (const net of EcadDocumentConnectivity.resolve(documentModel)
+            .nets) {
             const name = String(net?.name || '').trim()
             if (name) names.add(name)
         }
 
-        for (const component of documentModel?.pcb?.components || []) {
+        for (const component of EcadDocumentComponents.resolve(documentModel)) {
             for (const pad of component?.pads || []) {
                 const name = WebMcpDesignAnalyzer.#padNetName(pad)
                 if (name) names.add(name)
@@ -683,12 +672,11 @@ export class WebMcpDesignAnalyzer {
     static #documentDesignators(documentModel) {
         return new Set([
             ...WebMcpDesignAnalyzer.#componentDesignators(
-                documentModel?.schematic?.components
+                EcadDocumentComponents.resolve(documentModel)
             ),
-            ...WebMcpDesignAnalyzer.#componentDesignators(
-                documentModel?.pcb?.components
-            ),
-            ...WebMcpDesignAnalyzer.#bomDesignators(documentModel?.bom)
+            ...WebMcpDesignAnalyzer.#bomDesignators(
+                EcadDocumentBom.resolve(documentModel)
+            )
         ])
     }
 
@@ -723,9 +711,7 @@ export class WebMcpDesignAnalyzer {
      * @returns {object[]}
      */
     static #diagnostics(documentModel) {
-        return Array.isArray(documentModel?.diagnostics)
-            ? documentModel.diagnostics
-            : []
+        return EcadDocumentDiagnostics.resolve(documentModel)
     }
 
     /**

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { AppState } from '../src/core/AppState.mjs'
 import { PcbObjectVisibilityModel } from '../src/core/PcbObjectVisibilityModel.mjs'
 
@@ -20,6 +21,20 @@ test('AppState initializes with defaults', () => {
     assert.deepEqual(snapshot.selectedPcbComponents, {})
     assert.equal(snapshot.autoSearchMissingModels, false)
     assert.equal(snapshot.documentModel, null)
+})
+
+test('AppState exposes canonical source file names without decoration', () => {
+    const documentModel = Parser.parse({
+        fileName: 'boards/main.json',
+        data: '[]'
+    })
+    const state = new AppState({
+        documents: [{ id: 'doc-1', documentModel }],
+        activeDocumentId: 'doc-1'
+    })
+
+    assert.equal(state.getSnapshot().activeFileName, 'boards/main.json')
+    assert.equal(state.getSnapshot().documentModel, documentModel)
 })
 
 /**

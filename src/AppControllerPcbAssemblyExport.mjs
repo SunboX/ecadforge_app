@@ -1,5 +1,9 @@
 import { AppControllerParserData } from './AppControllerParserData.mjs'
-import { CircuitJsonManufacturingDownloadBuilder } from 'circuitjson-toolkit/renderers'
+import { ManufacturingService } from 'circuitjson-toolkit/manufacturing'
+
+const MANUFACTURING_FORMATS = new Set(
+    ManufacturingService.listExports([]).map((entry) => entry.id)
+)
 
 /**
  * Handles whole-PCB 3D assembly exports from sidebar actions.
@@ -21,7 +25,7 @@ export class AppControllerPcbAssemblyExport {
                 ?.documentModel || snapshot.documentModel
         const format = String(change?.format || 'step')
 
-        if (CircuitJsonManufacturingDownloadBuilder.supportsFormat(format)) {
+        if (MANUFACTURING_FORMATS.has(format)) {
             AppControllerPcbAssemblyExport.#handleManufacturingDownload(
                 options,
                 documentModel,
@@ -92,14 +96,13 @@ export class AppControllerPcbAssemblyExport {
      */
     static #handleManufacturingDownload(options, documentModel, format) {
         try {
-            const download = CircuitJsonManufacturingDownloadBuilder.build(
-                documentModel,
-                format
-            )
+            const download = ManufacturingService.export(documentModel, {
+                id: format
+            })
             options.view.downloadBytes?.(
                 download.fileName,
-                download.bytes,
-                download.contentType
+                download.data,
+                download.mediaType
             )
             options.view.setStatus?.('Exported ' + download.fileName)
         } catch (error) {

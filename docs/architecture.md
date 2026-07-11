@@ -12,21 +12,19 @@
 - `src/GitSourceUrlResolver.mjs`: Git host URL normalization and folder API entry resolution for GitHub and GitLab sources
 - `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation, view, and WebMCP method-usage events without file names, raw URLs, contents, or WebMCP payload data
 - `src/core/AppState.mjs`: normalized view state container
-- `src/core/ecad/*.mjs`: format registry plus parser, renderer, and scene facades
+- `src/core/ecad/*.mjs`: format registry, common parser/project facade, and
+  shared CircuitJSON context/render/interaction/scene services
 - `src/core/simulation/*.mjs`: local SPICE simulation worker client and message contract
 - `src/core/webmcp/*.mjs`: configured WebMCP runtime loader, adapter, and read-only loaded-session dispatch to toolkit-owned netlist query services
-- `altium-toolkit/parser`: printable-run extraction, OLE/binary helpers, and normalized schematic/PCB model parsing
-- `altium-toolkit/renderers`: deterministic schematic SVG, PCB SVG, and BOM HTML renderers
-- `altium-toolkit/netlist-query`: normalized Altium netlist extraction, search validation, component grouping, and traversal rules
-- `altium-toolkit/scene3d`: complete non-interactive Altium PCB 3D scene-description builders, board-outline refinement, silkscreen drill cutouts, and model registry logic
-- `kicad-toolkit/parser`: KiCad 9 schematic/PCB/project loading and normalized model parsing
-- `kicad-toolkit/renderers`: deterministic KiCad schematic SVG, PCB SVG, and BOM HTML renderers
-- `kicad-toolkit/netlist-query`: normalized KiCad netlist extraction, search validation, component grouping, and traversal rules
-- `kicad-toolkit/scene3d`: complete data-only KiCad PCB 3D scene-description builders, external placement metadata, copper text detail, and model registry logic
-- `gerber-toolkit/parser`: Gerber/Excellon project loading, fabrication ZIP expansion, source-layer classification, and normalized fabrication models
-- `gerber-toolkit/renderers`: deterministic Gerber PCB SVG rendering and PCB interaction helpers
-- `gerber-toolkit/scene3d`: bare-board Gerber 3D scene-description builders from outline, copper, pad, and drill fabrication geometry
-- `circuitjson-toolkit`: CircuitJSON parsing and local SPICE transient graph helpers for standards-native board, assembly, and simulation data
+- Toolkit roots: the same 17 common parser, project, document-context,
+  renderer, interaction, query, manufacturing, simulation, scene,
+  capabilities, units, and error classes across all four source packages
+- Toolkit `/extensions`: retained source-native renderers, query helpers,
+  workers, extension resolvers, and detailed inspection APIs used only when no
+  source-neutral equivalent exists
+- `circuitjson-toolkit`: immutable CircuitJSON documents, reusable indexes and
+  derived caches, deterministic rendering and interaction, manufacturing,
+  local simulation, and canonical scene preparation
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
@@ -43,23 +41,78 @@
 The current parser is intentionally pragmatic:
 
 1. Load native Altium files, KiCad files, Gerber/Excellon fabrication data, CircuitJSON documents, or project bundles in the browser
-2. Extract long printable runs from Altium binary documents, read KiCad project entries, expand Gerber ZIP archives, or parse standalone CircuitJSON JSON
+2. Pass intact source/project entries to the owning toolkit; source libraries
+   decode Altium containers, KiCad projects/ZIPs, Gerber packages, and
+   standalone CircuitJSON
 3. Parse pipe-delimited Altium-style key/value records, KiCad 9 S-expressions, Gerber/Excellon commands, or CircuitJSON objects from those sources
-4. Normalize the recovered data into one shared viewer model with `sourceFormat` as an additive discriminator
-5. Build additive schematic hierarchy, embedded-image, BOM, and connectivity metadata where supported
-6. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model. Schematic net diagnostics stay read-only and can emit staged geometry checks, restricted centerline crossings, supplemental island connection candidates, guideline-snapped elbow candidates, endpoint-preserving jog candidates, whole-island lane-shift candidates with obstacle-aware offsets, label relocation candidates, congested L-turn reroutes, merged-label trace detours, long-distance connection candidates, section-boundary connection candidates, balanced path-cleanup candidates, label placement rejection reasons, constrained label-orientation and power-label corner candidates, symbol body and pin-fit candidates, per-advisor candidate budgets, candidate decision timelines with score and collision-source metadata, stage health rows, and semantic same-side label groups. The PCB tab uses deterministic SVG renderers for normalized native boards, Gerber fabrication data, and standards-shaped element-array boards, including rich detail artwork, routed silkscreen and fabrication paths, aligned and knockout PCB text, shape-specific courtyard rows, in-board diagnostics, source-connectivity rats-nest overlays, source-net group metadata, trace-length budget labels, solder-mask/paste inspection layers, group outlines, and anchor-offset overlays, then applies app-local layer visibility, in-board object and component-side visibility settings, object opacity, component highlight, net hover/selection highlight, persistent diagnostic focus with related primitive previews, animated diagnostic viewport focus, reset/fit and opt-in hover-focus toolbar actions, sidebar candidate previews, and measurement overlays with bounds copy, zoom, selection, and clipped SVG/PNG export.
+4. Normalize shared data as CircuitJSON, accepting canonical document
+   envelopes with `source.format` and retained native compatibility arrays with
+   `sourceFormat`
+5. Keep normal app state canonical. Altium and KiCad project strings, drawing
+   primitives, hierarchy sheet symbols, image references, and hidden
+   designator visibility are projected by their owning toolkits. The shared
+   CircuitJSON renderer consumes those elements and asset bytes directly; no
+   legacy fields are copied onto the document envelope and the app does not
+   clone, rewrite, or source-route native schematic rows before rendering.
+   Explicit native extensions remain available only for source-specific APIs.
+6. Build additive BOM and connectivity metadata where supported
+7. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model. Schematic net diagnostics stay read-only and can emit staged geometry checks, restricted centerline crossings, supplemental island connection candidates, guideline-snapped elbow candidates, endpoint-preserving jog candidates, whole-island lane-shift candidates with obstacle-aware offsets, label relocation candidates, congested L-turn reroutes, merged-label trace detours, long-distance connection candidates, section-boundary connection candidates, balanced path-cleanup candidates, label placement rejection reasons, constrained label-orientation and power-label corner candidates, symbol body and pin-fit candidates, per-advisor candidate budgets, candidate decision timelines with score and collision-source metadata, stage health rows, and semantic same-side label groups. The PCB tab uses deterministic SVG renderers for normalized native boards, Gerber fabrication data, and standards-shaped element-array boards, including rich detail artwork, routed silkscreen and fabrication paths, aligned and knockout PCB text, shape-specific courtyard rows, in-board diagnostics, source-connectivity rats-nest overlays, source-net group metadata, trace-length budget labels, solder-mask/paste inspection layers, group outlines, and anchor-offset overlays, then applies app-local layer visibility, in-board object and component-side visibility settings, object opacity, component highlight, net hover/selection highlight, persistent diagnostic focus with related primitive previews, animated diagnostic viewport focus, reset/fit and opt-in hover-focus toolbar actions, sidebar candidate previews, and measurement overlays with bounds copy, zoom, selection, and clipped SVG/PNG export.
 
 This is still not full binary reconstruction. It is a browser-first recovery strategy that mixes printable record parsing with targeted OLE stream access where the format clearly requires it, such as embedded schematic images, embedded PCB STEP payloads, and richer PCB stream recovery.
 
 ## Data Flow
 
-1. User selects or drops Altium files, KiCad files, Gerber/Excellon files, fabrication ZIPs, CircuitJSON JSON, a KiCad project folder/ZIP, or companion model files
-2. `AppController` stores any companion 3D assets in session state and posts supported design or fabrication files to the parser worker
-3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches to the Altium, KiCad, Gerber, or CircuitJSON toolkit
-4. The normalized document model, including diagnostics and additive connectivity metadata, is posted back to the main thread
+1. User selects or drops Altium files, KiCad files, Gerber/Excellon files, fabrication ZIPs, CircuitJSON JSON, a KiCad project folder/ZIP, or STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF companion model files
+2. `AppController` classifies every supported companion format, including 3MF
+   and the distinct `.vrml` format, stores the unchanged 3D asset in session
+   state, and posts supported design or fabrication files to the parser worker
+3. `ecad-parser.worker.mjs` runs `EcadParserService`, which dispatches through
+   each toolkit's identical common `Parser` or `ProjectLoader` contract. ZIP
+   ownership is content-checked, and generic model companions are routed with
+   each active project owner. Independent format groups run concurrently and
+   are folded back into stable toolkit order. Local Altium, KiCad, and
+   CircuitJSON groups use bounded full asset decoding so viewer/export
+   consumers receive real bytes.
+4. The document model, including diagnostics and additive connectivity
+   metadata, is posted back to the main thread; canonical envelopes keep
+   CircuitJSON in `model`. KiCad `${KIPRJMOD}` model references resolve from
+   the owning `.kicad_pro` directory (or board directory when project metadata
+   is absent) and link canonical `cad_component` rows to the exact project
+   asset name. Canonical schematic image elements similarly resolve exact
+   document asset bytes through `asset_id`. Each visible native model stays separate, parsed board thickness
+   sets its top/bottom surface height, and model-local transforms remain
+   independent from footprint board placement.
 5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
 6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, mounts the 2D PCB interaction controller for board selection, view settings, reset/fit, opt-in hover focus, visibility-aware hover/bounds candidate previews, persistent diagnostic focus, measurement actions, and clipped bounds exports, and mounts the interactive 3D controller when needed
-7. The app uses `EcadScene3dService` to choose the Altium, KiCad, Gerber, or CircuitJSON scene-description path. Gerber documents render as fabrication-derived bare boards without component bodies. The local 3D runtime resolves embedded STEP payloads from the normalized PCB model first, falls back to companion STEP, WRL, GLB, GLTF, STL, or OBJ assets from the active session or hosted Git project folder, and can add matching remote model assets only when the missing-model search preference is enabled. KiCad library paths are fetched directly from the public KiCad 3D package library, with a same-folder package-index fallback for close package filename matches when exact model names are absent; generic component-source searches use the same-origin `/api/component-source/*` proxy. Whole-board assembly export reuses the same scene-description and model-resolution path, then writes mesh-derived STEP B-rep, WRL, GLTF, or GLB geometry for the board substrate, copper, silkscreen, pads, vias, resolved component models, and fallback bodies for unresolved models; mesh imports preserve translucent material alpha and OBJ sidecar material colors, and GLTF/GLB exports attach rendered top and bottom PCB artwork as configurable board-face textures when the active document can render PCB views.
+7. The app reuses one `CircuitJsonDocumentContext` for canonical or
+   source-neutral documents across 2D rendering, interaction, and 3D scene
+   preparation. `EcadScene3dService` routes canonical envelopes directly
+   through the CircuitJSON adapter; the viewer itself resolves document and
+   session CAD assets. Gerber documents render as fabrication-derived bare
+   boards without component bodies. Routed plated slots retain their canonical
+   polygon pad extents, pill drill dimensions, and one board-space rotation
+   through the shared CircuitJSON hole primitive model. Disjoint Gerber profile
+   loops remain separate viewer and export substrates. The local 3D runtime resolves embedded
+   STEP payloads from the normalized PCB model first, then accepts companion
+   STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, or 3MF assets from the canonical
+   document, active session, or hosted Git project folder. The viewer attaches
+   safe project-relative GLTF BIN, OBJ MTL, and WRL texture resources directly
+   and keys model/group/request caches by exact source identity, so equal
+   basenames in different folders cannot collide. No URL-backed model is loaded
+   unless missing-model search or an export caller supplies an explicit fetch
+   policy. KiCad library paths are fetched
+   directly from the public KiCad 3D package library, with a same-folder
+   package-index fallback for close package filename matches when exact model
+   names are absent; generic component-source searches use the same-origin
+   `/api/component-source/*` proxy. Whole-board assembly export reuses the same
+   scene-description and model-resolution path, then writes mesh-derived STEP
+   B-rep, WRL, GLTF, or GLB geometry for the board substrate, copper,
+   silkscreen, pads, vias, resolved component models, and fallback bodies for
+   unresolved models; mesh imports preserve translucent material alpha, vertex
+   colors, and OBJ sidecar materials, and GLTF/GLB exports attach rendered top
+   and bottom PCB artwork as configurable board-face textures when the active
+   document can render PCB views. The viewer's raw-model ZIP path preserves all
+   source formats, including 3MF, without converting them.
 8. `WebMcpRuntimeLoader` loads `@mcp-b/global` with same-origin tab and iframe transport options, preserving native WebMCP when present and providing package runtime support when native support is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
 9. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
 10. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
@@ -119,8 +172,8 @@ schematic connectivity is unavailable.
 - `GET /api/component-source.php?path=...`: PHP/shared-hosting alias for the same component-source proxy paths; the upstream timeout defaults to 5 seconds and can be tuned with `ECAD_FORGE_COMPONENT_SOURCE_TIMEOUT_SECONDS`
 - `GET /robots.txt`: crawler policy that allows public app crawling and points to the production sitemap
 - `GET /sitemap.xml`: production sitemap for the app shell and crawlable view URLs
-- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Toolkit `.mjs` files and browser `.js` dependencies are rewritten by the local server so module workers receive versioned absolute browser dependency URLs without relying on the page import map. The `/vendor/occt-import-js/dist/*` and `/node_modules/occt-import-js/dist/*` aliases are intentionally registered first and serve the app-owned OCCT JavaScript and WASM assets raw so the generated importer bundle remains byte-for-byte unchanged.
+- `GET /node_modules/*`: localhost alias for the browser dependency tree that FTP deployment publishes directly. Toolkit `.mjs` files and browser `.js` dependencies are rewritten by the local server so module workers receive versioned absolute browser dependency URLs without relying on the page import map. `/node_modules/@sunbox/occt-import-js/dist/*` is served first from the installed package and remains byte-for-byte unchanged, including its ESM factory, WASM, and package-owned worker.
 
 ## Static Deployment
 
-The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, copies the required browser dependency modules into `.deploy-src/node_modules/`, including the bundled `@mcp-b/global` runtime, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, and `package.json` to `/`; the processed browser module tree reaches `/node_modules/` only through the `.deploy-src/` artifact upload.
+The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, copies the required browser dependency modules into `.deploy-src/node_modules/`, including the bundled `@mcp-b/global` runtime and the installed `@sunbox/occt-import-js/dist/` tree, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. Generated OCCT JavaScript, worker, and WASM assets are copied without rewriting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, and `package.json` to `/`; the processed browser module tree reaches `/node_modules/` only through the `.deploy-src/` artifact upload.

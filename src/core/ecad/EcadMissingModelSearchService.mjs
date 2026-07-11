@@ -1,3 +1,6 @@
+import { EcadDocumentComponents } from './EcadDocumentComponents.mjs'
+import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+
 /**
  * Searches for missing PCB 3D model assets through an injected source client.
  */
@@ -82,9 +85,13 @@ export class EcadMissingModelSearchService {
      * @returns {object[]}
      */
     #findUnresolvedComponents(documentModel, sessionAssets) {
-        const components = Array.isArray(documentModel?.pcb?.components)
-            ? documentModel.pcb.components
-            : []
+        const components = EcadFormatRegistry.isCircuitJsonDocument(
+            documentModel
+        )
+            ? EcadMissingModelSearchService.#canonicalComponents(documentModel)
+            : Array.isArray(documentModel?.pcb?.components)
+              ? documentModel.pcb.components
+              : []
 
         return components.filter(
             (component) =>
@@ -99,6 +106,77 @@ export class EcadMissingModelSearchService {
                     sessionAssets
                 )
         )
+    }
+
+    /**
+     * Projects canonical source, placement, and CAD elements into the existing
+     * model-source client contract.
+     * @param {object} documentModel Canonical CircuitJSON document.
+     * @returns {object[]}
+     */
+    static #canonicalComponents(documentModel) {
+        const elements =
+            EcadFormatRegistry.circuitJsonElementsForDocument(documentModel)
+        const sourceById = new Map(
+            elements
+                .filter((element) => element?.type === 'source_component')
+                .map((source) => [source.source_component_id, source])
+        )
+        const pcbBySourceId = new Map(
+            elements
+                .filter((element) => element?.type === 'pcb_component')
+                .map((pcb) => [pcb.source_component_id, pcb])
+        )
+        const cadByPcbId = new Map()
+        for (const cad of elements.filter(
+            (element) => element?.type === 'cad_component'
+        )) {
+            const pcbComponentId = String(cad.pcb_component_id || '')
+            if (pcbComponentId && !cadByPcbId.has(pcbComponentId)) {
+                cadByPcbId.set(pcbComponentId, cad)
+            }
+        }
+
+        return EcadDocumentComponents.resolve(documentModel).map((row) => {
+            const source = sourceById.get(row.sourceComponentId) || {}
+            const pcb = pcbBySourceId.get(row.sourceComponentId) || {}
+            const cad = cadByPcbId.get(row.pcbComponentId) || {}
+            const modelPath =
+                EcadMissingModelSearchService.#canonicalModelPath(cad)
+            const excludeFromBom = Boolean(
+                pcb?.metadata?.kicad_footprint?.attributes?.exclude_from_bom
+            )
+            return {
+                ...row,
+                modelName: modelPath.split('/').at(-1) || '',
+                modelPath,
+                doNotPopulate: pcb.do_not_place === true,
+                includeInBom: !excludeFromBom,
+                componentKind: source.ftype || '',
+                description: source.description || row.description || ''
+            }
+        })
+    }
+
+    /**
+     * Resolves the first authored model location from a CAD component.
+     * @param {object} cad CAD component element.
+     * @returns {string}
+     */
+    static #canonicalModelPath(cad) {
+        const asset = cad?.model_asset || {}
+        return String(
+            asset.project_relative_path ||
+                asset.url ||
+                cad?.model_step_url ||
+                cad?.model_wrl_url ||
+                cad?.model_glb_url ||
+                cad?.model_gltf_url ||
+                cad?.model_stl_url ||
+                cad?.model_obj_url ||
+                cad?.model_3mf_url ||
+                ''
+        ).trim()
     }
 
     /**

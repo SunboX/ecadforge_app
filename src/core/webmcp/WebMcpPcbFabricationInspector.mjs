@@ -1,4 +1,5 @@
-import { ComponentGrouping } from 'altium-toolkit/netlist-query'
+import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadPcbInspectionModel } from '../ecad/EcadPcbInspectionModel.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 
 /**
@@ -11,7 +12,7 @@ export class WebMcpPcbFabricationInspector {
      * @returns {object}
      */
     static review(entry) {
-        const pcb = entry.documentModel?.pcb || {}
+        const pcb = EcadPcbInspectionModel.resolve(entry.documentModel)
         const checks = [
             WebMcpPcbFabricationInspector.#boardOutlineCheck(pcb),
             WebMcpPcbFabricationInspector.#layerStackCheck(pcb),

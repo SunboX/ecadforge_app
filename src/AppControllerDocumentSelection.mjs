@@ -1,6 +1,7 @@
 import { DocumentViewCompatibility } from './DocumentViewCompatibility.mjs'
 import { DocumentPreferredViewResolver } from './DocumentPreferredViewResolver.mjs'
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadDocumentType } from './core/ecad/EcadDocumentType.mjs'
 import { PcbComponentSelectionModel } from './core/PcbComponentSelectionModel.mjs'
 
 /**
@@ -65,7 +66,7 @@ export class AppControllerDocumentSelection {
         const matchedDocument = documents.find(
             (entry) =>
                 AppControllerDocumentSelection.#normalizeDocumentPath(
-                    entry?.documentModel?.fileName
+                    EcadDocumentType.fileName(entry?.documentModel)
                 ) === normalizedPath
         )
 
@@ -137,12 +138,11 @@ export class AppControllerDocumentSelection {
         }
 
         return {
-            activeDocumentId:
-                AppControllerDocumentSelection.resolveDocumentId(
-                    snapshot.documents || [],
-                    snapshot.activeView,
-                    snapshot.activeDocumentId
-                )
+            activeDocumentId: AppControllerDocumentSelection.resolveDocumentId(
+                snapshot.documents || [],
+                snapshot.activeView,
+                snapshot.activeDocumentId
+            )
         }
     }
 
@@ -160,9 +160,8 @@ export class AppControllerDocumentSelection {
             return ''
         }
 
-        const preferredView = DocumentPreferredViewResolver.resolve(
-            documentModel
-        )
+        const preferredView =
+            DocumentPreferredViewResolver.resolve(documentModel)
         return DocumentViewCompatibility.supportsView(
             documentModel,
             preferredView
@@ -239,7 +238,7 @@ export class AppControllerDocumentSelection {
 
         const sourceFormat =
             EcadFormatRegistry.sourceFormatForDocument(documentModel)
-        const fileName = String(documentModel?.fileName || '').toLowerCase()
+        const fileName = EcadDocumentType.fileName(documentModel).toLowerCase()
         let score =
             AppControllerDocumentSelection.#scoreSourceFormat(sourceFormat)
 

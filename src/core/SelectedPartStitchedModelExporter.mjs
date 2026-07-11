@@ -45,7 +45,7 @@ export class SelectedPartStitchedModelExporter {
         const designator = String(selectedPart?.designator || '').trim()
         if (
             !designator ||
-            (!options.sceneDescription && !options.documentModel?.pcb)
+            (!options.sceneDescription && !options.documentModel)
         ) {
             return
         }

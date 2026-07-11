@@ -43,6 +43,10 @@ const browserDependencyAssets = [
         outputParts: ['node_modules', 'pcb-scene3d-viewer', 'src']
     },
     {
+        sourceParts: ['node_modules', '@sunbox', 'occt-import-js', 'dist'],
+        outputParts: ['node_modules', '@sunbox', 'occt-import-js', 'dist']
+    },
+    {
         sourceParts: ['node_modules', 'fflate', 'esm', 'browser.js'],
         outputParts: ['node_modules', 'fflate', 'esm', 'browser.js']
     },
@@ -225,7 +229,9 @@ export class StaticDeployBuilder {
         const indexHtml = await readFile(indexPath, 'utf8')
         const modulePaths = await StaticDeployBuilder.#collectMatchingFiles(
             outputRoot,
-            (filePath) => filePath.endsWith('.mjs') || filePath.endsWith('.js')
+            (filePath) =>
+                (filePath.endsWith('.mjs') || filePath.endsWith('.js')) &&
+                !StaticDeployBuilder.#isOcctRuntimeAsset(filePath)
         )
 
         await writeFile(
@@ -345,6 +351,18 @@ export class StaticDeployBuilder {
         )
 
         return nestedFiles.flat()
+    }
+
+    /**
+     * Returns true for generated OCCT runtime files that must stay byte-exact.
+     * @param {string} filePath Candidate deploy path.
+     * @returns {boolean}
+     */
+    static #isOcctRuntimeAsset(filePath) {
+        return filePath.includes(
+            path.join('node_modules', '@sunbox', 'occt-import-js', 'dist') +
+                path.sep
+        )
     }
 
     /**

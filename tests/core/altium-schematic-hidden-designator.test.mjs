@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { AltiumExtensionResolver } from 'altium-toolkit/extensions'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
@@ -36,9 +37,11 @@ test('EcadRendererService suppresses hidden Altium fallback designators', () => 
         'hidden-fallback-labels.SchDoc',
         createHiddenDesignatorSchematicBuffer()
     )
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
     const markup = EcadRendererService.renderSchematic(documentModel)
 
-    assert.equal(documentModel.schematic.components[0].designator, 'HID1')
+    assert.equal(Object.hasOwn(documentModel, 'schematic'), false)
+    assert.equal(nativeModel.schematic.components[0].designator, 'HID1')
     assert.doesNotMatch(markup, />HID1</)
     assert.match(markup, />VIS1</)
 })

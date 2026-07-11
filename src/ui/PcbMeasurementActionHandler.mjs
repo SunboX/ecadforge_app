@@ -1,7 +1,7 @@
 import {
     PcbBoundsSelectionModel,
     PcbCandidateSelectionModel
-} from 'circuitjson-toolkit/renderers'
+} from 'circuitjson-toolkit/extensions'
 import { PcbMeasurementSnapshotExporter } from './PcbMeasurementSnapshotExporter.mjs'
 
 const MEASUREMENT_FOCUS_PADDING_FACTOR = 1.6
@@ -78,7 +78,8 @@ export class PcbMeasurementActionHandler {
             }
         )
         options.emitCandidates?.(
-            selection.point || PcbMeasurementActionHandler.#boundsCenter(bounds),
+            selection.point ||
+                PcbMeasurementActionHandler.#boundsCenter(bounds),
             selection.candidates,
             selection.selectedCandidate,
             'bounds'

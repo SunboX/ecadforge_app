@@ -3,6 +3,54 @@
  */
 export class EcadFormatRegistry {
     /**
+     * Returns true for the shared immutable toolkit document envelope.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {boolean}
+     */
+    static isCanonicalDocument(documentModel) {
+        return Boolean(
+            documentModel &&
+            typeof documentModel === 'object' &&
+            documentModel.schema === 'ecad-toolkit.document.v1' &&
+            Array.isArray(documentModel.model)
+        )
+    }
+
+    /**
+     * Returns true when shared CircuitJSON services can consume a document
+     * directly without a native compatibility model.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {boolean}
+     */
+    static isCircuitJsonDocument(documentModel) {
+        if (EcadFormatRegistry.isCanonicalDocument(documentModel)) return true
+        if (!EcadFormatRegistry.#isElementArrayDocument(documentModel)) {
+            return false
+        }
+
+        const sourceFormat = String(documentModel?.sourceFormat || '').trim()
+        if (sourceFormat === 'circuitjson') return true
+        return !EcadFormatRegistry.#hasCompatibilityModel(documentModel)
+    }
+
+    /**
+     * Returns the CircuitJSON element array carried by a supported document.
+     * @param {unknown} documentModel Document model candidate.
+     * @returns {object[]}
+     */
+    static circuitJsonElementsForDocument(documentModel) {
+        if (Array.isArray(documentModel)) return documentModel
+        if (Array.isArray(documentModel?.model)) return documentModel.model
+        if (Array.isArray(documentModel?.elements)) {
+            return documentModel.elements
+        }
+        if (Array.isArray(documentModel?.circuitJson)) {
+            return documentModel.circuitJson
+        }
+        return []
+    }
+
+    /**
      * Returns true when a file can produce one or more viewer documents.
      * @param {string} fileName Source file name.
      * @returns {boolean}
@@ -83,8 +131,12 @@ export class EcadFormatRegistry {
     static resolveCompanionFormat(fileName) {
         const normalized = String(fileName || '').toLowerCase()
 
-        if (normalized.endsWith('.wrl') || normalized.endsWith('.vrml')) {
+        if (normalized.endsWith('.wrl')) {
             return 'wrl'
+        }
+
+        if (normalized.endsWith('.vrml')) {
+            return 'vrml'
         }
 
         if (normalized.endsWith('.step') || normalized.endsWith('.stp')) {
@@ -107,6 +159,10 @@ export class EcadFormatRegistry {
             return 'obj'
         }
 
+        if (normalized.endsWith('.3mf')) {
+            return '3mf'
+        }
+
         if (normalized.endsWith('.prjpcb')) {
             return 'altium-project'
         }
@@ -127,7 +183,9 @@ export class EcadFormatRegistry {
      * @returns {string}
      */
     static sourceFormatForDocument(documentModel) {
-        const sourceFormat = String(documentModel?.sourceFormat || '').trim()
+        const sourceFormat = String(
+            documentModel?.source?.format || documentModel?.sourceFormat || ''
+        ).trim()
         if (sourceFormat) return sourceFormat
         if (EcadFormatRegistry.#hasCompatibilityModel(documentModel)) {
             return 'altium'
@@ -147,7 +205,7 @@ export class EcadFormatRegistry {
         return Boolean(
             documentModel &&
             typeof documentModel === 'object' &&
-            (documentModel.schematic || documentModel.pcb)
+            (documentModel.schematic || documentModel.pcb || documentModel.bom)
         )
     }
 
@@ -157,17 +215,17 @@ export class EcadFormatRegistry {
      * @returns {boolean}
      */
     static #isElementArrayDocument(documentModel) {
-        return (
-            Array.isArray(documentModel) &&
-            documentModel.some(
-                (element) =>
-                    element &&
-                    typeof element === 'object' &&
-                    typeof element.type === 'string' &&
-                    (element.type.startsWith('pcb_') ||
-                        element.type.startsWith('schematic_') ||
-                        element.type.startsWith('source_'))
-            )
+        return EcadFormatRegistry.circuitJsonElementsForDocument(
+            documentModel
+        ).some(
+            (element) =>
+                element &&
+                typeof element === 'object' &&
+                typeof element.type === 'string' &&
+                (element.type.startsWith('pcb_') ||
+                    element.type.startsWith('schematic_') ||
+                    element.type.startsWith('source_') ||
+                    element.type === 'cad_component')
         )
     }
 

@@ -1,4 +1,7 @@
 import { UiText } from './UiText.mjs'
+import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
+import { EcadDocumentSummary } from '../core/ecad/EcadDocumentSummary.mjs'
+import { EcadDocumentType } from '../core/ecad/EcadDocumentType.mjs'
 import { PcbComponentSelectionModel } from '../core/PcbComponentSelectionModel.mjs'
 import { PcbObjectVisibilityModel } from '../core/PcbObjectVisibilityModel.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
@@ -333,10 +336,9 @@ export class ViewerSidebarRenderer {
     static #renderDocumentButton(entry, activeDocumentId, translate) {
         const documentModel = entry.documentModel || {}
         const selected = entry.id === activeDocumentId
+        const summary = EcadDocumentSummary.resolve(documentModel)
         const title =
-            documentModel.fileName ||
-            documentModel.summary?.title ||
-            translate('summary.document')
+            summary.fileName || summary.title || translate('summary.document')
 
         return (
             '<button class="viewer-sidebar__row viewer-sidebar__row--button' +
@@ -400,7 +402,7 @@ export class ViewerSidebarRenderer {
      */
     static #renderObjectsPanel(snapshot, translate) {
         const documentModel = snapshot?.documentModel
-        if (documentModel?.pcb) {
+        if (EcadDocumentType.isPcb(documentModel)) {
             const documentId = String(snapshot?.activeDocumentId || '')
             const categories =
                 PcbObjectVisibilityModel.resolveObjectCategories()
@@ -425,36 +427,12 @@ export class ViewerSidebarRenderer {
             )
         }
 
+        const summary = EcadDocumentSummary.resolve(documentModel)
         const rows = [
-            [
-                'sidebar.objectTracks',
-                ViewerSidebarRenderer.#count(documentModel?.pcb?.tracks)
-            ],
-            [
-                'sidebar.objectVias',
-                ViewerSidebarRenderer.#count(documentModel?.pcb?.vias)
-            ],
-            [
-                'sidebar.objectPads',
-                ViewerSidebarRenderer.#count(documentModel?.pcb?.pads)
-            ],
-            [
-                'sidebar.objectFills',
-                ViewerSidebarRenderer.#count(documentModel?.pcb?.fills) +
-                    ViewerSidebarRenderer.#count(documentModel?.pcb?.polygons)
-            ],
-            [
-                'sidebar.objectTexts',
-                ViewerSidebarRenderer.#count(documentModel?.pcb?.texts) +
-                    ViewerSidebarRenderer.#count(
-                        documentModel?.schematic?.texts
-                    )
-            ],
-            [
-                'sidebar.objectPins',
-                ViewerSidebarRenderer.#count(documentModel?.schematic?.pins)
-            ]
-        ].filter((row) => row[1] > 0)
+            ['summary.lineSegments', summary.lineSegmentCount],
+            ['sidebar.objectTexts', summary.textCount],
+            ['sidebar.objectPins', summary.pinCount]
+        ].filter((row) => Number(row[1]) > 0)
 
         return (
             ViewerSidebarRenderer.#renderPanelHeader(
@@ -520,8 +498,9 @@ export class ViewerSidebarRenderer {
      * @returns {string}
      */
     static #renderPropertiesPanel(documentModel, translate) {
+        const summary = EcadDocumentSummary.resolve(documentModel)
         const rows = [
-            ['sidebar.propertyFile', documentModel?.fileName],
+            ['sidebar.propertyFile', summary.fileName],
             [
                 'sidebar.propertyType',
                 ViewerSidebarRenderer.#formatDocumentKind(
@@ -529,15 +508,13 @@ export class ViewerSidebarRenderer {
                     translate
                 )
             ],
-            ['summary.components', documentModel?.summary?.componentCount],
-            ['summary.layers', documentModel?.summary?.layerCount],
-            ['sidebar.objectTracks', documentModel?.summary?.trackCount],
-            ['sidebar.objectVias', documentModel?.summary?.viaCount],
+            ['summary.components', summary.componentCount],
+            ['summary.layers', summary.layerCount],
+            ['sidebar.objectTracks', summary.trackCount],
+            ['sidebar.objectVias', summary.viaCount],
             [
                 'view.diagnostics',
-                Array.isArray(documentModel?.diagnostics)
-                    ? documentModel.diagnostics.length
-                    : 0
+                EcadDocumentDiagnostics.resolve(documentModel).length
             ]
         ].filter((row) => row[1] !== undefined && row[1] !== '')
 
@@ -556,7 +533,10 @@ export class ViewerSidebarRenderer {
      */
     static #renderInfoPanel(snapshot, translate) {
         const documentModel = snapshot?.documentModel || null
-        if (documentModel?.pcb || documentModel?.schematic) {
+        if (
+            EcadDocumentType.isPcb(documentModel) ||
+            EcadDocumentType.isSchematic(documentModel)
+        ) {
             return ViewerSidebarOverviewRenderer.render(
                 documentModel,
                 translate,
@@ -813,24 +793,18 @@ export class ViewerSidebarRenderer {
      * @returns {string}
      */
     static #formatDocumentKind(documentModel, translate) {
-        if (documentModel?.pcb) {
+        if (EcadDocumentType.isPcb(documentModel)) {
             return translate('view.pcb')
         }
 
-        if (documentModel?.schematic) {
+        if (EcadDocumentType.isSchematic(documentModel)) {
             return translate('view.schematic')
         }
 
-        return String(documentModel?.kind || translate('summary.document'))
-    }
-
-    /**
-     * Counts array-like model values.
-     * @param {any} value Raw value.
-     * @returns {number}
-     */
-    static #count(value) {
-        return Array.isArray(value) ? value.length : 0
+        const kind = EcadDocumentType.kind(documentModel)
+        return kind === 'document'
+            ? translate('summary.document')
+            : String(kind)
     }
 
     /**

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { AltiumExtensionResolver } from 'altium-toolkit/extensions'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
@@ -60,22 +61,34 @@ test('EcadRendererService preserves Altium free graphic pie and lower arc', () =
         'neutral-free-graphic.SchDoc',
         createNeutralFreeGraphicSchematicBuffer()
     )
+    assert.equal(Object.hasOwn(documentModel, 'schematic'), false)
+    assert.ok(AltiumExtensionResolver.nativeModel(documentModel)?.schematic)
     const markup = EcadRendererService.renderSchematic(documentModel)
-    const arcIndex = markup.indexOf('class="schematic-arc"')
-    const pieIndex = markup.indexOf('class="schematic-pie"')
+    const pie = documentModel.model.find(
+        (element) =>
+            element.type === 'schematic_path' &&
+            String(element.schematic_path_id || '').includes('_pie_')
+    )
+    const arcIndex = markup.indexOf(
+        'class="schematic-shape schematic-shape--arc"'
+    )
+    const pieIndex = markup.indexOf(
+        'class="schematic-shape schematic-shape--path"'
+    )
 
+    assert.ok(pie)
+    assert.equal(pie.is_filled, true)
+    assert.equal(pie.points.length, 26)
+    assert.deepEqual(pie.points[0], { x: 50, y: 60 })
     assert.notEqual(arcIndex, -1)
     assert.notEqual(pieIndex, -1)
     assert.ok(arcIndex < pieIndex)
-    assert.match(markup, /<path class="schematic-arc"[^>]+A 5 5 0 0 0/)
-    assert.doesNotMatch(markup, /<path class="schematic-arc"[^>]+A 5 5 0 1 1/)
+    assert.match(markup, /schematic-shape--arc"[^>]+A 5 5 0 0 0/)
+    assert.doesNotMatch(markup, /schematic-shape--arc"[^>]+A 5 5 0 1 1/)
     assert.doesNotMatch(markup, /stroke-width="1"/)
     assert.match(markup, /stroke-width="0\.85"/)
-    assert.match(
-        markup,
-        /<path class="schematic-pie"[^>]+fill="var\(--schematic-alert-color\)"/
-    )
-    assert.doesNotMatch(markup, /#ff0000/i)
+    assert.match(markup, /schematic-shape--path"[^>]+stroke="#ff0000"/i)
+    assert.match(markup, /schematic-shape--path"[^>]+fill="#ff0000"/i)
 })
 
 /**
@@ -87,10 +100,11 @@ test('EcadParserService drops off-sheet ownerless Altium free graphic lines', ()
         'neutral-off-sheet-free-graphic.SchDoc',
         createNeutralOffSheetFreeGraphicSchematicBuffer()
     )
+    const nativeModel = AltiumExtensionResolver.nativeModel(documentModel)
     const markup = EcadRendererService.renderSchematic(documentModel)
 
     assert.deepEqual(
-        documentModel.schematic.lines.map((line) => [
+        nativeModel.schematic.lines.map((line) => [
             line.x1,
             line.y1,
             line.x2,
@@ -100,5 +114,8 @@ test('EcadParserService drops off-sheet ownerless Altium free graphic lines', ()
     )
     assert.doesNotMatch(markup, /x2="180"/)
     assert.doesNotMatch(markup, /#ff0000/i)
-    assert.match(markup, /viewBox="0 0 130 100"/)
+    assert.match(
+        markup,
+        /<rect class="sheet-backdrop schematic-sheet" x="0" y="0" width="130" height="100"><\/rect>/
+    )
 })

@@ -2,6 +2,26 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ServerAssetVersioner } from '../src/ServerAssetVersioner.mjs'
 
+const COMMON_TOOLKIT_NAMES = [
+    'altium-toolkit',
+    'circuitjson-toolkit',
+    'gerber-toolkit',
+    'kicad-toolkit'
+]
+const COMMON_TOOLKIT_SUBPATHS = [
+    'capabilities',
+    'extensions',
+    'interaction',
+    'manufacturing',
+    'parser',
+    'project',
+    'query',
+    'renderers',
+    'scene3d',
+    'simulation',
+    'testing'
+]
+
 /**
  * Verifies the HTML shell cache-busts every visible app chrome asset.
  */
@@ -22,18 +42,18 @@ test('rewriteHtmlDocument versions favicon link and brand image assets', () => {
 })
 
 /**
- * Verifies WebMCP toolkit query services are resolvable in served browser
+ * Verifies converged toolkit extensions are resolvable in served browser
  * modules, including static builds that cannot rely on Node package exports.
  */
-test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
+test('rewriteJavaScriptModule versions converged toolkit extension imports', () => {
     const source = [
-        "import { LoadedDesignNetlistService } from 'altium-toolkit/netlist-query'",
-        "import('kicad-toolkit/netlist-query')",
-        "import { CircuitJsonParser } from 'circuitjson-toolkit'",
-        "import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/renderers'",
-        "import { GerberProjectLoader } from 'gerber-toolkit/parser'",
-        "import('gerber-toolkit/renderers')",
-        "import { PcbScene3dBuilder } from 'gerber-toolkit/scene3d'",
+        "import { LoadedDesignNetlistService } from 'altium-toolkit/extensions'",
+        "import('kicad-toolkit/extensions')",
+        "import { CircuitJsonParser } from 'circuitjson-toolkit/extensions'",
+        "import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/extensions'",
+        "import { GerberProjectLoader } from 'gerber-toolkit/extensions'",
+        "import('gerber-toolkit/extensions')",
+        "import { PcbScene3dBuilder } from 'gerber-toolkit/extensions'",
         "import { PcbScene3dRuntime } from 'pcb-scene3d-viewer'",
         "import('pcb-scene3d-viewer/scene3d')",
         "import('@mcp-b/global/iife')",
@@ -49,31 +69,31 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
 
     assert.match(
         rewritten,
-        /from '\/node_modules\/altium-toolkit\/src\/netlist-query\.mjs\?v=1\.4\.153'/
+        /from '\/node_modules\/altium-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,
-        /import\('\/node_modules\/kicad-toolkit\/src\/netlist-query\.mjs\?v=1\.4\.153'\)/
+        /import\('\/node_modules\/kicad-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'\)/
     )
     assert.match(
         rewritten,
-        /from '\/node_modules\/circuitjson-toolkit\/src\/index\.mjs\?v=1\.4\.153'/
+        /from '\/node_modules\/circuitjson-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,
-        /from '\/node_modules\/circuitjson-toolkit\/src\/renderers\.mjs\?v=1\.4\.153'/
+        /from '\/node_modules\/circuitjson-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,
-        /from '\/node_modules\/gerber-toolkit\/src\/parser\.mjs\?v=1\.4\.153'/
+        /from '\/node_modules\/gerber-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,
-        /import\('\/node_modules\/gerber-toolkit\/src\/renderers\.mjs\?v=1\.4\.153'\)/
+        /import\('\/node_modules\/gerber-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'\)/
     )
     assert.match(
         rewritten,
-        /from '\/node_modules\/gerber-toolkit\/src\/scene3d\.mjs\?v=1\.4\.153'/
+        /from '\/node_modules\/gerber-toolkit\/src\/extensions\.mjs\?v=1\.4\.153'/
     )
     assert.match(
         rewritten,
@@ -98,6 +118,32 @@ test('rewriteJavaScriptModule versions toolkit netlist query imports', () => {
     assert.match(
         rewritten,
         /from '\/node_modules\/splaytree\/dist\/splaytree\.js\?v=1\.4\.153'/
+    )
+})
+
+/**
+ * Verifies static hosting mirrors the complete common toolkit subpath layout.
+ */
+test('resolveBrowserBareSpecifier covers all converged toolkit subpaths', () => {
+    for (const toolkitName of COMMON_TOOLKIT_NAMES) {
+        assert.equal(
+            ServerAssetVersioner.resolveBrowserBareSpecifier(toolkitName),
+            '/node_modules/' + toolkitName + '/src/index.mjs'
+        )
+        for (const subpath of COMMON_TOOLKIT_SUBPATHS) {
+            assert.equal(
+                ServerAssetVersioner.resolveBrowserBareSpecifier(
+                    toolkitName + '/' + subpath
+                ),
+                '/node_modules/' + toolkitName + '/src/' + subpath + '.mjs'
+            )
+        }
+    }
+    assert.equal(
+        ServerAssetVersioner.resolveBrowserBareSpecifier(
+            'altium-toolkit/not-an-entrypoint'
+        ),
+        ''
     )
 })
 

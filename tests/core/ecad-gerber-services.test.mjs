@@ -187,10 +187,10 @@ test('EcadFormatRegistry detects Gerber and drill sources', () => {
 test('EcadParserService groups Gerber fabrication batches', async () => {
     const service = new EcadParserService({
         gerberProjectLoader: {
-            canLoadEntries(entries) {
+            supports(entries) {
                 return entries.some((entry) => entry.name.endsWith('.gtl'))
             },
-            loadEntries(entries) {
+            loadAsync(entries) {
                 return {
                     documents: [
                         {
@@ -230,10 +230,10 @@ test('EcadParserService groups Gerber fabrication batches', async () => {
 test('EcadParserService includes content-detected text drill files in Gerber batches', async () => {
     const service = new EcadParserService({
         gerberProjectLoader: {
-            canLoadEntries(entries) {
+            supports(entries) {
                 return entries.some((entry) => entry.name.endsWith('.gtl'))
             },
-            loadEntries(entries) {
+            loadAsync(entries) {
                 return {
                     documents: [
                         {
@@ -270,8 +270,8 @@ test('EcadParserService includes content-detected text drill files in Gerber bat
 })
 
 /**
- * Verifies parsed Gerber packages expose the PCB contract required by the
- * shared 3D shell before the interactive scene mounts.
+ * Verifies parsed Gerber packages expose the canonical document contract
+ * accepted directly by the shared 3D shell.
  */
 test('EcadParserService prepares Gerber packages for the 3D shell', async () => {
     const service = new EcadParserService()
@@ -281,9 +281,12 @@ test('EcadParserService prepares Gerber packages for the 3D shell', async () => 
     ])
     const documentModel = result.documents[0]
 
-    assert.equal(documentModel.sourceFormat, 'gerber')
-    assert.equal(documentModel.pcb.boardOutline.widthMil, 7.874016)
-    assert.deepEqual(documentModel.pcb.components, [])
+    assert.equal(documentModel.schema, 'ecad-toolkit.document.v1')
+    assert.equal(documentModel.source.format, 'gerber')
+    assert.equal(
+        documentModel.model.some((element) => element.type === 'pcb_board'),
+        true
+    )
     assert.doesNotThrow(() =>
         AppViewScene3dShellRenderer.render(documentModel, (key) => key)
     )
@@ -296,10 +299,10 @@ test('EcadParserService prepares Gerber packages for the 3D shell', async () => 
 test('EcadParserService routes fabrication ZIP archives to Gerber loader', async () => {
     const service = new EcadParserService({
         gerberProjectLoader: {
-            canLoadEntries(entries) {
+            supports(entries) {
                 return entries.some((entry) => entry.name.endsWith('.zip'))
             },
-            loadEntries(entries) {
+            loadAsync(entries) {
                 return {
                     documents: [
                         {
@@ -316,7 +319,7 @@ test('EcadParserService routes fabrication ZIP archives to Gerber loader', async
             }
         },
         kicadProjectLoader: {
-            loadEntries() {
+            loadAsync() {
                 throw new Error('KiCad loader should not receive this archive')
             }
         }

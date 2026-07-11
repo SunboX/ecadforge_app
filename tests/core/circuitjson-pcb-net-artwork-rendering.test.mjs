@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
-import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
+import { CircuitJsonPcbSvgRenderer } from 'circuitjson-toolkit/extensions'
 
 /**
  * Builds a board with explicit net metadata and a styled note path.
@@ -19,7 +19,8 @@ function createNetArtworkDocument() {
         {
             type: 'source_net',
             source_net_id: 'source_net_signal',
-            name: 'SIGNAL'
+            name: 'SIGNAL',
+            member_source_group_ids: []
         },
         {
             type: 'pcb_net',
@@ -68,7 +69,9 @@ function createNetArtworkDocument() {
 test('CircuitJSON PCB net highlight metadata is renderable', () => {
     const documentModel = createNetArtworkDocument()
     const model = PcbInteractionPrimitiveModel.build(documentModel)
-    const pad = model.primitives.find((primitive) => primitive.id === 'pad_signal')
+    const pad = model.primitives.find(
+        (primitive) => primitive.id === 'pad_signal'
+    )
     const svg = CircuitJsonPcbSvgRenderer.render(documentModel)
 
     assert.deepEqual(model.nets, [

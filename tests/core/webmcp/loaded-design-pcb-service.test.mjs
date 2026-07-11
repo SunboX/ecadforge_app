@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { LoadedDesignNetlistService } from '../../../src/core/webmcp/LoadedDesignNetlistService.mjs'
 
 /**
@@ -237,6 +238,129 @@ function createPcbDocument() {
         bom: []
     }
 }
+
+/**
+ * Builds one canonical CircuitJSON PCB document.
+ * @returns {object}
+ */
+function createCanonicalPcbDocument() {
+    return Parser.parse({
+        fileName: 'canonical-board.json',
+        data: JSON.stringify([
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'source_port',
+                source_port_id: 'source_u1_pin_1',
+                source_component_id: 'source_u1',
+                name: 'IO',
+                pin_number: 1
+            },
+            {
+                type: 'source_net',
+                source_net_id: 'source_net_signal',
+                name: 'SIGNAL',
+                member_source_group_ids: []
+            },
+            {
+                type: 'source_trace',
+                source_trace_id: 'source_trace_signal',
+                connected_source_net_ids: ['source_net_signal'],
+                connected_source_port_ids: ['source_u1_pin_1']
+            },
+            {
+                type: 'pcb_board',
+                pcb_board_id: 'board_1',
+                center: { x: 12.7, y: 6.35 },
+                width: 25.4,
+                height: 12.7,
+                thickness: 1.6,
+                num_layers: 2,
+                min_trace_width: 0.1524
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 2.54, y: 5.08 },
+                width: 3,
+                height: 2,
+                rotation: 90,
+                layer: 'top'
+            },
+            {
+                type: 'pcb_smtpad',
+                pcb_smtpad_id: 'pcb_u1_pad_1',
+                pcb_component_id: 'pcb_u1',
+                shape: 'rect',
+                x: 2.54,
+                y: 5.08,
+                width: 1,
+                height: 0.5,
+                layer: 'top',
+                port_hints: ['1']
+            },
+            {
+                type: 'pcb_trace',
+                pcb_trace_id: 'pcb_trace_signal',
+                source_trace_id: 'source_trace_signal',
+                route: [
+                    {
+                        route_type: 'wire',
+                        x: 2.54,
+                        y: 5.08,
+                        width: 0.1524,
+                        layer: 'top'
+                    },
+                    {
+                        route_type: 'wire',
+                        x: 10.16,
+                        y: 5.08,
+                        width: 0.1524,
+                        layer: 'top'
+                    }
+                ]
+            },
+            {
+                type: 'cad_component',
+                cad_component_id: 'cad_u1',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                position: { x: 2.54, y: 5.08, z: 0 },
+                model_step_url: 'models/chip.step'
+            }
+        ])
+    })
+}
+
+test('LoadedDesignNetlistService inspects canonical CircuitJSON PCB data', () => {
+    const service = createService([
+        { id: 'doc-1', documentModel: createCanonicalPcbDocument() }
+    ])
+
+    const component = service.queryPcbComponent({ refdes: 'U1' })
+    const net = service.queryPcbNet({ net_name: 'SIGNAL' })
+    const summary = service.summarizePcb()
+    const rules = service.listDesignRules()
+
+    assert.equal(component.refdes, 'U1')
+    assert.deepEqual(component.position_mil, { x: 100, y: 200 })
+    assert.deepEqual(component.pads, [{ pad: '1', net: 'SIGNAL' }])
+    assert.equal(component.model.path, 'models/chip.step')
+    assert.equal(net.net, 'SIGNAL')
+    assert.equal(net.pad_count, 1)
+    assert.equal(net.track_count, 1)
+    assert.equal(net.tracks[0].width_mil, 6)
+    assert.equal(summary.board.width_mil, 1000)
+    assert.equal(summary.counts.components, 1)
+    assert.equal(summary.counts.layers, 2)
+    assert.equal(rules.summary.rule_count, 1)
+    assert.equal(rules.rules[0].constraints.minimum.value, 6)
+})
 
 /**
  * Verifies query_pcb_component returns placement, pads, and model metadata.

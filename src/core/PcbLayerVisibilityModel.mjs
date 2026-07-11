@@ -1,4 +1,5 @@
 import { EcadRendererService } from './ecad/EcadRendererService.mjs'
+import { EcadDocumentType } from './ecad/EcadDocumentType.mjs'
 
 /**
  * Resolves PCB layer visibility metadata shared by sidebar and PCB rendering.
@@ -20,7 +21,7 @@ export class PcbLayerVisibilityModel {
      * @returns {{ physicalLayers: any[], virtualLayers: any[] }}
      */
     static resolveLayerGroups(documentModel) {
-        if (documentModel?.pcb) {
+        if (EcadDocumentType.isPcb(documentModel)) {
             const interactionGroups =
                 PcbLayerVisibilityModel.#resolveInteractionLayerGroups(
                     documentModel

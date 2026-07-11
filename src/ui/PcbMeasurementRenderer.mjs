@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Renders PCB measurement toolbar controls and SVG overlays.

@@ -55,7 +55,7 @@ export class Scene3dControllerFactory {
     /**
      * Creates the default missing-model search service for app features.
      * @param {{ modelSearchService?: EcadMissingModelSearchService | null, modelSource?: object }} [factoryOptions] Factory options.
-     * @param {typeof import('altium-toolkit/parser').SourceComponentClient | null} [SourceComponentClient] Optional toolkit source client constructor.
+     * @param {typeof import('altium-toolkit/extensions').SourceComponentClient | null} [SourceComponentClient] Optional toolkit source client constructor.
      * @returns {EcadMissingModelSearchService | null}
      */
     static createModelSearchService(
@@ -84,7 +84,7 @@ export class Scene3dControllerFactory {
             await Promise.all([
                 import('pcb-scene3d-viewer'),
                 import('./core/ecad/EcadScene3dService.mjs'),
-                import('altium-toolkit/parser')
+                import('altium-toolkit/extensions')
             ])
         const scene3dWorkerUrl = WorkerUrlBuilder.buildScene3dWorkerUrl(
             entryModuleUrl,
@@ -213,7 +213,7 @@ export class Scene3dControllerFactory {
     /**
      * Resolves a configured model search service.
      * @param {{ modelSearchService?: EcadMissingModelSearchService | null, modelSource?: object }} factoryOptions Factory options.
-     * @param {typeof import('altium-toolkit/parser').SourceComponentClient} SourceComponentClient Source client constructor.
+     * @param {typeof import('altium-toolkit/extensions').SourceComponentClient} SourceComponentClient Source client constructor.
      * @returns {EcadMissingModelSearchService | null}
      */
     static #resolveModelSearchService(factoryOptions, SourceComponentClient) {
@@ -260,7 +260,7 @@ export class Scene3dControllerFactory {
      * Resolves the configured generic source client.
      * @param {{ baseUrl?: string, fallbackBaseUrl?: string, searchPath?: string, componentPath?: string, modelPath?: string, retryCount?: number, retryDelayMs?: number, requestTimeoutMs?: number, headers?: Record<string, string>, clientClass?: Function, useToolkitSourceClient?: boolean }} sourceConfig Source configuration.
      * @param {Function} baseFetcher Fetch implementation.
-     * @param {typeof import('altium-toolkit/parser').SourceComponentClient} SourceComponentClient Source client constructor.
+     * @param {typeof import('altium-toolkit/extensions').SourceComponentClient} SourceComponentClient Source client constructor.
      * @returns {object | null}
      */
     static #resolveConfiguredSourceClient(

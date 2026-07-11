@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Parser } from 'circuitjson-toolkit/parser'
 import { CircuitJsonDocument } from 'circuitjson-toolkit'
 import { unzipSync } from 'fflate'
 import {
@@ -7,8 +8,9 @@ import {
     PcbLibStreamExtractor,
     SchLibModelParser,
     SchLibStreamExtractor
-} from 'altium-toolkit/parser'
+} from 'altium-toolkit/extensions'
 import { SelectedPartExportService } from '../../src/core/SelectedPartExportService.mjs'
+import { SelectedPartResolver } from '../../src/core/SelectedPartResolver.mjs'
 
 /**
  * Decodes one ZIP text entry.
@@ -359,6 +361,81 @@ test('SelectedPartExportService exports a selected part as CircuitJSON ZIP', asy
     assert.equal(elementByType.get('pcb_component').height, 1)
     assert.equal(elementByType.get('source_port').pin_number, 1)
     assert.equal(elementByType.get('pcb_smtpad').shape, 'rect')
+})
+
+test('SelectedPartResolver derives symbols and footprints from canonical CircuitJSON', () => {
+    const documentModel = Parser.parse({
+        fileName: 'part.json',
+        data: JSON.stringify([
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip',
+                manufacturer_part_number: 'CHIP-1'
+            },
+            {
+                type: 'source_port',
+                source_port_id: 'source_u1_pin_1',
+                source_component_id: 'source_u1',
+                name: 'IO',
+                pin_number: 1
+            },
+            {
+                type: 'schematic_component',
+                schematic_component_id: 'schematic_u1',
+                source_component_id: 'source_u1',
+                center: { x: 4, y: 5 },
+                size: { width: 3, height: 2 }
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 10, y: 11 },
+                width: 4,
+                height: 3,
+                rotation: 90,
+                layer: 'bottom'
+            },
+            {
+                type: 'pcb_smtpad',
+                pcb_smtpad_id: 'pcb_u1_pad_1',
+                pcb_component_id: 'pcb_u1',
+                shape: 'rect',
+                x: 9,
+                y: 11,
+                width: 1.2,
+                height: 0.8,
+                layer: 'bottom',
+                port_hints: ['1']
+            },
+            {
+                type: 'cad_component',
+                cad_component_id: 'cad_u1',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                position: { x: 10, y: 11, z: 0 },
+                model_step_url: 'models/chip.step'
+            }
+        ])
+    })
+
+    const selectedPart = SelectedPartResolver.resolve({
+        documentModel,
+        selectedComponentKey: 'U1'
+    })
+
+    assert.deepEqual(selectedPart.diagnostics, [])
+    assert.equal(selectedPart.symbol.name, 'U1')
+    assert.equal(selectedPart.symbol.value, 'CHIP-1')
+    assert.deepEqual(
+        selectedPart.symbol.pins.map((pin) => [pin.name, pin.number]),
+        [['IO', 1]]
+    )
+    assert.equal(selectedPart.footprint.component.layer, 'bottom')
+    assert.equal(selectedPart.footprint.pads[0].width, 1.2)
+    assert.equal(selectedPart.footprint.models[0].path, 'models/chip.step')
 })
 
 /**

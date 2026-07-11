@@ -1,4 +1,5 @@
 import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
+import { EcadFormatRegistry } from '../core/ecad/EcadFormatRegistry.mjs'
 
 const PCB_LAYER_SWATCH_COLORS = {
     footprint: 'rgba(66, 93, 112, 0.72)',
@@ -217,7 +218,8 @@ export class ViewerSidebarLayerRenderer {
      */
     static #isGerberLayer(layer, documentModel) {
         const sourceFormat = String(
-            layer?.sourceFormat || documentModel?.sourceFormat || ''
+            layer?.sourceFormat ||
+                EcadFormatRegistry.sourceFormatForDocument(documentModel)
         ).toLowerCase()
         if (sourceFormat === 'gerber') return true
 

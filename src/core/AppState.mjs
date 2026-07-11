@@ -1,4 +1,5 @@
 import { PcbObjectVisibilityModel } from './PcbObjectVisibilityModel.mjs'
+import { EcadDocumentType } from './ecad/EcadDocumentType.mjs'
 
 /**
  * Viewer state container with subscription support.
@@ -77,7 +78,9 @@ export class AppState {
             sessionAssets: this.#state.sessionAssets.map((asset) => ({
                 ...asset
             })),
-            activeFileName: String(activeEntry?.documentModel?.fileName || ''),
+            activeFileName: EcadDocumentType.fileName(
+                activeEntry?.documentModel
+            ),
             documentModel: activeEntry?.documentModel || null
         })
     }

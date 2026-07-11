@@ -52,7 +52,8 @@ function createRichCircuitJsonDocument() {
         {
             type: 'source_net',
             source_net_id: 'source_net_1',
-            name: 'SIG'
+            name: 'SIG',
+            member_source_group_ids: []
         },
         {
             type: 'source_port',
@@ -155,7 +156,7 @@ function createRichCircuitJsonDocument() {
             type: 'pcb_fabrication_note_path',
             pcb_fabrication_note_path_id: 'fab_path_1',
             pcb_component_id: 'pcb_u1',
-            points: [
+            route: [
                 { x: -1.4, y: 2.4 },
                 { x: -0.8, y: 2.4 }
             ],
@@ -165,8 +166,8 @@ function createRichCircuitJsonDocument() {
         {
             type: 'pcb_note_dimension',
             pcb_note_dimension_id: 'note_dimension_1',
-            start: { x: -4, y: -2 },
-            end: { x: -2, y: -2 },
+            from: { x: -4, y: -2 },
+            to: { x: -2, y: -2 },
             text: '2mm',
             layer: 'top_fabrication'
         },
@@ -207,11 +208,12 @@ function createRichCircuitJsonDocument() {
         {
             type: 'pcb_trace_hint',
             pcb_trace_hint_id: 'hint_1',
+            pcb_port_id: 'pcb_port_1',
+            pcb_component_id: 'pcb_u1',
             route: [
-                { x: 2.4, y: -1.8, layer: 'top' },
-                { x: 3.4, y: -1.8, layer: 'top' }
+                { x: 2.4, y: -1.8 },
+                { x: 3.4, y: -1.8 }
             ],
-            layer: 'top',
             net: 'SIG'
         },
         {
@@ -275,23 +277,26 @@ function createRichCircuitJsonDocument() {
             layer: 'top_courtyard'
         },
         {
-            type: 'pcb_courtyard_line',
-            pcb_courtyard_line_id: 'courtyard_line_1',
-            start: { x: -1.8, y: 2.8 },
-            end: { x: -1.2, y: 2.8 },
-            width: 0.05,
-            layer: 'top_courtyard'
+            type: 'pcb_courtyard_outline',
+            pcb_courtyard_outline_id: 'courtyard_line_1',
+            pcb_component_id: 'pcb_u1',
+            outline: [
+                { x: -1.8, y: 2.8 },
+                { x: -1.2, y: 2.8 }
+            ],
+            layer: 'top'
         },
         {
             type: 'pcb_courtyard_outline',
             pcb_courtyard_outline_id: 'courtyard_outline_1',
-            points: [
+            pcb_component_id: 'pcb_u1',
+            outline: [
                 { x: 2.6, y: 2.4 },
                 { x: 3.2, y: 2.4 },
                 { x: 3.2, y: 3 },
                 { x: 2.6, y: 3 }
             ],
-            layer: 'top_courtyard'
+            layer: 'top'
         },
         {
             type: 'pcb_trace_error',

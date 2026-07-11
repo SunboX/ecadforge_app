@@ -28,8 +28,15 @@ PORT=3100 npm start
 - Confirm the deployed page still contains the `importmap` block from `src/index.html`.
 - Confirm LIVE serves `/node_modules/three/build/three.module.js`.
 - Confirm LIVE serves `/node_modules/three/examples/jsm/controls/OrbitControls.js`.
-- Confirm LIVE serves `/vendor/occt-import-js/dist/occt-import-js.js`.
-- Confirm LIVE serves `/vendor/occt-import-js/dist/occt-import-js.wasm`.
+- Confirm LIVE serves
+  `/node_modules/@sunbox/occt-import-js/dist/occt-import-js-worker.js`.
+- Confirm LIVE serves
+  `/node_modules/@sunbox/occt-import-js/dist/occt-import-js.js`.
+- Confirm LIVE serves
+  `/node_modules/@sunbox/occt-import-js/dist/occt-import-js.wasm`.
+- If any request uses `/vendor/occt-import-js/` or an unscoped
+  `/node_modules/occt-import-js/` path, update the viewer package; those legacy
+  aliases are intentionally unsupported.
 - Ignore `runtime.lastError` messages from browser extensions unless the failing URL belongs to this app.
 
 ## All-Inkl LIVE returns `/api/app-meta` 404

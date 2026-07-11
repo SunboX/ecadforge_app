@@ -1,4 +1,4 @@
-import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/renderers'
+import { PcbInteractionPrimitiveModel } from 'circuitjson-toolkit/extensions'
 
 /**
  * Adds component-side attributes to rendered PCB SVG elements.
