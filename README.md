@@ -87,6 +87,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.10.1 release notes](docs/release-notes-v1.10.1.md)
 - [1.10.0 release notes](docs/release-notes-v1.10.0.md)
 - [Specification](spec/web-app-specification.md)
 

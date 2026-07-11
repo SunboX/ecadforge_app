@@ -7,7 +7,7 @@ const TARGET_DEPENDENCIES = {
     'altium-toolkit': '^1.2.1',
     'circuitjson-toolkit': '^1.1.0',
     'gerber-toolkit': '^0.2.0',
-    'kicad-toolkit': '^1.1.0',
+    'kicad-toolkit': '^1.1.1',
     'pcb-scene3d-viewer': '^1.2.1'
 }
 const COMMON_TOOLKIT_SUBPATHS = [
@@ -92,7 +92,7 @@ test('app pins the converged toolkit release family', async () => {
     const pkg = JSON.parse(
         await readFile(new URL('package.json', root), 'utf8')
     )
-    assert.equal(pkg.version, '1.10.0')
+    assert.equal(pkg.version, '1.10.1')
     for (const [name, version] of Object.entries(TARGET_DEPENDENCIES)) {
         assert.equal(pkg.dependencies[name], version, name)
     }
@@ -212,14 +212,22 @@ test('installed toolkits expose identical common API identities and extensions',
         const rootApi = await import(name)
         assert.deepEqual(Object.keys(rootApi).sort(), ROOT_EXPORTS, name)
 
-        for (const [subpath, exportNames] of Object.entries(
-            COMMON_SUBPATH_EXPORTS
-        )) {
+        for (const subpath of Object.keys(COMMON_SUBPATH_EXPORTS)) {
             const subpathApi = await import(name + '/' + subpath)
-            for (const exportName of exportNames) {
+            const canonicalSubpathApi = await import(
+                'circuitjson-toolkit/' + subpath
+            )
+            assert.deepEqual(
+                Object.keys(subpathApi).sort(),
+                Object.keys(canonicalSubpathApi).sort(),
+                name + '/' + subpath
+            )
+            for (const exportName of Object.keys(canonicalSubpathApi)) {
                 assert.equal(
                     subpathApi[exportName],
-                    rootApi[exportName],
+                    Object.hasOwn(rootApi, exportName)
+                        ? rootApi[exportName]
+                        : canonicalSubpathApi[exportName],
                     name + '/' + subpath + ':' + exportName
                 )
             }
