@@ -52,7 +52,8 @@ npm run check:structured-data
 - `tests/project-structure.test.mjs`: required file presence
 - `tests/mjs-line-limit.test.mjs`: source and test file length guard
 - `tests/toolkit-api-convergence.test.mjs`: converged dependency versions and
-  extension-entrypoint enforcement
+  extension-entrypoint enforcement, plus direct schema-valid KiCad parser and
+  project-loader output for legacy values and transformed artwork
 - `tests/core/ecad-format-registry-canonical.test.mjs`: canonical source
   identity, viewer compatibility, shared context reuse, render reuse, and BOM
   derivation

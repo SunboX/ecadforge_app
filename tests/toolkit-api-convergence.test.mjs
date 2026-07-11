@@ -7,8 +7,128 @@ const TARGET_DEPENDENCIES = {
     'altium-toolkit': '^1.2.1',
     'circuitjson-toolkit': '^1.1.0',
     'gerber-toolkit': '^0.2.0',
-    'kicad-toolkit': '^1.1.1',
+    'kicad-toolkit': '^1.1.2',
     'pcb-scene3d-viewer': '^1.2.1'
+}
+
+/**
+ * Builds a source-neutral KiCad fixture covering legacy values and transformed
+ * footprint artwork at the app/package boundary.
+ * @returns {string} Minimal KiCad PCB source.
+ */
+function canonicalKicadBoardFixture() {
+    return `(kicad_pcb
+        (version 20241229)
+        (layers
+            (0 "F.Cu" signal)
+            (31 "B.Cu" signal)
+        )
+        (footprint "Fixture:Passive"
+            (layer "F.Cu")
+            (at 10 10 45)
+            (fp_text reference "C1"
+                (at 0 -1 0)
+                (layer "F.SilkS")
+                (effects (font (size 1 1) (thickness 0.15)))
+            )
+            (fp_text value "22n"
+                (at 0 1 0)
+                (layer "F.Fab")
+                (effects (font (size 1 1) (thickness 0.15)))
+            )
+            (pad "1" smd rect
+                (at -0.5 0 0)
+                (size 0.8 1)
+                (layers "F.Cu" "F.Mask" "F.Paste")
+            )
+            (pad "2" smd rect
+                (at 0.5 0 0)
+                (size 0.8 1)
+                (layers "F.Cu" "F.Mask" "F.Paste")
+            )
+            (fp_rect
+                (start -1 -0.75)
+                (end 1 0.75)
+                (stroke (width 0.05) (type solid))
+                (fill none)
+                (layer "F.CrtYd")
+            )
+            (fp_arc
+                (start -1 0)
+                (mid 0 1)
+                (end 1 0)
+                (stroke (width 0.1) (type solid))
+                (layer "F.Fab")
+            )
+        )
+        (gr_text "BOARD NOTE"
+            (at 5 5 0)
+            (layer "Dwgs.User")
+            (effects (font (size 1 1) (thickness 0.15)))
+        )
+    )`
+}
+
+/**
+ * Verifies one KiCad document exposes the canonical semantics consumed by the
+ * app and viewer without compatibility processing.
+ * @param {object} document Common toolkit document.
+ * @param {{ isModel(model: object[]): boolean }} CircuitJsonDocument Shared model validator.
+ * @returns {void}
+ */
+function assertCanonicalKicadDocument(document, CircuitJsonDocument) {
+    const component = document.model.find(
+        (element) =>
+            element.type === 'source_component' && element.name === 'C1'
+    )
+    const pcbComponent = document.model.find(
+        (element) => element.type === 'pcb_component'
+    )
+    const silkscreenText = document.model.find(
+        (element) =>
+            element.type === 'pcb_silkscreen_text' && element.text === 'C1'
+    )
+    const fabricationArc = document.model.find(
+        (element) =>
+            element.type === 'pcb_fabrication_note_path' &&
+            element.shape === 'arc'
+    )
+    const boardNote = document.model.find(
+        (element) =>
+            element.type === 'pcb_note_text' && element.text === 'BOARD NOTE'
+    )
+    const courtyard = document.model.find(
+        (element) => element.type === 'pcb_courtyard_polygon'
+    )
+    const polygonHasRotatedEdge = courtyard.points.some((point, index) => {
+        const next = courtyard.points[(index + 1) % courtyard.points.length]
+        return (
+            Math.abs(next.x - point.x) > 1e-6 &&
+            Math.abs(next.y - point.y) > 1e-6
+        )
+    })
+
+    assert.equal(CircuitJsonDocument.isModel(document.model), true)
+    assert.equal(component.ftype, 'simple_capacitor')
+    assert.equal(component.display_value, '22n')
+    assert.equal(component.capacitance, '22n')
+    assert.equal(silkscreenText.pcb_component_id, pcbComponent.pcb_component_id)
+    assert.equal(silkscreenText.layer, 'top')
+    assert.equal(fabricationArc.pcb_component_id, pcbComponent.pcb_component_id)
+    assert.equal(fabricationArc.layer, 'top')
+    assert.equal(fabricationArc.route.length > 3, true)
+    assert.equal(boardNote.layer, 'top')
+    assert.equal(Object.hasOwn(boardNote, 'pcb_component_id'), false)
+    assert.equal(courtyard.pcb_component_id, pcbComponent.pcb_component_id)
+    assert.equal(courtyard.layer, 'top')
+    assert.equal(polygonHasRotatedEdge, true)
+    assert.equal(
+        document.model.some(
+            (element) =>
+                element.type === 'pcb_text' || element.type === 'pcb_courtyard'
+        ),
+        false
+    )
 }
 const COMMON_TOOLKIT_SUBPATHS = [
     'capabilities',
@@ -92,7 +212,7 @@ test('app pins the converged toolkit release family', async () => {
     const pkg = JSON.parse(
         await readFile(new URL('package.json', root), 'utf8')
     )
-    assert.equal(pkg.version, '1.10.1')
+    assert.equal(pkg.version, '1.10.2')
     for (const [name, version] of Object.entries(TARGET_DEPENDENCIES)) {
         assert.equal(pkg.dependencies[name], version, name)
     }
@@ -247,6 +367,19 @@ test('installed toolkits expose identical common API identities and extensions',
             )
         }
     }
+})
+
+test('installed KiCad parser and project loader emit canonical CircuitJSON directly', async () => {
+    const { CircuitJsonDocument, Parser, ProjectLoader } =
+        await import('kicad-toolkit')
+    const data = new TextEncoder().encode(canonicalKicadBoardFixture())
+    const document = Parser.parse({ fileName: 'fixture.kicad_pcb', data })
+    const project = ProjectLoader.load([{ name: 'fixture.kicad_pcb', data }])
+    assert.equal(project.schema, 'ecad-toolkit.project.v1')
+    assert.equal(project.documents.length, 1)
+    assertCanonicalKicadDocument(document, CircuitJsonDocument)
+    assertCanonicalKicadDocument(project.documents[0], CircuitJsonDocument)
+    assert.deepEqual(project.documents[0].model, document.model)
 })
 
 test('Gerber rotated plated slots flow through canonical CircuitJSON into the viewer', async () => {
