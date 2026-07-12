@@ -77,6 +77,47 @@ test('EcadParserService preserves canonical parser result identity', async () =>
     assert.equal(Object.hasOwn(parsedDirectResult, 'schematic'), false)
 })
 
+test('EcadParserService retains KiCad native fidelity data in direct and project parses', async () => {
+    const directResult = createDocument('kicad-direct-document')
+    const batchResult = createDocument('kicad-batch-document')
+    const optionCalls = []
+    const service = new EcadParserService({
+        kicadParser: {
+            parse(input, options) {
+                optionCalls.push({ kind: 'parse', input, options })
+                return directResult
+            }
+        },
+        kicadProjectLoader: {
+            loadAsync(entries, options) {
+                optionCalls.push({ kind: 'project', entries, options })
+                return {
+                    documents: [batchResult],
+                    assets: [],
+                    diagnostics: []
+                }
+            }
+        }
+    })
+
+    await service.parseEntries([
+        { name: 'neutral.kicad_pcb', buffer: new ArrayBuffer(1) }
+    ])
+    service.parseArrayBuffer('neutral.kicad_sch', new ArrayBuffer(1))
+
+    assert.deepEqual(
+        optionCalls.map((call) => [
+            call.kind,
+            call.options.extensions,
+            call.options.decodeAssets
+        ]),
+        [
+            ['project', ['kicad.native-model'], 'full'],
+            ['parse', ['kicad.native-model'], 'full']
+        ]
+    )
+})
+
 test('EcadParserService parses independent toolkit project groups concurrently', async () => {
     const starts = []
 

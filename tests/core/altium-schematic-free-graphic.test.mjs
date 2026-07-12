@@ -69,12 +69,8 @@ test('EcadRendererService preserves Altium free graphic pie and lower arc', () =
             element.type === 'schematic_path' &&
             String(element.schematic_path_id || '').includes('_pie_')
     )
-    const arcIndex = markup.indexOf(
-        'class="schematic-shape schematic-shape--arc"'
-    )
-    const pieIndex = markup.indexOf(
-        'class="schematic-shape schematic-shape--path"'
-    )
+    const arcIndex = markup.indexOf('class="schematic-arc"')
+    const pieIndex = markup.indexOf('class="schematic-pie"')
 
     assert.ok(pie)
     assert.equal(pie.is_filled, true)
@@ -83,12 +79,18 @@ test('EcadRendererService preserves Altium free graphic pie and lower arc', () =
     assert.notEqual(arcIndex, -1)
     assert.notEqual(pieIndex, -1)
     assert.ok(arcIndex < pieIndex)
-    assert.match(markup, /schematic-shape--arc"[^>]+A 5 5 0 0 0/)
-    assert.doesNotMatch(markup, /schematic-shape--arc"[^>]+A 5 5 0 1 1/)
+    assert.match(markup, /schematic-arc"[^>]+A 5 5 0 0 0/)
+    assert.doesNotMatch(markup, /schematic-arc"[^>]+A 5 5 0 1 1/)
     assert.doesNotMatch(markup, /stroke-width="1"/)
     assert.match(markup, /stroke-width="0\.85"/)
-    assert.match(markup, /schematic-shape--path"[^>]+stroke="#ff0000"/i)
-    assert.match(markup, /schematic-shape--path"[^>]+fill="#ff0000"/i)
+    assert.match(
+        markup,
+        /schematic-pie"[^>]+fill="var\(--schematic-alert-color\)"/i
+    )
+    assert.match(
+        markup,
+        /schematic-pie"[^>]+stroke="var\(--schematic-alert-color\)"/i
+    )
 })
 
 /**
@@ -116,6 +118,6 @@ test('EcadParserService drops off-sheet ownerless Altium free graphic lines', ()
     assert.doesNotMatch(markup, /#ff0000/i)
     assert.match(
         markup,
-        /<rect class="sheet-backdrop schematic-sheet" x="0" y="0" width="130" height="100"><\/rect>/
+        /<rect class="sheet-backdrop" x="0" y="0" width="130" height="100"/
     )
 })

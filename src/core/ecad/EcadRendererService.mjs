@@ -11,6 +11,7 @@ import {
 } from 'altium-toolkit/extensions'
 import {
     BomTableRenderer as KicadBomTableRenderer,
+    KicadExtensionResolver,
     KicadPcbRenderOutlineAdapter,
     PcbFootprintPadAxisNormalizer as KicadPcbFootprintPadAxisNormalizer,
     PcbInteractionIndex as KicadPcbInteractionIndex,
@@ -43,17 +44,6 @@ export class EcadRendererService {
      * @returns {string}
      */
     static renderSchematic(documentModel) {
-        if (EcadRendererService.#isCircuitJson(documentModel)) {
-            return EcadRendererService.#renderCached(
-                EcadRendererService.#schematicSvgCache,
-                documentModel,
-                'schematic',
-                () =>
-                    EcadCircuitJsonRendererService.renderSchematic(
-                        documentModel
-                    )
-            )
-        }
         const altiumDocument =
             AltiumExtensionResolver.nativeModel(documentModel)
         if (altiumDocument) {
@@ -67,6 +57,26 @@ export class EcadRendererService {
                         EcadRendererService.#altiumSchematicRenderOptions(
                             altiumDocument
                         )
+                    )
+            )
+        }
+        const kicadDocument = KicadExtensionResolver.nativeModel(documentModel)
+        if (kicadDocument) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#schematicSvgCache,
+                documentModel,
+                'schematic',
+                () => KicadSchematicSvgRenderer.render(kicadDocument)
+            )
+        }
+        if (EcadRendererService.#isCircuitJson(documentModel)) {
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#schematicSvgCache,
+                documentModel,
+                'schematic',
+                () =>
+                    EcadCircuitJsonRendererService.renderSchematic(
+                        documentModel
                     )
             )
         }
@@ -120,6 +130,21 @@ export class EcadRendererService {
                 renderKey,
                 () =>
                     EcadRendererService.#renderAltiumPcb(
+                        renderDocumentModel,
+                        side
+                    )
+            )
+        }
+        const kicadDocument = KicadExtensionResolver.nativeModel(documentModel)
+        if (kicadDocument) {
+            const renderDocumentModel =
+                KicadPcbFootprintPadAxisNormalizer.apply(kicadDocument)
+            return EcadRendererService.#renderCached(
+                EcadRendererService.#pcbSvgCache,
+                documentModel,
+                renderKey,
+                () =>
+                    EcadRendererService.#renderKicadPcb(
                         renderDocumentModel,
                         side
                     )
@@ -202,6 +227,25 @@ export class EcadRendererService {
                 )
             )
         }
+        const kicadDocument = KicadExtensionResolver.nativeModel(documentModel)
+        if (kicadDocument) {
+            const hitTestDocumentModel =
+                KicadPcbFootprintPadAxisNormalizer.apply(kicadDocument)
+            return EcadRendererService.#withResolvedPcbComponentKeys(
+                hitTestDocumentModel,
+                KicadPcbInteractionIndex.hitTestItems(
+                    EcadRendererService.#pcbInteractionItems(
+                        hitTestDocumentModel,
+                        KicadPcbInteractionIndex
+                    ),
+                    point,
+                    {
+                        ...options,
+                        side: side === 'bottom' ? 'back' : 'front'
+                    }
+                )
+            )
+        }
         if (EcadRendererService.#isCircuitJson(documentModel)) {
             return EcadCircuitJsonRendererService.hitTestPcb(
                 documentModel,
@@ -272,6 +316,10 @@ export class EcadRendererService {
             AltiumExtensionResolver.nativeModel(documentModel)
         if (altiumDocument) {
             return AltiumPcbInteractionLayerModel.resolve(altiumDocument)
+        }
+        const kicadDocument = KicadExtensionResolver.nativeModel(documentModel)
+        if (kicadDocument) {
+            return KicadPcbInteractionLayerModel.resolve(kicadDocument)
         }
         if (EcadRendererService.#isCircuitJson(documentModel)) {
             return EcadCircuitJsonRendererService.resolvePcbInteractionLayers(

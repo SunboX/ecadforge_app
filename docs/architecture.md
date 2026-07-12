@@ -48,15 +48,19 @@ The current parser is intentionally pragmatic:
 4. Normalize shared data as CircuitJSON, accepting canonical document
    envelopes with `source.format` and retained native compatibility arrays with
    `sourceFormat`
-5. Keep normal app state canonical. Altium and KiCad project strings, drawing
-   primitives, hierarchy sheet symbols, image references, and hidden
-   designator visibility are projected by their owning toolkits. The shared
-   CircuitJSON renderer consumes those elements and asset bytes directly; no
-   legacy fields are copied onto the document envelope and the app does not
-   clone, rewrite, or source-route native schematic rows before rendering.
-   Explicit native extensions remain available only for source-specific APIs.
+5. Keep normal app state canonical while explicitly retaining source-native
+   extensions for fidelity-sensitive operations. The Altium and KiCad
+   extension resolvers select their native schematic renderer before the
+   canonical fallback. KiCad native PCB rendering, hit testing, and interaction
+   layers follow the same rule. No native rows are copied onto the document
+   envelope, and the app does not clone or rewrite source renderer models.
 6. Build additive BOM and connectivity metadata where supported
-7. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from that normalized model. Schematic net diagnostics stay read-only and can emit staged geometry checks, restricted centerline crossings, supplemental island connection candidates, guideline-snapped elbow candidates, endpoint-preserving jog candidates, whole-island lane-shift candidates with obstacle-aware offsets, label relocation candidates, congested L-turn reroutes, merged-label trace detours, long-distance connection candidates, section-boundary connection candidates, balanced path-cleanup candidates, label placement rejection reasons, constrained label-orientation and power-label corner candidates, symbol body and pin-fit candidates, per-advisor candidate budgets, candidate decision timelines with score and collision-source metadata, stage health rows, and semantic same-side label groups. The PCB tab uses deterministic SVG renderers for normalized native boards, Gerber fabrication data, and standards-shaped element-array boards, including rich detail artwork, routed silkscreen and fabrication paths, aligned and knockout PCB text, shape-specific courtyard rows, in-board diagnostics, source-connectivity rats-nest overlays, source-net group metadata, trace-length budget labels, solder-mask/paste inspection layers, group outlines, and anchor-offset overlays, then applies app-local layer visibility, in-board object and component-side visibility settings, object opacity, component highlight, net hover/selection highlight, persistent diagnostic focus with related primitive previews, animated diagnostic viewport focus, reset/fit and opt-in hover-focus toolbar actions, sidebar candidate previews, and measurement overlays with bounds copy, zoom, selection, and clipped SVG/PNG export.
+7. Feed schematic, PCB, BOM, interactive 3D, and diagnostics views from the
+   common document envelope. BOM and shared services consume CircuitJSON.
+   Fidelity-sensitive Altium/KiCad 2D views use the retained native extension;
+   documents without a native extension use the canonical renderer. The KiCad
+   3D path intentionally remains canonical for its smaller preparation graph
+   and faster worker transfer. Schematic net diagnostics stay read-only and can emit staged geometry checks, restricted centerline crossings, supplemental island connection candidates, guideline-snapped elbow candidates, endpoint-preserving jog candidates, whole-island lane-shift candidates with obstacle-aware offsets, label relocation candidates, congested L-turn reroutes, merged-label trace detours, long-distance connection candidates, section-boundary connection candidates, balanced path-cleanup candidates, label placement rejection reasons, constrained label-orientation and power-label corner candidates, symbol body and pin-fit candidates, per-advisor candidate budgets, candidate decision timelines with score and collision-source metadata, stage health rows, and semantic same-side label groups. The PCB tab uses deterministic SVG renderers for normalized native boards, Gerber fabrication data, and standards-shaped element-array boards, including rich detail artwork, routed silkscreen and fabrication paths, aligned and knockout PCB text, shape-specific courtyard rows, in-board diagnostics, source-connectivity rats-nest overlays, source-net group metadata, trace-length budget labels, solder-mask/paste inspection layers, group outlines, and anchor-offset overlays, then applies app-local layer visibility, in-board object and component-side visibility settings, object opacity, component highlight, net hover/selection highlight, persistent diagnostic focus with related primitive previews, animated diagnostic viewport focus, reset/fit and opt-in hover-focus toolbar actions, sidebar candidate previews, and measurement overlays with bounds copy, zoom, selection, and clipped SVG/PNG export.
 
 This is still not full binary reconstruction. It is a browser-first recovery strategy that mixes printable record parsing with targeted OLE stream access where the format clearly requires it, such as embedded schematic images, embedded PCB STEP payloads, and richer PCB stream recovery.
 
@@ -72,7 +76,9 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    each active project owner. Independent format groups run concurrently and
    are folded back into stable toolkit order. Local Altium, KiCad, and
    CircuitJSON groups use bounded full asset decoding so viewer/export
-   consumers receive real bytes.
+   consumers receive real bytes. KiCad requests include the public
+   `kicad.native-model` extension so the same returned document supports both
+   common services and exact native rendering.
 4. The document model, including diagnostics and additive connectivity
    metadata, is posted back to the main thread; canonical envelopes keep
    CircuitJSON in `model`. KiCad `${KIPRJMOD}` model references resolve from
@@ -87,8 +93,10 @@ This is still not full binary reconstruction. It is a browser-first recovery str
 7. The app reuses one `CircuitJsonDocumentContext` for canonical or
    source-neutral documents across 2D rendering, interaction, and 3D scene
    preparation. `EcadScene3dService` routes canonical envelopes directly
-   through the CircuitJSON adapter; the viewer itself resolves document and
-   session CAD assets. Gerber documents render as fabrication-derived bare
+   through the CircuitJSON adapter; the viewer retains the source format and
+   resolves document and session CAD assets. Missing CircuitJSON
+   solder-mask-opening flags mean covered copper, while explicit openings are
+   exposed. Gerber documents render as fabrication-derived bare
    boards without component bodies. Routed plated slots retain their canonical
    polygon pad extents, pill drill dimensions, and one board-space rotation
    through the shared CircuitJSON hole primitive model. Disjoint Gerber profile

@@ -37,15 +37,19 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
   the source libraries rather than app compatibility shims
 - Independent toolkit project groups parse concurrently while their documents,
   diagnostics, and assets keep deterministic toolkit order
-- Canonical Altium and KiCad schematic graphics—including paths, text frames,
-  tables, hierarchy sheet symbols, and asset-backed images—render directly
-  through the shared CircuitJSON renderer; app state never receives copied
-  legacy `schematic` or `pcb` fields
-- Altium project strings, image bytes, and hidden component designators are
-  resolved by the toolkit projection; retained native extensions remain
-  available only to callers that explicitly request source-specific APIs
+- CircuitJSON remains the shared document model for app state, BOM, query,
+  diagnostics, and the fast KiCad 3D path. Altium and KiCad parsing also retains
+  an explicit native extension so their source renderers can preserve exact
+  schematic styling, wiring, text placement, and native PCB interaction
+  fidelity without app-side conversion or copied legacy fields.
+- Source-native rendering is selected through each toolkit's public extension
+  resolver before the canonical fallback. Plain CircuitJSON documents continue
+  to use the shared deterministic SVG renderer.
 - Canonical CAD model metadata and document/session assets flow directly into
-  `pcb-scene3d-viewer` without URL-promotion or resolver wrappers in the app
+  `pcb-scene3d-viewer` without URL-promotion or resolver wrappers in the app.
+  The viewer retains `source.format` and treats omitted CircuitJSON trace,
+  pour, and via mask-opening flags as covered copper; explicit openings remain
+  exposed.
 - STEP rendering uses the installed `@sunbox/occt-import-js` JavaScript, WASM,
   and package-owned worker directly; local and static servers expose the same
   scoped package path without app-vendored copies or a custom worker
@@ -91,6 +95,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.10.4 release notes](docs/release-notes-v1.10.4.md)
 - [1.10.3 release notes](docs/release-notes-v1.10.3.md)
 - [1.10.2 release notes](docs/release-notes-v1.10.2.md)
 - [1.10.1 release notes](docs/release-notes-v1.10.1.md)

@@ -23,9 +23,15 @@
 - When overlapping project groups report the same canonical asset, retain the
   payload-bearing record instead of an earlier metadata-only duplicate
 - Verify canonical envelope routing, context/index reuse, and retained native
-  `/extensions` imports
-- Verify explicit Altium native-model selection and resolver routing preserve
-  free graphics, packed images, hidden labels, and canonical document identity
+  `/extensions` imports. Fidelity-sensitive Altium/KiCad schematic and KiCad
+  PCB interaction paths must resolve the native extension before the canonical
+  fallback; BOM and KiCad 3D must remain canonical.
+- Verify explicit Altium and KiCad native-model selection preserves theme
+  colors, symbol bodies, wiring, text placement, free graphics, packed images,
+  hidden labels, and canonical document identity.
+- Verify canonical KiCad 3D preserves `source.format`, keeps omitted trace,
+  pour, and via mask-opening values covered, and leaves explicit openings
+  exposed with the correct material groups.
 - Verify real project loading resolves native project strings and the
   toolkit-owned renderer suppresses hidden fallback labels without an app
   rewrite helper
@@ -60,12 +66,25 @@ npm run check:structured-data
 - `tests/core/ecad-format-registry-canonical.test.mjs`: canonical source
   identity, viewer compatibility, shared context reuse, render reuse, and BOM
   derivation
+- `tests/core/ecad-native-fidelity-routing.test.mjs`: native-first Altium/KiCad
+  schematic routing, native KiCad PCB/hit/layer routing, canonical fallback,
+  and canonical BOM behavior
 - Viewer-owned package tests cover all live model formats, safe companion
   resources, opt-in URL policy, exact cache identities, retry eviction, and raw
   ZIP format/payload parity; app integration tests verify the direct canonical
   document/session boundary without app resolver wrappers
 - App intake coverage includes direct and folder-discovered 3MF assets and
   asserts the renderer service contains no native schematic rewrite path
+
+## Visual regression check
+
+After dependency or renderer-routing changes, load the bundled Altium and
+KiCad demos in a real browser. Check the full schematic palette, symbol fills,
+wire continuity, text placement, and sheet decorations. For KiCad 3D, check a
+top and isometric view: solder-mask-covered traces, pours, and tented vias must
+use the board mask palette, while pads and explicitly opened copper remain
+exposed. Record console errors and failed network requests in addition to the
+screenshots.
 
 ## Rules
 
