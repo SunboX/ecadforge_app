@@ -4,7 +4,7 @@ Version 1.10.4 restores the source rendering fidelity lost during the common
 toolkit API convergence while keeping CircuitJSON as the shared internal model
 and fast 3D interchange path.
 
-- Updates `circuitjson-toolkit` to 1.1.2, `kicad-toolkit` to 1.1.4, and
+- Updates `circuitjson-toolkit` to 1.1.2, `kicad-toolkit` to 1.1.5, and
   `pcb-scene3d-viewer` to 1.2.2.
 - Altium schematics again use the retained native renderer, restoring the ECAD
   Forge palette, complete wiring, source text placement, symbol bodies, and

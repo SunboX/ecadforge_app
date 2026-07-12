@@ -7,7 +7,7 @@ const TARGET_DEPENDENCIES = {
     'altium-toolkit': '^1.2.1',
     'circuitjson-toolkit': '^1.1.2',
     'gerber-toolkit': '^0.2.0',
-    'kicad-toolkit': '^1.1.4',
+    'kicad-toolkit': '^1.1.5',
     'pcb-scene3d-viewer': '^1.2.2'
 }
 
