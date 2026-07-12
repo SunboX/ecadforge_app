@@ -79,7 +79,10 @@ export class EcadParserService {
         }
 
         if (role.sourceFormat === 'kicad') {
-            return this.#parse(this.#kicadParser, fileName, buffer)
+            return this.#parse(this.#kicadParser, fileName, buffer, {
+                extensions: ['kicad.native-model'],
+                decodeAssets: 'full'
+            })
         }
 
         if (role.sourceFormat === 'circuitjson') {
@@ -166,7 +169,10 @@ export class EcadParserService {
                 this.#kicadProjectLoader,
                 kicadParseEntries,
                 'KiCad project',
-                { decodeAssets: 'full' }
+                {
+                    extensions: ['kicad.native-model'],
+                    decodeAssets: 'full'
+                }
             ]
         ]
         const loadedGroups = await Promise.all(

@@ -103,18 +103,13 @@ function canonicalAltiumDocument() {
     }
 }
 
-test('EcadRendererService consumes canonical Altium graphics and image assets directly', () => {
+test('EcadRendererService prefers retained Altium schematic fidelity over canonical fallback graphics', () => {
     const markup = EcadRendererService.renderSchematic(
         canonicalAltiumDocument()
     )
 
-    assert.equal(
-        (markup.match(/class="schematic-sheet-symbol"/gu) || []).length,
-        2
-    )
-    assert.match(markup, /data-source-file-name="child-a\.SchDoc"/u)
-    assert.match(markup, /data-source-file-name="child-b\.SchDoc"/u)
-    assert.match(markup, /ROOT_GRAPHIC/u)
-    assert.match(markup, /href="data:image\/png;base64,AQID"/u)
-    assert.doesNotMatch(markup, /LEGACY_ONLY/u)
+    assert.match(markup, /LEGACY_ONLY/u)
+    assert.doesNotMatch(markup, /data-source-file-name="child-a\.SchDoc"/u)
+    assert.doesNotMatch(markup, /ROOT_GRAPHIC/u)
+    assert.doesNotMatch(markup, /href="data:image\/png;base64,AQID"/u)
 })
