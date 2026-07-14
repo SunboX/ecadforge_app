@@ -24,9 +24,9 @@
   source-neutral equivalent exists
 - `circuitjson-toolkit`: immutable CircuitJSON documents, reusable indexes and
   derived caches, deterministic rendering and interaction, manufacturing,
-  local simulation, and canonical scene preparation. Version 1.2.1 also keeps
-  high-density multi-document project transport within independent per-document
-  and aggregate worker budgets.
+  local simulation, and canonical scene preparation. Version 1.3.0 adds an
+  explicit structured-clone preparation path for trusted worker results while
+  the default preparation path retains exact binary-value handling.
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
@@ -86,7 +86,12 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    common services and exact native rendering.
 4. The document model, including diagnostics and additive connectivity
    metadata, is posted back to the main thread; canonical envelopes keep
-   CircuitJSON in `model`. KiCad `${KIPRJMOD}` model references resolve from
+   CircuitJSON in `model`. After the browser completes this structured-clone
+   boundary, `AppControllerParserData` adopts only canonical documents through
+   `CircuitJsonDocumentContext.prepareStructuredClone`. Direct service calls,
+   main-thread fallback results, and retained native compatibility documents
+   continue through the exact context preparation path. KiCad `${KIPRJMOD}`
+   model references resolve from
    the owning `.kicad_pro` directory (or board directory when project metadata
    is absent) and link canonical `cad_component` rows to the exact project
    asset name. Canonical schematic image elements similarly resolve exact
@@ -94,7 +99,20 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    sets its top/bottom surface height, and model-local transforms remain
    independent from footprint board placement.
 5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
-6. `AppView` renders the active tab from the normalized model, applies selected symbol/footprint/net highlights, mounts the 2D PCB interaction controller for board selection, view settings, reset/fit, opt-in hover focus, visibility-aware hover/bounds candidate previews, persistent diagnostic focus, measurement actions, and clipped bounds exports, and mounts the interactive 3D controller when needed
+6. `AppView` renders the active tab from the normalized model, applies selected
+   symbol/footprint/net highlights, mounts the 2D PCB interaction controller for
+   board selection, view settings, reset/fit, opt-in hover focus,
+   visibility-aware hover/bounds candidate previews, persistent diagnostic
+   focus, measurement actions, and clipped bounds exports, and mounts the
+   interactive 3D controller when needed. A PCB render performs no up-front
+   interaction primitive preparation when the toolbar is hidden and neither
+   measurement nor diagnostic focus is active. The common resolved-key path
+   therefore builds no primitive model. When a consumer is active, the renderer
+   prepares one model and shares it with the toolbar, measurement overlay,
+   diagnostic focus, and compatibility fallback. Component-side attributes use
+   already resolved document component rows in the common single-pass path;
+   only unresolved native renderer keys can request interaction data and a
+   second compatibility pass.
 7. The app reuses one `CircuitJsonDocumentContext` for canonical or
    source-neutral documents across 2D rendering, interaction, and 3D scene
    preparation. `EcadScene3dService` routes canonical envelopes directly

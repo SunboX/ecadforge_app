@@ -327,7 +327,11 @@ test('PcbViewRenderer renders rich CircuitJSON artwork and diagnostics', () => {
         '',
         {},
         '',
-        { hoveredNetName: 'SIG', showTraceLengths: true }
+        {
+            hoveredNetName: 'SIG',
+            showTraceLengths: true,
+            measurement: { mode: 'distance' }
+        }
     )
 
     assert.match(html, /class="[^"]*\bpcb-silkscreen\b/)

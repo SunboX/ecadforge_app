@@ -8,7 +8,7 @@ import { PcbViewSettingsRenderer } from './PcbViewSettingsRenderer.mjs'
 export class PcbViewportToolbarRenderer {
     /**
      * Renders optional PCB viewport controls after board-side selection.
-     * @param {{ documentModel: object, hiddenObjects?: string[], measurementMode?: string, showTraceLengths?: boolean, hoverFocusEnabled?: boolean, focusedDiagnosticId?: string, hidden?: boolean, translate: (key: string) => string }} options Render options.
+     * @param {{ documentModel: object, interactionModel?: object, hiddenObjects?: string[], measurementMode?: string, showTraceLengths?: boolean, hoverFocusEnabled?: boolean, focusedDiagnosticId?: string, hidden?: boolean, translate: (key: string) => string }} options Render options.
      * @returns {string}
      */
     static renderControls(options) {
@@ -19,8 +19,14 @@ export class PcbViewportToolbarRenderer {
         const hidden = options?.hidden === true
         const hiddenAttribute = hidden ? ' hidden' : ''
         const documentModel = options?.documentModel || null
-        const traceLengths =
-            PcbInteractionPrimitiveModel.build(documentModel).traceLengths || []
+        const interactionModel =
+            options?.interactionModel ??
+            (hidden ? null : PcbInteractionPrimitiveModel.build(documentModel))
+        const traceLengths = interactionModel?.traceLengths || []
+        // Keep the legacy delegated toggle target while controls are globally
+        // hidden; determining whether traces exist must not force preparation.
+        const traceLengthButtonRows =
+            hidden && !interactionModel ? [{}] : traceLengths
 
         return (
             PcbViewportToolbarRenderer.#renderResetViewButton(
@@ -45,13 +51,13 @@ export class PcbViewportToolbarRenderer {
                 { hidden }
             ) +
             PcbViewportToolbarRenderer.#renderTraceLengthButton(
-                traceLengths,
+                traceLengthButtonRows,
                 Boolean(options?.showTraceLengths),
                 translate,
                 hiddenAttribute
             ) +
             PcbViewportToolbarRenderer.#renderDiagnosticNavigator(
-                documentModel,
+                interactionModel,
                 translate,
                 String(options?.focusedDiagnosticId || '').trim(),
                 hiddenAttribute
@@ -136,20 +142,19 @@ export class PcbViewportToolbarRenderer {
 
     /**
      * Renders grouped in-view diagnostic navigation controls.
-     * @param {object} documentModel Document model.
+     * @param {object} interactionModel Prepared PCB interaction model.
      * @param {(key: string) => string} translate Translation lookup.
      * @param {string} focusedDiagnosticId Focused diagnostic id.
      * @param {string} hiddenAttribute Optional hidden attribute.
      * @returns {string}
      */
     static #renderDiagnosticNavigator(
-        documentModel,
+        interactionModel,
         translate,
         focusedDiagnosticId,
         hiddenAttribute
     ) {
-        const diagnostics =
-            PcbInteractionPrimitiveModel.build(documentModel).diagnostics || []
+        const diagnostics = interactionModel?.diagnostics || []
         if (!diagnostics.length) return ''
 
         return (

@@ -5,7 +5,7 @@ import test from 'node:test'
 const root = new URL('../', import.meta.url)
 const TARGET_DEPENDENCIES = {
     'altium-toolkit': '^1.3.0',
-    'circuitjson-toolkit': '^1.2.1',
+    'circuitjson-toolkit': '^1.3.0',
     'gerber-toolkit': '^0.3.0',
     'kicad-toolkit': '^1.2.0',
     'pcb-scene3d-viewer': '^1.3.0'
@@ -212,7 +212,7 @@ test('app pins the converged toolkit release family', async () => {
     const pkg = JSON.parse(
         await readFile(new URL('package.json', root), 'utf8')
     )
-    assert.equal(pkg.version, '1.11.0')
+    assert.equal(pkg.version, '1.12.0')
     for (const [name, version] of Object.entries(TARGET_DEPENDENCIES)) {
         assert.equal(pkg.dependencies[name], version, name)
     }

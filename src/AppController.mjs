@@ -762,7 +762,9 @@ export class AppController {
 
         if (payload.type === 'parser:success') {
             matchedRequest.resolve(
-                AppControllerParserData.normalizeParseResult(payload)
+                AppControllerParserData.normalizeStructuredCloneParseResult(
+                    payload
+                )
             )
             return
         }

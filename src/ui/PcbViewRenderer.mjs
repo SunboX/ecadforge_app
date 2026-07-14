@@ -8,6 +8,7 @@ import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMark
 import { PcbDiagnosticFocusRenderer } from './PcbDiagnosticFocusRenderer.mjs'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
 import { PcbViewGerberLayerSelection } from './PcbViewGerberLayerSelection.mjs'
+import { PcbViewInteractionPreparation } from './PcbViewInteractionPreparation.mjs'
 import { PcbViewportToolbarRenderer } from './PcbViewportToolbarRenderer.mjs'
 import { SvgPanelChromeStripper } from './SvgPanelChromeStripper.mjs'
 import { UiText } from './UiText.mjs'
@@ -63,6 +64,14 @@ export class PcbViewRenderer {
             viewerOptions.focusedDiagnosticId || ''
         ).trim()
         const toolbarControlsHidden = !PCB_VIEWPORT_TOOLBAR_CONTROLS_VISIBLE
+        const interaction = PcbViewInteractionPreparation.prepare(
+            documentModel,
+            {
+                toolbarVisible: !toolbarControlsHidden,
+                measurementMode: measurement.mode,
+                focusedDiagnosticId
+            }
+        )
 
         return (
             '<section class="pcb-view" data-pcb-view-active-side="' +
@@ -85,6 +94,7 @@ export class PcbViewRenderer {
             PcbViewRenderer.#renderSideButton('bottom', normalizedSide, t) +
             PcbViewportToolbarRenderer.renderControls({
                 documentModel,
+                interactionModel: interaction?.model,
                 hiddenObjects,
                 measurementMode: measurement.mode,
                 showTraceLengths,
@@ -108,7 +118,8 @@ export class PcbViewRenderer {
                 hoveredNetName,
                 showTraceLengths,
                 focusedDiagnosticId,
-                t
+                t,
+                interaction
             ) +
             ViewportInteractionGateRenderer.render(
                 t('viewport.interactWithView')
@@ -146,6 +157,7 @@ export class PcbViewRenderer {
      * @param {boolean} showTraceLengths Whether trace labels are visible.
      * @param {string} focusedDiagnosticId Focused diagnostic id.
      * @param {(key: string) => string} translate Translation lookup.
+     * @param {{ context: object | null, model: object } | null} interaction Prepared interaction data.
      * @returns {string}
      */
     static #renderPcbSvg(
@@ -161,7 +173,8 @@ export class PcbViewRenderer {
         hoveredNetName,
         showTraceLengths,
         focusedDiagnosticId,
-        translate
+        translate,
+        interaction
     ) {
         const renderSide = PcbViewRenderer.#resolveRenderSide(
             side,
@@ -170,7 +183,8 @@ export class PcbViewRenderer {
         const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
             documentModel,
             renderSide,
-            gerberOptions
+            gerberOptions,
+            interaction?.model ?? null
         )
         const layerTargets = PcbViewRenderer.#resolveLayerVisibilityTargets(
             documentModel,
@@ -220,12 +234,14 @@ export class PcbViewRenderer {
             markedMarkup,
             measurement,
             documentModel,
-            translate
+            translate,
+            interaction?.model ?? null
         )
         return PcbDiagnosticFocusRenderer.inject(
             measuredMarkup,
             documentModel,
-            focusedDiagnosticId
+            focusedDiagnosticId,
+            interaction
         )
     }
 
@@ -234,14 +250,21 @@ export class PcbViewRenderer {
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
      * @param {{ renderMode: string, layerId: string, layerIds: string[], side?: string }} gerberOptions Gerber render options.
+     * @param {object | null} [interactionModel] Prepared interaction model.
      * @returns {string}
      */
-    static #renderBasePcbSvg(documentModel, side, gerberOptions) {
+    static #renderBasePcbSvg(
+        documentModel,
+        side,
+        gerberOptions,
+        interactionModel = null
+    ) {
         if (!PcbViewRenderer.#canCacheDocument(documentModel)) {
             return PcbViewRenderer.#createBasePcbSvg(
                 documentModel,
                 side,
-                gerberOptions
+                gerberOptions,
+                interactionModel
             )
         }
 
@@ -258,7 +281,8 @@ export class PcbViewRenderer {
         const markup = PcbViewRenderer.#createBasePcbSvg(
             documentModel,
             side,
-            gerberOptions
+            gerberOptions,
+            interactionModel
         )
         sideCache.set(cacheKey, markup)
         return markup
@@ -269,9 +293,15 @@ export class PcbViewRenderer {
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side Active board side.
      * @param {{ renderMode: string, layerId: string, layerIds?: string[], side?: string }} gerberOptions Gerber render options.
+     * @param {object | null} [interactionModel] Prepared interaction model.
      * @returns {string}
      */
-    static #createBasePcbSvg(documentModel, side, gerberOptions) {
+    static #createBasePcbSvg(
+        documentModel,
+        side,
+        gerberOptions,
+        interactionModel = null
+    ) {
         const markup = EcadRendererService.renderPcb(documentModel, {
             side,
             renderMode: gerberOptions.renderMode,
@@ -279,16 +309,22 @@ export class PcbViewRenderer {
             layerIds: gerberOptions.layerIds
         })
         const netMarkup = PcbViewRenderer.#tagNetElements(markup)
+        const components = EcadDocumentComponents.resolve(documentModel)
+        const sideComponents = PcbViewRenderer.#resolveSideComponents(
+            components,
+            side
+        )
         const componentMarkup = PcbViewRenderer.#tagComponentGroups(
             netMarkup,
-            documentModel,
-            side
+            sideComponents
         )
 
         return SvgPanelChromeStripper.stripMetadataHeader(
             PcbComponentSideAttributeRenderer.render(
                 componentMarkup,
-                documentModel
+                documentModel,
+                components,
+                interactionModel
             )
         )
     }
@@ -743,15 +779,10 @@ export class PcbViewRenderer {
     /**
      * Adds stable component keys to grouped PCB component markup.
      * @param {string} markup Renderer-owned SVG markup.
-     * @param {object} documentModel Document model.
-     * @param {'top' | 'bottom'} side Active board side.
+     * @param {object[]} components Components rendered on the active side.
      * @returns {string}
      */
-    static #tagComponentGroups(markup, documentModel, side) {
-        const components = PcbViewRenderer.#resolveSideComponents(
-            documentModel,
-            side
-        )
+    static #tagComponentGroups(markup, components) {
         if (!components.length) return String(markup)
 
         let componentIndex = 0
@@ -868,12 +899,11 @@ export class PcbViewRenderer {
 
     /**
      * Returns the component subset rendered for the active board side.
-     * @param {object} documentModel Document model.
+     * @param {object[]} components All document component rows.
      * @param {'top' | 'bottom'} side Active board side.
      * @returns {object[]}
      */
-    static #resolveSideComponents(documentModel, side) {
-        const components = EcadDocumentComponents.resolve(documentModel)
+    static #resolveSideComponents(components, side) {
         const classified = components.map((component) => ({
             component,
             side: PcbComponentSelectionModel.resolveComponentSide(component)

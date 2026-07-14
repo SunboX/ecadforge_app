@@ -816,6 +816,9 @@ test('PcbViewController focuses CircuitJSON PCB diagnostics in the viewport', ()
         content,
         createCircuitJsonPcbDocument()
     )
+    // Activating an interaction tool prepares the shared diagnostic data that
+    // the globally hidden toolbar otherwise omits on the default fast path.
+    content.clickMeasureTool('distance')
     const before = parseViewBox(
         content.querySelector('.pcb-svg')?.getAttribute('viewBox')
     )

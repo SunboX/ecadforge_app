@@ -196,10 +196,7 @@ test('PcbViewRenderer hides PCB view settings controls', () => {
         html,
         /\.pcb-svg \[data-pcb-component-side='bottom'\]\s*\{\s*opacity: 0/
     )
-    assert.match(
-        html,
-        /\.pcb-svg \.pcb-silkscreen\s*\{\s*opacity: 0/
-    )
+    assert.match(html, /\.pcb-svg \.pcb-silkscreen\s*\{\s*opacity: 0/)
 })
 
 /**

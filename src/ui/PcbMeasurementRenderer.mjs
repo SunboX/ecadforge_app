@@ -41,18 +41,21 @@ export class PcbMeasurementRenderer {
      * @param {{ tool: string, mode: string, start: object | null, end: object | null }} measurement Measurement state.
      * @param {object | object[] | null} [documentModel] Active document model.
      * @param {((key: string) => string) | null} [translate] Translation lookup.
+     * @param {object | null} [interactionModel] Prepared interaction model.
      * @returns {string}
      */
     static injectOverlay(
         markup,
         measurement,
         documentModel = null,
-        translate = null
+        translate = null,
+        interactionModel = null
     ) {
         const overlay =
             PcbMeasurementRenderer.#snapTargetsOverlay(
                 measurement,
-                documentModel
+                documentModel,
+                interactionModel
             ) + PcbMeasurementRenderer.#renderOverlay(measurement, translate)
         return overlay
             ? String(markup).replace(/<\/svg>/, overlay + '</svg>')
@@ -143,13 +146,22 @@ export class PcbMeasurementRenderer {
      * Renders visible snap targets while a measurement mode is active.
      * @param {{ mode: string }} measurement Measurement state.
      * @param {object | object[] | null} documentModel Active document model.
+     * @param {object | null} interactionModel Prepared interaction model.
      * @returns {string}
      */
-    static #snapTargetsOverlay(measurement, documentModel) {
-        if (!String(measurement?.mode || '').trim() || !documentModel) return ''
+    static #snapTargetsOverlay(measurement, documentModel, interactionModel) {
+        if (
+            !String(measurement?.mode || '').trim() ||
+            (!documentModel && !interactionModel)
+        ) {
+            return ''
+        }
 
         const anchors = PcbMeasurementRenderer.#uniqueAnchors(
-            PcbInteractionPrimitiveModel.build(documentModel).anchors
+            (
+                interactionModel ??
+                PcbInteractionPrimitiveModel.build(documentModel)
+            ).anchors
         ).slice(0, 160)
         if (!anchors.length) return ''
 

@@ -1,4 +1,5 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { EcadCircuitJsonContext } from './core/ecad/EcadCircuitJsonContext.mjs'
 
 /**
  * Normalizes parser input and output data for AppController.
@@ -305,5 +306,21 @@ export class AppControllerParserData {
                 : [],
             project: result?.project || null
         }
+    }
+
+    /**
+     * Normalizes a parser-worker response and adopts only canonical documents
+     * from its completed structured-clone boundary.
+     * @param {object} result Parser worker result.
+     * @returns {{ documents: object[], assets: object[], diagnostics: object[], project: object | null }}
+     */
+    static normalizeStructuredCloneParseResult(result) {
+        const normalized = AppControllerParserData.normalizeParseResult(result)
+        for (const documentModel of normalized.documents) {
+            if (EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+                EcadCircuitJsonContext.adoptStructuredClone(documentModel)
+            }
+        }
+        return normalized
     }
 }

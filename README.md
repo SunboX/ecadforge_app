@@ -4,12 +4,12 @@ Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files.
 
 Open schematics, inspect PCB layouts and Gerber fabrication layers, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, KiCad ZIP projects, Gerber/Excellon files, Gerber ZIP archives, and CircuitJSON `.json` files are supported and parsed locally.
 
-Version 1.11.0 adopts CircuitJSON Toolkit 1.2.1, the coordinated source-toolkit
-family, and PCB viewer 1.3. KiCad 3D keeps exact plated-pad, drill, silkscreen, copper-text,
-mask, and substrate geometry, while downloaded component models retain their
-authored path aliases without ambiguous basename matching. Altium schematic
-images that contain no usable recovered pixels now use the normal missing-image
-placeholder through the toolkit convergence layer.
+Version 1.12.0 adopts CircuitJSON Toolkit 1.3.0 and its explicit
+structured-clone preparation path for parser-worker results. Direct and
+fallback inputs keep exact binary handling, while PCB renders avoid unused
+interaction preparation, share one prepared model across active consumers, and
+tag common component-side keys in one SVG pass with a compatibility fallback
+for unresolved native keys.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
@@ -51,6 +51,15 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
   an explicit native extension so their source renderers can preserve exact
   schematic styling, wiring, text placement, and native PCB interaction
   fidelity without app-side conversion or copied legacy fields.
+- Canonical documents returned through the parser worker's completed
+  structured-clone boundary use CircuitJSON Toolkit's explicit fast preparation
+  API. Direct, main-thread fallback, and compatibility inputs stay on the exact
+  context path, including altered-prototype and cross-realm binary values.
+- The common default PCB path does not build interaction primitives while its
+  toolbar is hidden and no measurement or diagnostic focus is active. Active
+  toolbar, measurement, and diagnostic consumers share one prepared interaction
+  model; common component-side tagging uses resolved document rows directly,
+  while unresolved native renderer keys can request the compatibility fallback.
 - Source-native rendering is selected through each toolkit's public extension
   resolver before the canonical fallback. Plain CircuitJSON documents continue
   to use the shared deterministic SVG renderer.
@@ -104,6 +113,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.12.0 release notes](docs/release-notes-v1.12.0.md)
 - [1.11.0 release notes](docs/release-notes-v1.11.0.md)
 - [1.10.4 release notes](docs/release-notes-v1.10.4.md)
 - [1.10.3 release notes](docs/release-notes-v1.10.3.md)

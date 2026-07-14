@@ -28,4 +28,28 @@ export class EcadCircuitJsonContext {
         }
         return CircuitJsonDocumentContext.prepare(context, options)
     }
+
+    /**
+     * Adopts a document received from the parser worker's structured-clone
+     * boundary and caches its provenance-aware context.
+     * @param {unknown} documentModel Structured-cloned CircuitJSON document.
+     * @param {{ indexes?: string[] }} [options] Requested shared indexes.
+     * @returns {CircuitJsonDocumentContext}
+     */
+    static adoptStructuredClone(documentModel, options = {}) {
+        if (!EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+            throw new TypeError(
+                'Expected a structured-cloned CircuitJSON document.'
+            )
+        }
+
+        let context = EcadCircuitJsonContext.#contexts.get(documentModel)
+        if (!context) {
+            context =
+                CircuitJsonDocumentContext.prepareStructuredClone(documentModel)
+            EcadCircuitJsonContext.#contexts.set(documentModel, context)
+            EcadCircuitJsonContext.#contexts.set(context, context)
+        }
+        return CircuitJsonDocumentContext.prepare(context, options)
+    }
 }

@@ -122,7 +122,7 @@ test('CircuitJsonPcbSvgRenderer renders solved copper area holes', () => {
 })
 
 /**
- * Verifies malformed solved copper areas appear in the PCB diagnostics panel.
+ * Verifies malformed solved copper areas appear in prepared PCB diagnostics.
  */
 test('PcbViewRenderer reports malformed solved copper areas', () => {
     const html = PcbViewRenderer.render(
@@ -134,7 +134,7 @@ test('PcbViewRenderer reports malformed solved copper areas', () => {
         '',
         {},
         '',
-        {}
+        { measurement: { mode: 'distance' } }
     )
 
     assert.match(html, /class="[^"]*\bpcb-diagnostic-panel\b/)

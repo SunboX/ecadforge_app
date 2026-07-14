@@ -9,13 +9,20 @@ export class PcbDiagnosticFocusRenderer {
      * @param {string} markup SVG markup.
      * @param {object} documentModel Parsed document model.
      * @param {string} diagnosticId Focused diagnostic id.
+     * @param {{ context?: object | null, model?: object | null } | null} [interaction] Prepared interaction data.
      * @returns {string}
      */
-    static inject(markup, documentModel, diagnosticId) {
+    static inject(markup, documentModel, diagnosticId, interaction = null) {
         const id = String(diagnosticId || '').trim()
         if (!id) return markup
 
-        const focus = PcbDiagnosticFocusModel.build(documentModel).get(id)
+        const focusModel = interaction?.model
+            ? PcbDiagnosticFocusModel.buildPrepared(
+                  interaction.context || documentModel,
+                  interaction.model
+              )
+            : PcbDiagnosticFocusModel.build(documentModel)
+        const focus = focusModel.get(id)
         if (!focus) return markup
 
         const markerSelector =
