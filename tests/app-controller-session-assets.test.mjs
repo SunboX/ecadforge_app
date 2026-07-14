@@ -187,6 +187,93 @@ test('AppControllerParserData preserves conflicting same-path payloads', () => {
     assert.deepEqual([...mergedAssets[1].file], [0xb2])
 })
 
+test('AppControllerParserData merges equal same-path byte payloads', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xa1, 0xb2]),
+        aliases: ['library_a/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xa1, 0xb2]),
+        aliases: ['library_b/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 1)
+    assert.deepEqual(mergedAssets[0].aliases, [
+        'library_a/Shared_Body.wrl',
+        'library_b/Shared_Body.wrl'
+    ])
+})
+
+test('AppControllerParserData compares unaligned payload words and tail bytes exactly', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const firstBytes = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 0]).subarray(
+        1,
+        8
+    )
+    const matchingBytes = Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 0]).subarray(
+        1,
+        8
+    )
+    const conflictingBytes = Uint8Array.from([
+        0, 1, 2, 3, 4, 5, 6, 8, 0
+    ]).subarray(1, 8)
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        file: firstBytes
+    }
+
+    assert.equal(
+        AppControllerParserData.mergeSessionAssets(
+            [firstAsset],
+            [{ ...firstAsset, file: matchingBytes }]
+        ).length,
+        1
+    )
+    assert.equal(
+        AppControllerParserData.mergeSessionAssets(
+            [firstAsset],
+            [{ ...firstAsset, file: conflictingBytes }]
+        ).length,
+        2
+    )
+})
+
+test('AppControllerParserData preserves conflicting payloads from one source URL', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const sourceUrl = 'https://source.invalid/Shared_Body.step'
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xa1]),
+        sourceUrl,
+        aliases: ['library_a/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xb2]),
+        sourceUrl,
+        aliases: ['library_b/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 2)
+    assert.deepEqual(mergedAssets[0].aliases, ['library_a/Shared_Body.wrl'])
+    assert.deepEqual(mergedAssets[1].aliases, ['library_b/Shared_Body.wrl'])
+    assert.deepEqual([...mergedAssets[0].file], [0xa1])
+    assert.deepEqual([...mergedAssets[1].file], [0xb2])
+})
+
 test('AppControllerParserData preserves same-path assets owned by distinct documents', () => {
     const relativePath = 'download/Shared_Body.step'
     const sharedFile = new Uint8Array([1, 2, 3])

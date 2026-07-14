@@ -9,13 +9,18 @@ globalThis.addEventListener('message', async (event) => {
     try {
         const result =
             payload.type === 'parse:entries'
-                ? await EcadParserService.parseEntries(payload.entries || [])
-                : await EcadParserService.parseEntries([
-                      {
-                          name: String(payload.fileName || 'document'),
-                          buffer: payload.buffer
-                      }
-                  ])
+                ? await EcadParserService.parseEntries(payload.entries || [], {
+                      worker: false
+                  })
+                : await EcadParserService.parseEntries(
+                      [
+                          {
+                              name: String(payload.fileName || 'document'),
+                              buffer: payload.buffer
+                          }
+                      ],
+                      { worker: false }
+                  )
 
         globalThis.postMessage({
             type: 'parser:success',

@@ -55,8 +55,8 @@ export class AppControllerSelectedPartExport {
     }
 
     /**
-     * Resolves model-search assets for the selected export when enabled.
-     * @param {{ state: { setValue?: (key: string, value: any) => object }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
+     * Resolves model assets and filters scoped search assets for the export.
+     * @param {{ state: { getSnapshot?: () => object, setValue?: (key: string, value: any) => object }, modelSearchService?: { resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null }} options Export handling options.
      * @param {{ autoSearchMissingModels?: boolean, sessionAssets?: object[] }} snapshot Current state snapshot.
      * @param {object | null} documentModel Active document model.
      * @returns {Promise<object[]>}
@@ -66,37 +66,56 @@ export class AppControllerSelectedPartExport {
             ? snapshot.sessionAssets
             : []
         const resolver = options.modelSearchService?.resolveSessionAssets
-        if (
-            snapshot.autoSearchMissingModels !== true ||
-            !documentModel ||
-            typeof resolver !== 'function'
-        ) {
+        if (!documentModel || typeof resolver !== 'function') {
             return sessionAssets
         }
 
+        const enabled = snapshot.autoSearchMissingModels === true
         const resolvedAssets = await resolver.call(
             options.modelSearchService,
             documentModel,
             {
-                enabled: true,
+                enabled,
                 sessionAssets
             }
         )
-        const mergedAssets = AppControllerParserData.mergeSessionAssets(
-            sessionAssets,
-            Array.isArray(resolvedAssets) ? resolvedAssets : []
+        const resolvedSessionAssets = Array.isArray(resolvedAssets)
+            ? resolvedAssets
+            : sessionAssets
+        if (!enabled) {
+            return resolvedSessionAssets
+        }
+
+        const nextSnapshot = options.state.getSnapshot?.() || snapshot
+        const documentStillOpen = (nextSnapshot.documents || []).some(
+            (entry) => entry?.documentModel === documentModel
+        )
+        if (
+            nextSnapshot.autoSearchMissingModels !== true ||
+            !documentStillOpen
+        ) {
+            return resolvedSessionAssets
+        }
+
+        const currentAssets = Array.isArray(nextSnapshot.sessionAssets)
+            ? nextSnapshot.sessionAssets
+            : []
+        // Preserve concurrent and other-document state without leaking it into this export.
+        const nextSessionAssets = AppControllerParserData.mergeSessionAssets(
+            currentAssets,
+            resolvedSessionAssets
         )
 
         if (
             AppControllerSelectedPartExport.#sessionAssetsChanged(
-                sessionAssets,
-                mergedAssets
+                currentAssets,
+                nextSessionAssets
             )
         ) {
-            options.state.setValue?.('sessionAssets', mergedAssets)
+            options.state.setValue?.('sessionAssets', nextSessionAssets)
         }
 
-        return mergedAssets
+        return resolvedSessionAssets
     }
 
     /**
@@ -116,7 +135,13 @@ export class AppControllerSelectedPartExport {
                 current.name !== asset.name ||
                 current.relativePath !== asset.relativePath ||
                 current.format !== asset.format ||
-                current.file !== asset.file
+                current.file !== asset.file ||
+                current.source !== asset.source ||
+                current.sourceUrl !== asset.sourceUrl ||
+                current.componentKey !== asset.componentKey ||
+                current.documentScope !== asset.documentScope ||
+                JSON.stringify(current.aliases || []) !==
+                    JSON.stringify(asset.aliases || [])
             )
         })
     }

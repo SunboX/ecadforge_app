@@ -19,21 +19,21 @@ export class AppControllerModelSearchPreferenceHandler {
             normalized
         )
         state.setValue('autoSearchMissingModels', normalized)
-        if (!normalized) return
-
         await AppControllerModelSearchPreferenceHandler.#resolveSessionAssets(
             state,
-            modelSearchService
+            modelSearchService,
+            normalized
         )
     }
 
     /**
-     * Resolves missing-model assets for the active document after opt-in.
+     * Filters and optionally resolves model assets for the active document.
      * @param {{ getSnapshot?: () => object, setValue?: (key: string, value: any) => object }} state App state.
      * @param {{ resolveSessionAssets?: (documentModel: object, options: { enabled?: boolean, sessionAssets?: object[] }) => Promise<object[]> } | null} modelSearchService Optional search service.
+     * @param {boolean} enabled Current automatic-search preference.
      * @returns {Promise<void>}
      */
-    static async #resolveSessionAssets(state, modelSearchService) {
+    static async #resolveSessionAssets(state, modelSearchService, enabled) {
         const resolver = modelSearchService?.resolveSessionAssets
         const snapshot = state.getSnapshot?.() || {}
         const documentModel = snapshot.documentModel
@@ -47,27 +47,32 @@ export class AppControllerModelSearchPreferenceHandler {
                 modelSearchService,
                 documentModel,
                 {
-                    enabled: true,
+                    enabled,
                     sessionAssets
                 }
             )
             const nextSnapshot = state.getSnapshot?.() || {}
             if (
-                nextSnapshot.autoSearchMissingModels !== true ||
+                nextSnapshot.autoSearchMissingModels !== enabled ||
                 nextSnapshot.documentModel !== documentModel
             ) {
                 return
             }
 
-            const mergedAssets = AppControllerParserData.mergeSessionAssets(
-                Array.isArray(nextSnapshot.sessionAssets)
-                    ? nextSnapshot.sessionAssets
-                    : [],
-                Array.isArray(resolvedAssets) ? resolvedAssets : []
-            )
+            const currentAssets = Array.isArray(nextSnapshot.sessionAssets)
+                ? nextSnapshot.sessionAssets
+                : []
+            const mergedAssets = enabled
+                ? AppControllerParserData.mergeSessionAssets(
+                      currentAssets,
+                      Array.isArray(resolvedAssets) ? resolvedAssets : []
+                  )
+                : Array.isArray(resolvedAssets)
+                  ? resolvedAssets
+                  : []
             if (
                 AppControllerModelSearchPreferenceHandler.#sessionAssetsChanged(
-                    nextSnapshot.sessionAssets || [],
+                    currentAssets,
                     mergedAssets
                 )
             ) {

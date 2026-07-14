@@ -518,7 +518,9 @@ export class AppController {
     async #loadDeferredGitHubEntries(source, entries) {
         try {
             const parseResult = await this.#parseEntries(entries)
-            GitHubSourceModelLinker.apply(parseResult, source)
+            GitHubSourceModelLinker.apply(parseResult, source, {
+                includeAssets: false
+            })
             const filteredResult = GitHubParsePlan.filterNewDocuments(
                 parseResult,
                 this.#state.getSnapshot().documents

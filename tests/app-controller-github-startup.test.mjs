@@ -262,10 +262,7 @@ test('AppController stores GitHub companion model assets and references', async 
     assert.equal(snapshot.sessionAssets[0].name, 'body.step')
     assert.equal(snapshot.sessionAssets[0].relativePath, 'parts/body.step')
     assert.equal(snapshot.sessionAssets[0].format, 'step')
-    assert.deepEqual(
-        [...new Uint8Array(await snapshot.sessionAssets[0].file.arrayBuffer())],
-        [1, 2, 3]
-    )
+    assert.deepEqual([...snapshot.sessionAssets[0].file], [1, 2, 3])
     assert.equal(component.modelName, 'body.step')
     assert.equal(component.modelPath, '${KIPRJMOD}/parts/body.step')
     assert.equal(component.modelTransform.rotationDeg.z, 90)

@@ -102,10 +102,12 @@ export class EcadParserService {
     /**
      * Parses a selected batch of source entries.
      * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @param {{ worker?: boolean | 'auto' }} [options] Toolkit execution options.
      * @returns {Promise<{ documents: object[], diagnostics: object[], assets: object[], project: object | null }>}
      */
-    async parseEntries(entries) {
+    async parseEntries(entries, options = {}) {
         const normalizedEntries = EcadParserService.#normalizeEntries(entries)
+        const workerMode = EcadParserService.#resolveWorkerMode(options.worker)
         const altiumEntries = normalizedEntries.filter((entry) => {
             return entry.role?.sourceFormat === 'altium'
         })
@@ -144,7 +146,8 @@ export class EcadParserService {
                 'Altium project',
                 {
                     extensions: ['altium.native-model'],
-                    decodeAssets: 'full'
+                    decodeAssets: 'full',
+                    worker: workerMode
                 }
             ],
             [
@@ -154,7 +157,7 @@ export class EcadParserService {
                     modelCompanions
                 ),
                 'CircuitJSON project',
-                { decodeAssets: 'full' }
+                { decodeAssets: 'full', worker: workerMode }
             ],
             [
                 this.#gerberProjectLoader,
@@ -163,7 +166,10 @@ export class EcadParserService {
                     modelCompanions
                 ),
                 'Gerber fabrication package',
-                { extensions: ['gerber.native-model'] }
+                {
+                    extensions: ['gerber.native-model'],
+                    worker: workerMode
+                }
             ],
             [
                 this.#kicadProjectLoader,
@@ -171,7 +177,8 @@ export class EcadParserService {
                 'KiCad project',
                 {
                     extensions: ['kicad.native-model'],
-                    decodeAssets: 'full'
+                    decodeAssets: 'full',
+                    worker: workerMode
                 }
             ]
         ]
@@ -264,10 +271,14 @@ export class EcadParserService {
     /**
      * Parses a selected batch through the default parser service.
      * @param {{ name: string, buffer: ArrayBuffer }[]} entries Source entries.
+     * @param {{ worker?: boolean | 'auto' }} [options] Toolkit execution options.
      * @returns {Promise<{ documents: object[], diagnostics: object[], assets: object[], project: object | null }>}
      */
-    static parseEntries(entries) {
-        return EcadParserService.#defaultService().parseEntries(entries)
+    static parseEntries(entries, options = {}) {
+        return EcadParserService.#defaultService().parseEntries(
+            entries,
+            options
+        )
     }
 
     /**
@@ -311,6 +322,21 @@ export class EcadParserService {
         return String(fileName || '')
             .replace(/\\+/gu, '/')
             .replace(/\/+/gu, '/')
+    }
+
+    /**
+     * Normalizes the common toolkit worker option. Direct callers retain auto
+     * mode while an existing outer worker can explicitly disable nesting.
+     * @param {unknown} worker Worker option candidate.
+     * @returns {boolean | 'auto'}
+     * @throws {TypeError} When the option is not part of the common toolkit contract.
+     */
+    static #resolveWorkerMode(worker) {
+        if (worker === undefined) return 'auto'
+        if (worker === true || worker === false || worker === 'auto') {
+            return worker
+        }
+        throw new TypeError("worker must be true, false, or 'auto'.")
     }
 
     /**

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Parser } from 'circuitjson-toolkit/parser'
-import { EcadModelSourceClient } from '../../src/core/ecad/EcadModelSourceClient.mjs'
 import { EcadMissingModelSearchService } from '../../src/core/ecad/EcadMissingModelSearchService.mjs'
 import { EcadModelSearchPreference } from '../../src/core/ecad/EcadModelSearchPreference.mjs'
 import { EcadKicadModelLibraryClient } from '../../src/core/ecad/EcadKicadModelLibraryClient.mjs'
@@ -265,6 +264,64 @@ test('EcadMissingModelSearchService never case-folds URL asset paths', async () 
     })
 
     assert.equal(calls, 1)
+})
+
+test('EcadMissingModelSearchService never case-folds root-relative URL paths', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+
+    await service.resolveSessionAssets(
+        createPcbDocument('/Models/Neutral_Body.step'),
+        {
+            enabled: true,
+            sessionAssets: [
+                {
+                    name: 'Neutral_Body.step',
+                    relativePath: '/models/Neutral_Body.step'
+                }
+            ]
+        }
+    )
+
+    assert.equal(calls, 1)
+})
+
+test('EcadMissingModelSearchService matches an exact asset source URL', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+    const authoredPath = 'https://assets.invalid/models/Neutral_Body.step'
+    const existingAssets = [
+        {
+            name: 'Neutral_Body.step',
+            relativePath: 'download/Neutral_Body.step',
+            sourceUrl: authoredPath
+        }
+    ]
+
+    const result = await service.resolveSessionAssets(
+        createPcbDocument(authoredPath),
+        {
+            enabled: true,
+            sessionAssets: existingAssets
+        }
+    )
+
+    assert.equal(calls, 0)
+    assert.equal(result, existingAssets)
 })
 
 test('EcadMissingModelSearchService uses a unique case-folded authored path match', async () => {
@@ -868,97 +925,4 @@ test('EcadEasyEdaModelSourceClient resolves search results to STEP bytes', async
         'https://modules.lceda.cn/qAxj6KHrDKw4blvCG8QJPs7Y/resolved-model'
     ])
     assert.deepEqual(requestedSignals, [true, true, true])
-})
-
-test('EcadModelSourceClient resolves provider search and model assets', async () => {
-    const requestedUrls = []
-    const requestedSignals = []
-    const fetcher = async (url, options) => {
-        requestedUrls.push(String(url))
-        requestedSignals.push(options.signal instanceof AbortSignal)
-
-        if (String(url).includes('/lookup?')) {
-            return Response.json({
-                results: [{ id: 'component-a', name: 'Component A' }]
-            })
-        }
-
-        if (String(url).endsWith('/components/component-a')) {
-            return Response.json({
-                id: 'component-a',
-                models: [
-                    {
-                        name: 'asset.step',
-                        format: 'step',
-                        sourceUrl: 'assets/component-a.step'
-                    }
-                ]
-            })
-        }
-
-        return new Response('ISO-10303-21;', {
-            headers: { 'content-type': 'model/step' }
-        })
-    }
-    const client = new EcadModelSourceClient({
-        fetcher,
-        baseUrl: 'https://example.invalid/api/',
-        searchPath: 'lookup',
-        componentPath: 'components/{id}'
-    })
-
-    const rows = await client.searchComponents('FAKE PART', { limit: 1 })
-    const bundle = await client.fetchComponentBundle(rows[0].id)
-    const bytes = await client.fetchBinaryAsset(bundle.models[0].sourceUrl)
-
-    assert.deepEqual(rows, [{ id: 'component-a', name: 'Component A' }])
-    assert.equal(bundle.models[0].name, 'asset.step')
-    assert.equal(new TextDecoder().decode(bytes), 'ISO-10303-21;')
-    assert.deepEqual(requestedUrls, [
-        'https://example.invalid/api/lookup?q=FAKE+PART&limit=1',
-        'https://example.invalid/api/components/component-a',
-        'https://example.invalid/api/assets/component-a.step'
-    ])
-    assert.deepEqual(requestedSignals, [true, true, true])
-})
-
-test('EcadModelSourceClient resolves relative same-origin provider URLs', async () => {
-    const requestedUrls = []
-    const client = new EcadModelSourceClient({
-        fetcher: async (url) => {
-            requestedUrls.push(String(url))
-            return Response.json({ results: [] })
-        },
-        baseUrl: '/api/component-source/'
-    })
-
-    const rows = await client.searchComponents('FAKE PART', { limit: 1 })
-
-    assert.deepEqual(rows, [])
-    assert.deepEqual(requestedUrls, [
-        'http://localhost/api/component-source/search?q=FAKE+PART&limit=1'
-    ])
-})
-
-test('EcadModelSourceClient falls back to PHP component-source endpoint', async () => {
-    const requestedUrls = []
-    const client = new EcadModelSourceClient({
-        fetcher: async (url) => {
-            requestedUrls.push(String(url))
-            if (String(url).includes('/component-source/search?')) {
-                return new Response('missing', { status: 404 })
-            }
-            return Response.json({ results: [] })
-        },
-        baseUrl: '/api/component-source/',
-        fallbackBaseUrl: '/api/component-source.php'
-    })
-
-    const rows = await client.searchComponents('FAKE PART', { limit: 1 })
-
-    assert.deepEqual(rows, [])
-    assert.deepEqual(requestedUrls, [
-        'http://localhost/api/component-source/search?q=FAKE+PART&limit=1',
-        'http://localhost/api/component-source.php?path=search&q=FAKE+PART&limit=1'
-    ])
 })

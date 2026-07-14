@@ -4,6 +4,13 @@ Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files.
 
 Open schematics, inspect PCB layouts and Gerber fabrication layers, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, KiCad ZIP projects, Gerber/Excellon files, Gerber ZIP archives, and CircuitJSON `.json` files are supported and parsed locally.
 
+Version 1.11.0 adopts CircuitJSON Toolkit 1.2.1, the coordinated source-toolkit
+family, and PCB viewer 1.3. KiCad 3D keeps exact plated-pad, drill, silkscreen, copper-text,
+mask, and substrate geometry, while downloaded component models retain their
+authored path aliases without ambiguous basename matching. Altium schematic
+images that contain no usable recovered pixels now use the normal missing-image
+placeholder through the toolkit convergence layer.
+
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
 ## Features
@@ -23,7 +30,9 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
   GLB with board, copper, silkscreen, pads, vias, resolved or fallback 3D
   components, material alpha/colors, and optional board-face artwork textures.
 - WebMCP runtime and read-only tools for querying designs already loaded in the current session
-- Worker-backed parse flow with main-thread fallback and a local SPICE simulation worker boundary that returns CircuitJSON experiment output
+- Worker-backed parse flow with one app-owned outer parser worker, automatic
+  toolkit workers for direct callers, main-thread fallback, and a local SPICE
+  simulation worker boundary that returns CircuitJSON experiment output
 - KiCad browser workers accept the same public project entries as direct
   loading, including complete multi-file projects and binary companion assets;
   queued worker requests snapshot accepted input without app-side transport
@@ -95,6 +104,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.11.0 release notes](docs/release-notes-v1.11.0.md)
 - [1.10.4 release notes](docs/release-notes-v1.10.4.md)
 - [1.10.3 release notes](docs/release-notes-v1.10.3.md)
 - [1.10.2 release notes](docs/release-notes-v1.10.2.md)

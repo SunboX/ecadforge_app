@@ -182,12 +182,12 @@ export class Scene3dControllerFactory {
         sessionAssets,
         options
     ) {
-        if (!modelSearchService || options.autoSearchMissingModels !== true) {
+        if (!modelSearchService) {
             return sessionAssets
         }
 
         return modelSearchService.resolveSessionAssets(documentModel, {
-            enabled: true,
+            enabled: options.autoSearchMissingModels === true,
             sessionAssets
         })
     }

@@ -36,16 +36,16 @@ export class EcadMissingModelSearchService {
         const sessionAssets = Array.isArray(options.sessionAssets)
             ? options.sessionAssets
             : []
-        if (!options.enabled || !this.#client) {
-            return sessionAssets
-        }
-
         const documentScope = this.#scopeForDocument(documentModel)
         const availableSessionAssets =
             EcadMissingModelSearchService.#sessionAssetsForDocument(
                 sessionAssets,
                 documentScope
             )
+        if (!options.enabled || !this.#client) {
+            return availableSessionAssets
+        }
+
         const downloadedAssets = await this.#resolveComponentAssets(
             this.#findUnresolvedComponents(
                 documentModel,
@@ -579,26 +579,19 @@ export class EcadMissingModelSearchService {
     }
 
     /**
-     * Removes model-search assets owned by other parsed documents while keeping
-     * unscoped project and local assets available to every document.
+     * Removes assets owned by other parsed documents while keeping unscoped
+     * project and local assets available to every document.
      * @param {object[]} sessionAssets Existing session assets.
      * @param {object | null} documentScope Current parsed-document identity.
      * @returns {object[]}
      */
     static #sessionAssetsForDocument(sessionAssets, documentScope) {
         const availableAssets = sessionAssets.filter((asset) => {
-            const source = EcadMissingModelSearchService.#ownData(
+            const assetScope = EcadMissingModelSearchService.#ownData(
                 asset,
-                'source'
+                'documentScope'
             )
-            if (source !== 'model-search') return true
-
-            return (
-                EcadMissingModelSearchService.#ownData(
-                    asset,
-                    'documentScope'
-                ) === documentScope
-            )
+            return !assetScope || assetScope === documentScope
         })
 
         return availableAssets.length === sessionAssets.length
@@ -659,6 +652,7 @@ export class EcadMissingModelSearchService {
             [
                 EcadMissingModelSearchService.#ownData(asset, 'relativePath'),
                 EcadMissingModelSearchService.#ownData(asset, 'name'),
+                EcadMissingModelSearchService.#ownData(asset, 'sourceUrl'),
                 ...aliases
             ]
                 .map((value) =>
@@ -793,7 +787,7 @@ export class EcadMissingModelSearchService {
     static #isFilesystemLikeAssetPath(value) {
         if (/^[a-z]:\//iu.test(value)) return true
         if (/^[a-z][a-z0-9+.-]*:/iu.test(value)) return false
-        return !value.startsWith('//')
+        return !value.startsWith('/')
     }
 
     /**

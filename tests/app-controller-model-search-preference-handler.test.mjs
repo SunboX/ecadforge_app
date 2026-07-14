@@ -123,3 +123,62 @@ test('AppControllerModelSearchPreferenceHandler stores alias-only search results
         '${MODEL_ROOT_B}/U1.wrl'
     ])
 })
+
+test('AppControllerModelSearchPreferenceHandler filters session assets when disabling search', async () => {
+    const documentModel = createPcbDocument()
+    const foreignScope = Object.freeze({})
+    const localAsset = {
+        name: 'Local.step',
+        relativePath: 'project/Local.step',
+        file: new Uint8Array([1]),
+        format: 'step',
+        source: 'project'
+    }
+    const state = new AppState({
+        activeView: '3d',
+        documents: [{ id: 'board', documentModel }],
+        activeDocumentId: 'board',
+        autoSearchMissingModels: true,
+        sessionAssets: [
+            localAsset,
+            {
+                name: 'Foreign.step',
+                relativePath: 'download/Foreign.step',
+                file: new Uint8Array([2]),
+                format: 'step',
+                source: 'model-search',
+                documentScope: foreignScope
+            }
+        ]
+    })
+    const requests = []
+    const modelSearchService = {
+        /**
+         * Filters assets without performing a network lookup.
+         * @param {object} nextDocumentModel Active document model.
+         * @param {{ enabled?: boolean, sessionAssets?: object[] }} options Lookup options.
+         * @returns {Promise<object[]>}
+         */
+        async resolveSessionAssets(nextDocumentModel, options) {
+            requests.push({ documentModel: nextDocumentModel, options })
+            return [localAsset]
+        }
+    }
+
+    await AppControllerModelSearchPreferenceHandler.handle(
+        false,
+        state,
+        modelSearchService
+    )
+
+    const snapshot = state.getSnapshot()
+    assert.equal(snapshot.autoSearchMissingModels, false)
+    assert.equal(requests.length, 1)
+    assert.equal(requests[0].documentModel, documentModel)
+    assert.equal(requests[0].options.enabled, false)
+    assert.equal(snapshot.sessionAssets.length, 1)
+    assert.equal(
+        snapshot.sessionAssets[0].relativePath,
+        localAsset.relativePath
+    )
+})

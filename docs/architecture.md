@@ -24,7 +24,9 @@
   source-neutral equivalent exists
 - `circuitjson-toolkit`: immutable CircuitJSON documents, reusable indexes and
   derived caches, deterministic rendering and interaction, manufacturing,
-  local simulation, and canonical scene preparation
+  local simulation, and canonical scene preparation. Version 1.2.1 also keeps
+  high-density multi-document project transport within independent per-document
+  and aggregate worker budgets.
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
@@ -76,7 +78,10 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    each active project owner. Independent format groups run concurrently and
    are folded back into stable toolkit order. Local Altium, KiCad, and
    CircuitJSON groups use bounded full asset decoding so viewer/export
-   consumers receive real bytes. KiCad requests include the public
+   consumers receive real bytes. The app owns this single outer parser worker
+   and disables toolkit worker nesting only inside
+   `ecad-parser.worker.mjs`; direct service and hero-preview callers retain the
+   common toolkit `worker: 'auto'` behavior. KiCad requests include the public
    `kicad.native-model` extension so the same returned document supports both
    common services and exact native rendering.
 4. The document model, including diagnostics and additive connectivity
@@ -106,7 +111,14 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    document, active session, or hosted Git project folder. The viewer attaches
    safe project-relative GLTF BIN, OBJ MTL, and WRL texture resources directly
    and keys model/group/request caches by exact source identity, so equal
-   basenames in different folders cannot collide. No URL-backed model is loaded
+   basenames in different folders cannot collide. Downloaded format substitutes
+   keep the exact authored model path as an explicit asset alias, and
+   missing-model lookup caches are scoped to one parsed document so equal model
+   names cannot leak across projects. Downloaded assets carry an opaque
+   document identity through state snapshots; project/local assets remain
+   unscoped and reusable. URL paths remain case-sensitive, and same-path assets
+   with conflicting source or payload provenance remain separate. Failed or
+   empty lookups are evicted for a later retry. No URL-backed model is loaded
    unless missing-model search or an export caller supplies an explicit fetch
    policy. KiCad library paths are fetched
    directly from the public KiCad 3D package library, with a same-folder

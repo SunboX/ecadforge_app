@@ -180,6 +180,73 @@ test('EcadMissingModelSearchService reuses an exact unscoped project asset', asy
     assert.equal(result, projectAssets)
 })
 
+test('EcadMissingModelSearchService excludes foreign scoped project assets', async () => {
+    const requestedPaths = []
+    const service = createRecordingService(requestedPaths)
+    const authoredPath = 'project/models/Shared_Body.step'
+    const documentModel = createPcbDocument([
+        {
+            designator: 'U1',
+            pattern: 'SHARED_BODY',
+            modelPath: authoredPath
+        }
+    ])
+
+    const result = await service.resolveSessionAssets(documentModel, {
+        enabled: true,
+        sessionAssets: [
+            {
+                name: 'Shared_Body.step',
+                relativePath: authoredPath,
+                file: new Uint8Array([7]),
+                format: 'step',
+                source: 'project',
+                documentScope: Object.freeze({})
+            }
+        ]
+    })
+
+    assert.deepEqual(requestedPaths, [authoredPath])
+    assert.equal(result.length, 1)
+    assert.equal(result[0].source, 'model-search')
+})
+
+test('EcadMissingModelSearchService filters foreign scopes while search is disabled', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return {
+                    name: 'Shared_Body.step',
+                    relativePath: 'download/Shared_Body.step',
+                    format: 'step',
+                    bytes: new Uint8Array([calls])
+                }
+            }
+        }
+    })
+    const component = {
+        designator: 'U1',
+        pattern: 'SHARED_BODY',
+        modelPath: 'models/Shared_Body.step'
+    }
+    const firstDocument = createPcbDocument([{ ...component }])
+    const secondDocument = createPcbDocument([{ ...component }])
+    const firstAssets = await service.resolveSessionAssets(firstDocument, {
+        enabled: true,
+        sessionAssets: []
+    })
+
+    const secondAssets = await service.resolveSessionAssets(secondDocument, {
+        enabled: false,
+        sessionAssets: firstAssets
+    })
+
+    assert.equal(calls, 1)
+    assert.deepEqual(secondAssets, [])
+})
+
 test('EcadMissingModelSearchService rejects duplicate exact authored path candidates', async () => {
     const requestedPaths = []
     const service = createRecordingService(requestedPaths)

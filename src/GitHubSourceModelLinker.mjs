@@ -3,16 +3,19 @@
  */
 export class GitHubSourceModelLinker {
     /**
-     * Applies discovered model references and companion assets in place.
+     * Applies discovered model references and optional companion assets in place.
      * @param {{ documents?: object[], assets?: object[] }} parseResult Parse result.
      * @param {{ assets?: object[], modelReferences?: object[] }} source Source descriptor.
+     * @param {{ includeAssets?: boolean }} [options] Link options.
      * @returns {void}
      */
-    static apply(parseResult, source) {
+    static apply(parseResult, source, options = {}) {
         GitHubSourceModelLinker.#applyModelReferences(
             parseResult,
             source?.modelReferences || []
         )
+        if (options.includeAssets === false) return
+
         parseResult.assets = [
             ...(parseResult.assets || []),
             ...(source?.assets || [])

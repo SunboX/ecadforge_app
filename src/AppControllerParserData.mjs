@@ -34,31 +34,53 @@ export class AppControllerParserData {
 
     /**
      * Normalizes one parser asset record for session state.
-     * @param {{ name?: string, data?: Uint8Array, relativePath?: string, format?: string }} asset Parser asset.
-     * @returns {{ name: string, relativePath: string, file: any, format: string }}
+     * @param {{ name?: string, data?: Uint8Array | ArrayBuffer | ArrayBufferView, relativePath?: string, format?: string, source?: string | { uri?: string }, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }} asset Parser asset.
+     * @returns {{ name: string, relativePath: string, file: Uint8Array, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }}
      */
     static buildParsedAsset(asset) {
         const relativePath = String(asset?.relativePath || asset?.name || '')
         const name = String(asset?.name || relativePath.split('/').pop() || '')
-        const bytes = asset?.data || new Uint8Array()
+        const bytes = new Uint8Array(
+            AppControllerParserData.#byteView(asset?.data) || 0
+        )
         const format =
             String(asset?.format || '') ||
             EcadFormatRegistry.resolveCompanionFormat(name)
+        const source =
+            typeof asset?.source === 'string' ? asset.source.trim() : ''
+        const sourceUrl = String(
+            asset?.sourceUrl ||
+                (asset?.source && typeof asset.source === 'object'
+                    ? asset.source.uri
+                    : '') ||
+                ''
+        ).trim()
+        const componentKey = String(asset?.componentKey || '').trim()
+        const aliases = AppControllerParserData.#mergeSessionAssetAliases(asset)
+        const documentScope =
+            asset?.documentScope && typeof asset.documentScope === 'object'
+                ? asset.documentScope
+                : null
 
         return {
             name,
             relativePath,
-            file: typeof Blob === 'function' ? new Blob([bytes]) : bytes,
-            format
+            file: bytes,
+            format,
+            ...(source ? { source } : {}),
+            ...(sourceUrl ? { sourceUrl } : {}),
+            ...(componentKey ? { componentKey } : {}),
+            ...(aliases.length ? { aliases } : {}),
+            ...(documentScope ? { documentScope } : {})
         }
     }
 
     /**
      * Merges session companion assets by physical relative path while retaining
      * every exact authored alias that resolves to that asset.
-     * @param {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]} existingAssets Existing assets.
-     * @param {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]} nextAssets New assets.
-     * @returns {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]}
+     * @param {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[]} existingAssets Existing assets.
+     * @param {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[]} nextAssets New assets.
+     * @returns {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[]}
      */
     static mergeSessionAssets(existingAssets, nextAssets) {
         const mergedAssets = []
@@ -135,17 +157,77 @@ export class AppControllerParserData {
 
         const currentFile = currentAsset?.file
         const nextFile = nextAsset?.file
-        if (currentFile && nextFile && currentFile !== nextFile) {
-            const currentSourceUrl = String(
-                currentAsset?.sourceUrl || ''
-            ).trim()
-            const nextSourceUrl = String(nextAsset?.sourceUrl || '').trim()
-            return Boolean(
-                currentSourceUrl && currentSourceUrl === nextSourceUrl
-            )
+        if (
+            currentFile &&
+            nextFile &&
+            currentFile !== nextFile &&
+            !AppControllerParserData.#byteSourcesEqual(currentFile, nextFile)
+        ) {
+            return false
         }
 
         return true
+    }
+
+    /**
+     * Returns true when two independently cloned binary payloads are exact matches.
+     * @param {unknown} currentValue Existing binary payload.
+     * @param {unknown} nextValue New binary payload.
+     * @returns {boolean}
+     */
+    static #byteSourcesEqual(currentValue, nextValue) {
+        const currentBytes = AppControllerParserData.#byteView(currentValue)
+        const nextBytes = AppControllerParserData.#byteView(nextValue)
+        if (!currentBytes || !nextBytes) return false
+        if (currentBytes.byteLength !== nextBytes.byteLength) return false
+
+        const wordByteLength = Uint32Array.BYTES_PER_ELEMENT
+        const wordEnd =
+            currentBytes.byteLength - (currentBytes.byteLength % wordByteLength)
+        // DataView keeps word reads safe for differently aligned binary subviews.
+        const currentView = new DataView(
+            currentBytes.buffer,
+            currentBytes.byteOffset,
+            currentBytes.byteLength
+        )
+        const nextView = new DataView(
+            nextBytes.buffer,
+            nextBytes.byteOffset,
+            nextBytes.byteLength
+        )
+        let offset = 0
+        for (; offset < wordEnd; offset += wordByteLength) {
+            if (currentView.getUint32(offset) !== nextView.getUint32(offset)) {
+                return false
+            }
+        }
+        for (; offset < currentBytes.byteLength; offset += 1) {
+            if (currentBytes[offset] !== nextBytes[offset]) return false
+        }
+        return true
+    }
+
+    /**
+     * Returns a byte view for clone-safe ordinary binary payloads.
+     * @param {unknown} value Binary payload candidate.
+     * @returns {Uint8Array | null}
+     */
+    static #byteView(value) {
+        if (value instanceof Uint8Array) return value
+        if (ArrayBuffer.isView(value)) {
+            return new Uint8Array(
+                value.buffer,
+                value.byteOffset,
+                value.byteLength
+            )
+        }
+        if (
+            value instanceof ArrayBuffer ||
+            Object.prototype.toString.call(value) === '[object ArrayBuffer]'
+        ) {
+            return new Uint8Array(value)
+        }
+        return null
     }
 
     /**

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import test from 'node:test'
 import { AppControllerParserData } from '../../src/AppControllerParserData.mjs'
 import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
@@ -67,11 +68,12 @@ test('EcadParserService preserves canonical parser result identity', async () =>
         optionCalls.map((call) => [
             call.kind,
             call.options.extensions,
-            call.options.decodeAssets
+            call.options.decodeAssets,
+            call.options.worker
         ]),
         [
-            ['project', ['altium.native-model'], 'full'],
-            ['parse', ['altium.native-model'], 'full']
+            ['project', ['altium.native-model'], 'full', 'auto'],
+            ['parse', ['altium.native-model'], 'full', undefined]
         ]
     )
     assert.equal(Object.hasOwn(parsedDirectResult, 'schematic'), false)
@@ -100,22 +102,81 @@ test('EcadParserService retains KiCad native fidelity data in direct and project
         }
     })
 
-    await service.parseEntries([
-        { name: 'neutral.kicad_pcb', buffer: new ArrayBuffer(1) }
-    ])
+    await service.parseEntries(
+        [{ name: 'neutral.kicad_pcb', buffer: new ArrayBuffer(1) }],
+        { worker: false }
+    )
     service.parseArrayBuffer('neutral.kicad_sch', new ArrayBuffer(1))
 
     assert.deepEqual(
         optionCalls.map((call) => [
             call.kind,
             call.options.extensions,
-            call.options.decodeAssets
+            call.options.decodeAssets,
+            call.options.worker
         ]),
         [
-            ['project', ['kicad.native-model'], 'full'],
-            ['parse', ['kicad.native-model'], 'full']
+            ['project', ['kicad.native-model'], 'full', false],
+            ['parse', ['kicad.native-model'], 'full', undefined]
         ]
     )
+})
+
+test('EcadParserService forwards one explicit worker mode to every project loader', async () => {
+    const workerModes = new Map()
+
+    /**
+     * Builds a project-loader fake that records its common worker option.
+     * @param {string} format Toolkit format.
+     * @returns {{ loadAsync: (entries: object[], options: object) => object }}
+     */
+    function projectLoader(format) {
+        return {
+            loadAsync(entries, options) {
+                workerModes.set(format, options.worker)
+                return {
+                    documents: [createDocument(format + '-document')],
+                    assets: [],
+                    diagnostics: []
+                }
+            }
+        }
+    }
+
+    const gerberProjectLoader = projectLoader('gerber')
+    gerberProjectLoader.supports = () => true
+    const service = new EcadParserService({
+        altiumProjectLoader: projectLoader('altium'),
+        circuitJsonProjectLoader: projectLoader('circuitjson'),
+        gerberProjectLoader,
+        kicadProjectLoader: projectLoader('kicad')
+    })
+
+    await service.parseEntries(
+        [
+            { name: 'neutral.PcbDoc', buffer: new ArrayBuffer(1) },
+            { name: 'neutral.json', buffer: new ArrayBuffer(1) },
+            { name: 'neutral.gbr', buffer: new ArrayBuffer(1) },
+            { name: 'neutral.kicad_pcb', buffer: new ArrayBuffer(1) }
+        ],
+        { worker: false }
+    )
+
+    assert.deepEqual(Object.fromEntries(workerModes), {
+        altium: false,
+        circuitjson: false,
+        gerber: false,
+        kicad: false
+    })
+})
+
+test('EcadParserService rejects an invalid common worker mode', async () => {
+    const service = new EcadParserService()
+
+    await assert.rejects(service.parseEntries([], { worker: 'nested' }), {
+        name: 'TypeError',
+        message: "worker must be true, false, or 'auto'."
+    })
 })
 
 test('EcadParserService parses independent toolkit project groups concurrently', async () => {
@@ -222,10 +283,47 @@ test('EcadParserService retains full bytes when overlapping groups return the sa
 test('AppControllerParserData consumes canonical ToolkitAsset data bytes', async () => {
     const asset = AppControllerParserData.buildParsedAsset({
         name: 'parts/body.step',
-        data: Uint8Array.from([1, 2, 3, 4])
+        data: Uint8Array.from([1, 2, 3, 4]),
+        source: {
+            uri: 'https://models.invalid/parts/body.step'
+        }
     })
-    const bytes = new Uint8Array(await asset.file.arrayBuffer())
+    const clonedFile = structuredClone(asset.file)
 
-    assert.deepEqual([...bytes], [1, 2, 3, 4])
+    assert.ok(asset.file instanceof Uint8Array)
+    assert.deepEqual([...asset.file], [1, 2, 3, 4])
+    assert.deepEqual([...clonedFile], [1, 2, 3, 4])
     assert.equal(asset.relativePath, 'parts/body.step')
+    assert.equal(asset.sourceUrl, 'https://models.invalid/parts/body.step')
+})
+
+test('AppControllerParserData owns ordinary bytes for Buffer payloads', () => {
+    const sourceBytes = Buffer.from([1, 2, 3, 4])
+    const asset = AppControllerParserData.buildParsedAsset({
+        name: 'parts/body.step',
+        data: sourceBytes
+    })
+
+    sourceBytes[0] = 0xff
+
+    assert.equal(Object.getPrototypeOf(asset.file), Uint8Array.prototype)
+    assert.deepEqual([...asset.file], [1, 2, 3, 4])
+    assert.equal(asset.file.buffer.byteLength, 4)
+})
+
+test('AppControllerParserData owns only the selected binary subview', () => {
+    const sourceBytes = Uint8Array.from([0, 1, 2, 3, 4, 5])
+    const sourceView = new DataView(sourceBytes.buffer, 1, 4)
+    const asset = AppControllerParserData.buildParsedAsset({
+        name: 'parts/body.step',
+        data: sourceView
+    })
+
+    sourceBytes[2] = 0xff
+    asset.file[0] = 0xee
+
+    assert.deepEqual([...asset.file], [0xee, 2, 3, 4])
+    assert.deepEqual([...sourceBytes], [0, 1, 0xff, 3, 4, 5])
+    assert.equal(asset.file.byteOffset, 0)
+    assert.equal(asset.file.buffer.byteLength, 4)
 })

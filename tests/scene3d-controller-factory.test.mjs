@@ -170,7 +170,9 @@ test('Scene3dControllerFactory resolves project-relative KiCad models through th
             })
         }
 
-        if (String(url).endsWith('/api/component-source/components/connector-a')) {
+        if (
+            String(url).endsWith('/api/component-source/components/connector-a')
+        ) {
             return Response.json({
                 id: 'connector-a',
                 models: [
@@ -183,7 +185,9 @@ test('Scene3dControllerFactory resolves project-relative KiCad models through th
             })
         }
 
-        if (String(url).endsWith('/api/component-source/models/connector.step')) {
+        if (
+            String(url).endsWith('/api/component-source/models/connector.step')
+        ) {
             return new Response('ISO-10303-21;')
         }
 
@@ -228,4 +232,66 @@ test('Scene3dControllerFactory resolves project-relative KiCad models through th
         '10103594.stp'
     )
     assert.equal(resolvedAssetReports[0].documentModel, documentModel)
+})
+
+test('Scene3dControllerFactory filters scoped assets when model search is disabled', async () => {
+    const documentModel = createKicadDocument()
+    const resolutionCalls = []
+    const localAsset = {
+        name: 'Local.step',
+        relativePath: 'project/Local.step',
+        file: new Uint8Array([1]),
+        format: 'step',
+        source: 'project'
+    }
+    const modelSearchService = {
+        /**
+         * Records disabled resolution and returns only the current assets.
+         * @param {object} nextDocumentModel Prepared document.
+         * @param {{ enabled?: boolean, sessionAssets?: object[] }} options Resolution options.
+         * @returns {Promise<object[]>}
+         */
+        async resolveSessionAssets(nextDocumentModel, options) {
+            resolutionCalls.push({ documentModel: nextDocumentModel, options })
+            return [localAsset]
+        }
+    }
+    FakeSceneWorker.postedSessionAssets = []
+    const restore = installBrowserGlobals(async () =>
+        Promise.resolve(new Response('missing', { status: 404 }))
+    )
+
+    try {
+        const createController = Scene3dControllerFactory.create(
+            'http://localhost:3000/src/main.mjs',
+            () => 'test',
+            { modelSearchService }
+        )
+        createController(createViewport(), documentModel, {
+            autoSearchMissingModels: false,
+            sessionAssets: [
+                localAsset,
+                {
+                    name: 'Foreign.step',
+                    relativePath: 'download/Foreign.step',
+                    file: new Uint8Array([2]),
+                    format: 'step',
+                    source: 'model-search',
+                    documentScope: Object.freeze({})
+                }
+            ],
+            createRuntime: () => ({ whenReady: async () => {} }),
+            setLoadingVisible: () => {}
+        })
+
+        await waitForAssertion(() => {
+            assert.equal(resolutionCalls.length, 1)
+        })
+    } finally {
+        restore()
+    }
+
+    assert.equal(resolutionCalls[0].documentModel, documentModel)
+    assert.equal(resolutionCalls[0].options.enabled, false)
+    assert.deepEqual(FakeSceneWorker.postedSessionAssets, [localAsset])
 })
