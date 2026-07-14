@@ -54,19 +54,135 @@ export class AppControllerParserData {
     }
 
     /**
-     * Merges session companion assets by relative path.
-     * @param {{ name: string, relativePath: string, file: any, format: string }[]} existingAssets Existing assets.
-     * @param {{ name: string, relativePath: string, file: any, format: string }[]} nextAssets New assets.
-     * @returns {{ name: string, relativePath: string, file: any, format: string }[]}
+     * Merges session companion assets by physical relative path while retaining
+     * every exact authored alias that resolves to that asset.
+     * @param {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]} existingAssets Existing assets.
+     * @param {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]} nextAssets New assets.
+     * @returns {{ name: string, relativePath: string, file: any, format: string, aliases?: string[] }[]}
      */
     static mergeSessionAssets(existingAssets, nextAssets) {
-        const mergedAssets = new Map()
+        const mergedAssets = []
+        const indexesByPath = new Map()
 
         ;[...(existingAssets || []), ...(nextAssets || [])].forEach((asset) => {
-            mergedAssets.set(String(asset.relativePath).toLowerCase(), asset)
+            const key = AppControllerParserData.#sessionAssetPathIdentity(asset)
+            if (!key) {
+                mergedAssets.push(asset)
+                return
+            }
+
+            const matchingIndex = (indexesByPath.get(key) || []).find((index) =>
+                AppControllerParserData.#sessionAssetsAreCompatible(
+                    mergedAssets[index],
+                    asset
+                )
+            )
+            if (matchingIndex !== undefined) {
+                mergedAssets[matchingIndex] =
+                    AppControllerParserData.#mergeSessionAsset(
+                        mergedAssets[matchingIndex],
+                        asset
+                    )
+                return
+            }
+
+            const nextIndex = mergedAssets.length
+            mergedAssets.push(asset)
+            indexesByPath.set(key, [
+                ...(indexesByPath.get(key) || []),
+                nextIndex
+            ])
         })
 
-        return [...mergedAssets.values()]
+        return mergedAssets
+    }
+
+    /**
+     * Returns the exact, separator-normalized physical path identity of an asset.
+     * @param {object} asset Asset descriptor.
+     * @returns {string}
+     */
+    static #sessionAssetPathIdentity(asset) {
+        return String(asset?.relativePath || '')
+            .trim()
+            .replaceAll('\\', '/')
+    }
+
+    /**
+     * Returns true only when two same-path descriptors have compatible source,
+     * document, format, and payload identity.
+     * @param {object} currentAsset Existing asset descriptor.
+     * @param {object} nextAsset New asset descriptor.
+     * @returns {boolean}
+     */
+    static #sessionAssetsAreCompatible(currentAsset, nextAsset) {
+        const currentScope = currentAsset?.documentScope || null
+        const nextScope = nextAsset?.documentScope || null
+        if (
+            (currentScope || nextScope) &&
+            (!currentScope || !nextScope || currentScope !== nextScope)
+        ) {
+            return false
+        }
+
+        for (const key of ['source', 'sourceUrl', 'format']) {
+            const currentValue = String(currentAsset?.[key] || '').trim()
+            const nextValue = String(nextAsset?.[key] || '').trim()
+            if (currentValue && nextValue && currentValue !== nextValue) {
+                return false
+            }
+        }
+
+        const currentFile = currentAsset?.file
+        const nextFile = nextAsset?.file
+        if (currentFile && nextFile && currentFile !== nextFile) {
+            const currentSourceUrl = String(
+                currentAsset?.sourceUrl || ''
+            ).trim()
+            const nextSourceUrl = String(nextAsset?.sourceUrl || '').trim()
+            return Boolean(
+                currentSourceUrl && currentSourceUrl === nextSourceUrl
+            )
+        }
+
+        return true
+    }
+
+    /**
+     * Combines descriptors for one physical asset without dropping aliases or
+     * optional provenance present only on the earlier descriptor.
+     * @param {object} currentAsset Existing asset descriptor.
+     * @param {object} nextAsset New asset descriptor.
+     * @returns {object}
+     */
+    static #mergeSessionAsset(currentAsset, nextAsset) {
+        const aliases = AppControllerParserData.#mergeSessionAssetAliases(
+            currentAsset,
+            nextAsset
+        )
+        return {
+            ...currentAsset,
+            ...nextAsset,
+            ...(aliases.length ? { aliases } : {})
+        }
+    }
+
+    /**
+     * Returns the stable union of exact authored aliases from asset descriptors.
+     * @param {...object} assets Asset descriptors.
+     * @returns {string[]}
+     */
+    static #mergeSessionAssetAliases(...assets) {
+        const aliases = []
+        for (const asset of assets) {
+            for (const value of Array.isArray(asset?.aliases)
+                ? asset.aliases
+                : []) {
+                const alias = typeof value === 'string' ? value.trim() : ''
+                if (alias && !aliases.includes(alias)) aliases.push(alias)
+            }
+        }
+        return aliases
     }
 
     /**

@@ -5,7 +5,9 @@ import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
  * Searches for missing PCB 3D model assets through an injected source client.
  */
 export class EcadMissingModelSearchService {
-    #cache
+    #documentCaches
+
+    #documentScopes
 
     #client
 
@@ -16,7 +18,8 @@ export class EcadMissingModelSearchService {
      */
     constructor(options = {}) {
         this.#client = options.client || null
-        this.#cache = new Map()
+        this.#documentCaches = new WeakMap()
+        this.#documentScopes = new WeakMap()
         this.#concurrencyLimit = Math.max(
             1,
             Math.min(12, Number(options.concurrencyLimit) || 6)
@@ -37,23 +40,36 @@ export class EcadMissingModelSearchService {
             return sessionAssets
         }
 
+        const documentScope = this.#scopeForDocument(documentModel)
+        const availableSessionAssets =
+            EcadMissingModelSearchService.#sessionAssetsForDocument(
+                sessionAssets,
+                documentScope
+            )
         const downloadedAssets = await this.#resolveComponentAssets(
-            this.#findUnresolvedComponents(documentModel, sessionAssets)
+            this.#findUnresolvedComponents(
+                documentModel,
+                availableSessionAssets
+            ),
+            this.#cacheForDocument(documentModel),
+            documentScope
         )
 
         return downloadedAssets.length
-            ? [...sessionAssets, ...downloadedAssets]
-            : sessionAssets
+            ? [...availableSessionAssets, ...downloadedAssets]
+            : availableSessionAssets
     }
 
     /**
      * Resolves missing assets with bounded parallelism.
      * @param {object[]} components Components to resolve.
+     * @param {Map<string, Promise<object | null>>} cache Document-scoped model cache.
+     * @param {object | null} documentScope Opaque parsed-document identity.
      * @returns {Promise<object[]>}
      */
-    async #resolveComponentAssets(components) {
+    async #resolveComponentAssets(components, cache, documentScope) {
         const uniqueComponents =
-            EcadMissingModelSearchService.#uniqueComponentsBySearchTerm(
+            EcadMissingModelSearchService.#uniqueComponentsByLookupKey(
                 components
             )
         const assets = []
@@ -69,13 +85,53 @@ export class EcadMissingModelSearchService {
             )
             const batchAssets = await Promise.all(
                 batch.map((component) =>
-                    this.#resolveComponentAssetWithoutThrowing(component)
+                    this.#resolveComponentAssetWithoutThrowing(
+                        component,
+                        cache,
+                        documentScope
+                    )
                 )
             )
             assets.push(...batchAssets.filter(Boolean))
         }
 
         return assets
+    }
+
+    /**
+     * Returns one stable opaque identity for a parsed document object.
+     * @param {object} documentModel PCB document model.
+     * @returns {object | null}
+     */
+    #scopeForDocument(documentModel) {
+        if (!documentModel || typeof documentModel !== 'object') {
+            return null
+        }
+
+        let scope = this.#documentScopes.get(documentModel)
+        if (!scope) {
+            scope = Object.freeze({})
+            this.#documentScopes.set(documentModel, scope)
+        }
+        return scope
+    }
+
+    /**
+     * Returns the cache owned by one parsed document identity.
+     * @param {object} documentModel PCB document model.
+     * @returns {Map<string, Promise<object | null>>}
+     */
+    #cacheForDocument(documentModel) {
+        if (!documentModel || typeof documentModel !== 'object') {
+            return new Map()
+        }
+
+        let cache = this.#documentCaches.get(documentModel)
+        if (!cache) {
+            cache = new Map()
+            this.#documentCaches.set(documentModel, cache)
+        }
+        return cache
     }
 
     /**
@@ -182,11 +238,21 @@ export class EcadMissingModelSearchService {
     /**
      * Resolves one component asset and skips transient source failures.
      * @param {object} component PCB component.
+     * @param {Map<string, Promise<object | null>>} cache Document-scoped model cache.
+     * @param {object | null} documentScope Opaque parsed-document identity.
      * @returns {Promise<object | null>}
      */
-    async #resolveComponentAssetWithoutThrowing(component) {
+    async #resolveComponentAssetWithoutThrowing(
+        component,
+        cache,
+        documentScope
+    ) {
         try {
-            return await this.#resolveComponentAsset(component)
+            return await this.#resolveComponentAsset(
+                component,
+                cache,
+                documentScope
+            )
         } catch (_error) {
             return null
         }
@@ -195,22 +261,45 @@ export class EcadMissingModelSearchService {
     /**
      * Resolves one component asset, using the in-memory cache when possible.
      * @param {object} component PCB component.
+     * @param {Map<string, Promise<object | null>>} cache Document-scoped model cache.
+     * @param {object | null} documentScope Opaque parsed-document identity.
      * @returns {Promise<object | null>}
      */
-    async #resolveComponentAsset(component) {
+    async #resolveComponentAsset(component, cache, documentScope) {
         const term =
             EcadMissingModelSearchService.#searchTermForComponent(component)
         if (!term) {
             return null
         }
+        const lookupKey =
+            EcadMissingModelSearchService.#lookupKeyForComponent(component)
 
-        if (this.#cache.has(term)) {
-            return this.#cache.get(term)
+        if (cache.has(lookupKey)) {
+            return cache.get(lookupKey)
         }
 
-        const asset = await this.#downloadComponentAsset(component, term)
-        this.#cache.set(term, asset)
-        return asset
+        const lookup = this.#downloadComponentAsset(component, term).then(
+            (asset) =>
+                asset
+                    ? {
+                          ...asset,
+                          documentScope
+                      }
+                    : null
+        )
+        cache.set(lookupKey, lookup)
+        try {
+            const asset = await lookup
+            if (!asset && cache.get(lookupKey) === lookup) {
+                cache.delete(lookupKey)
+            }
+            return asset
+        } catch (error) {
+            if (cache.get(lookupKey) === lookup) {
+                cache.delete(lookupKey)
+            }
+            throw error
+        }
     }
 
     /**
@@ -290,13 +379,15 @@ export class EcadMissingModelSearchService {
             component,
             model
         )
+        const authoredPath = String(component?.modelPath || '').trim()
+        const resolvedPath = String(model?.relativePath || '').trim()
+        const sourceUrl = String(model?.sourceUrl || '').trim()
 
         return {
             name: fileName,
-            relativePath:
-                String(model?.relativePath || '').trim() ||
-                String(component?.modelPath || '').trim() ||
-                fileName,
+            relativePath: resolvedPath || authoredPath || fileName,
+            ...(sourceUrl ? { sourceUrl } : {}),
+            aliases: authoredPath ? [authoredPath] : [],
             file: EcadMissingModelSearchService.#createBlob(
                 model.bytes,
                 model.format
@@ -349,6 +440,25 @@ export class EcadMissingModelSearchService {
         return String(
             modelBaseName || component?.pattern || component?.source || ''
         ).trim()
+    }
+
+    /**
+     * Resolves a collision-safe component identity for deduplication and
+     * caching, falling back to the legacy search term when no path is authored.
+     * @param {object} component PCB component.
+     * @returns {string}
+     */
+    static #lookupKeyForComponent(component) {
+        const authoredPath = EcadMissingModelSearchService.#normalizeAssetPath(
+            component?.modelPath
+        )
+        if (authoredPath) {
+            return 'path:' + authoredPath
+        }
+
+        const term =
+            EcadMissingModelSearchService.#searchTermForComponent(component)
+        return term ? 'term:' + term : ''
     }
 
     /**
@@ -452,6 +562,186 @@ export class EcadMissingModelSearchService {
      * @returns {boolean}
      */
     static #hasMatchingAsset(component, sessionAssets) {
+        const authoredPath = EcadMissingModelSearchService.#normalizeAssetPath(
+            component?.modelPath
+        )
+        if (authoredPath) {
+            return EcadMissingModelSearchService.#hasExactAssetPath(
+                authoredPath,
+                sessionAssets
+            )
+        }
+
+        return EcadMissingModelSearchService.#hasLegacyMatchingAsset(
+            component,
+            sessionAssets
+        )
+    }
+
+    /**
+     * Removes model-search assets owned by other parsed documents while keeping
+     * unscoped project and local assets available to every document.
+     * @param {object[]} sessionAssets Existing session assets.
+     * @param {object | null} documentScope Current parsed-document identity.
+     * @returns {object[]}
+     */
+    static #sessionAssetsForDocument(sessionAssets, documentScope) {
+        const availableAssets = sessionAssets.filter((asset) => {
+            const source = EcadMissingModelSearchService.#ownData(
+                asset,
+                'source'
+            )
+            if (source !== 'model-search') return true
+
+            return (
+                EcadMissingModelSearchService.#ownData(
+                    asset,
+                    'documentScope'
+                ) === documentScope
+            )
+        })
+
+        return availableAssets.length === sessionAssets.length
+            ? sessionAssets
+            : availableAssets
+    }
+
+    /**
+     * Returns true when one asset path or explicit alias matches an authored
+     * model path exactly, with an unambiguous case-folded fallback.
+     * @param {string} authoredPath Normalized authored model path.
+     * @param {object[]} sessionAssets Existing assets.
+     * @returns {boolean}
+     */
+    static #hasExactAssetPath(authoredPath, sessionAssets) {
+        const foldedAuthoredPath = authoredPath.toLowerCase()
+        const allowCaseFold =
+            EcadMissingModelSearchService.#isFilesystemLikeAssetPath(
+                authoredPath
+            )
+        let exactMatches = 0
+        let foldedMatches = 0
+
+        for (const asset of Array.isArray(sessionAssets) ? sessionAssets : []) {
+            const paths = EcadMissingModelSearchService.#assetPaths(asset)
+            if (paths.has(authoredPath)) {
+                exactMatches += 1
+                continue
+            }
+
+            if (
+                allowCaseFold &&
+                [...paths].some(
+                    (path) => path.toLowerCase() === foldedAuthoredPath
+                )
+            ) {
+                foldedMatches += 1
+            }
+        }
+
+        // Exact case wins over folded candidates, but either must be unique.
+        return exactMatches
+            ? exactMatches === 1
+            : allowCaseFold && foldedMatches === 1
+    }
+
+    /**
+     * Returns normalized exact-path candidates for one session asset.
+     * @param {object} asset Session asset.
+     * @returns {Set<string>}
+     */
+    static #assetPaths(asset) {
+        const aliases = EcadMissingModelSearchService.#denseStringArray(
+            EcadMissingModelSearchService.#ownData(asset, 'aliases')
+        )
+
+        return new Set(
+            [
+                EcadMissingModelSearchService.#ownData(asset, 'relativePath'),
+                EcadMissingModelSearchService.#ownData(asset, 'name'),
+                ...aliases
+            ]
+                .map((value) =>
+                    EcadMissingModelSearchService.#normalizeAssetPath(value)
+                )
+                .filter(Boolean)
+        )
+    }
+
+    /**
+     * Returns string entries from a dense ordinary array without invoking
+     * accessors.
+     * @param {unknown} value Alias array candidate.
+     * @returns {string[]}
+     */
+    static #denseStringArray(value) {
+        let descriptors
+        let prototype
+        try {
+            if (!Array.isArray(value)) {
+                return []
+            }
+            descriptors = Object.getOwnPropertyDescriptors(value)
+            prototype = Object.getPrototypeOf(value)
+        } catch {
+            return []
+        }
+
+        const length = descriptors.length?.value
+        if (
+            prototype !== Array.prototype ||
+            !Number.isSafeInteger(length) ||
+            length < 0
+        ) {
+            return []
+        }
+
+        const strings = []
+        for (let index = 0; index < length; index += 1) {
+            const descriptor = descriptors[String(index)]
+            if (
+                !descriptor ||
+                descriptor.enumerable !== true ||
+                !Object.hasOwn(descriptor, 'value')
+            ) {
+                return []
+            }
+            if (typeof descriptor.value === 'string') {
+                strings.push(descriptor.value)
+            }
+        }
+        return strings
+    }
+
+    /**
+     * Reads one own data property without invoking accessors.
+     * @param {unknown} value Record candidate.
+     * @param {PropertyKey} key Property key.
+     * @returns {unknown}
+     */
+    static #ownData(value, key) {
+        if (!value || typeof value !== 'object') {
+            return undefined
+        }
+
+        try {
+            const descriptor = Object.getOwnPropertyDescriptor(value, key)
+            return descriptor && Object.hasOwn(descriptor, 'value')
+                ? descriptor.value
+                : undefined
+        } catch {
+            return undefined
+        }
+    }
+
+    /**
+     * Preserves basename/stem matching for components without an authored
+     * model path.
+     * @param {object} component PCB component.
+     * @param {object[]} sessionAssets Existing assets.
+     * @returns {boolean}
+     */
+    static #hasLegacyMatchingAsset(component, sessionAssets) {
         const expected = EcadMissingModelSearchService.#normalizeToken(
             EcadMissingModelSearchService.#searchTermForComponent(component)
         )
@@ -459,33 +749,68 @@ export class EcadMissingModelSearchService {
             return false
         }
 
-        return sessionAssets.some((asset) => {
-            const name = String(asset?.relativePath || asset?.name || '')
-                .split('/')
-                .pop()
-                ?.replace(/\.[^.]+$/u, '')
+        return (Array.isArray(sessionAssets) ? sessionAssets : []).some(
+            (asset) => {
+                const name = String(
+                    EcadMissingModelSearchService.#ownData(
+                        asset,
+                        'relativePath'
+                    ) ||
+                        EcadMissingModelSearchService.#ownData(asset, 'name') ||
+                        ''
+                )
+                    .replaceAll('\\', '/')
+                    .split('/')
+                    .pop()
+                    ?.replace(/\.[^.]+$/u, '')
 
-            return (
-                EcadMissingModelSearchService.#normalizeToken(name) === expected
-            )
-        })
+                return (
+                    EcadMissingModelSearchService.#normalizeToken(name) ===
+                    expected
+                )
+            }
+        )
     }
 
     /**
-     * Keeps one representative component for each search term.
+     * Normalizes path separators without discarding variables, URL origins,
+     * or other authored identity.
+     * @param {unknown} value Raw path candidate.
+     * @returns {string}
+     */
+    static #normalizeAssetPath(value) {
+        return typeof value === 'string'
+            ? value.trim().replaceAll('\\', '/')
+            : ''
+    }
+
+    /**
+     * Returns true when a path can use the conservative filesystem case-folded
+     * fallback. URI schemes and protocol-relative URLs remain case-sensitive.
+     * @param {string} value Normalized authored path.
+     * @returns {boolean}
+     */
+    static #isFilesystemLikeAssetPath(value) {
+        if (/^[a-z]:\//iu.test(value)) return true
+        if (/^[a-z][a-z0-9+.-]*:/iu.test(value)) return false
+        return !value.startsWith('//')
+    }
+
+    /**
+     * Keeps one representative component for each lookup identity.
      * @param {object[]} components Components.
      * @returns {object[]}
      */
-    static #uniqueComponentsBySearchTerm(components) {
-        const seenTerms = new Set()
+    static #uniqueComponentsByLookupKey(components) {
+        const seenKeys = new Set()
         const uniqueComponents = []
         for (const component of components) {
-            const term =
-                EcadMissingModelSearchService.#searchTermForComponent(component)
-            if (!term || seenTerms.has(term)) {
+            const key =
+                EcadMissingModelSearchService.#lookupKeyForComponent(component)
+            if (!key || seenKeys.has(key)) {
                 continue
             }
-            seenTerms.add(term)
+            seenKeys.add(key)
             uniqueComponents.push(component)
         }
         return uniqueComponents

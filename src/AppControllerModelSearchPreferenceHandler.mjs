@@ -98,7 +98,9 @@ export class AppControllerModelSearchPreferenceHandler {
                 current.file !== asset.file ||
                 current.source !== asset.source ||
                 current.sourceUrl !== asset.sourceUrl ||
-                current.componentKey !== asset.componentKey
+                current.componentKey !== asset.componentKey ||
+                JSON.stringify(current.aliases || []) !==
+                    JSON.stringify(asset.aliases || [])
             )
         })
     }

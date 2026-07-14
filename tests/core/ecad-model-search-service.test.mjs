@@ -9,9 +9,10 @@ import { EcadEasyEdaModelSourceClient } from '../../src/core/ecad/EcadEasyEdaMod
 
 /**
  * Creates a PCB document with one model reference.
+ * @param {string} [modelPath] Authored model path.
  * @returns {object}
  */
-function createPcbDocument() {
+function createPcbDocument(modelPath = 'models/FAKE_WIDGET_0603.step') {
     return {
         kind: 'pcb',
         pcb: {
@@ -20,7 +21,7 @@ function createPcbDocument() {
                     designator: 'U1',
                     pattern: 'FAKE_WIDGET_0603',
                     source: 'Fake Widget',
-                    modelPath: 'models/FAKE_WIDGET_0603.step'
+                    modelPath
                 }
             ]
         }
@@ -125,11 +126,12 @@ test('EcadMissingModelSearchService downloads and caches matching model assets',
         }
     })
 
-    const first = await service.resolveSessionAssets(createPcbDocument(), {
+    const documentModel = createPcbDocument()
+    const first = await service.resolveSessionAssets(documentModel, {
         enabled: true,
         sessionAssets: []
     })
-    const second = await service.resolveSessionAssets(createPcbDocument(), {
+    const second = await service.resolveSessionAssets(documentModel, {
         enabled: true,
         sessionAssets: []
     })
@@ -140,6 +142,251 @@ test('EcadMissingModelSearchService downloads and caches matching model assets',
     assert.equal(first[0].relativePath, 'models/FAKE_WIDGET_0603.step')
     assert.equal(first[0].format, 'step')
     assert.equal(second[0], first[0])
+})
+
+test('EcadMissingModelSearchService searches when a same-stem asset belongs to another path', async () => {
+    const requestedPaths = []
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async (component) => {
+                requestedPaths.push(component.modelPath)
+                return {
+                    name: 'Neutral_Body.wrl',
+                    format: 'wrl',
+                    bytes: new TextEncoder().encode('#VRML V2.0 utf8')
+                }
+            }
+        }
+    })
+    const authoredPath = 'library_b/Neutral_Body.wrl'
+    const existingAsset = {
+        name: 'Neutral_Body.step',
+        relativePath: 'library_a/Neutral_Body.step'
+    }
+
+    const result = await service.resolveSessionAssets(
+        createPcbDocument(authoredPath),
+        {
+            enabled: true,
+            sessionAssets: [existingAsset]
+        }
+    )
+
+    assert.deepEqual(requestedPaths, [authoredPath])
+    assert.equal(result.length, 2)
+    assert.equal(result[1].relativePath, authoredPath)
+})
+
+test('EcadMissingModelSearchService accepts only the explicit authored alias for a differently named asset', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return {
+                    name: 'Neutral_Body.wrl',
+                    format: 'wrl',
+                    bytes: new TextEncoder().encode('#VRML V2.0 utf8')
+                }
+            }
+        }
+    })
+    const authoredPath = '${MODEL_ROOT}\\library_b\\Neutral_Body.wrl'
+    const existingAssets = [
+        {
+            name: 'Resolved_Body.step',
+            relativePath: 'download/Resolved_Body.step',
+            aliases: ['${MODEL_ROOT}/library_b/Neutral_Body.wrl']
+        }
+    ]
+
+    const result = await service.resolveSessionAssets(
+        createPcbDocument(authoredPath),
+        {
+            enabled: true,
+            sessionAssets: existingAssets
+        }
+    )
+
+    assert.equal(calls, 0)
+    assert.equal(result, existingAssets)
+})
+
+test('EcadMissingModelSearchService preserves URL origins during exact asset matching', async () => {
+    const requestedPaths = []
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async (component) => {
+                requestedPaths.push(component.modelPath)
+                return {
+                    name: 'Neutral_Body.step',
+                    format: 'step',
+                    bytes: new TextEncoder().encode('ISO-10303-21;')
+                }
+            }
+        }
+    })
+    const authoredPath = 'https://models-b.invalid/library/Neutral_Body.step'
+
+    await service.resolveSessionAssets(createPcbDocument(authoredPath), {
+        enabled: true,
+        sessionAssets: [
+            {
+                name: 'Neutral_Body.step',
+                relativePath:
+                    'https://models-a.invalid/library/Neutral_Body.step'
+            }
+        ]
+    })
+
+    assert.deepEqual(requestedPaths, [authoredPath])
+})
+
+test('EcadMissingModelSearchService never case-folds URL asset paths', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+    const authoredPath = 'https://assets.invalid/Models/Neutral_Body.step'
+
+    await service.resolveSessionAssets(createPcbDocument(authoredPath), {
+        enabled: true,
+        sessionAssets: [
+            {
+                name: 'Neutral_Body.step',
+                relativePath: 'https://assets.invalid/models/Neutral_Body.step'
+            }
+        ]
+    })
+
+    assert.equal(calls, 1)
+})
+
+test('EcadMissingModelSearchService uses a unique case-folded authored path match', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+
+    await service.resolveSessionAssets(
+        createPcbDocument('${MODEL_ROOT}/library/Neutral_Body.step'),
+        {
+            enabled: true,
+            sessionAssets: [
+                {
+                    name: 'Neutral_Body.step',
+                    relativePath: '${model_root}/LIBRARY/NEUTRAL_BODY.STEP'
+                }
+            ]
+        }
+    )
+
+    assert.equal(calls, 0)
+})
+
+test('EcadMissingModelSearchService rejects ambiguous case-folded authored path matches', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+
+    await service.resolveSessionAssets(
+        createPcbDocument('MODELS/NEUTRAL_BODY.STEP'),
+        {
+            enabled: true,
+            sessionAssets: [
+                { relativePath: 'Models/Neutral_Body.step' },
+                { relativePath: 'models/neutral_body.step' }
+            ]
+        }
+    )
+
+    assert.equal(calls, 1)
+})
+
+test('EcadMissingModelSearchService ignores accessor-backed asset aliases', async () => {
+    let calls = 0
+    let getterCalls = 0
+    const authoredPath = 'models/Neutral_Body.wrl'
+    const asset = {
+        name: 'Resolved_Body.step',
+        relativePath: 'download/Resolved_Body.step'
+    }
+    Object.defineProperty(asset, 'aliases', {
+        enumerable: true,
+        get() {
+            getterCalls += 1
+            return [authoredPath]
+        }
+    })
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+
+    await service.resolveSessionAssets(createPcbDocument(authoredPath), {
+        enabled: true,
+        sessionAssets: [asset]
+    })
+
+    assert.equal(calls, 1)
+    assert.equal(getterCalls, 0)
+})
+
+test('EcadMissingModelSearchService preserves stem matching without an authored model path', async () => {
+    let calls = 0
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => {
+                calls += 1
+                return null
+            }
+        }
+    })
+    const existingAssets = [
+        {
+            name: 'Neutral_Legacy_Body.step',
+            relativePath: 'library/Neutral_Legacy_Body.step'
+        }
+    ]
+    const documentModel = {
+        kind: 'pcb',
+        pcb: {
+            components: [
+                {
+                    designator: 'U1',
+                    pattern: 'NEUTRAL_LEGACY_BODY'
+                }
+            ]
+        }
+    }
+
+    const result = await service.resolveSessionAssets(documentModel, {
+        enabled: true,
+        sessionAssets: existingAssets
+    })
+
+    assert.equal(calls, 0)
+    assert.equal(result, existingAssets)
 })
 
 test('EcadMissingModelSearchService resolves canonical CircuitJSON component models', async () => {
@@ -214,6 +461,66 @@ test('EcadMissingModelSearchService resolves canonical CircuitJSON component mod
     assert.deepEqual(requested, [{ designator: 'U1', term: 'FAKE_WIDGET_QFN' }])
     assert.equal(result[0].relativePath, 'models/FAKE_WIDGET_QFN.step')
     assert.equal(result[0].componentKey, 'U1')
+})
+
+test('EcadMissingModelSearchService retains resolved model identity and the exact authored alias', async () => {
+    const authoredPath =
+        '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.wrl'
+    const resolvedPath =
+        '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.step'
+    const sourceUrl =
+        'https://assets.invalid/Package_Fake.3dshapes/Fake_Body.step'
+    const service = new EcadMissingModelSearchService({
+        client: {
+            fetchComponentModel: async () => ({
+                name: 'Fake_Body.step',
+                relativePath: resolvedPath,
+                sourceUrl,
+                format: 'step',
+                bytes: new TextEncoder().encode('ISO-10303-21;')
+            })
+        }
+    })
+    const documentModel = Parser.parse({
+        fileName: 'board.json',
+        data: JSON.stringify([
+            {
+                type: 'source_component',
+                source_component_id: 'source_u1',
+                name: 'U1',
+                ftype: 'simple_chip'
+            },
+            {
+                type: 'pcb_component',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                center: { x: 0, y: 0 },
+                width: 2,
+                height: 2,
+                rotation: 0,
+                layer: 'top'
+            },
+            {
+                type: 'cad_component',
+                cad_component_id: 'cad_u1',
+                pcb_component_id: 'pcb_u1',
+                source_component_id: 'source_u1',
+                position: { x: 0, y: 0, z: 0 },
+                model_wrl_url: authoredPath
+            }
+        ])
+    })
+
+    const [asset] = await service.resolveSessionAssets(documentModel, {
+        enabled: true,
+        sessionAssets: []
+    })
+
+    assert.equal(asset.name, 'Fake_Body.wrl')
+    assert.equal(asset.relativePath, resolvedPath)
+    assert.equal(asset.sourceUrl, sourceUrl)
+    assert.equal(asset.format, 'step')
+    assert.deepEqual(asset.aliases, [authoredPath])
 })
 
 test('EcadMissingModelSearchService skips do-not-populate components', async () => {

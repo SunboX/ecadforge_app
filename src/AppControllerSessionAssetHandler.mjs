@@ -77,6 +77,7 @@ export class AppControllerSessionAssetHandler {
             String(asset?.source || ''),
             String(asset?.sourceUrl || ''),
             String(asset?.componentKey || ''),
+            Array.isArray(asset?.aliases) ? asset.aliases : [],
             Number(file?.size || file?.byteLength || 0)
         ])
     }

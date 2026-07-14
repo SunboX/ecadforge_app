@@ -75,3 +75,51 @@ test('AppControllerModelSearchPreferenceHandler resolves assets when enabling mi
     assert.equal(snapshot.sessionAssets[0].source, 'model-search')
     assert.equal(snapshot.sessionAssets[0].componentKey, 'U1')
 })
+
+test('AppControllerModelSearchPreferenceHandler stores alias-only search results', async () => {
+    const documentModel = createPcbDocument()
+    const relativePath = 'Package_FAKE.3dshapes/U1.step'
+    const state = new AppState({
+        activeView: '3d',
+        documents: [{ id: 'board', documentModel }],
+        activeDocumentId: 'board',
+        sessionAssets: [
+            {
+                name: 'U1.step',
+                relativePath,
+                file: new Uint8Array([1, 2, 3]),
+                format: 'step',
+                source: 'model-search',
+                componentKey: 'U1',
+                aliases: ['${MODEL_ROOT_A}/U1.wrl']
+            }
+        ]
+    })
+    const modelSearchService = {
+        /**
+         * Returns the same physical asset with one additional authored alias.
+         * @param {object} _documentModel Active document model.
+         * @param {{ sessionAssets?: object[] }} options Lookup options.
+         * @returns {Promise<object[]>}
+         */
+        async resolveSessionAssets(_documentModel, options) {
+            return [
+                {
+                    ...options.sessionAssets[0],
+                    aliases: ['${MODEL_ROOT_B}/U1.wrl']
+                }
+            ]
+        }
+    }
+
+    await AppControllerModelSearchPreferenceHandler.handle(
+        true,
+        state,
+        modelSearchService
+    )
+
+    assert.deepEqual(state.getSnapshot().sessionAssets[0].aliases, [
+        '${MODEL_ROOT_A}/U1.wrl',
+        '${MODEL_ROOT_B}/U1.wrl'
+    ])
+})

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { AppControllerParserData } from '../src/AppControllerParserData.mjs'
 import { AppControllerSessionAssetHandler } from '../src/AppControllerSessionAssetHandler.mjs'
 import { AppState } from '../src/core/AppState.mjs'
 
@@ -28,12 +29,11 @@ test('AppControllerSessionAssetHandler ignores equivalent resolved assets', () =
         kind: 'pcb',
         fileName: 'fake-board.kicad_pcb'
     }
+    const resolvedAsset = createResolvedAsset('Package_FAKE.3dshapes/U1.step')
     const state = new AppState({
         documents: [{ id: 'doc-1', documentModel }],
         activeDocumentId: 'doc-1',
-        sessionAssets: [
-            createResolvedAsset('Package_FAKE.3dshapes/U1.step')
-        ]
+        sessionAssets: [resolvedAsset]
     })
     let renderCount = 0
     state.subscribe(() => {
@@ -43,13 +43,214 @@ test('AppControllerSessionAssetHandler ignores equivalent resolved assets', () =
     AppControllerSessionAssetHandler.handle(
         {
             documentModel,
-            sessionAssets: [
-                createResolvedAsset('Package_FAKE.3dshapes/U1.step')
-            ]
+            sessionAssets: [{ ...resolvedAsset }]
         },
         state
     )
 
     assert.equal(renderCount, 1)
     assert.equal(state.getSnapshot().sessionAssets.length, 1)
+})
+
+test('AppControllerParserData merges exact aliases for one physical model asset', () => {
+    const relativePath = 'Package_FAKE.3dshapes/Shared_Body.step'
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        sourceUrl: 'https://models.invalid/Shared_Body.step',
+        aliases: ['${MODEL_ROOT_A}/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        file: firstAsset.file,
+        componentKey: 'U2',
+        aliases: ['${MODEL_ROOT_B}/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 1)
+    assert.deepEqual(mergedAssets[0].aliases, [
+        '${MODEL_ROOT_A}/Shared_Body.wrl',
+        '${MODEL_ROOT_B}/Shared_Body.wrl'
+    ])
+    assert.equal(
+        mergedAssets[0].sourceUrl,
+        'https://models.invalid/Shared_Body.step'
+    )
+    assert.equal(mergedAssets[0].componentKey, 'U2')
+})
+
+test('AppControllerParserData normalizes separators in physical asset identity', () => {
+    const firstAsset = {
+        ...createResolvedAsset('Package_FAKE\\Shared_Body.step'),
+        aliases: ['${MODEL_ROOT_A}/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset('Package_FAKE/Shared_Body.step'),
+        file: firstAsset.file,
+        aliases: ['${MODEL_ROOT_B}/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 1)
+    assert.deepEqual(mergedAssets[0].aliases, [
+        '${MODEL_ROOT_A}/Shared_Body.wrl',
+        '${MODEL_ROOT_B}/Shared_Body.wrl'
+    ])
+})
+
+test('AppControllerParserData preserves distinct case-sensitive physical paths', () => {
+    const upperPathAsset = createResolvedAsset(
+        'https://models.invalid/Package_FAKE/Shared_Body.step'
+    )
+    const lowerPathAsset = createResolvedAsset(
+        'https://models.invalid/package_fake/Shared_Body.step'
+    )
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [upperPathAsset],
+        [lowerPathAsset]
+    )
+
+    assert.deepEqual(
+        mergedAssets.map((asset) => asset.relativePath),
+        [upperPathAsset.relativePath, lowerPathAsset.relativePath]
+    )
+})
+
+test('AppControllerParserData preserves conflicting same-path source assets', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        sourceUrl: 'https://source-a.invalid/Shared_Body.step',
+        aliases: ['library_a/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        sourceUrl: 'https://source-b.invalid/Shared_Body.step',
+        aliases: ['library_b/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 2)
+    assert.deepEqual(
+        mergedAssets.map((asset) => ({
+            sourceUrl: asset.sourceUrl,
+            aliases: asset.aliases
+        })),
+        [
+            {
+                sourceUrl: 'https://source-a.invalid/Shared_Body.step',
+                aliases: ['library_a/Shared_Body.wrl']
+            },
+            {
+                sourceUrl: 'https://source-b.invalid/Shared_Body.step',
+                aliases: ['library_b/Shared_Body.wrl']
+            }
+        ]
+    )
+})
+
+test('AppControllerParserData preserves conflicting same-path payloads', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xa1]),
+        aliases: ['library_a/Shared_Body.wrl']
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        file: new Uint8Array([0xb2]),
+        aliases: ['library_b/Shared_Body.wrl']
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 2)
+    assert.deepEqual(mergedAssets[0].aliases, ['library_a/Shared_Body.wrl'])
+    assert.deepEqual(mergedAssets[1].aliases, ['library_b/Shared_Body.wrl'])
+    assert.deepEqual([...mergedAssets[0].file], [0xa1])
+    assert.deepEqual([...mergedAssets[1].file], [0xb2])
+})
+
+test('AppControllerParserData preserves same-path assets owned by distinct documents', () => {
+    const relativePath = 'download/Shared_Body.step'
+    const sharedFile = new Uint8Array([1, 2, 3])
+    const firstScope = Object.freeze({})
+    const secondScope = Object.freeze({})
+    const firstAsset = {
+        ...createResolvedAsset(relativePath),
+        file: sharedFile,
+        sourceUrl: 'https://models.invalid/Shared_Body.step',
+        aliases: ['library_a/Shared_Body.wrl'],
+        documentScope: firstScope
+    }
+    const secondAsset = {
+        ...createResolvedAsset(relativePath),
+        file: sharedFile,
+        sourceUrl: 'https://models.invalid/Shared_Body.step',
+        aliases: ['library_b/Shared_Body.wrl'],
+        documentScope: secondScope
+    }
+
+    const mergedAssets = AppControllerParserData.mergeSessionAssets(
+        [firstAsset],
+        [secondAsset]
+    )
+
+    assert.equal(mergedAssets.length, 2)
+    assert.equal(mergedAssets[0].documentScope, firstScope)
+    assert.equal(mergedAssets[1].documentScope, secondScope)
+    assert.deepEqual(mergedAssets[0].aliases, ['library_a/Shared_Body.wrl'])
+    assert.deepEqual(mergedAssets[1].aliases, ['library_b/Shared_Body.wrl'])
+})
+
+test('AppControllerSessionAssetHandler stores alias-only asset changes', () => {
+    const documentModel = {
+        kind: 'pcb',
+        fileName: 'neutral-board.kicad_pcb'
+    }
+    const relativePath = 'Package_FAKE.3dshapes/Shared_Body.step'
+    const resolvedAsset = {
+        ...createResolvedAsset(relativePath),
+        aliases: ['${MODEL_ROOT_A}/Shared_Body.wrl']
+    }
+    const state = new AppState({
+        documents: [{ id: 'doc-1', documentModel }],
+        activeDocumentId: 'doc-1',
+        sessionAssets: [resolvedAsset]
+    })
+
+    AppControllerSessionAssetHandler.handle(
+        {
+            documentModel,
+            sessionAssets: [
+                {
+                    ...createResolvedAsset(relativePath),
+                    file: resolvedAsset.file,
+                    aliases: ['${MODEL_ROOT_B}/Shared_Body.wrl']
+                }
+            ]
+        },
+        state
+    )
+
+    assert.deepEqual(state.getSnapshot().sessionAssets[0].aliases, [
+        '${MODEL_ROOT_A}/Shared_Body.wrl',
+        '${MODEL_ROOT_B}/Shared_Body.wrl'
+    ])
 })

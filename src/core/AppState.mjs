@@ -5,14 +5,14 @@ import { EcadDocumentType } from './ecad/EcadDocumentType.mjs'
  * Viewer state container with subscription support.
  */
 export class AppState {
-    /** @type {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[] }} */
+    /** @type {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[] }} */
     #state
 
-    /** @type {Set<(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }) => void>} */
+    /** @type {Set<(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }) => void>} */
     #listeners
 
     /**
-     * @param {{ activeView?: string, activeSidebarTab?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, pcbObjectOpacities?: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string }, autoSearchMissingModels?: boolean, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string }[] }} [initial]
+     * @param {{ activeView?: string, activeSidebarTab?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, pcbObjectOpacities?: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string }, autoSearchMissingModels?: boolean, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[] }} [initial]
      */
     constructor(initial = {}) {
         this.#state = {
@@ -51,7 +51,7 @@ export class AppState {
 
     /**
      * Returns a readonly snapshot.
-     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
+     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
     getSnapshot() {
         const activeEntry = AppState.#findActiveDocumentEntry(
@@ -76,7 +76,10 @@ export class AppState {
             selectedNets: AppState.#cloneSelectedNets(this.#state.selectedNets),
             documents: this.#state.documents.map((entry) => ({ ...entry })),
             sessionAssets: this.#state.sessionAssets.map((asset) => ({
-                ...asset
+                ...asset,
+                ...(Array.isArray(asset.aliases)
+                    ? { aliases: [...asset.aliases] }
+                    : {})
             })),
             activeFileName: EcadDocumentType.fileName(
                 activeEntry?.documentModel
@@ -89,7 +92,7 @@ export class AppState {
      * Sets one state field and notifies listeners.
      * @param {'activeView' | 'activeSidebarTab' | 'hiddenPcbLayers' | 'hiddenPcbObjects' | 'pcbObjectOpacities' | 'selectedPcbComponents' | 'selectedNets' | 'autoSearchMissingModels' | 'locale' | 'parseStatus' | 'statusMessage' | 'documents' | 'activeDocumentId' | 'sessionAssets'} key
      * @param {string | boolean | object[] | null} value
-     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
+     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
     setValue(key, value) {
         this.#applyValue(key, value)
@@ -100,8 +103,8 @@ export class AppState {
 
     /**
      * Applies multiple state fields.
-     * @param {{ activeView?: string, activeSidebarTab?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, pcbObjectOpacities?: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string }, autoSearchMissingModels?: boolean, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string }[] }} patch
-     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
+     * @param {{ activeView?: string, activeSidebarTab?: string, hiddenPcbLayers?: { [documentId: string]: string[] }, hiddenPcbObjects?: { [documentId: string]: string[] }, pcbObjectOpacities?: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents?: { [documentId: string]: string }, selectedNets?: { [documentId: string]: string }, autoSearchMissingModels?: boolean, locale?: string, parseStatus?: string, statusMessage?: string, documents?: { id: string, documentModel: object }[], activeDocumentId?: string, sessionAssets?: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[] }} patch
+     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
     patch(patch) {
         for (const key of Object.keys(patch)) {
@@ -114,7 +117,7 @@ export class AppState {
 
     /**
      * Subscribes to state changes.
-     * @param {(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }) => void} callback
+     * @param {(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }) => void} callback
      * @returns {() => void}
      */
     subscribe(callback) {
@@ -132,7 +135,7 @@ export class AppState {
 
     /**
      * Emits a fresh state snapshot to all listeners.
-     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
+     * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
     #emit() {
         const snapshot = this.getSnapshot()
@@ -329,7 +332,7 @@ export class AppState {
     /**
      * Normalizes session companion assets.
      * @param {unknown} value
-     * @returns {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string }[]}
+     * @returns {{ name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[]}
      */
     static #sanitizeSessionAssets(value) {
         if (!Array.isArray(value)) {
@@ -353,21 +356,64 @@ export class AppState {
                 relativePath: entry.relativePath,
                 file: entry.file,
                 format: entry.format,
-                ...AppState.#optionalSessionAssetTextFields(entry)
+                ...AppState.#optionalSessionAssetFields(entry)
             }))
     }
 
     /**
      * Preserves optional model asset metadata used by downstream renderers.
      * @param {object} entry Session asset entry.
-     * @returns {{ source?: string, sourceUrl?: string, componentKey?: string }}
+     * @returns {{ source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }}
      */
-    static #optionalSessionAssetTextFields(entry) {
-        return Object.fromEntries(
+    static #optionalSessionAssetFields(entry) {
+        const fields = Object.fromEntries(
             ['source', 'sourceUrl', 'componentKey']
                 .map((key) => [key, String(entry?.[key] || '').trim()])
                 .filter(([_key, value]) => value)
         )
+        const aliases = AppState.#sessionAssetAliases(entry?.aliases)
+        if (aliases.length) fields.aliases = aliases
+
+        const documentScope = entry?.documentScope
+        if (documentScope && typeof documentScope === 'object') {
+            fields.documentScope = documentScope
+        }
+        return fields
+    }
+
+    /**
+     * Copies a dense ordinary list of exact session asset aliases.
+     * @param {unknown} value Alias list candidate.
+     * @returns {string[]}
+     */
+    static #sessionAssetAliases(value) {
+        let descriptors
+        let prototype
+        try {
+            if (!Array.isArray(value)) return []
+            descriptors = Object.getOwnPropertyDescriptors(value)
+            prototype = Object.getPrototypeOf(value)
+        } catch {
+            return []
+        }
+        const length = descriptors.length?.value
+        if (
+            prototype !== Array.prototype ||
+            !Number.isSafeInteger(length) ||
+            length < 0
+        ) {
+            return []
+        }
+
+        const aliases = []
+        for (let index = 0; index < length; index += 1) {
+            const descriptor = descriptors[String(index)]
+            if (!descriptor || !Object.hasOwn(descriptor, 'value')) return []
+            if (typeof descriptor.value !== 'string') continue
+            const alias = descriptor.value.trim()
+            if (alias && !aliases.includes(alias)) aliases.push(alias)
+        }
+        return aliases
     }
 
     /**

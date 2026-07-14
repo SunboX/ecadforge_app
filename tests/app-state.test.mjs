@@ -381,3 +381,56 @@ test('AppState preserves session asset model-search provenance', () => {
     assert.equal(snapshot.sessionAssets[0].source, 'model-search')
     assert.equal(snapshot.sessionAssets[0].componentKey, 'U1')
 })
+
+test('AppState preserves exact session model aliases without sharing their array', () => {
+    const aliases = [
+        '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.wrl'
+    ]
+    const state = new AppState()
+
+    state.setValue('sessionAssets', [
+        {
+            name: 'Fake_Body.wrl',
+            relativePath:
+                '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.step',
+            file: { name: 'Fake_Body.step' },
+            format: 'step',
+            source: 'model-search',
+            sourceUrl:
+                'https://assets.invalid/Package_Fake.3dshapes/Fake_Body.step',
+            aliases
+        }
+    ])
+    aliases.push('mutated-before-snapshot.wrl')
+
+    const firstSnapshot = state.getSnapshot()
+    assert.deepEqual(firstSnapshot.sessionAssets[0].aliases, [
+        '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.wrl'
+    ])
+
+    firstSnapshot.sessionAssets[0].aliases.push('mutated-snapshot.wrl')
+    assert.deepEqual(state.getSnapshot().sessionAssets[0].aliases, [
+        '${KICAD9_3DMODEL_DIR}/Package_Fake.3dshapes/Fake_Body.wrl'
+    ])
+})
+
+test('AppState preserves opaque session asset document scope identity', () => {
+    const documentScope = Object.freeze({})
+    const state = new AppState({
+        sessionAssets: [
+            {
+                name: 'Fake_Body.step',
+                relativePath: 'download/Fake_Body.step',
+                file: new Uint8Array([1, 2, 3]),
+                format: 'step',
+                source: 'model-search',
+                documentScope
+            }
+        ]
+    })
+
+    assert.equal(
+        state.getSnapshot().sessionAssets[0].documentScope,
+        documentScope
+    )
+})
