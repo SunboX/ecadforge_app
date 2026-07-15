@@ -4,14 +4,11 @@ Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files.
 
 Open schematics, inspect PCB layouts and Gerber fabrication layers, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, KiCad ZIP projects, Gerber/Excellon files, Gerber ZIP archives, and CircuitJSON `.json` files are supported and parsed locally.
 
-Version 1.13.1 updates Gerber Toolkit to 0.4.2. Canonical Gerber outline
-projection now preserves source draw-run identity, distinguishes continuous
-closed mechanical loops from pen-separated frame strokes, and treats
-non-cutout artwork as transparent during containment. This prevents unrelated
-geometry from becoming false board cutouts without hiding valid nested cutouts.
-Explicit profile and clear-polarity geometry keep their prior behavior. ECAD
-Forge continues to consume the toolkit's CircuitJSON model directly, without
-app-side topology repair or project-specific handling.
+Version 1.13.2 updates KiCad Toolkit to 1.3.1. Bottom-side SMD pads now retain
+their authored copper face, dimensions, shape, corner radius, rotated face
+offset, solder-mask opening, and component ownership when projected into
+CircuitJSON. This restores the pads in PCB and 3D views without an app-side
+adapter or viewer workaround.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
@@ -119,6 +116,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.13.2 release notes](docs/release-notes-v1.13.2.md)
 - [1.13.1 release notes](docs/release-notes-v1.13.1.md)
 - [1.13.0 release notes](docs/release-notes-v1.13.0.md)
 - [1.12.0 release notes](docs/release-notes-v1.12.0.md)
