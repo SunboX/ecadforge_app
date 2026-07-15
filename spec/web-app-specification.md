@@ -43,9 +43,18 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 20. Canonical documents reuse one CircuitJSON context across rendering,
     interaction, BOM derivation, and 3D preparation. Only canonical documents
     received after the parser worker's completed structured-clone boundary use
-    the explicit fast adoption path; direct, fallback, and compatibility inputs
-    use exact context preparation. Retained native features remain available
-    through explicit toolkit `/extensions` entrypoints.
+    the explicit cooperative adoption path. That path validates and freezes the
+    exclusively transferred browser-owned graph without a second full extension
+    copy and yields within large extension traversal and sealing and between
+    successive documents and first consumer rendering. Direct, fallback, and
+    compatibility inputs use exact defensive context preparation. Retained native features remain
+    available through explicit toolkit `/extensions` entrypoints. Shared
+    preparation isolates caller cancellation, and parser-worker terminal
+    messages must match the exact active request id. Shared adoption must fall
+    back when a host scheduler rejects, cache terminal structural failures by
+    document identity, reject synchronous preparation while that identity is
+    still being adopted, and never publish a queued parse result or error after
+    controller disposal.
 
 ## 3. Non-Functional Requirements
 

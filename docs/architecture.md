@@ -24,9 +24,10 @@
   source-neutral equivalent exists
 - `circuitjson-toolkit`: immutable CircuitJSON documents, reusable indexes and
   derived caches, deterministic rendering and interaction, manufacturing,
-  local simulation, and canonical scene preparation. Version 1.3.0 adds an
-  explicit structured-clone preparation path for trusted worker results while
-  the default preparation path retains exact binary-value handling.
+  local simulation, and canonical scene preparation. Version 1.4.0 divides
+  trusted structured-clone adoption into bounded traversal, binary-protection,
+  and property-locking slices while the default preparation path retains exact
+  defensive binary-value handling.
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
@@ -88,9 +89,26 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    metadata, is posted back to the main thread; canonical envelopes keep
    CircuitJSON in `model`. After the browser completes this structured-clone
    boundary, `AppControllerParserData` adopts only canonical documents through
-   `CircuitJsonDocumentContext.prepareStructuredClone`. Direct service calls,
-   main-thread fallback results, and retained native compatibility documents
-   continue through the exact context preparation path. KiCad `${KIPRJMOD}`
+   `CircuitJsonDocumentContext.prepareStructuredCloneAsync`. Large native
+   extension traversal and sealing, successive documents, and the first
+   consumer render have cooperative scheduling boundaries so a large completed
+   worker result does not become one multi-second main-thread task. The app
+   explicitly transfers exclusive ownership of the already isolated browser
+   clone, which is adopted and deeply frozen without another full extension
+   copy. Concurrent consumers share preparation. Cancellation stops
+   only that caller's wait; progressively sealed shared work completes so a
+   later consumer can never inherit a partially adopted graph. A rejected host
+   scheduler falls back to a zero-delay browser task, while a terminal
+   structural failure remains cached for that document identity so partially
+   sealed data is never restarted. Synchronous context entry points reject a
+   document while its asynchronous adoption is in progress. Parser-worker
+   terminal replies must carry the exact active request id, so stale or id-less
+   messages cannot settle a newer request. Controller disposal advances a
+   lifecycle generation before rejecting pending requests, preventing queued
+   success and error continuations from publishing state afterward.
+   Direct service calls, main-thread fallback results, and retained native
+   compatibility documents continue through the exact defensive context
+   preparation path. KiCad `${KIPRJMOD}`
    model references resolve from
    the owning `.kicad_pro` directory (or board directory when project metadata
    is absent) and link canonical `cad_component` rows to the exact project

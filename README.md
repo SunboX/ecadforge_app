@@ -4,12 +4,17 @@ Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files.
 
 Open schematics, inspect PCB layouts and Gerber fabrication layers, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, KiCad ZIP projects, Gerber/Excellon files, Gerber ZIP archives, and CircuitJSON `.json` files are supported and parsed locally.
 
-Version 1.12.0 adopts CircuitJSON Toolkit 1.3.0 and its explicit
-structured-clone preparation path for parser-worker results. Direct and
-fallback inputs keep exact binary handling, while PCB renders avoid unused
-interaction preparation, share one prepared model across active consumers, and
-tag common component-side keys in one SVG pass with a compatibility fallback
-for unresolved native keys.
+Version 1.13.0 adopts the next minor parser-toolkit releases. Parser-worker
+documents transfer and reuse their exclusively owned structured-clone graphs,
+and large result
+batches yield between extension traversal, sealing, documents, and first render
+so input and paint are serviced throughout main-thread integration. Worker
+replies require their exact request id, and cancellation removes only the
+calling consumer from shared document preparation. Rejected host schedulers
+fall back to a browser task without interrupting shared sealing, terminal
+structural failures remain bound to that document identity, and controller
+disposal invalidates queued parse continuations. Direct and fallback inputs keep
+exact defensive ownership and binary handling.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
@@ -52,9 +57,13 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
   schematic styling, wiring, text placement, and native PCB interaction
   fidelity without app-side conversion or copied legacy fields.
 - Canonical documents returned through the parser worker's completed
-  structured-clone boundary use CircuitJSON Toolkit's explicit fast preparation
-  API. Direct, main-thread fallback, and compatibility inputs stay on the exact
-  context path, including altered-prototype and cross-realm binary values.
+  structured-clone boundary use CircuitJSON Toolkit's cooperative adoption API.
+  The app explicitly transfers exclusive ownership of the browser-owned graph,
+  which is validated and deeply frozen without another full extension copy,
+  while large extension traversal, sealing, batch documents, and first render
+  are separated by host scheduling opportunities. Direct, main-thread fallback,
+  and compatibility inputs stay on the exact defensive context path, including
+  altered-prototype and cross-realm binary values.
 - The common default PCB path does not build interaction primitives while its
   toolbar is hidden and no measurement or diagnostic focus is active. Active
   toolbar, measurement, and diagnostic consumers share one prepared interaction
@@ -113,6 +122,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.13.0 release notes](docs/release-notes-v1.13.0.md)
 - [1.12.0 release notes](docs/release-notes-v1.12.0.md)
 - [1.11.0 release notes](docs/release-notes-v1.11.0.md)
 - [1.10.4 release notes](docs/release-notes-v1.10.4.md)

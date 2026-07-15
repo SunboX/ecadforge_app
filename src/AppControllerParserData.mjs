@@ -323,4 +323,131 @@ export class AppControllerParserData {
         }
         return normalized
     }
+
+    /**
+     * Cooperatively adopts canonical documents from a completed worker clone,
+     * yielding between validation, sealing, batch items, and UI rendering.
+     * @param {object} result Parser worker result.
+     * @param {{ yield?: () => Promise<void> | void, signal?: AbortSignal }} [options] Host scheduler and cancellation signal.
+     * @returns {Promise<{ documents: object[], assets: object[], diagnostics: object[], project: object | null }>} Normalized parse result.
+     */
+    static async normalizeStructuredCloneParseResultAsync(
+        result,
+        options = {}
+    ) {
+        AppControllerParserData.#throwIfAborted(options?.signal)
+        const normalized = AppControllerParserData.normalizeParseResult(result)
+        const yieldToHost = AppControllerParserData.#createHostYield(
+            options?.yield,
+            options?.signal
+        )
+        for (const documentModel of normalized.documents) {
+            AppControllerParserData.#throwIfAborted(options?.signal)
+            if (!EcadFormatRegistry.isCircuitJsonDocument(documentModel)) {
+                continue
+            }
+            await EcadCircuitJsonContext.adoptStructuredCloneAsync(
+                documentModel,
+                {
+                    yield: yieldToHost,
+                    signal: options?.signal
+                }
+            )
+            await yieldToHost()
+        }
+        AppControllerParserData.#throwIfAborted(options?.signal)
+        return normalized
+    }
+
+    /**
+     * Creates one normalization-scoped scheduler that permanently falls back
+     * after the injected or platform scheduler's first failure.
+     * @param {(() => Promise<void> | void) | undefined} yieldControl Optional host scheduler.
+     * @param {AbortSignal | undefined} signal Cancellation signal.
+     * @returns {() => Promise<void>} Stable, non-rejecting host yield.
+     */
+    static #createHostYield(yieldControl, signal) {
+        if (yieldControl !== undefined && typeof yieldControl !== 'function') {
+            throw new TypeError(
+                'Parser-result yield control must be a function.'
+            )
+        }
+
+        let hostYield =
+            yieldControl ?? AppControllerParserData.#resolvePlatformYield()
+        return async () => {
+            AppControllerParserData.#throwIfAborted(signal)
+            if (hostYield !== undefined) {
+                try {
+                    await hostYield()
+                } catch {
+                    hostYield = undefined
+                    AppControllerParserData.#throwIfAborted(signal)
+                    await AppControllerParserData.#yieldToFallbackTask()
+                    AppControllerParserData.#throwIfAborted(signal)
+                    return
+                }
+                AppControllerParserData.#throwIfAborted(signal)
+                return
+            }
+
+            await AppControllerParserData.#yieldToFallbackTask()
+            AppControllerParserData.#throwIfAborted(signal)
+        }
+    }
+
+    /**
+     * Resolves the browser scheduler while tolerating unsupported or rejecting
+     * host accessors so cooperative parsing can fall back to a regular task.
+     * @returns {(() => Promise<void> | void) | undefined} Bound scheduler yield.
+     */
+    static #resolvePlatformYield() {
+        try {
+            const scheduler = globalThis.scheduler
+            const schedulerYield = scheduler?.yield
+            if (typeof schedulerYield !== 'function') return undefined
+            return () => Reflect.apply(schedulerYield, scheduler, [])
+        } catch {
+            return undefined
+        }
+    }
+
+    /**
+     * Yields through a zero-delay task, degrading to a microtask if the host
+     * does not expose a usable timer implementation.
+     * @returns {Promise<void>}
+     */
+    static async #yieldToFallbackTask() {
+        let setTimeoutControl
+        try {
+            setTimeoutControl = globalThis.setTimeout
+        } catch {
+            await Promise.resolve()
+            return
+        }
+        if (typeof setTimeoutControl !== 'function') {
+            await Promise.resolve()
+            return
+        }
+        await new Promise((resolve) => {
+            try {
+                Reflect.apply(setTimeoutControl, globalThis, [resolve, 0])
+            } catch {
+                resolve()
+            }
+        })
+    }
+
+    /**
+     * Throws the supplied abort reason before more result work is scheduled.
+     * @param {AbortSignal | undefined} signal Cancellation signal.
+     * @returns {void}
+     */
+    static #throwIfAborted(signal) {
+        if (!signal?.aborted) return
+        if (signal.reason instanceof Error) throw signal.reason
+        const error = new Error('Parser result normalization was cancelled.')
+        error.name = 'AbortError'
+        throw error
+    }
 }

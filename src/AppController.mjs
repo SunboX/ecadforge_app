@@ -15,6 +15,8 @@ import { AppControllerPcbStateHandlers } from './AppControllerPcbStateHandlers.m
 import { AppControllerSelectedPartExport } from './AppControllerSelectedPartExport.mjs'
 import { AppControllerPcbAssemblyExport } from './AppControllerPcbAssemblyExport.mjs'
 import { AppControllerSessionAssetHandler } from './AppControllerSessionAssetHandler.mjs'
+import { AppControllerLifecycle } from './AppControllerLifecycle.mjs'
+import { AppControllerWorkerRequests } from './AppControllerWorkerRequests.mjs'
 import { SelectedPartExportService } from './core/SelectedPartExportService.mjs'
 import { PcbAssemblyExportService } from './core/PcbAssemblyExportService.mjs'
 import { PcbStylerLinkState } from './PcbStylerLinkState.mjs'
@@ -44,8 +46,10 @@ export class AppController {
     /** @type {number} */
     #workerRequestSequence
 
-    /** @type {Map<string, { resolve: (documentModel: object) => void, reject: (error: Error) => void }>} */
+    /** @type {Map<string, { resolve: (documentModel: object) => void, reject: (error: Error) => void, normalizing: boolean, abortController: AbortController }>} */
     #pendingWorkerParses
+    /** @type {AppControllerLifecycle} */
+    #lifecycle
 
     /** @type {(url: string) => Promise<Response>} */
     #fetcher
@@ -94,6 +98,7 @@ export class AppController {
         this.#documentSequence = 1
         this.#workerRequestSequence = 1
         this.#pendingWorkerParses = new Map()
+        this.#lifecycle = new AppControllerLifecycle()
         this.#fetcher =
             dependencies.fetcher ||
             (typeof globalThis.fetch === 'function'
@@ -265,6 +270,8 @@ export class AppController {
     async #handleFiles(files) {
         const selectedFiles = Array.isArray(files) ? files : []
         if (!selectedFiles.length) return
+        const lifecycleGeneration = this.#lifecycle.capture()
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
 
         const snapshot = this.#state.getSnapshot()
         const sessionWasEmpty = !snapshot.documents.length
@@ -319,7 +326,9 @@ export class AppController {
                     AppControllerParserData.buildParserEntry(file)
                 )
             )
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             const parseResult = await this.#parseEntries(entries)
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: shouldAdoptPreferredView,
                 statusMessage: this.#translate('status.loaded')
@@ -334,6 +343,7 @@ export class AppController {
             AppControllerDeepLinkState.sync(snapshotAfterLoad)
             PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('local_file_loaded_error', {
                 sourceType: 'local',
@@ -349,6 +359,8 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadDemo(demoId, options = {}) {
+        const lifecycleGeneration = this.#lifecycle.capture()
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
         const demo = DemoProjectRegistry.get(demoId)
         if (!demo) {
             this.#handleParseError(this.#translate('status.unknownSample'))
@@ -370,7 +382,9 @@ export class AppController {
                     this.#fetchParserEntry(file.path, file.name)
                 )
             )
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             const parseResult = await this.#parseEntries(entries)
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
                 preferredDocument: String(options.preferredDocument || ''),
@@ -388,6 +402,7 @@ export class AppController {
             )
             PcbStylerLinkState.updateView(this.#view, '', 'local')
         } catch (error) {
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('sample_loaded_error', {
                 sourceType: 'sample',
@@ -437,6 +452,8 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadGitHubSource(loadSource, options = {}) {
+        const lifecycleGeneration = this.#lifecycle.capture()
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
         this.#analytics.track('github_url_open_attempted', {
             sourceType: 'github'
         })
@@ -447,6 +464,7 @@ export class AppController {
 
         try {
             const source = await loadSource()
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             const parsePlan = GitHubParsePlan.build(
                 source.entries || [],
                 String(options.preferredDocument || '')
@@ -454,6 +472,7 @@ export class AppController {
             const parseResult = await this.#parseEntries(
                 parsePlan.initialEntries
             )
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             GitHubSourceModelLinker.apply(parseResult, source)
             const snapshotAfterLoad = this.#applyParseResult(parseResult, {
                 adoptPreferredView: true,
@@ -483,6 +502,7 @@ export class AppController {
                 )
             }
         } catch (error) {
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             this.#handleParseError(AppControllerMessages.getErrorMessage(error))
             this.#analytics.track('github_url_loaded_error', {
                 sourceType: 'github',
@@ -516,8 +536,11 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadDeferredGitHubEntries(source, entries) {
+        const lifecycleGeneration = this.#lifecycle.capture()
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
         try {
             const parseResult = await this.#parseEntries(entries)
+            if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             GitHubSourceModelLinker.apply(parseResult, source, {
                 includeAssets: false
             })
@@ -564,6 +587,8 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async #loadStartupSource() {
+        const lifecycleGeneration = this.#lifecycle.capture()
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
         const startupSource = this.#startupSource
         if (!startupSource) return
 
@@ -596,6 +621,7 @@ export class AppController {
             )
             loadedStartupSource = true
         }
+        if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
 
         if (!loadedStartupSource && startupSource.view) {
             const patch =
@@ -690,8 +716,10 @@ export class AppController {
             try {
                 return await this.#parseEntriesWithWorker(workerEntries)
             } catch (error) {
-                if (AppController.#isWorkerFailure(error)) {
-                    this.#disposeWorker()
+                if (AppControllerWorkerRequests.isFailure(error)) {
+                    this.#worker = AppControllerWorkerRequests.terminate(
+                        this.#worker
+                    )
                     return this.#parseEntriesDirect(entries)
                 }
 
@@ -735,7 +763,12 @@ export class AppController {
             }
 
             const requestId = 'parse-request-' + this.#workerRequestSequence++
-            this.#pendingWorkerParses.set(requestId, { resolve, reject })
+            this.#pendingWorkerParses.set(requestId, {
+                resolve,
+                reject,
+                normalizing: false,
+                abortController: new AbortController()
+            })
             this.#worker.postMessage(
                 {
                     type: 'parse:entries',
@@ -753,27 +786,51 @@ export class AppController {
      * @returns {void}
      */
     #handleWorkerMessage(payload) {
-        const matchedRequest = this.#resolvePendingWorkerRequest(
+        const matched = AppControllerWorkerRequests.match(
+            this.#pendingWorkerParses,
             String(payload.requestId || '')
         )
-        if (!matchedRequest) {
-            return
-        }
+        if (!matched) return
+        const { requestId, request } = matched
+        if (request.normalizing) return
 
         if (payload.type === 'parser:success') {
-            matchedRequest.resolve(
-                AppControllerParserData.normalizeStructuredCloneParseResult(
-                    payload
-                )
+            request.normalizing = true
+            void AppControllerParserData.normalizeStructuredCloneParseResultAsync(
+                payload,
+                { signal: request.abortController.signal }
+            ).then(
+                (result) =>
+                    AppControllerWorkerRequests.settle(
+                        this.#pendingWorkerParses,
+                        requestId,
+                        request,
+                        'resolve',
+                        result
+                    ),
+                (error) =>
+                    AppControllerWorkerRequests.settle(
+                        this.#pendingWorkerParses,
+                        requestId,
+                        request,
+                        'reject',
+                        error
+                    )
             )
             return
         }
 
         const error = new Error(payload.message || 'Parser worker failed.')
-        if (AppController.#isRecoverableWorkerResponseError(error)) {
+        if (AppControllerWorkerRequests.isRecoverableResponseError(error)) {
             error.workerFailure = true
         }
-        matchedRequest.reject(error)
+        AppControllerWorkerRequests.settle(
+            this.#pendingWorkerParses,
+            requestId,
+            request,
+            'reject',
+            error
+        )
     }
 
     /**
@@ -790,8 +847,8 @@ export class AppController {
         )
         const error = new Error('Parser worker failed: ' + message)
         error.workerFailure = true
-        this.#rejectPendingWorkerParses(error)
-        this.#disposeWorker()
+        AppControllerWorkerRequests.rejectAll(this.#pendingWorkerParses, error)
+        this.#worker = AppControllerWorkerRequests.terminate(this.#worker)
     }
 
     /**
@@ -894,29 +951,12 @@ export class AppController {
      * @returns {void}
      */
     dispose() {
-        this.#rejectPendingWorkerParses(new Error('Parser worker terminated.'))
-        this.#disposeWorker()
-    }
-
-    /**
-     * Terminates the current parser worker.
-     * @returns {void}
-     */
-    #disposeWorker() {
-        this.#worker?.terminate()
-        this.#worker = null
-    }
-
-    /**
-     * Rejects every unresolved parser worker request.
-     * @param {Error} error
-     * @returns {void}
-     */
-    #rejectPendingWorkerParses(error) {
-        this.#pendingWorkerParses.forEach(({ reject }) => {
-            reject(error)
-        })
-        this.#pendingWorkerParses.clear()
+        this.#lifecycle.dispose()
+        AppControllerWorkerRequests.rejectAll(
+            this.#pendingWorkerParses,
+            new Error('Parser worker terminated.')
+        )
+        this.#worker = AppControllerWorkerRequests.terminate(this.#worker)
     }
 
     /**
@@ -935,49 +975,5 @@ export class AppController {
     #translate(key) {
         if (!this.#i18n) return AppControllerMessages.fallback(key)
         return this.#i18n.translate(key)
-    }
-
-    /**
-     * Returns true for worker transport/module failures that can safely fall
-     * back to direct parsing in the document module graph.
-     * @param {unknown} error
-     * @returns {boolean}
-     */
-    static #isWorkerFailure(error) {
-        return Boolean(error && error.workerFailure)
-    }
-
-    /**
-     * Returns true when a parser worker error likely came from transferring a
-     * large parsed model back to the main thread, not from native parsing.
-     * @param {Error} error
-     * @returns {boolean}
-     */
-    static #isRecoverableWorkerResponseError(error) {
-        return /maximum call stack size exceeded/i.test(error.message)
-    }
-
-    /**
-     * Resolves and removes the pending worker request matching the provided
-     * request id. When an older worker omits request ids, the single pending
-     * request is accepted as a safe fallback.
-     * @param {string} requestId
-     * @returns {{ resolve: (documentModel: object) => void, reject: (error: Error) => void } | null}
-     */
-    #resolvePendingWorkerRequest(requestId) {
-        if (requestId && this.#pendingWorkerParses.has(requestId)) {
-            const matchedRequest = this.#pendingWorkerParses.get(requestId)
-            this.#pendingWorkerParses.delete(requestId)
-            return matchedRequest || null
-        }
-
-        if (this.#pendingWorkerParses.size !== 1) {
-            return null
-        }
-
-        const [fallbackRequestId] = this.#pendingWorkerParses.keys()
-        const matchedRequest = this.#pendingWorkerParses.get(fallbackRequestId)
-        this.#pendingWorkerParses.delete(fallbackRequestId)
-        return matchedRequest || null
     }
 }
