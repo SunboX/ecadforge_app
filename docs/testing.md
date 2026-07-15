@@ -10,6 +10,10 @@
   at viewer intake
 - Preserve disjoint Gerber profiles as separate runtime/export substrates and
   route real KiCad ZIPs away from Gerber detection
+- Pin the registry Gerber Toolkit release that rejects pen-separated mechanical
+  frame strokes as canonical cutouts; detailed draw-run, transparent
+  containment, step-repeat, region, profile, concave-intersection, scale, and
+  quantized-arc regressions stay in the toolkit-owned suite
 - Retain exact STEP bytes for both KiCad ZIP and directory-upload companions
   under bounded `decodeAssets: 'full'` project loading
 - Load the bundled multi-entry KiCad demo through the published browser worker
@@ -44,6 +48,7 @@
 ```bash
 npm test
 npm run check:structured-data
+npm run build:static
 ```
 
 ## Current Coverage

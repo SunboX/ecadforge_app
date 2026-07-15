@@ -4,17 +4,14 @@ Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files.
 
 Open schematics, inspect PCB layouts and Gerber fabrication layers, and explore interactive 3D boards directly in your browser. Altium `.SchDoc`/`.PcbDoc` files, KiCad `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, folder selections, KiCad ZIP projects, Gerber/Excellon files, Gerber ZIP archives, and CircuitJSON `.json` files are supported and parsed locally.
 
-Version 1.13.0 adopts the next minor parser-toolkit releases. Parser-worker
-documents transfer and reuse their exclusively owned structured-clone graphs,
-and large result
-batches yield between extension traversal, sealing, documents, and first render
-so input and paint are serviced throughout main-thread integration. Worker
-replies require their exact request id, and cancellation removes only the
-calling consumer from shared document preparation. Rejected host schedulers
-fall back to a browser task without interrupting shared sealing, terminal
-structural failures remain bound to that document identity, and controller
-disposal invalidates queued parse continuations. Direct and fallback inputs keep
-exact defensive ownership and binary handling.
+Version 1.13.1 updates Gerber Toolkit to 0.4.2. Canonical Gerber outline
+projection now preserves source draw-run identity, distinguishes continuous
+closed mechanical loops from pen-separated frame strokes, and treats
+non-cutout artwork as transparent during containment. This prevents unrelated
+geometry from becoming false board cutouts without hiding valid nested cutouts.
+Explicit profile and clear-polarity geometry keep their prior behavior. ECAD
+Forge continues to consume the toolkit's CircuitJSON model directly, without
+app-side topology repair or project-specific handling.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
@@ -27,8 +24,8 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - PCB SVG view with recovered board outline, layer stack, fabrication layers, component placements, aligned and knockout PCB text, reset/fit viewport control, top/bottom component filters, in-board view settings, persistent diagnostic focus, optional rats-nest connectivity, trace-length budget labels, solder-mask/paste inspection layers, source-net group metadata, group/anchor-offset overlays, bounds measurement zoom/selection, clipped SVG/PNG bounds export, and highlightable nets where available
 - BOM grouping from recovered component metadata
 - Interactive 3D PCB viewer with pan, orbit, zoom, bare-board Gerber
-  fabrication scenes with canonical plated-slot geometry, embedded STEP
-  extraction, and companion-model lookup for
+  fabrication scenes with source-continuous profile/cutout topology and
+  canonical plated-slot geometry, embedded STEP extraction, and companion-model lookup for
   STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF assets. Safe local GLTF BIN,
   OBJ MTL, and WRL texture companions resolve directly; remote model loading
   remains opt-in. Single-file PCB assembly export supports STEP, WRL, GLTF, or
@@ -122,6 +119,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [1.13.1 release notes](docs/release-notes-v1.13.1.md)
 - [1.13.0 release notes](docs/release-notes-v1.13.0.md)
 - [1.12.0 release notes](docs/release-notes-v1.12.0.md)
 - [1.11.0 release notes](docs/release-notes-v1.11.0.md)

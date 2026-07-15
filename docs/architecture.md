@@ -141,7 +141,15 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    boards without component bodies. Routed plated slots retain their canonical
    polygon pad extents, pill drill dimensions, and one board-space rotation
    through the shared CircuitJSON hole primitive model. Disjoint Gerber profile
-   loops remain separate viewer and export substrates. The local 3D runtime resolves embedded
+   loops remain separate viewer and export substrates. Ambiguous dark inner
+   mechanical geometry becomes a cutout only when it is authored as a region
+   or a source-order-continuous closed path. Authoritative X2 profile files can
+   still recover unordered shared-vertex contours, and explicit clear geometry
+   remains authoritative. Parser-owned draw-run identifiers preserve move,
+   polarity, region, and step-repeat boundaries; non-cutout contours remain
+   transparent while the indexed containment tree searches their descendants.
+   This topology is resolved by Gerber Toolkit before
+   the app passes the canonical CircuitJSON document to the viewer. The local 3D runtime resolves embedded
    STEP payloads from the normalized PCB model first, then accepts companion
    STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, or 3MF assets from the canonical
    document, active session, or hosted Git project folder. The viewer attaches
