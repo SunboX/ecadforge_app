@@ -8,7 +8,8 @@ Version 1.13.3 restores source-native Gerber 3D fidelity for canonical parser
 documents. Retained fabrication data now supplies flashed pads, plated vias,
 routed tracks, copper fills, solder-mask openings, and both silkscreen sides to
 the existing Gerber scene builder instead of flattening the board through the
-generic CircuitJSON scene path.
+generic CircuitJSON scene path. Canonical Gerber documents without retained
+native data continue to use the generic CircuitJSON fallback.
 
 LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 
