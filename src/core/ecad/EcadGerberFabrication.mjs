@@ -16,10 +16,13 @@ export class EcadGerberFabrication {
         ) {
             return null
         }
-        return (
-            documentModel?.extensions?.gerber?.native ||
-            (documentModel?.pcb?.fabrication ? documentModel : null)
-        )
+        const native = documentModel?.extensions?.gerber?.native
+        if (EcadGerberFabrication.#hasUsableFabrication(native)) {
+            return native
+        }
+        return EcadGerberFabrication.#hasUsableFabrication(documentModel)
+            ? documentModel
+            : null
     }
 
     /**
@@ -32,5 +35,15 @@ export class EcadGerberFabrication {
         return Array.isArray(native?.pcb?.fabrication?.layers)
             ? native.pcb.fabrication.layers
             : []
+    }
+
+    /**
+     * Returns whether a native document has fabrication layer data.
+     * @param {unknown} documentModel Candidate native Gerber document.
+     * @returns {boolean}
+     */
+    static #hasUsableFabrication(documentModel) {
+        const layers = documentModel?.pcb?.fabrication?.layers
+        return Array.isArray(layers) && layers.length > 0
     }
 }
