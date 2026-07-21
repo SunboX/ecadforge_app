@@ -167,6 +167,180 @@ function createGerberSilkscreenCutoutDocument() {
 }
 
 /**
+ * Builds a canonical Gerber document with retained native 3D scene detail.
+ * @returns {object}
+ */
+function createCanonicalGerberSceneDocument() {
+    const native = {
+        sourceFormat: 'gerber',
+        kind: 'pcb',
+        fileName: 'synthetic-fabrication',
+        pcb: {
+            bounds: { minX: 0, minY: 0, maxX: 8, maxY: 6 },
+            fabrication: {
+                layers: [
+                    {
+                        id: 'copper-a',
+                        fileName: 'layer-a.gtl',
+                        role: 'top-copper',
+                        side: 'top',
+                        primitives: [
+                            {
+                                type: 'line',
+                                x1: 1,
+                                y1: 1,
+                                x2: 3,
+                                y2: 1,
+                                width: 0.25
+                            },
+                            {
+                                type: 'flash',
+                                shape: 'circle',
+                                x: 2,
+                                y: 3,
+                                diameter: 1
+                            },
+                            {
+                                type: 'region',
+                                points: [
+                                    { x: 4, y: 2 },
+                                    { x: 6, y: 2 },
+                                    { x: 6, y: 4 },
+                                    { x: 4, y: 4 },
+                                    { x: 4, y: 2 }
+                                ]
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'copper-b',
+                        fileName: 'layer-b.gbl',
+                        role: 'bottom-copper',
+                        side: 'bottom',
+                        primitives: [
+                            {
+                                type: 'line',
+                                x1: 1,
+                                y1: 5,
+                                x2: 3,
+                                y2: 5,
+                                width: 0.25
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'mask-a',
+                        fileName: 'mask-a.gts',
+                        role: 'top-soldermask',
+                        side: 'top',
+                        primitives: [
+                            {
+                                type: 'flash',
+                                shape: 'circle',
+                                x: 2,
+                                y: 3,
+                                diameter: 1.2
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'mask-b',
+                        fileName: 'mask-b.gbs',
+                        role: 'bottom-soldermask',
+                        side: 'bottom',
+                        primitives: [
+                            {
+                                type: 'line',
+                                x1: 0.9,
+                                y1: 5,
+                                x2: 3.1,
+                                y2: 5,
+                                width: 0.4
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'silk-a',
+                        fileName: 'silk-a.gto',
+                        role: 'top-silkscreen',
+                        side: 'top',
+                        primitives: [
+                            {
+                                type: 'line',
+                                x1: 1,
+                                y1: 4.5,
+                                x2: 3,
+                                y2: 4.5,
+                                width: 0.2
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'silk-b',
+                        fileName: 'silk-b.gbo',
+                        role: 'bottom-silkscreen',
+                        side: 'bottom',
+                        primitives: [
+                            {
+                                type: 'line',
+                                x1: 5,
+                                y1: 1,
+                                x2: 7,
+                                y2: 1,
+                                width: 0.2
+                            }
+                        ],
+                        drills: []
+                    },
+                    {
+                        id: 'drill-a',
+                        fileName: 'drill-a.drl',
+                        role: 'plated-drill',
+                        side: 'both',
+                        primitives: [],
+                        drills: [
+                            {
+                                x: 2,
+                                y: 3,
+                                diameter: 0.4,
+                                plated: true,
+                                tool: 'T01'
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        bom: []
+    }
+
+    return {
+        schema: 'ecad-toolkit.document.v1',
+        model: [
+            {
+                type: 'pcb_board',
+                pcb_board_id: 'board-a',
+                center: { x: 4, y: 3 },
+                width: 8,
+                height: 6,
+                num_layers: 2
+            }
+        ],
+        source: {
+            format: 'gerber',
+            fileName: 'synthetic-fabrication',
+            fileType: 'gbr'
+        },
+        extensions: { gerber: { native } }
+    }
+}
+
+/**
  * Verifies the format registry detects Gerber and drill sources.
  */
 test('EcadFormatRegistry detects Gerber and drill sources', () => {
@@ -403,6 +577,48 @@ test('ECAD renderer services accept Gerber fabrication document models', () => {
     assert.equal(scene.board.heightMil, 157.480315)
     assert.equal(scene.components.length, 0)
     assert.equal(scene.detail.pads.length, 1)
+})
+
+test('EcadScene3dService uses retained Gerber geometry for canonical documents', () => {
+    const scene = EcadScene3dService.build(
+        createCanonicalGerberSceneDocument()
+    )
+
+    assert.equal(scene.sourceFormat, 'gerber')
+    assert.deepEqual(
+        {
+            tracks: scene.detail.tracks.length,
+            pads: scene.detail.pads.length,
+            vias: scene.detail.vias.length,
+            polygons: scene.detail.polygons.length,
+            topSilkscreen: scene.detail.silkscreen.top.tracks.length,
+            bottomSilkscreen: scene.detail.silkscreen.bottom.tracks.length
+        },
+        {
+            tracks: 2,
+            pads: 1,
+            vias: 1,
+            polygons: 1,
+            topSilkscreen: 1,
+            bottomSilkscreen: 1
+        }
+    )
+    assert.equal(scene.detail.tracks.every((track) => track.hasSolderMask), true)
+    assert.equal(scene.detail.pads[0].hasTopSolderMaskOpening, true)
+    assert.equal(scene.detail.vias[0].barrelOnly, true)
+})
+
+test('EcadScene3dService prepares retained Gerber geometry asynchronously', async () => {
+    const documentModel = createCanonicalGerberSceneDocument()
+    const prepared = await EcadScene3dService.prepare(documentModel)
+
+    assert.equal(prepared.detail.tracks.length, 2)
+    assert.equal(prepared.detail.pads.length, 1)
+    assert.equal(prepared.detail.vias.length, 1)
+    assert.equal(prepared.detail.polygons.length, 1)
+    assert.equal(prepared.detail.silkscreen.top.tracks.length, 1)
+    assert.equal(prepared.detail.silkscreen.bottom.tracks.length, 1)
+    assert.deepEqual(prepared, EcadScene3dService.build(documentModel))
 })
 
 /**

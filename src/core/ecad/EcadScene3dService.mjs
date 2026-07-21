@@ -17,6 +17,7 @@ import {
 import { PcbScene3dCircuitJsonAdapter } from 'pcb-scene3d-viewer/scene3d'
 import { EcadCircuitJsonContext } from './EcadCircuitJsonContext.mjs'
 import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
+import { EcadGerberFabrication } from './EcadGerberFabrication.mjs'
 
 /**
  * Chooses format-specific 3D scene builders.
@@ -33,6 +34,13 @@ export class EcadScene3dService {
             AltiumExtensionResolver.nativeModel(documentModel)
         if (altiumDocument) {
             return AltiumScene3dBuilder.build(altiumDocument, options)
+        }
+        const gerberDocument =
+            EcadGerberFabrication.nativeDocument(documentModel)
+        if (gerberDocument) {
+            return KicadScene3dSilkscreenSmoothingAdapter.applyScene(
+                GerberScene3dBuilder.build(gerberDocument, options)
+            )
         }
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return EcadScene3dService.#buildCircuitJsonScene(
@@ -68,6 +76,16 @@ export class EcadScene3dService {
             AltiumExtensionResolver.nativeModel(documentModel)
         if (altiumDocument) {
             return AltiumScene3dScenePreparator.prepare(altiumDocument, options)
+        }
+        const gerberDocument =
+            EcadGerberFabrication.nativeDocument(documentModel)
+        if (gerberDocument) {
+            return KicadScene3dSilkscreenSmoothingAdapter.applyScene(
+                await GerberScene3dScenePreparator.prepare(
+                    gerberDocument,
+                    options
+                )
+            )
         }
         if (EcadScene3dService.#isCircuitJson(documentModel)) {
             return EcadScene3dService.#buildCircuitJsonScene(
