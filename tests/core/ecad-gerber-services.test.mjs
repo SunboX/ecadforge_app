@@ -593,9 +593,7 @@ test('ECAD renderer services accept Gerber fabrication document models', () => {
 })
 
 test('EcadScene3dService uses retained Gerber geometry for canonical documents', () => {
-    const scene = EcadScene3dService.build(
-        createCanonicalGerberSceneDocument()
-    )
+    const scene = EcadScene3dService.build(createCanonicalGerberSceneDocument())
 
     assert.equal(scene.sourceFormat, 'gerber')
     assert.deepEqual(
@@ -616,9 +614,15 @@ test('EcadScene3dService uses retained Gerber geometry for canonical documents',
             bottomSilkscreen: 1
         }
     )
-    assert.equal(scene.detail.tracks.every((track) => track.hasSolderMask), true)
+    assert.equal(
+        scene.detail.tracks.every((track) => track.hasSolderMask),
+        true
+    )
     assert.equal(scene.detail.pads[0].hasTopSolderMaskOpening, true)
     assert.equal(scene.detail.vias[0].barrelOnly, true)
+    assert.equal(scene.detail.vias[0].diameter, 39.370079)
+    assert.equal(scene.detail.vias[0].isTentingTop, true)
+    assert.equal(scene.detail.vias[0].isTentingBottom, true)
 })
 
 test('EcadScene3dService prepares retained Gerber geometry asynchronously', async () => {
@@ -645,10 +649,7 @@ test('EcadScene3dService uses generic geometry for canonical Gerber without usab
         },
         { widthMil: 314.96063, heightMil: 236.220472 }
     )
-    for (const native of [
-        {},
-        { pcb: { fabrication: { layers: [] } } }
-    ]) {
+    for (const native of [{}, { pcb: { fabrication: { layers: [] } } }]) {
         assert.deepEqual(
             EcadScene3dService.build(
                 createCanonicalGerberFallbackSceneDocument(native)
@@ -661,17 +662,12 @@ test('EcadScene3dService uses generic geometry for canonical Gerber without usab
 test('EcadScene3dService prepares generic geometry for canonical Gerber without usable retained data', async () => {
     const genericDocument = createCanonicalGerberFallbackSceneDocument()
     const genericScene = EcadScene3dService.build(genericDocument)
-    const missingNativeScene = await EcadScene3dService.prepare(
-        genericDocument
-    )
+    const missingNativeScene = await EcadScene3dService.prepare(genericDocument)
 
     assert.deepEqual(missingNativeScene, genericScene)
     assert.equal(missingNativeScene.board.widthMil, 314.96063)
     assert.equal(missingNativeScene.board.heightMil, 236.220472)
-    for (const native of [
-        {},
-        { pcb: { fabrication: { layers: [] } } }
-    ]) {
+    for (const native of [{}, { pcb: { fabrication: { layers: [] } } }]) {
         assert.deepEqual(
             await EcadScene3dService.prepare(
                 createCanonicalGerberFallbackSceneDocument(native)
