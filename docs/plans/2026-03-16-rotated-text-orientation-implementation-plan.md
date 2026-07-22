@@ -11,6 +11,7 @@
 ### Task 1: Lock the parser behavior in failing tests
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Moon.SchDoc`
 - Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
@@ -59,6 +60,7 @@ git commit -m "test: lock rotated text orientation metadata"
 ### Task 2: Preserve source orientation in normalized schematic text
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicTextParser.mjs`
 - Reference: `src/core/altium/ParserUtils.mjs`
 - Modify: `src/core/altium/AltiumParser.mjs`
@@ -101,6 +103,7 @@ git commit -m "fix: preserve rotated text source orientation"
 ### Task 3: Lock renderer behavior in failing tests
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Moon.SchDoc`
 - Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
@@ -149,6 +152,7 @@ git commit -m "test: lock rotated text svg direction"
 ### Task 4: Implement signed rotated-text rendering
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 - Modify: `src/ui/SchematicSvgUtils.mjs`
 
@@ -203,6 +207,7 @@ git commit -m "fix: render rotated schematic text with source orientation"
 ### Task 5: Run focused verification
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**
@@ -225,6 +230,7 @@ git commit -m "chore: bump version for rotated text fix"
 ### Task 6: Verify the full repository state
 
 **Files:**
+
 - Reference: `package.json`
 
 **Step 1: Run the full suite**

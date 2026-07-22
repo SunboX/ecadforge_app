@@ -210,7 +210,8 @@ class FakeContentNode extends FakeNode {
         const svgMatch = this._innerHTML.match(
             /<svg[^>]*class="[^"]*\bpcb-svg\b[^"]*"[^>]*viewBox="([^"]+)"/
         )
-        if (svgMatch) this.#svg = new FakeSvgNode(this.#ownerDocument, svgMatch[1])
+        if (svgMatch)
+            this.#svg = new FakeSvgNode(this.#ownerDocument, svgMatch[1])
         for (const match of this._innerHTML.matchAll(
             /data-pcb-view-side="([^"]+)"/g
         )) {
@@ -239,7 +240,8 @@ class FakeContentNode extends FakeNode {
      */
     clickPcbSide(side) {
         const button = this.#sideButtons.get(side)
-        if (button) this.dispatch('click', { target: button, preventDefault() {} })
+        if (button)
+            this.dispatch('click', { target: button, preventDefault() {} })
     }
 
     /**

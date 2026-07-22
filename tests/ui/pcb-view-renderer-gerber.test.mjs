@@ -98,12 +98,10 @@ test('PcbViewRenderer resolves Gerber visible layers to separated source files',
     }
 
     try {
-        PcbViewRenderer.render(
-            documentModel,
-            'top',
-            null,
-            ['sample-F_Cu.gtl', 'sample-PTH.drl']
-        )
+        PcbViewRenderer.render(documentModel, 'top', null, [
+            'sample-F_Cu.gtl',
+            'sample-PTH.drl'
+        ])
 
         assert.equal(renderOptions.renderMode, 'separated')
         assert.equal(renderOptions.layerId, 'gerber-bottom')

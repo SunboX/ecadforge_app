@@ -17,10 +17,7 @@ test('ViewDeepLinkState writes and resolves sidebar panel query state', () => {
     assert.equal(writtenUrl.searchParams.get('view'), 'pcb')
     assert.equal(writtenUrl.searchParams.get('document'), 'Boards/main.PcbDoc')
     assert.equal(writtenUrl.searchParams.get('panel'), 'layers')
-    assert.equal(
-        ViewDeepLinkState.resolvePanel(writtenUrl.href),
-        'layers'
-    )
+    assert.equal(ViewDeepLinkState.resolvePanel(writtenUrl.href), 'layers')
 })
 
 test('ViewDeepLinkState drops unsupported sidebar panel query values', () => {

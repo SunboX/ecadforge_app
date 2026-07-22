@@ -113,7 +113,10 @@ function compoundMatchesContext(compound, tagName, classes) {
  * Verifies the landing toolbar controls keep a consistent control box.
  */
 test('topbar file controls and language dropdown share control sizing', async () => {
-    const css = await readFile(new URL('src/styles/10-layout.css', root), 'utf8')
+    const css = await readFile(
+        new URL('src/styles/10-layout.css', root),
+        'utf8'
+    )
     const fileControl = {
         tagName: 'label',
         classes: ['file-pill'],
@@ -136,7 +139,10 @@ test('topbar file controls and language dropdown share control sizing', async ()
     }
 
     assert.equal(resolveCssDeclaration(css, toolbar, 'grid-column'), '3')
-    assert.equal(resolveCssDeclaration(css, fileControl, 'padding'), '0 0.95rem')
+    assert.equal(
+        resolveCssDeclaration(css, fileControl, 'padding'),
+        '0 0.95rem'
+    )
     assert.equal(
         resolveCssDeclaration(css, localeControl, 'padding'),
         '0 0.95rem'

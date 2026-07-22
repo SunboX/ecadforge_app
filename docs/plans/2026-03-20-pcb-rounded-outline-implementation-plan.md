@@ -11,6 +11,7 @@
 ### Task 1: Lock the rounded authored-outline behavior in a recovery test
 
 **Files:**
+
 - Modify: `tests/core/pcb-outline-recovery.test.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: FAIL because the current recovery path rasterizes the contour and retu
 ### Task 2: Prefer directly renderable authored board routes
 
 **Files:**
+
 - Modify: `src/core/altium/PcbOutlineRecovery.mjs`
 
 **Step 1: Write minimal implementation**
@@ -41,6 +43,7 @@ Expected: PASS for the new rounded-outline regression and the existing scallop-c
 ### Task 3: Verify the renderer-facing contract and version the change
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

@@ -638,8 +638,10 @@ export class SimulationResultPanelRenderer {
             graphType === 'current' ? trace.amps_per_div : trace.volts_per_div
         if (value === undefined) return ''
         return (
-            SimulationResultPanelRenderer.#formatValue(Number(value), graphType) +
-            '/div'
+            SimulationResultPanelRenderer.#formatValue(
+                Number(value),
+                graphType
+            ) + '/div'
         )
     }
 
@@ -670,7 +672,9 @@ export class SimulationResultPanelRenderer {
         const value = Number(trace.display_center_offset_divs)
         if (!Number.isFinite(value)) return ''
         const sign = value > 0 ? '+' : ''
-        return sign + SimulationResultPanelRenderer.#formatNumber(value) + ' div'
+        return (
+            sign + SimulationResultPanelRenderer.#formatNumber(value) + ' div'
+        )
     }
 
     /**

@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { format, resolveConfig } from 'prettier'
 import { SeoStructuredDataBuilder } from '../src/SeoStructuredDataBuilder.mjs'
 
 const projectRoot = new URL('../', import.meta.url)
@@ -53,8 +54,12 @@ export class StructuredDataSync {
             html,
             structuredData
         )
+        const formattedHtml = await StructuredDataSync.#formatHtml(
+            updatedHtml,
+            pageUrl
+        )
 
-        await StructuredDataSync.#writeFileAtomically(pageUrl, updatedHtml)
+        await StructuredDataSync.#writeFileAtomically(pageUrl, formattedHtml)
     }
 
     /**
@@ -193,6 +198,19 @@ export class StructuredDataSync {
 
         await writeFile(temporaryUrl, contents)
         await rename(temporaryUrl, targetUrl)
+    }
+
+    /**
+     * Applies the repository formatter to generated HTML before publishing it.
+     * @param {string} contents Generated HTML source.
+     * @param {URL} targetUrl Destination used for parser and config discovery.
+     * @returns {Promise<string>}
+     */
+    static async #formatHtml(contents, targetUrl) {
+        const filePath = fileURLToPath(targetUrl)
+        const config = (await resolveConfig(filePath)) || {}
+
+        return format(contents, { ...config, filepath: filePath })
     }
 
     /**

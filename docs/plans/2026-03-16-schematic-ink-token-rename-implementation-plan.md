@@ -11,6 +11,7 @@
 ### Task 1: Drive the rename with a focused failing test
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 
 **Step 1: Write the failing test**
@@ -34,6 +35,7 @@ Run the same command and confirm the mismatch is still the old variable name.
 ### Task 2: Rename the schematic ink tokens in production code
 
 **Files:**
+
 - Modify: `src/styles/20-viewer.css`
 - Modify: `src/ui/SchematicColorResolver.mjs`
 - Modify: `src/ui/SchematicShapeRenderer.mjs`
@@ -53,6 +55,7 @@ Expected: PASS.
 ### Task 3: Update the remaining assertions and version metadata
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 - Modify: `package.json`
 - Modify: `package-lock.json`

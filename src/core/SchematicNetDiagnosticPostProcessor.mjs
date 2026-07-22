@@ -352,13 +352,11 @@ export class SchematicNetDiagnosticPostProcessor {
                 rejected: 0
             },
             supplementalConnections: rows.supplementalConnection.budget,
-            anchorConnectionRoutes:
-                rows.supplementalConnection.routeBudget,
+            anchorConnectionRoutes: rows.supplementalConnection.routeBudget,
             longDistanceConnections: rows.longDistanceConnection.budget,
             sectionBoundaryConnections: rows.sectionBoundary.budget,
             symbolFitCandidates: rows.symbolFit.budget,
-            symbolNormalizationCandidates:
-                rows.symbolFit.normalizationBudget,
+            symbolNormalizationCandidates: rows.symbolFit.normalizationBudget,
             traceLabelResolutions: rows.traceLabelResolution.budget,
             candidateRejections: this.#acceptedOnly(rows.candidateRejections)
         }

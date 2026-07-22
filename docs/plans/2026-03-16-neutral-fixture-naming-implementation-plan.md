@@ -11,6 +11,7 @@
 ### Task 1: Flip tests to neutral fixture naming
 
 **Files:**
+
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
@@ -43,6 +44,7 @@ git commit -m "test: rename neutral schematic fixture coverage"
 ### Task 2: Rename and sanitize the schematic fixture
 
 **Files:**
+
 - Create: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 - Modify: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 - Delete: the prior sheet-G fixture path
@@ -75,6 +77,7 @@ git commit -m "test: sanitize neutral schematic fixture data"
 ### Task 3: Remove remaining legacy-name references and add guidance
 
 **Files:**
+
 - Modify: `AGENTS.md`
 - Modify: `docs/plans/2026-03-16-control-sheet-callout-sizing-implementation-plan.md`
 - Modify: `docs/plans/2026-03-16-multipart-pin-numbering-design.md`
@@ -113,6 +116,7 @@ git commit -m "docs: remove legacy schematic fixture naming"
 ### Task 4: Verify universal parser behavior and release bookkeeping
 
 **Files:**
+
 - Modify: `package.json`
 - Review: `src/core/altium/SchematicTextPostProcessor.mjs`
 - Review: `src/core/altium/SchematicMultipartOwnerMatcher.mjs`

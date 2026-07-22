@@ -533,12 +533,9 @@ test('SchematicViewRenderer injects net geometry diagnostics only when requested
     ]
 
     const defaultHtml = SchematicViewRenderer.render(documentModel)
-    const diagnosticHtml = SchematicViewRenderer.render(
-        documentModel,
-        '',
-        '',
-        { showNetGeometryDiagnostics: true }
-    )
+    const diagnosticHtml = SchematicViewRenderer.render(documentModel, '', '', {
+        showNetGeometryDiagnostics: true
+    })
 
     assert.doesNotMatch(defaultHtml, /schematic-net-diagnostic-overlay/)
     assert.match(diagnosticHtml, /class="schematic-net-diagnostic-style"/)

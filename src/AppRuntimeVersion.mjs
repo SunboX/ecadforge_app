@@ -59,8 +59,8 @@ export class AppRuntimeVersion {
 
         return Boolean(
             normalizedLoadedVersion &&
-                normalizedServerVersion &&
-                normalizedLoadedVersion !== normalizedServerVersion
+            normalizedServerVersion &&
+            normalizedLoadedVersion !== normalizedServerVersion
         )
     }
 

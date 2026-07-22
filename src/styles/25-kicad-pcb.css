@@ -175,7 +175,9 @@
     opacity: 1;
 }
 
-.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-covered.gerber-region.gerber-polarity-dark {
+.pcb-svg--gerber
+    .pcb-copper--surface
+    .pcb-copper--mask-covered.gerber-region.gerber-polarity-dark {
     fill: var(--pcb-mask-covered-fill) !important;
     stroke: none;
     opacity: 1;
@@ -193,7 +195,9 @@
     opacity: 0.9;
 }
 
-.pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.gerber-region.gerber-polarity-dark,
+.pcb-svg--gerber
+    .pcb-copper--surface
+    .pcb-copper--mask-open.gerber-region.gerber-polarity-dark,
 .pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-pad,
 .pcb-svg--gerber .pcb-copper--surface .pcb-copper--mask-open.pcb-via {
     fill: var(--pcb-exposed-copper-fill);

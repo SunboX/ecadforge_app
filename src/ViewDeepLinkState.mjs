@@ -290,9 +290,7 @@ export class ViewDeepLinkState {
      * @returns {void}
      */
     static #applyPanelName(url, options) {
-        if (
-            !Object.prototype.hasOwnProperty.call(options || {}, 'panelName')
-        ) {
+        if (!Object.prototype.hasOwnProperty.call(options || {}, 'panelName')) {
             return
         }
 

@@ -11,6 +11,7 @@
 ### Task 1: Lock the new package.json-only behavior in tests
 
 **Files:**
+
 - Modify: `tests/project-structure.test.mjs`
 - Modify: `tests/php-app-meta-endpoint.test.mjs`
 - Modify: `tests/server-startup.test.mjs`
@@ -38,6 +39,7 @@ Expected: PASS.
 ### Task 2: Update docs and bump the version
 
 **Files:**
+
 - Modify: `docs/troubleshooting.md`
 - Modify: `spec/web-app-specification.md`
 - Modify: `package.json`

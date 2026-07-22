@@ -50,11 +50,11 @@ export class AppViewScene3dPanelController {
     canReuse(documentModel, sessionAssets = []) {
         return Boolean(
             this.#controller &&
-                this.#documentModel === documentModel &&
-                this.#sessionAssetsSignature ===
-                    AppViewScene3dPanelController.#buildSessionAssetSignature(
-                        sessionAssets
-                    )
+            this.#documentModel === documentModel &&
+            this.#sessionAssetsSignature ===
+                AppViewScene3dPanelController.#buildSessionAssetSignature(
+                    sessionAssets
+                )
         )
     }
 
@@ -294,16 +294,14 @@ export class AppViewScene3dPanelController {
      */
     static #buildSessionAssetSignature(sessionAssets) {
         return JSON.stringify(
-            (Array.isArray(sessionAssets) ? sessionAssets : []).map(
-                (asset) => [
-                    String(asset?.name || ''),
-                    String(asset?.relativePath || ''),
-                    String(asset?.sourceUrl || ''),
-                    String(asset?.source || ''),
-                    String(asset?.componentKey || ''),
-                    String(asset?.format || '')
-                ]
-            )
+            (Array.isArray(sessionAssets) ? sessionAssets : []).map((asset) => [
+                String(asset?.name || ''),
+                String(asset?.relativePath || ''),
+                String(asset?.sourceUrl || ''),
+                String(asset?.source || ''),
+                String(asset?.componentKey || ''),
+                String(asset?.format || '')
+            ])
         )
     }
 

@@ -11,6 +11,7 @@
 ### Task 1: Add parser regression coverage for bus trunks
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Test: `tests/core/altium-parser.test.mjs`
 
@@ -31,6 +32,7 @@ Expected: FAIL because record-`26` lines are missing from `schematic.lines`.
 ### Task 2: Add renderer regression coverage for bus styling
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 - Test: `tests/ui/renderers.test.mjs`
 
@@ -47,6 +49,7 @@ Expected: FAIL because the renderer ignores `isBus`.
 ### Task 3: Implement record-`26` bus normalization
 
 **Files:**
+
 - Modify: `src/core/altium/AltiumParser.mjs`
 - Modify: `src/core/altium/SchematicPinParser.mjs`
 
@@ -65,6 +68,7 @@ Expected: PASS for the new bus parser assertions.
 ### Task 4: Implement thicker bus rendering and safe junction behavior
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 - Modify: `src/ui/SchematicJunctionRenderer.mjs`
 
@@ -83,6 +87,7 @@ Expected: PASS for the new bus renderer assertion without breaking existing SVG 
 ### Task 5: Release hygiene and verification
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Increment version**

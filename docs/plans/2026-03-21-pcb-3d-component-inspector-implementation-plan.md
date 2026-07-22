@@ -11,6 +11,7 @@
 ### Task 1: Add Inspector Shell Coverage
 
 **Files:**
+
 - Create: none
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/Scene3dRenderer.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/renderers/scene3d.mjs`
@@ -36,6 +37,7 @@ Expected: PASS
 ### Task 2: Add Controller Selection Tests
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/PcbScene3dController.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/pcb-scene3d-controller.test.mjs`
 
@@ -51,6 +53,7 @@ Expected: FAIL because no inspector node is wired and the runtime hook is missin
 **Step 3: Write minimal implementation**
 
 Update the controller to:
+
 - locate the inspector node
 - pass `setSelection` into the runtime
 - render a compact inspector summary into the panel
@@ -63,12 +66,14 @@ Expected: PASS
 ### Task 3: Add Runtime Picking Tests
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/PcbScene3dRuntime.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/pcb-scene3d-runtime.test.mjs`
 
 **Step 1: Write the failing test**
 
 Add runtime tests that verify:
+
 - pickable meshes are tagged with selection metadata
 - clicking a tagged mesh emits that payload
 - clicking empty space clears the selection
@@ -81,6 +86,7 @@ Expected: FAIL because no picking path exists.
 **Step 3: Write minimal implementation**
 
 Implement:
+
 - mesh tagging for fallback and external-model objects
 - raycast-based click handling
 - selection callback emission
@@ -93,6 +99,7 @@ Expected: PASS
 ### Task 4: Style the Inspector
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/styles/20-viewer.css`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/project-structure.test.mjs`
 
@@ -117,6 +124,7 @@ Expected: PASS
 ### Task 5: Final Verification and Version Bump
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/package.json`
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/package-lock.json`
 
@@ -137,6 +145,7 @@ Expected: PASS
 **Step 4: Summarize behavior**
 
 Report:
+
 - what is clickable
 - what data the inspector shows
 - whether tests passed

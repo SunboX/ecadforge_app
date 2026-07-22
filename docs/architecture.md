@@ -11,24 +11,30 @@
 - `src/GitHubSourceLoader.mjs`: GitHub/GitLab raw/blob/tree URL loading, folder discovery, browser fetch handling, Gerber/CircuitJSON direct-source handling, and project-local KiCad model asset discovery
 - `src/GitSourceUrlResolver.mjs`: Git host URL normalization and folder API entry resolution for GitHub and GitLab sources
 - `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation, view, and WebMCP method-usage events without file names, raw URLs, contents, or WebMCP payload data
-- `src/core/AppState.mjs`: normalized view state container
+- `src/core/AppState.mjs`: normalized view state container and explicit
+  changed-root publisher for self-adjusting render propagation
 - `src/core/ecad/*.mjs`: format registry, common parser/project facade, and
   shared CircuitJSON context/render/interaction/scene services
 - `src/core/simulation/*.mjs`: local SPICE simulation worker client and message contract
 - `src/core/webmcp/*.mjs`: configured WebMCP runtime loader, adapter, and read-only loaded-session dispatch to toolkit-owned netlist query services
-- Toolkit roots: the same 17 common parser, project, document-context,
+- Toolkit roots: the same 18 common parser, project, document-context,
   renderer, interaction, query, manufacturing, simulation, scene,
-  capabilities, units, and error classes across all four source packages
+  capabilities, units, error, and self-adjusting-computation classes across
+  all four source packages
 - Toolkit `/extensions`: retained source-native renderers, query helpers,
   workers, extension resolvers, and detailed inspection APIs used only when no
   source-neutral equivalent exists
 - `circuitjson-toolkit`: immutable CircuitJSON documents, reusable indexes and
   derived caches, deterministic rendering and interaction, manufacturing,
-  local simulation, and canonical scene preparation. Version 1.4.0 divides
+  local simulation, canonical scene preparation, and the shared synchronous
+  dynamic-dependency runtime with reverse reader lists, ordered propagation,
+  and trace reclamation. Version 1.4.0 divides
   trusted structured-clone adoption into bounded traversal, binary-protection,
   and property-locking slices while the default preparation path retains exact
   defensive binary-value handling.
 - `src/ui/AppView.mjs`: tab rendering, summary cards, diagnostics, and content mounting
+- `src/ui/AppViewRenderGraph.mjs`: six named state-to-DOM computations with
+  selective atomic inputs and from-scratch-compatible trace reuse
 - `src/ui/Scene3dRenderer.mjs`: ECAD Forge interactive 3D tab shell markup
 - `src/ui/PcbScene3d*.mjs`: interactive Three.js controller, runtime, STEP importer, and local 3D interaction helpers
 - `src/workers/ecad-parser.worker.mjs`: parser offload worker
@@ -116,8 +122,18 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    document asset bytes through `asset_id`. Each visible native model stays separate, parsed board thickness
    sets its top/bottom surface height, and model-local transforms remain
    independent from footprint board placement.
-5. `AppState` stores parse status, the recovered document models, selected components, selected nets, and session companion assets
-6. `AppView` renders the active tab from the normalized model, applies selected
+5. `AppState` stores parse status, recovered document models, selected
+   components, selected nets, and session companion assets. Its mutators
+   publish a conservative set of changed snapshot roots, including derived
+   active-document roots when document membership or selection changes.
+6. `AppController` forwards each snapshot and change set to `AppView`.
+   `AppViewRenderGraph` starts with reverse readers of the changed roots,
+   validates their exact dynamic dependencies, and re-executes only affected
+   status, locale, viewer-mode, tab, sidebar, or content stages. Successful
+   re-execution replaces the old trace and abandoned control-flow edges;
+   unaffected DOM work remains mounted. Parsed documents and document scopes
+   remain raw identity dependencies rather than traversed proxy graphs.
+7. `AppView` renders the active tab from the normalized model, applies selected
    symbol/footprint/net highlights, mounts the 2D PCB interaction controller for
    board selection, view settings, reset/fit, opt-in hover focus,
    visibility-aware hover/bounds candidate previews, persistent diagnostic
@@ -131,7 +147,7 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    already resolved document component rows in the common single-pass path;
    only unresolved native renderer keys can request interaction data and a
    second compatibility pass.
-7. The app reuses one `CircuitJsonDocumentContext` for canonical or
+8. The app reuses one `CircuitJsonDocumentContext` for canonical or
    source-neutral documents across 2D rendering, interaction, and 3D scene
    preparation. `EcadScene3dService` routes canonical envelopes directly
    through the CircuitJSON adapter; the viewer retains the source format and
@@ -177,9 +193,43 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    and bottom PCB artwork as configurable board-face textures when the active
    document can render PCB views. The viewer's raw-model ZIP path preserves all
    source formats, including 3MF, without converting them.
-8. `WebMcpRuntimeLoader` loads `@mcp-b/global` with same-origin tab and iframe transport options, preserving native WebMCP when present and providing package runtime support when native support is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
-9. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
-10. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
+9. `WebMcpRuntimeLoader` loads `@mcp-b/global` with same-origin tab and iframe transport options, preserving native WebMCP when present and providing package runtime support when native support is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
+10. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
+11. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
+
+## Self-Adjusting Render Propagation
+
+The render path applies the dynamic-dependence and change-propagation model
+from the self-adjusting-computation literature at an app-owned granularity.
+`AppState` is the mutator and `AppViewRenderGraph` consumes the shared
+`circuitjson-toolkit` self-adjusting core.
+The first render builds traces from actual snapshot reads. Later state events
+use changed-root reader lists to skip unrelated stages without scanning their
+dependencies. Potentially affected stages compare only previously observed
+values, structure, presence, and atomic identities before deciding whether to
+re-execute.
+
+Stage order is fixed because DOM writes are observable. Within each stage,
+dynamic branching determines the current trace: a successful re-execution
+removes the previous reverse edges and installs the new ones. Failed or async
+computations cannot replace a successful trace. Named traces replace rather
+than accumulate history, and can be forgotten or cleared explicitly, bounding
+runtime storage by the active render graph.
+
+The selective boundary deliberately treats prepared ECAD documents and opaque
+document scopes as atomic. They are immutable identity-bearing inputs owned by
+the parser/toolkit layer, where proxy traversal would break native receivers
+or `WeakMap` caches and would add first-run work disproportionate to UI state
+changes. Tests compare propagated outputs with fresh runtime execution across
+value, structural, deletion, and control-flow changes.
+
+The persistent `pcb-scene3d-viewer` runtime applies the same shared core to
+ordered render-group and per-component visibility effects. Toggle fields are
+fine-grained modifiables; revision roots conservatively represent structural
+changes inside atomic maps and sets. Copper-only changes can therefore reuse
+component visibility, while selection or hidden-component changes can reuse
+render-group visibility. Parser toolkits retain format-owned one-shot parsing
+and expose the canonical runtime by identity for future editable input models.
 
 ## WebMCP
 

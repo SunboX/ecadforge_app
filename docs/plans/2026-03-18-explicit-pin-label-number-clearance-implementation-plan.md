@@ -11,6 +11,7 @@
 ### Task 1: Lock the outward-clearance rule in the mirrored-owner regression
 
 **Files:**
+
 - Modify: `tests/core/altium-parser/schematic-regressions.mjs`
 
 **Step 1: Write the failing test**
@@ -30,6 +31,7 @@ Expected: FAIL because the current pin-number coordinates still use the old inne
 ### Task 2: Build reusable explicit owner-label offsets
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 
 **Step 1: Add a shared owner/pin key helper**
@@ -47,6 +49,7 @@ Compute a map of horizontal explicit owner-label corrections by:
 ### Task 3: Apply outward clearance to left/right pin numbers
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 
 **Step 1: Thread the offset map into pin rendering**
@@ -63,6 +66,7 @@ Use the keyed offset only when the synthetic name is suppressed by an explicit o
 ### Task 4: Run focused verification
 
 **Files:**
+
 - Reference: `tests/core/altium-parser/schematic-regressions.mjs`
 - Reference: `tests/core/altium-parser.test.mjs`
 - Reference: `tests/ui/renderers.test.mjs`
@@ -82,6 +86,7 @@ Expected: PASS.
 ### Task 5: Bump version and run the full suite
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

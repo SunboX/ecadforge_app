@@ -11,6 +11,7 @@
 ### Task 1: Capture the 3D panel shell and view attachment behavior
 
 **Files:**
+
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 - Modify: `tests/ui/app-view.test.mjs`
 - Modify: `src/ui/Scene3dRenderer.mjs`
@@ -47,6 +48,7 @@ Expected: PASS.
 ### Task 2: Add scene-description and procedural package tests
 
 **Files:**
+
 - Create: `tests/ui/pcb-scene-builder.test.mjs`
 - Create: `src/ui/PcbScene3dBuilder.mjs`
 - Create: `src/ui/PcbScene3dPackages.mjs`
@@ -80,6 +82,7 @@ Expected: PASS.
 ### Task 3: Add companion-model resolution tests
 
 **Files:**
+
 - Create: `tests/ui/pcb-scene-model-registry.test.mjs`
 - Create: `src/ui/PcbScene3dModelRegistry.mjs`
 
@@ -111,6 +114,7 @@ Expected: PASS.
 ### Task 4: Integrate Three.js scene runtime
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `src/ui/PcbScene3dController.mjs`
@@ -145,6 +149,7 @@ Expected: PASS.
 ### Task 5: Add 3D panel styling and browser affordance coverage
 
 **Files:**
+
 - Modify: `src/styles/20-viewer.css`
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 
@@ -176,6 +181,7 @@ Expected: PASS.
 ### Task 6: Session companion-file support and version bump
 
 **Files:**
+
 - Modify: `src/AppController.mjs`
 - Modify: `src/core/AppState.mjs`
 - Modify: `src/ui/AppView.mjs`
@@ -210,6 +216,7 @@ Expected: PASS.
 ### Task 7: Verify, bump version, and review the diff
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: any files touched in Tasks 1-6
 

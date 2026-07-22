@@ -387,8 +387,7 @@ test('SchematicNetGeometryDiagnostics emits explicit pin/body normalization tele
     ])
     assert.equal(normalizationDecisions.length, 3)
     assert.equal(
-        result.debug.candidateBudgets.symbolNormalizationCandidates
-            .finalStatus,
+        result.debug.candidateBudgets.symbolNormalizationCandidates.finalStatus,
         'accepted'
     )
 })

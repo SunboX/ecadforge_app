@@ -11,6 +11,7 @@
 ### Task 1: Lock the embedded-fixture contract
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
@@ -35,6 +36,7 @@ Expected: PASS
 ### Task 2: Replace native fixture files with embedded obfuscated shards
 
 **Files:**
+
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
 - Delete: `tests/fixtures/altium/Skylace-Dawn.SchDoc`
 - Delete: `tests/fixtures/altium/Skylace-Moon.SchDoc`
@@ -63,6 +65,7 @@ Expected: PASS
 ### Task 3: Align docs and repository guidance
 
 **Files:**
+
 - Modify: `AGENTS.md`
 - Modify: `docs/getting-started.md`
 - Modify: `package.json`

@@ -11,6 +11,7 @@
 ### Task 1: Lock the missing vertical-port dot in a renderer test
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: FAIL because the current junction renderer does not emit a dot for the
 ### Task 2: Teach the junction renderer about vertical port branches
 
 **Files:**
+
 - Modify: `src/ui/SchematicJunctionRenderer.mjs`
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 
@@ -42,6 +44,7 @@ Expected: PASS for the new `GLYPH_0` dot assertion and the existing junction/por
 ### Task 3: Verify and version the change
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

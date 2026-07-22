@@ -11,6 +11,7 @@
 ### Task 1: Lock polygon parsing in a failing parser regression
 
 **Files:**
+
 - Modify: `tests/core/altium-parser/schematic-regressions.mjs`
 
 **Step 1: Write the failing test**
@@ -29,6 +30,7 @@ Expected: FAIL because the parser does not expose `schematic.polygons` yet.
 ### Task 2: Lock polygon fill rendering in a failing renderer regression
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -49,6 +51,7 @@ Expected: FAIL because the renderer does not emit polygon markup yet.
 ### Task 3: Add normalized schematic polygon support
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicPrimitiveParser.mjs`
 - Modify: `src/core/altium/AltiumParser.mjs`
 
@@ -75,6 +78,7 @@ Expected: PASS for the new polygon parsing regression.
 ### Task 4: Render filled schematic polygons
 
 **Files:**
+
 - Modify: `src/ui/SchematicShapeRenderer.mjs`
 - Modify: `src/ui/SchematicColorResolver.mjs`
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
@@ -92,6 +96,7 @@ Expected: PASS for the new polygon fill renderer regression and existing rendere
 ### Task 5: Verify and version the change
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

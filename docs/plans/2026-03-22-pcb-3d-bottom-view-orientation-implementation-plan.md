@@ -11,6 +11,7 @@
 ### Task 1: Lock the correct bottom-view behavior with failing tests
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene3d-camera-rig.test.mjs`
 - Add: `tests/ui/pcb-scene3d-runtime.test.mjs`
 
@@ -52,6 +53,7 @@ Expected: PASS.
 ### Task 2: Bump version and verify the change
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

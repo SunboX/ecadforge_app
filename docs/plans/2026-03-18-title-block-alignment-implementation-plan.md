@@ -11,6 +11,7 @@
 ### Task 1: Lock the expected footer layout in tests
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: The new assertions fail because the current renderer still emits the g
 ### Task 2: Implement the renderer fix
 
 **Files:**
+
 - Modify: `src/ui/SchematicSheetChromeRenderer.mjs`
 
 **Step 1: Replace the generic A3 footer ratios**
@@ -49,6 +51,7 @@ Expected: The new alignment assertions pass.
 ### Task 3: Final verification and version bump
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

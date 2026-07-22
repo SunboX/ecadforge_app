@@ -618,7 +618,7 @@ test('EcadScene3dService uses retained Gerber geometry for canonical documents',
         scene.detail.tracks.every((track) => track.hasSolderMask),
         true
     )
-    assert.equal(scene.detail.pads[0].hasTopSolderMaskOpening, true)
+    assert.equal(scene.detail.pads[0].hasTopSolderMaskOpening, false)
     assert.equal(scene.detail.vias[0].barrelOnly, true)
     assert.equal(scene.detail.vias[0].diameter, 39.370079)
     assert.equal(scene.detail.vias[0].isTentingTop, true)

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { check, resolveConfig } from 'prettier'
 
 const root = new URL('../', import.meta.url)
 const siteUrl = 'https://ecadforge.app/'
@@ -211,6 +213,23 @@ test('package exposes a structured data drift check command', async () => {
         pkg.scripts?.['check:structured-data'],
         'node scripts/check-structured-data.mjs'
     )
+})
+
+test('generated structured data pages retain repository HTML formatting', async () => {
+    for (const route of ['/', ...seoRoutes]) {
+        const pagePath =
+            route === '/' ? 'src/index.html' : 'src' + route + '.html'
+        const pageUrl = new URL(pagePath, root)
+        const filePath = fileURLToPath(pageUrl)
+        const html = await readFile(pageUrl, 'utf8')
+        const config = (await resolveConfig(filePath)) || {}
+
+        assert.equal(
+            await check(html, { ...config, filepath: filePath }),
+            true,
+            route
+        )
+    }
 })
 
 test('structured data drift checker reports generated page drift', async () => {

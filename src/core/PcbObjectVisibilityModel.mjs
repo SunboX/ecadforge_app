@@ -159,9 +159,8 @@ export class PcbObjectVisibilityModel {
     ) {
         const normalizedDocumentId = String(documentId || '')
         const normalizedObjectKey = String(objectKey || '')
-        const next = PcbObjectVisibilityModel.cloneOpacityMap(
-            pcbObjectOpacities
-        )
+        const next =
+            PcbObjectVisibilityModel.cloneOpacityMap(pcbObjectOpacities)
         if (
             !normalizedDocumentId ||
             !PCB_OBJECT_KEYS.has(normalizedObjectKey)
@@ -244,7 +243,9 @@ export class PcbObjectVisibilityModel {
             Object.entries(pcbObjectOpacities || {}).map(
                 ([documentId, values]) => [
                     documentId,
-                    values && typeof values === 'object' && !Array.isArray(values)
+                    values &&
+                    typeof values === 'object' &&
+                    !Array.isArray(values)
                         ? { ...values }
                         : {}
                 ]

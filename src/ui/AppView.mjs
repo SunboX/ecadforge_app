@@ -1,10 +1,10 @@
 import { Scene3dControllerFactory } from '../Scene3dControllerFactory.mjs'
 import { ViewDeepLinkState } from '../ViewDeepLinkState.mjs'
 import { EcadDocumentDiagnostics } from '../core/ecad/EcadDocumentDiagnostics.mjs'
+import { AppViewRenderGraph } from './AppViewRenderGraph.mjs'
 import { AppViewBomPanelRenderer } from './AppViewBomPanelRenderer.mjs'
 import { DocumentRailRenderer } from './DocumentRailRenderer.mjs'
 import { HeroPreviewController } from './HeroPreviewController.mjs'
-import { LandingStatusRenderer } from './LandingStatusRenderer.mjs'
 import { AppViewDownloadHelper } from './AppViewDownloadHelper.mjs'
 import { AppViewComponentSelectionScrollGuard } from './AppViewComponentSelectionScrollGuard.mjs'
 import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
@@ -20,7 +20,6 @@ import { AppViewSidebarFilterState } from './AppViewSidebarFilterState.mjs'
 import { AppViewLocalFileBinder } from './AppViewLocalFileBinder.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { UiText } from './UiText.mjs'
-import { ViewerModeClassRenderer } from './ViewerModeClassRenderer.mjs'
 import { ViewerEmptyStateRenderer } from './ViewerEmptyStateRenderer.mjs'
 import { ViewerSidebarEventBinder } from './ViewerSidebarEventBinder.mjs'
 import { ViewerSidebarRenderer } from './ViewerSidebarRenderer.mjs'
@@ -56,6 +55,8 @@ export class AppView {
     #expandedSidebarMarkup
     /** @type {object | null} */
     #lastSnapshot
+    /** @type {AppViewRenderGraph} */
+    #renderGraph
     /** @type {AppViewGerberRenderSelectionStore} */
     #gerberRenderSelections
     /** @type {AppViewSidebarFilterState} */
@@ -183,6 +184,14 @@ export class AppView {
                 translate: this.#translate
             }
         )
+        this.#renderGraph = new AppViewRenderGraph({
+            document: this.#document,
+            statusNode: this.#statusNode,
+            localeSelect: this.#localeSelect,
+            tabsNode: this.#tabsNode,
+            renderSidebar: (snapshot) => this.#renderDocumentRail(snapshot),
+            renderContent: (snapshot) => this.#renderContent(snapshot)
+        })
         this.#pcbStylerTipController.bindDismiss()
         ViewerSidebarEventBinder.bindSidebarCollapseToggle(
             this.#documentRailNode,
@@ -208,25 +217,14 @@ export class AppView {
     /**
      * Renders one full state snapshot.
      * @param {{ activeView: string, activeSidebarTab?: string, locale: string, parseStatus: string, statusMessage: string, activeFileName: string, documents?: { id: string, documentModel: any }[], activeDocumentId?: string, documentModel: any }} snapshot
+     * @param {PropertyKey[][] | null} [changedPaths] Changed state paths, or null when unknown.
      */
-    render(snapshot) {
+    render(snapshot, changedPaths = null) {
         const renderSnapshot = this.#pcbInteractionPreviewStore.withPreview(
             this.#withGerberRenderSelections(snapshot)
         )
         this.#lastSnapshot = renderSnapshot
-        LandingStatusRenderer.renderPersistentStatus(
-            this.#statusNode,
-            renderSnapshot
-        )
-        LandingStatusRenderer.render(
-            this.#document.querySelector('#landingStatusMessage'),
-            renderSnapshot
-        )
-        this.setLocale(renderSnapshot.locale)
-        ViewerModeClassRenderer.render(this.#document.body, renderSnapshot)
-        this.#renderTabs(renderSnapshot.activeView)
-        this.#renderDocumentRail(renderSnapshot)
-        this.#renderContent(renderSnapshot)
+        this.#renderGraph.render(renderSnapshot, changedPaths)
     }
 
     /**
@@ -248,16 +246,6 @@ export class AppView {
     setVersion(version) {
         if (this.#versionNode) {
             this.#versionNode.textContent = version || '—'
-        }
-    }
-
-    /**
-     * Renders locale select value.
-     * @param {string} locale
-     */
-    setLocale(locale) {
-        if (this.#localeSelect) {
-            this.#localeSelect.value = locale
         }
     }
 
@@ -709,18 +697,6 @@ export class AppView {
     }
 
     /**
-     * Updates the tab selected state.
-     * @param {string} activeView
-     */
-    #renderTabs(activeView) {
-        const buttons = this.#tabsNode?.querySelectorAll('[data-view]') || []
-        buttons.forEach((button) => {
-            const selected = button.getAttribute('data-view') === activeView
-            button.setAttribute('aria-selected', selected ? 'true' : 'false')
-        })
-    }
-
-    /**
      * Resolves one clicked view target and emits its view name.
      * @param {Event} event
      * @param {string} selector
@@ -767,11 +743,14 @@ export class AppView {
         const scrollState = AppViewSidebarScrollState.capture(
             this.#documentRailNode
         )
+        const sidebarSnapshot = Object.create(snapshot, {
+            documents: {
+                value: AppViewSupport.resolveSessionDocuments(snapshot),
+                enumerable: true
+            }
+        })
         this.#expandedSidebarMarkup = ViewerSidebarRenderer.render(
-            {
-                ...snapshot,
-                documents: AppViewSupport.resolveSessionDocuments(snapshot)
-            },
+            sidebarSnapshot,
             this.#translate
         )
         this.#documentRailNode.removeAttribute('hidden')

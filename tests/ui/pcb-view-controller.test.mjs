@@ -334,7 +334,6 @@ class FakeContentNode extends FakeEventTarget {
             clientY
         })
     }
-
 }
 
 /**

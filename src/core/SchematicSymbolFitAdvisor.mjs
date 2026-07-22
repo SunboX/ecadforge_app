@@ -51,8 +51,7 @@ export class SchematicSymbolFitAdvisor {
                 normalizationCandidateDecisions.push(
                     this.#normalizationDecisionRow({
                         candidate: expansionCandidate,
-                        candidateIndex:
-                            normalizationCandidateDecisions.length,
+                        candidateIndex: normalizationCandidateDecisions.length,
                         reason: expansionCandidate.debug.normalizationKind
                     })
                 )
@@ -80,8 +79,7 @@ export class SchematicSymbolFitAdvisor {
                 normalizationCandidateDecisions.push(
                     this.#normalizationDecisionRow({
                         candidate: correctionCandidate,
-                        candidateIndex:
-                            normalizationCandidateDecisions.length,
+                        candidateIndex: normalizationCandidateDecisions.length,
                         reason: correctionCandidate.debug.normalizationKind
                     })
                 )

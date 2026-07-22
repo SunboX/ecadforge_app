@@ -237,8 +237,7 @@ export class I18nService {
         const browserLocales = [...languages, navigatorRef.language]
 
         for (const browserLocale of browserLocales) {
-            const locale =
-                I18nService.#normalizeSupportedLocale(browserLocale)
+            const locale = I18nService.#normalizeSupportedLocale(browserLocale)
             if (locale) return locale
         }
 

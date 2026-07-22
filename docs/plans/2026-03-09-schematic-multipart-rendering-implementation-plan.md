@@ -11,6 +11,7 @@
 ### Task 1: Add Sheet F Regression Tests
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
@@ -37,6 +38,7 @@ Expected: FAIL because record `6` geometry is missing and multipart content is d
 ### Task 2: Filter Multipart Owner Primitives
 
 **Files:**
+
 - Modify: `src/core/altium/AltiumParser.mjs`
 - Modify: `src/core/altium/ParserUtils.mjs`
 
@@ -53,6 +55,7 @@ Expected: the new sheet F parser assertions pass or fail only on missing outline
 ### Task 3: Parse Record 6 Outline Geometry
 
 **Files:**
+
 - Modify: `src/core/altium/AltiumParser.mjs`
 - Modify: `src/core/altium/SchematicPinParser.mjs`
 
@@ -69,6 +72,7 @@ Expected: the new sheet F renderer assertions pass.
 ### Task 4: Verify Layout and Release Metadata
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

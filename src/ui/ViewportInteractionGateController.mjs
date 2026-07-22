@@ -35,10 +35,7 @@ export class ViewportInteractionGateController {
      */
     dispose() {
         this.#contentNode?.removeEventListener?.('click', this.#handleClick)
-        this.#contentNode?.removeEventListener?.(
-            'keydown',
-            this.#handleKeyDown
-        )
+        this.#contentNode?.removeEventListener?.('keydown', this.#handleKeyDown)
         this.#windowNode?.removeEventListener?.('blur', this.#handleWindowBlur)
     }
 

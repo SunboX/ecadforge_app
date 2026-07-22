@@ -11,6 +11,7 @@
 ### Task 1: Write the failing expectation updates
 
 **Files:**
+
 - Modify: `tests/core/altium-parser/schematic-basics.mjs`
 - Modify: `tests/core/altium-parser/schematic-layout.mjs`
 - Modify: `tests/core/altium-parser/schematic-symbols.mjs`
@@ -30,6 +31,7 @@ Expected: FAIL because the fixture loader still emits the old source-derived lab
 ### Task 2: Expand fixture obfuscation coverage
 
 **Files:**
+
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
 
 **Step 1: Write minimal implementation**
@@ -45,6 +47,7 @@ Expected: PASS
 ### Task 3: Clean up remaining documentation references
 
 **Files:**
+
 - Modify: `docs/plans/2026-03-09-schematic-pin-label-alignment-design.md`
 - Modify: `docs/plans/2026-03-09-schematic-multipart-rendering-design.md`
 - Modify: `docs/plans/2026-03-09-schematic-multipart-rendering-implementation-plan.md`
@@ -65,6 +68,7 @@ Expected: no matches for the targeted raw source labels
 ### Task 4: Bump version and run full verification
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

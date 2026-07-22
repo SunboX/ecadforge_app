@@ -338,7 +338,10 @@ export class SchematicNetPathCleanupAdvisor {
                 points[index - 1],
                 points[index]
             )
-            const nextAxis = Geometry.segmentAxis(points[index], points[index + 1])
+            const nextAxis = Geometry.segmentAxis(
+                points[index],
+                points[index + 1]
+            )
             if (previousAxis && nextAxis && previousAxis !== nextAxis) {
                 turns += 1
             }

@@ -11,6 +11,7 @@
 ### Task 1: Add Failing Tests For Missing Schematic Record Families
 
 **Files:**
+
 - Create: `tests/core/altium-parser/schematic-parity.mjs`
 - Modify: `tests/core/altium-parser.test.mjs`
 
@@ -64,6 +65,7 @@ git commit -m "test: add failing schematic parity parser coverage"
 ### Task 2: Implement Sheet Symbol, Sheet Entry, Junction, And Bus Entry Parsing
 
 **Files:**
+
 - Create: `src/core/altium/SchematicSheetParser.mjs`
 - Create: `src/core/altium/SchematicJunctionParser.mjs`
 - Create: `src/core/altium/SchematicBusEntryParser.mjs`
@@ -117,6 +119,7 @@ git commit -m "feat: parse schematic sheet symbols and connectivity markers"
 ### Task 3: Add Failing Renderer Tests For The New Schematic Primitives
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -172,6 +175,7 @@ git commit -m "test: add failing schematic parity renderer coverage"
 ### Task 4: Implement Renderer Support For Sheet Symbols, Entries, Junctions, And Bus Entries
 
 **Files:**
+
 - Create: `src/ui/SchematicSheetSymbolRenderer.mjs`
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 - Modify: `src/ui/SchematicColorResolver.mjs`
@@ -209,6 +213,7 @@ git commit -m "feat: render schematic hierarchy and bus entry primitives"
 ### Task 5: Add Failing Tests For Embedded Schematic Images
 
 **Files:**
+
 - Create: `tests/core/altium-parser/schematic-images.mjs`
 - Modify: `tests/core/altium-parser.test.mjs`
 
@@ -264,6 +269,7 @@ git commit -m "test: add failing schematic embedded image coverage"
 ### Task 6: Implement Schematic Image Extraction And Rendering
 
 **Files:**
+
 - Create: `src/core/altium/SchematicImageParser.mjs`
 - Modify: `src/core/altium/AltiumParser.mjs`
 - Modify: `src/core/ole/OleCompoundDocument.mjs`
@@ -310,6 +316,7 @@ git commit -m "feat: recover and render schematic embedded images"
 ### Task 7: Add Failing Tests For Netlist Recovery And Correct Net-Label Orientation
 
 **Files:**
+
 - Create: `tests/core/altium-parser/schematic-nets.mjs`
 - Modify: `tests/core/altium-parser.test.mjs`
 
@@ -357,6 +364,7 @@ git commit -m "test: add failing schematic net model coverage"
 ### Task 8: Implement Normalized Netlist Recovery And Net-Label Orientation Fixes
 
 **Files:**
+
 - Create: `src/core/altium/SchematicNetlistBuilder.mjs`
 - Modify: `src/core/altium/SchematicTextParser.mjs`
 - Modify: `src/core/altium/SchematicTextPostProcessor.mjs`
@@ -399,6 +407,7 @@ git commit -m "feat: add schematic netlist normalization"
 ### Task 9: Add Project-Owned Parser Specifications
 
 **Files:**
+
 - Create: `docs/altium-schematic-parser-spec.md`
 - Create: `docs/altium-schematic-normalized-model.md`
 - Modify: `docs/architecture.md`
@@ -444,6 +453,7 @@ git commit -m "docs: add schematic parser and model specifications"
 ### Task 10: Bump Version And Run Verification
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

@@ -149,12 +149,9 @@ test('PcbViewRenderer hides Altium stack layers with exact semantic selectors', 
 test('PcbViewRenderer keeps drill holes while hiding multi-layer copper', () => {
     const documentModel = createStackLayerPcbDocument()
     const hiddenLayers =
-        PcbLayerVisibilityModel.withOnlyLayers(
-            {},
-            'doc-1',
-            documentModel,
-            ['inner 1']
-        )['doc-1'] || []
+        PcbLayerVisibilityModel.withOnlyLayers({}, 'doc-1', documentModel, [
+            'inner 1'
+        ])['doc-1'] || []
     const html = PcbViewRenderer.render(
         documentModel,
         'top',
@@ -188,12 +185,9 @@ test('PcbViewRenderer keeps drill holes while hiding multi-layer copper', () => 
 test('PcbViewRenderer hides drill holes for paste-only layer views', () => {
     const documentModel = createStackLayerPcbDocument()
     const hiddenLayers =
-        PcbLayerVisibilityModel.withOnlyLayers(
-            {},
-            'doc-1',
-            documentModel,
-            ['Top Paste']
-        )['doc-1'] || []
+        PcbLayerVisibilityModel.withOnlyLayers({}, 'doc-1', documentModel, [
+            'Top Paste'
+        ])['doc-1'] || []
     const html = PcbViewRenderer.render(
         documentModel,
         'top',
@@ -225,12 +219,9 @@ test('PcbViewRenderer hides drill holes for paste-only layer views', () => {
 test('PcbViewRenderer emphasizes a single visible internal copper layer', () => {
     const documentModel = createStackLayerPcbDocument()
     const hiddenLayers =
-        PcbLayerVisibilityModel.withOnlyLayers(
-            {},
-            'doc-1',
-            documentModel,
-            ['inner 1']
-        )['doc-1'] || []
+        PcbLayerVisibilityModel.withOnlyLayers({}, 'doc-1', documentModel, [
+            'inner 1'
+        ])['doc-1'] || []
     const html = PcbViewRenderer.render(
         documentModel,
         'top',
@@ -243,8 +234,14 @@ test('PcbViewRenderer emphasizes a single visible internal copper layer', () => 
         html,
         /class="pcb-internal-layer-emphasis-style" data-visible-internal-layers="1"/
     )
-    assert.match(css, /\.pcb-svg \.pcb-copper--subsurface\s*\{\s*opacity: 0\.95;/)
-    assert.match(css, /--pcb-subsurface-track-color: rgba\(112, 84, 62, 0\.78\);/)
+    assert.match(
+        css,
+        /\.pcb-svg \.pcb-copper--subsurface\s*\{\s*opacity: 0\.95;/
+    )
+    assert.match(
+        css,
+        /--pcb-subsurface-track-color: rgba\(112, 84, 62, 0\.78\);/
+    )
 })
 
 /**
@@ -253,12 +250,10 @@ test('PcbViewRenderer emphasizes a single visible internal copper layer', () => 
 test('PcbViewRenderer softens emphasis when two internal layers are visible', () => {
     const documentModel = createStackLayerPcbDocument()
     const hiddenLayers =
-        PcbLayerVisibilityModel.withOnlyLayers(
-            {},
-            'doc-1',
-            documentModel,
-            ['inner 1', 'inner 2']
-        )['doc-1'] || []
+        PcbLayerVisibilityModel.withOnlyLayers({}, 'doc-1', documentModel, [
+            'inner 1',
+            'inner 2'
+        ])['doc-1'] || []
     const html = PcbViewRenderer.render(
         documentModel,
         'top',
@@ -271,8 +266,14 @@ test('PcbViewRenderer softens emphasis when two internal layers are visible', ()
         html,
         /class="pcb-internal-layer-emphasis-style" data-visible-internal-layers="2"/
     )
-    assert.match(css, /\.pcb-svg \.pcb-copper--subsurface\s*\{\s*opacity: 0\.72;/)
-    assert.match(css, /--pcb-subsurface-track-color: rgba\(112, 84, 62, 0\.48\);/)
+    assert.match(
+        css,
+        /\.pcb-svg \.pcb-copper--subsurface\s*\{\s*opacity: 0\.72;/
+    )
+    assert.match(
+        css,
+        /--pcb-subsurface-track-color: rgba\(112, 84, 62, 0\.48\);/
+    )
 })
 
 /**
@@ -282,12 +283,10 @@ test('PcbViewRenderer softens emphasis when two internal layers are visible', ()
 test('PcbViewRenderer keeps default internal styling beside surface copper', () => {
     const documentModel = createStackLayerPcbDocument()
     const hiddenLayers =
-        PcbLayerVisibilityModel.withOnlyLayers(
-            {},
-            'doc-1',
-            documentModel,
-            ['Top Layer', 'inner 1']
-        )['doc-1'] || []
+        PcbLayerVisibilityModel.withOnlyLayers({}, 'doc-1', documentModel, [
+            'Top Layer',
+            'inner 1'
+        ])['doc-1'] || []
     const html = PcbViewRenderer.render(
         documentModel,
         'top',

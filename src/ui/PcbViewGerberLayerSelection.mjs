@@ -19,8 +19,10 @@ export class PcbViewGerberLayerSelection {
         const layers = PcbViewGerberLayerSelection.#gerberLayers(documentModel)
         const requestedLayerIds =
             PcbViewGerberLayerSelection.#requestedLayerIds(viewerOptions)
-        const validLayerIds =
-            PcbViewGerberLayerSelection.#validLayerIds(layers, requestedLayerIds)
+        const validLayerIds = PcbViewGerberLayerSelection.#validLayerIds(
+            layers,
+            requestedLayerIds
+        )
 
         if (viewerOptions.gerberRenderMode === 'separated') {
             return PcbViewGerberLayerSelection.#selection(
@@ -32,8 +34,10 @@ export class PcbViewGerberLayerSelection {
             )
         }
 
-        const visibleLayerIds =
-            PcbViewGerberLayerSelection.#visibleLayerIds(layers, hiddenLayers)
+        const visibleLayerIds = PcbViewGerberLayerSelection.#visibleLayerIds(
+            layers,
+            hiddenLayers
+        )
         if (visibleLayerIds?.length && visibleLayerIds.length < layers.length) {
             return PcbViewGerberLayerSelection.#selection(
                 visibleLayerIds,
@@ -77,9 +81,7 @@ export class PcbViewGerberLayerSelection {
         const availableIds = new Set(
             layers.map((layer) => String(layer?.id || '')).filter(Boolean)
         )
-        return requestedLayerIds.filter((layerId) =>
-            availableIds.has(layerId)
-        )
+        return requestedLayerIds.filter((layerId) => availableIds.has(layerId))
     }
 
     /**

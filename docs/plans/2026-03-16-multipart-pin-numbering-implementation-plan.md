@@ -11,6 +11,7 @@
 ### Task 1: Lock the passive multipart anchor behavior in a failing matcher test
 
 **Files:**
+
 - Modify: `tests/core/schematic-multipart-owner-matcher.test.mjs`
 - Modify: `src/core/altium/SchematicMultipartOwnerMatcher.mjs`
 
@@ -27,6 +28,7 @@ Expected: FAIL because the current matcher only scores corner anchors and misses
 ### Task 2: Lock the control-sheet parser behavior in failing regressions
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
@@ -63,6 +65,7 @@ Expected: FAIL because the current control-sheet parse still exposes overlapping
 ### Task 3: Lock the rendered control-sheet labels in a failing SVG regression
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
@@ -85,6 +88,7 @@ Expected: FAIL because the current renderer output still contains `PORT4A` and t
 ### Task 4: Implement passive multipart owner matching
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicMultipartOwnerMatcher.mjs`
 
 **Step 1: Write minimal implementation**
@@ -107,6 +111,7 @@ Expected: PASS for the new matcher test and improved control-sheet multipart fil
 ### Task 5: Implement duplicate-base multipart designator suffixing
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicTextPostProcessor.mjs`
 - Modify: `src/core/altium/AltiumParser.mjs` if the decoration call site needs extra context
 
@@ -130,6 +135,7 @@ Expected: PASS for the new control-sheet suffix and renderer assertions.
 ### Task 6: Bump version and run focused verification
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**
@@ -145,6 +151,7 @@ Expected: PASS.
 ### Task 7: Run the full suite
 
 **Files:**
+
 - Reference: `package.json`
 
 **Step 1: Run the repository tests**

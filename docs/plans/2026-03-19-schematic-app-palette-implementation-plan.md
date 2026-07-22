@@ -11,6 +11,7 @@
 ### Task 1: Lock the new palette in a failing test
 
 **Files:**
+
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: The new test fails because the stylesheet still contains the older nav
 ### Task 2: Update the schematic theme tokens
 
 **Files:**
+
 - Modify: `src/styles/20-viewer.css`
 
 **Step 1: Retune cool ink tokens**
@@ -49,6 +51,7 @@ Expected: The new stylesheet regression passes.
 ### Task 3: Bump version and run final verification
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

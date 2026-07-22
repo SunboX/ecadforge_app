@@ -72,6 +72,7 @@ class FakeNode extends FakeEventTarget {
         this._innerHTML = ''
         this.textContent = ''
         this.value = ''
+        this.renderCount = 0
     }
 
     /**
@@ -125,6 +126,7 @@ class FakeNode extends FakeEventTarget {
      * @param {string} value Rendered markup.
      */
     set innerHTML(value) {
+        this.renderCount += 1
         this._innerHTML = String(value)
     }
 
@@ -319,7 +321,10 @@ test('AppView keeps active schematic content mounted when documents append', () 
     const fakeDocument = new FakeDocument()
     const view = new AppView(fakeDocument)
     const content = fakeDocument.querySelector('#viewContent')
-    const activeDocument = createSchematicDocument('active-fake.kicad_sch', 'U1')
+    const activeDocument = createSchematicDocument(
+        'active-fake.kicad_sch',
+        'U1'
+    )
     const deferredDocument = createSchematicDocument(
         'deferred-fake.kicad_sch',
         'U2'
@@ -338,6 +343,29 @@ test('AppView keeps active schematic content mounted when documents append', () 
     )
 
     assert.equal(content.renderCount, 1)
+})
+
+/**
+ * Verifies status-only updates propagate without rebuilding unrelated UI.
+ */
+test('AppView reuses the document sidebar for status-only updates', () => {
+    const fakeDocument = new FakeDocument()
+    const view = new AppView(fakeDocument)
+    const status = fakeDocument.querySelector('#statusMessage')
+    const rail = fakeDocument.querySelector('#documentRail')
+    const activeDocument = createSchematicDocument(
+        'status-fake.kicad_sch',
+        'U1'
+    )
+    const snapshot = createSnapshot(activeDocument, [
+        { id: 'doc-1', documentModel: activeDocument }
+    ])
+
+    view.render(snapshot)
+    view.render({ ...snapshot, statusMessage: 'Updated.' })
+
+    assert.equal(status.textContent, 'Updated.')
+    assert.equal(rail.renderCount, 1)
 })
 
 /**

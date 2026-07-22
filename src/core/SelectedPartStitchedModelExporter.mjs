@@ -51,9 +51,8 @@ export class SelectedPartStitchedModelExporter {
         }
 
         try {
-            const sceneDescription = await this.#resolveSceneDescription(
-                options
-            )
+            const sceneDescription =
+                await this.#resolveSceneDescription(options)
             if (!sceneDescription) {
                 return
             }
@@ -63,7 +62,8 @@ export class SelectedPartStitchedModelExporter {
                 sceneDescription,
                 includeRawModels: false,
                 stitchedDesignators: [designator],
-                modelMeshLoader: (placement) => this.#loadPlacementMesh(placement)
+                modelMeshLoader: (placement) =>
+                    this.#loadPlacementMesh(placement)
             })
 
             this.#appendArchiveEntries(

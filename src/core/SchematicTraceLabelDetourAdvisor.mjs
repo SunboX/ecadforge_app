@@ -64,10 +64,7 @@ export class SchematicTraceLabelDetourAdvisor {
             if (!label) return
             const segment = this.#collidingSegment(label, collision, segments)
             if (!segment) return
-            const candidate = this.#snipReconnectPoints(
-                segment,
-                label.bounds
-            )
+            const candidate = this.#snipReconnectPoints(segment, label.bounds)
             if (!candidate) return
 
             rows.push({

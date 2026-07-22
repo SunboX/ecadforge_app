@@ -63,9 +63,9 @@ The controller should treat the scene as `ready` only when all of the following 
 1. the latest 3D prep worker job has completed successfully
 2. the runtime has created the scene and mounted the procedural board/fallback geometry
 3. every resolved model placement has either:
-   - mounted its prepared `STEP` mesh payload
-   - mounted its loaded `WRL` scene
-   - failed cleanly and confirmed fallback-body visibility
+    - mounted its prepared `STEP` mesh payload
+    - mounted its loaded `WRL` scene
+    - failed cleanly and confirmed fallback-body visibility
 4. the runtime has performed one final render after the last placement state change
 
 This means the overlay remains visible during:

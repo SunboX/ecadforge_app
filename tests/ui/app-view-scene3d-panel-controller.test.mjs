@@ -156,11 +156,7 @@ test('AppViewScene3dPanelController remounts the scene when session assets chang
         onComponentSelectionChange: null,
         translate: (key) => key,
         createScene3dController: (viewportNode, nextDocumentModel, options) =>
-            new FakeScene3dController(
-                viewportNode,
-                nextDocumentModel,
-                options
-            )
+            new FakeScene3dController(viewportNode, nextDocumentModel, options)
     }
 
     panelController.render(baseOptions)
@@ -206,6 +202,12 @@ test('AppViewScene3dPanelController remounts the scene when session assets chang
         createdControllers[1].options.sessionAssets[0].relativePath,
         'Package_FAKE.3dshapes/U1.step'
     )
-    assert.match(contentNode.innerHTML, /data-viewport-interaction-gate="locked"/)
-    assert.match(contentNode.innerHTML, /data-viewport-interaction-unlock="true"/)
+    assert.match(
+        contentNode.innerHTML,
+        /data-viewport-interaction-gate="locked"/
+    )
+    assert.match(
+        contentNode.innerHTML,
+        /data-viewport-interaction-unlock="true"/
+    )
 })

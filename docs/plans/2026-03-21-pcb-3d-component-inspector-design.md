@@ -32,8 +32,8 @@ Use scene picking at the runtime level and surface selection changes through the
 - Clicking a different component replaces the current selection.
 - Clicking empty space clears the selection.
 - Selection should work for:
-  - procedural fallback bodies
-  - explicit external placements
+    - procedural fallback bodies
+    - explicit external placements
 - If both a fallback body and an external model exist for the same designator, the inspector should prefer the explicit external-placement metadata because that is the most useful debugging path for model-placement bugs.
 
 ## Inspector Content
@@ -48,10 +48,10 @@ The right-side panel should show:
 - Source/library string when available
 - External model name and format when available
 - Explicit model/body data when available:
-  - body `x`, `y`
-  - body rotation
-  - model rotation `x`, `y`, `z`
-  - `dz`
+    - body `x`, `y`
+    - body rotation
+    - model rotation `x`, `y`, `z`
+    - `dz`
 
 When nothing is selected, the panel should show a compact instructional empty state such as “Click a component to inspect it.”
 

@@ -11,6 +11,7 @@
 ### Task 1: Lock the intended orthogonal preset scales with failing tests
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene3d-runtime.test.mjs`
 
 **Step 1: Write the failing test**
@@ -41,6 +42,7 @@ Expected: PASS.
 ### Task 2: Bump version and verify the change
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

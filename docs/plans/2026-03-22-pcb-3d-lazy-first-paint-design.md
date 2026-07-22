@@ -53,6 +53,7 @@ This keeps worker prep focused on structural normalization instead of full exter
 `PcbScene3dRuntime` should split initialization into two phases.
 
 Phase 1: first frame
+
 - load Three modules
 - create the renderer, scene, camera, controls, and selection interaction
 - build the board mesh and outline
@@ -62,6 +63,7 @@ Phase 1: first frame
 - resolve `whenReady()`
 
 Phase 2: deferred detail
+
 - yield to the browser so the first frame can paint
 - build and attach silkscreen
 - build and attach copper and vias

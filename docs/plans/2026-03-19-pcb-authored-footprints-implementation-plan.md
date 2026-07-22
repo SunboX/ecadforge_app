@@ -11,6 +11,7 @@
 ### Task 1: Add parser coverage for primitive layer names
 
 **Files:**
+
 - Modify: `tests/core/pcb-model-parser.test.mjs`
 - Modify: `src/core/altium/PcbModelParser.mjs`
 - Modify: `src/core/altium/AltiumLayoutParser.mjs`
@@ -38,6 +39,7 @@ Expected: PASS.
 ### Task 2: Add renderer regression coverage for authored footprint detail
 
 **Files:**
+
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 - Modify: `src/ui/PcbSvgRenderer.mjs`
 - Modify: `src/styles/20-viewer.css`
@@ -77,6 +79,7 @@ Expected: PASS.
 ### Task 3: Verify the integrated renderer and bump version
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `api/app-version.json`
 - Modify: any touched implementation files from Tasks 1-2

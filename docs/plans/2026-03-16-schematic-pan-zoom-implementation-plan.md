@@ -11,6 +11,7 @@
 ### Task 1: Lock the viewport math with failing controller tests
 
 **Files:**
+
 - Create: `tests/ui/schematic-viewport-controller.test.mjs`
 - Create: `src/ui/SchematicViewportController.mjs`
 
@@ -97,6 +98,7 @@ git commit -m "feat: add schematic viewport controller"
 ### Task 2: Attach the controller from the view layer and style the interaction surface
 
 **Files:**
+
 - Modify: `src/ui/AppView.mjs`
 - Modify: `src/styles/20-viewer.css`
 - Create: `tests/ui/app-view.test.mjs`
@@ -134,7 +136,9 @@ if (this.#schematicViewportController) {
     this.#schematicViewportController = null
 }
 
-this.#contentNode.innerHTML = SchematicSvgRenderer.render(snapshot.documentModel)
+this.#contentNode.innerHTML = SchematicSvgRenderer.render(
+    snapshot.documentModel
+)
 const svgNode = this.#contentNode.querySelector('.schematic-svg')
 if (svgNode instanceof SVGElement) {
     this.#schematicViewportController = new SchematicViewportController(svgNode)
@@ -161,6 +165,7 @@ git commit -m "feat: wire schematic pan and zoom into app view"
 ### Task 3: Bump the app version and verify the full repository
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

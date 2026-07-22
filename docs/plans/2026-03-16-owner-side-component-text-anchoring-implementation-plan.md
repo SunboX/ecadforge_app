@@ -11,6 +11,7 @@
 ### Task 1: Lock the control-sheet owner-side behavior in failing tests
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Cinder.SchDoc`
 
@@ -21,10 +22,11 @@ Add a parser-backed test that loads the control-sheet fixture and asserts the le
 ```js
 const documentModel = await AltiumFixtureLoader.parseCinderSheet()
 const anchors = documentModel.schematic.texts
-    .filter((text) =>
-        ['GLINT51', 'GLINT56'].includes(text.text) ||
-        (text.text === '10K' &&
-            ['2891', '2953'].includes(String(text.ownerIndex || '')))
+    .filter(
+        (text) =>
+            ['GLINT51', 'GLINT56'].includes(text.text) ||
+            (text.text === '10K' &&
+                ['2891', '2953'].includes(String(text.ownerIndex || '')))
     )
     .map((text) => ({
         text: text.text,
@@ -54,6 +56,7 @@ Expected: FAIL because the current control-sheet `GLINT51` designator still reso
 ### Task 2: Add one secondary regression for the same bug class
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Reference: `tests/fixtures/altium/Skylace-Nova.SchDoc`
 
@@ -66,8 +69,7 @@ const documentModel = await AltiumFixtureLoader.parseNovaSheet()
 const anchors = documentModel.schematic.texts
     .filter(
         (text) =>
-            ['GLINT11', '12K'].includes(text.text) &&
-            text.ownerIndex === '1461'
+            ['GLINT11', '12K'].includes(text.text) && text.ownerIndex === '1461'
     )
     .map((text) => ({
         text: text.text,
@@ -90,6 +92,7 @@ Expected: FAIL because the current nova `GLINT11` designator still resolves to `
 ### Task 3: Implement consistent owner-side text anchoring
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicTextPostProcessor.mjs`
 
 **Step 1: Write minimal implementation**
@@ -125,6 +128,7 @@ Expected: PASS for the new cinder-sheet and nova assertions and all existing par
 ### Task 4: Refactor only if needed to keep the rule readable
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicTextPostProcessor.mjs`
 
 **Step 1: Clean up helper boundaries**
@@ -148,6 +152,7 @@ Expected: PASS with no behavior change.
 ### Task 5: Bump version and run focused verification
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**
@@ -163,6 +168,7 @@ Expected: PASS.
 ### Task 6: Run the full suite
 
 **Files:**
+
 - Reference: `package.json`
 
 **Step 1: Run the repository tests**

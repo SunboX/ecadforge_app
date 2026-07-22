@@ -331,6 +331,48 @@ test('AppState.subscribe receives updates', () => {
 })
 
 /**
+ * Verifies subscribers receive the modifiable roots changed by each mutator.
+ */
+test('AppState.subscribe reports change sets including derived document roots', () => {
+    const firstDocument = {
+        fileName: 'first.PcbDoc',
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {},
+        pcb: {}
+    }
+    const secondDocument = {
+        fileName: 'second.PcbDoc',
+        kind: 'pcb',
+        diagnostics: [],
+        summary: {},
+        pcb: {}
+    }
+    const state = new AppState({
+        documents: [
+            { id: 'first', documentModel: firstDocument },
+            { id: 'second', documentModel: secondDocument }
+        ],
+        activeDocumentId: 'first'
+    })
+    const received = []
+
+    state.subscribe((_snapshot, changedPaths) => {
+        received.push(changedPaths)
+    })
+    state.setValue('statusMessage', 'Loading')
+    state.setValue('activeDocumentId', 'second')
+
+    assert.equal(received[0], null)
+    assert.deepEqual(received[1], [['statusMessage']])
+    assert.deepEqual(received[2], [
+        ['activeDocumentId'],
+        ['activeFileName'],
+        ['documentModel']
+    ])
+})
+
+/**
  * Verifies session companion assets are retained alongside parsed documents.
  */
 test('AppState stores companion assets without affecting the active document', () => {

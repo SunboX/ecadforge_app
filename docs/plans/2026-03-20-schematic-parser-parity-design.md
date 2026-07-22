@@ -55,15 +55,15 @@ This design is informed by these open source parser implementations:
 
 ### Clear gaps versus the references
 
-| Area | Reference repos | Current app |
-| --- | --- | --- |
-| Sheet symbol / sheet entry | Modeled as `15` / `16` | Missing first-class model and renderer support |
-| Explicit junction | Modeled as `29` | Only non-connect markers are modeled; connection dots are synthesized |
-| Embedded image | Modeled as `30` | Missing |
-| Bus entry | Modeled as `37` | Missing |
-| Netlist / connectivity | Present in `a3ng7n` and `python-schdoc` | Missing normalized net model |
-| Typed parser specification | Broad documented catalog | No app-owned schematic parser spec |
-| Record-parent hierarchy | Preserved in multiple references | Preserved only where needed for current viewer behavior |
+| Area                       | Reference repos                         | Current app                                                           |
+| -------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
+| Sheet symbol / sheet entry | Modeled as `15` / `16`                  | Missing first-class model and renderer support                        |
+| Explicit junction          | Modeled as `29`                         | Only non-connect markers are modeled; connection dots are synthesized |
+| Embedded image             | Modeled as `30`                         | Missing                                                               |
+| Bus entry                  | Modeled as `37`                         | Missing                                                               |
+| Netlist / connectivity     | Present in `a3ng7n` and `python-schdoc` | Missing normalized net model                                          |
+| Typed parser specification | Broad documented catalog                | No app-owned schematic parser spec                                    |
+| Record-parent hierarchy    | Preserved in multiple references        | Preserved only where needed for current viewer behavior               |
 
 ### Things not worth chasing in this pass
 
@@ -133,25 +133,25 @@ Extend the schematic payload with these additive collections:
 
 ```js
 schematic: {
-    sheet,
-    lines,
-    polygons,
-    rectangles,
-    regions,
-    ellipses,
-    arcs,
-    directives,
-    texts,
-    components,
-    pins,
-    ports,
-    crosses,
-    sheetSymbols,
-    sheetEntries,
-    junctions,
-    busEntries,
-    images,
-    nets
+    ;(sheet,
+        lines,
+        polygons,
+        rectangles,
+        regions,
+        ellipses,
+        arcs,
+        directives,
+        texts,
+        components,
+        pins,
+        ports,
+        crosses,
+        sheetSymbols,
+        sheetEntries,
+        junctions,
+        busEntries,
+        images,
+        nets)
 }
 ```
 

@@ -11,6 +11,7 @@
 ### Task 1: Add parser tests for embedded model extraction
 
 **Files:**
+
 - Create: `tests/core/pcb-embedded-model-extractor.test.mjs`
 - Modify: `tests/core/pcb-stream-extractor.test.mjs`
 - Create: `src/core/altium/PcbEmbeddedModelExtractor.mjs`
@@ -55,6 +56,7 @@ Expected: PASS.
 ### Task 2: Attach embedded model data to the normalized PCB document model
 
 **Files:**
+
 - Modify: `tests/core/pcb-model-parser.test.mjs`
 - Modify: `src/core/altium/PcbModelParser.mjs`
 
@@ -91,6 +93,7 @@ Expected: PASS.
 ### Task 3: Extend scene building and model resolution for embedded sources
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-builder.test.mjs`
 - Modify: `tests/ui/pcb-scene-model-registry.test.mjs`
 - Modify: `src/ui/PcbScene3dBuilder.mjs`
@@ -129,6 +132,7 @@ Expected: PASS.
 ### Task 4: Add a browser-side STEP mesh loader abstraction
 
 **Files:**
+
 - Create: `tests/ui/pcb-scene-step-loader.test.mjs`
 - Create: `src/ui/PcbScene3dStepLoader.mjs`
 - Modify: `package.json`
@@ -168,6 +172,7 @@ Expected: PASS.
 ### Task 5: Integrate STEP rendering into the Three.js runtime
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene3d-controller.test.mjs`
 - Modify: `src/ui/PcbScene3dRuntime.mjs`
 - Modify: `src/ui/PcbScene3dController.mjs`
@@ -208,6 +213,7 @@ Expected: PASS.
 ### Task 6: Add parser-level integration coverage for lone `.PcbDoc` embedded STEP behavior
 
 **Files:**
+
 - Modify: `tests/core/altium-parser/forge-relic.mjs` or create a new obfuscated parser regression file
 - Modify: `src/core/altium/AltiumParser.mjs` only if type/shape propagation needs changes
 
@@ -238,6 +244,7 @@ Expected: PASS.
 ### Task 7: Update docs and user-facing copy for embedded STEP support
 
 **Files:**
+
 - Modify: `src/i18n/en.json`
 - Modify: `src/i18n/de.json`
 - Modify: `docs/troubleshooting.md`
@@ -270,6 +277,7 @@ Expected: PASS.
 ### Task 8: Verify the full feature and review the diff
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: any files touched in Tasks 1-7
 

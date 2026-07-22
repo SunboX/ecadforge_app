@@ -8,7 +8,7 @@ export class AppState {
     /** @type {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[] }} */
     #state
 
-    /** @type {Set<(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }) => void>} */
+    /** @type {Set<(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }, changedPaths: PropertyKey[][] | null) => void>} */
     #listeners
 
     /**
@@ -98,7 +98,7 @@ export class AppState {
         this.#applyValue(key, value)
         this.#normalizeDocumentSelection()
 
-        return this.#emit()
+        return this.#emit(AppState.#changedPathsFor([key]))
     }
 
     /**
@@ -107,17 +107,18 @@ export class AppState {
      * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
     patch(patch) {
-        for (const key of Object.keys(patch)) {
+        const keys = Object.keys(patch)
+        for (const key of keys) {
             this.#applyValue(key, patch[key])
         }
         this.#normalizeDocumentSelection()
 
-        return this.#emit()
+        return this.#emit(AppState.#changedPathsFor(keys))
     }
 
     /**
      * Subscribes to state changes.
-     * @param {(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }) => void} callback
+     * @param {(snapshot: { activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }, changedPaths: PropertyKey[][] | null) => void} callback
      * @returns {() => void}
      */
     subscribe(callback) {
@@ -126,7 +127,7 @@ export class AppState {
         }
 
         this.#listeners.add(callback)
-        callback(this.getSnapshot())
+        callback(this.getSnapshot(), null)
 
         return () => {
             this.#listeners.delete(callback)
@@ -134,13 +135,36 @@ export class AppState {
     }
 
     /**
-     * Emits a fresh state snapshot to all listeners.
+     * Emits a fresh state snapshot and changed modifiable roots to listeners.
+     * @param {PropertyKey[][]} changedPaths Changed snapshot paths.
      * @returns {{ activeView: string, activeSidebarTab: string, hiddenPcbLayers: { [documentId: string]: string[] }, hiddenPcbObjects: { [documentId: string]: string[] }, pcbObjectOpacities: { [documentId: string]: { [objectKey: string]: number } }, selectedPcbComponents: { [documentId: string]: string }, selectedNets: { [documentId: string]: string }, autoSearchMissingModels: boolean, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string, source?: string, sourceUrl?: string, componentKey?: string, aliases?: string[], documentScope?: object }[], activeFileName: string, documentModel: object | null }}
      */
-    #emit() {
+    #emit(changedPaths) {
         const snapshot = this.getSnapshot()
-        this.#listeners.forEach((listener) => listener(snapshot))
+        this.#listeners.forEach((listener) => listener(snapshot, changedPaths))
         return snapshot
+    }
+
+    /**
+     * Expands mutator keys with roots derived or normalized from them.
+     * @param {string[]} keys Mutated state keys.
+     * @returns {PropertyKey[][]} Conservative changed snapshot paths.
+     */
+    static #changedPathsFor(keys) {
+        const roots = new Set(keys.map(String))
+        if (roots.has('documents')) {
+            roots.add('hiddenPcbLayers')
+            roots.add('hiddenPcbObjects')
+            roots.add('pcbObjectOpacities')
+            roots.add('selectedPcbComponents')
+            roots.add('selectedNets')
+            roots.add('activeDocumentId')
+        }
+        if (roots.has('documents') || roots.has('activeDocumentId')) {
+            roots.add('activeFileName')
+            roots.add('documentModel')
+        }
+        return [...roots].map((root) => [root])
     }
 
     /**

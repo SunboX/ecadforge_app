@@ -11,6 +11,7 @@
 ### Task 1: Add failing corpus-integrity assertions
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 - Test: `tests/core/altium-parser.test.mjs`
@@ -44,6 +45,7 @@ git commit -m "test: lock mutated altium fixture vocabulary"
 ### Task 2: Mutate the schematic fixture corpus
 
 **Files:**
+
 - Modify: `tests/fixtures/altium/Skylace-Dawn.SchDoc`
 - Modify: `tests/fixtures/altium/Skylace-Moon.SchDoc`
 - Modify: `tests/fixtures/altium/Skylace-Nova.SchDoc`
@@ -83,6 +85,7 @@ git commit -m "test: mutate schematic fixture corpus"
 ### Task 3: Mutate the PCB fixture corpus
 
 **Files:**
+
 - Modify: `tests/fixtures/altium/Skylace-Forge.PcbDoc`
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
@@ -119,6 +122,7 @@ git commit -m "test: mutate pcb fixture corpus"
 ### Task 4: Final verification and guidance alignment
 
 **Files:**
+
 - Modify: `docs/getting-started.md`
 - Modify: `docs/testing.md`
 - Modify: `package.json`

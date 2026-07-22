@@ -11,6 +11,7 @@
 ### Task 1: Lock the slower zoom step in failing UI tests
 
 **Files:**
+
 - Modify: `tests/ui/schematic-viewport-controller.test.mjs`
 - Modify: `tests/ui/app-view.test.mjs`
 
@@ -27,6 +28,7 @@ Expected: FAIL because the controller still applies the older, faster zoom facto
 ### Task 2: Implement the minimal sensitivity change
 
 **Files:**
+
 - Modify: `src/ui/SchematicViewportController.mjs`
 
 **Step 1: Write minimal implementation**
@@ -42,6 +44,7 @@ Expected: PASS with the updated slower zoom expectations and unchanged drag/rese
 ### Task 3: Verify the full repository state
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

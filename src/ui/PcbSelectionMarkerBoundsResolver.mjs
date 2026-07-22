@@ -47,12 +47,13 @@ export class PcbSelectionMarkerBoundsResolver {
             return null
         }
 
-        const offset = PcbSelectionMarkerBoundsResolver.#svgTransformTranslation(
-            PcbSelectionMarkerBoundsResolver.#svgAttribute(
-                groupMatch[1],
-                'transform'
+        const offset =
+            PcbSelectionMarkerBoundsResolver.#svgTransformTranslation(
+                PcbSelectionMarkerBoundsResolver.#svgAttribute(
+                    groupMatch[1],
+                    'transform'
+                )
             )
-        )
 
         return { x: x + offset.x, y: y + offset.y, width, height }
     }

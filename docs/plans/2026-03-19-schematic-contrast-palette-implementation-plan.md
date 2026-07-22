@@ -11,6 +11,7 @@
 ### Task 1: Lock the stronger contrast in tests
 
 **Files:**
+
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: The test fails because the stylesheet still uses the lower-contrast fi
 ### Task 2: Update the schematic token values
 
 **Files:**
+
 - Modify: `src/styles/20-viewer.css`
 
 **Step 1: Darken and cool the baseline linework**
@@ -49,6 +51,7 @@ Expected: The stylesheet regression passes with the revised contrast levels.
 ### Task 3: Bump version and run full verification
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

@@ -11,6 +11,7 @@
 ### Task 1: Add parser regressions for the control-sheet `GLINT92` pin labels
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 
 **Step 1: Write the failing tests**
@@ -30,6 +31,7 @@ Expected: FAIL because the current parser hides the `GLINT92` pin numbers and pr
 ### Task 2: Add a renderer regression for the visible control-sheet output
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 
 **Step 1: Write the failing test**
@@ -50,6 +52,7 @@ Expected: FAIL because the current renderer no longer emits those `GLINT92` pin 
 ### Task 3: Implement the minimal parser fix for passive multipart two-pin labels
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicPinParser.mjs`
 
 **Step 1: Write minimal implementation**
@@ -65,6 +68,7 @@ Expected: The pin-label assertions pass, with the anchor assertion still isolate
 ### Task 4: Implement the minimal owner-text anchor fix
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicTextPostProcessor.mjs`
 
 **Step 1: Write minimal implementation**
@@ -80,6 +84,7 @@ Expected: PASS for the new control-sheet parser and renderer assertions.
 ### Task 5: Bump version and verify
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**
@@ -95,6 +100,7 @@ Expected: PASS.
 ### Task 6: Run the full repository test suite
 
 **Files:**
+
 - Reference: `package.json`
 
 **Step 1: Run the repository tests**

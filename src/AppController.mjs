@@ -124,8 +124,8 @@ export class AppController {
      * @returns {Promise<void>}
      */
     async init() {
-        this.#state.subscribe((snapshot) => {
-            this.#view.render(snapshot)
+        this.#state.subscribe((snapshot, changedPaths) => {
+            this.#view.render(snapshot, changedPaths)
         })
 
         this.#view.bindFileSelection((files) => this.#handleFiles(files))

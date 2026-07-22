@@ -11,11 +11,13 @@
 ### Task 1: Lock worker reuse in a failing STEP loader test
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-step-loader.test.mjs`
 
 **Step 1: Write the failing test**
 
 Add a worker-backed test that:
+
 - constructs a `PcbScene3dStepLoader` with a fake `stepWorkerFactory`
 - loads two different STEP models through the same loader
 - asserts the factory was called exactly once
@@ -29,11 +31,13 @@ Expected: FAIL because the current loader creates a new worker for every STEP lo
 ### Task 2: Lock cleanup in a failing STEP loader disposal test
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-step-loader.test.mjs`
 
 **Step 1: Write the failing test**
 
 Add a disposal test that:
+
 - loads one STEP model through a fake persistent worker
 - calls `loader.dispose()`
 - asserts the underlying worker is terminated exactly once
@@ -46,11 +50,13 @@ Expected: FAIL because the current loader has no disposal API and does not retai
 ### Task 3: Implement persistent STEP worker reuse
 
 **Files:**
+
 - Modify: `src/ui/PcbScene3dStepLoader.mjs`
 
 **Step 1: Write minimal implementation**
 
 Update the loader to:
+
 - lazily create one worker the first time worker-backed STEP import is needed
 - assign request ids and route responses back to the correct pending promise
 - keep the worker alive across multiple `loadModel()` calls
@@ -64,6 +70,7 @@ Expected: PASS for the new reuse and cleanup regressions and the existing STEP l
 ### Task 4: Wire disposal through the 3D scene pipeline
 
 **Files:**
+
 - Modify: `src/ui/PcbScene3dExternalModels.mjs`
 - Modify: `src/ui/PcbScene3dRuntime.mjs`
 - Modify: `src/workers/pcb-scene3d.worker.mjs`
@@ -80,6 +87,7 @@ Expected: PASS with no worker lifecycle regressions.
 ### Task 5: Bump version and verify affected suites
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Update version**

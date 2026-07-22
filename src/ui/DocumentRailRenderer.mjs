@@ -95,9 +95,7 @@ export class DocumentRailRenderer {
             '</span>' +
             '<span class="document-rail__name">' +
             DocumentRailRenderer.#escapeHtml(
-                summary.fileName ||
-                    summary.title ||
-                    t('summary.document')
+                summary.fileName || summary.title || t('summary.document')
             ) +
             '</span>' +
             '</button>'

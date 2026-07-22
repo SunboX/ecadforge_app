@@ -11,6 +11,7 @@
 ### Task 1: Lock lazy scene prep in a failing regression
 
 **Files:**
+
 - Create: `tests/ui/pcb-scene3d-scene-preparator.test.mjs`
 
 **Step 1: Write the failing test**
@@ -25,6 +26,7 @@ Expected: FAIL because the current preparator eagerly preloads STEP payloads.
 ### Task 2: Stop blocking first paint on STEP preloading
 
 **Files:**
+
 - Modify: `src/ui/PcbScene3dScenePreparator.mjs`
 - Modify: `src/workers/pcb-scene3d.worker.mjs`
 
@@ -40,11 +42,13 @@ Expected: PASS.
 ### Task 3: Stage runtime detail after the first frame
 
 **Files:**
+
 - Modify: `src/ui/PcbScene3dRuntime.mjs`
 
 **Step 1: Write minimal implementation**
 
 Refactor runtime initialization so:
+
 - board shell and fallback bodies render in the initial frame
 - `whenReady()` resolves after that first frame
 - copper, silkscreen, vias, and external models are attached in deferred background stages
@@ -57,6 +61,7 @@ Expected: PASS.
 ### Task 4: Bump version and run full verification
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Update version**

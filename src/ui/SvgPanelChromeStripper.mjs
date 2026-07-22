@@ -1,7 +1,6 @@
 const SVG_PANEL_HEADER_PATTERN =
     /<header\s+class="svg-panel__header"[\s\S]*?<\/header>/
-const PCB_LEGEND_PATTERN =
-    /<aside\s+class="pcb-legend"[\s\S]*?<\/aside>/
+const PCB_LEGEND_PATTERN = /<aside\s+class="pcb-legend"[\s\S]*?<\/aside>/
 
 /**
  * Removes duplicated SVG panel chrome from renderer output.

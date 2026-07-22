@@ -11,6 +11,7 @@
 ### Task 1: Lock the desired control-sheet bounds in tests
 
 **Files:**
+
 - Modify: `tests/core/altium-parser.test.mjs`
 - Modify: `tests/ui/renderers.test.mjs`
 
@@ -27,6 +28,7 @@ Expected: FAIL on the control-sheet dashed-callout bounds or SVG line coordinate
 ### Task 2: Implement the minimal normalizer fix
 
 **Files:**
+
 - Modify: `src/core/altium/SchematicStandaloneCalloutNormalizer.mjs`
 
 **Step 1: Write minimal implementation**
@@ -42,6 +44,7 @@ Expected: PASS for the standalone callout, control-sheet parser, and control-she
 ### Task 3: Verify the full repo state
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

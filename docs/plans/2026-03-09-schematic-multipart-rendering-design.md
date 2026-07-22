@@ -83,12 +83,12 @@ The parser will build a multipart owner selection map from component records tha
 ## Testing Strategy
 
 - Add a parser test that loads `Skylace-Nova.SchDoc` and asserts:
-  - `WYRN2` renders as separate active parts rather than merged pin clouds
-  - sheet F resolves to the expected standard page size
+    - `WYRN2` renders as separate active parts rather than merged pin clouds
+    - sheet F resolves to the expected standard page size
 - Add a renderer test that loads the same file and asserts:
-  - the `Wyrm Gate`, `Ember Well`, and `Skylace / Echo` section labels appear once
-  - the multipart body rectangles render from record `6`
-  - expected sheet chrome such as `A3` and `Sheet 5 of 6` remains visible
+    - the `Wyrm Gate`, `Ember Well`, and `Skylace / Echo` section labels appear once
+    - the multipart body rectangles render from record `6`
+    - expected sheet chrome such as `A3` and `Sheet 5 of 6` remains visible
 
 ## Risks
 

@@ -13,7 +13,10 @@ test('ViewerEmptyStateRenderer renders the schematic plus illustration', () => {
     assert.match(html, /class="viewer-empty__screen"/)
     assert.match(html, /class="viewer-empty__trace-line"/)
     assert.match(html, /class="viewer-empty__plus"/)
-    assert.match(html, /class="viewer-empty__spark viewer-empty__spark--orange"/)
+    assert.match(
+        html,
+        /class="viewer-empty__spark viewer-empty__spark--orange"/
+    )
     assert.match(html, /Try KiCad sample/)
     assert.match(html, /Try Altium sample/)
 })

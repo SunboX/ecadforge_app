@@ -187,7 +187,10 @@ test('AppView scopes viewport-height layout to resizable views', () => {
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        false
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), true)
@@ -196,32 +199,53 @@ test('AppView scopes viewport-height layout to resizable views', () => {
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), true)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        true
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-report'),
+        false
+    )
 
     view.render(createSnapshot('pcb'))
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        false
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-report'),
+        false
+    )
 
     view.render(createSnapshot('3d'))
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        false
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-report'),
+        false
+    )
 
     view.render(createSnapshot('bom'))
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        false
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), true)
@@ -230,7 +254,10 @@ test('AppView scopes viewport-height layout to resizable views', () => {
 
     assert.equal(fakeDocument.body.classList.contains('is-viewer-mode'), true)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-visual'), true)
-    assert.equal(fakeDocument.body.classList.contains('is-viewer-schematic'), false)
+    assert.equal(
+        fakeDocument.body.classList.contains('is-viewer-schematic'),
+        false
+    )
     assert.equal(fakeDocument.body.classList.contains('is-viewer-pcb'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-3d'), false)
     assert.equal(fakeDocument.body.classList.contains('is-viewer-report'), true)

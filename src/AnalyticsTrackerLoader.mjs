@@ -38,9 +38,8 @@ export class AnalyticsTrackerLoader {
      * @returns {boolean}
      */
     static shouldLoadForLocation(locationObject) {
-        const protocol = AnalyticsTrackerLoader.#protocolForLocation(
-            locationObject
-        )
+        const protocol =
+            AnalyticsTrackerLoader.#protocolForLocation(locationObject)
         if (protocol !== 'http:' && protocol !== 'https:') {
             return false
         }

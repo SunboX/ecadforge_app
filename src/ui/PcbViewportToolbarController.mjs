@@ -19,7 +19,8 @@ export class PcbViewportToolbarController {
         this.#lastHoverKey = ''
         this.#resetView =
             typeof options.resetView === 'function' ? options.resetView : null
-        this.#render = typeof options.render === 'function' ? options.render : null
+        this.#render =
+            typeof options.render === 'function' ? options.render : null
     }
 
     /**
@@ -36,13 +37,23 @@ export class PcbViewportToolbarController {
      * @returns {boolean}
      */
     handleClick(event) {
-        if (PcbViewportToolbarController.#closest(event.target, '[data-pcb-view-reset]')) {
+        if (
+            PcbViewportToolbarController.#closest(
+                event.target,
+                '[data-pcb-view-reset]'
+            )
+        ) {
             PcbViewportToolbarController.#consumeEvent(event)
             this.#resetView?.()
             return true
         }
 
-        if (PcbViewportToolbarController.#closest(event.target, '[data-pcb-hover-focus-toggle]')) {
+        if (
+            PcbViewportToolbarController.#closest(
+                event.target,
+                '[data-pcb-hover-focus-toggle]'
+            )
+        ) {
             PcbViewportToolbarController.#consumeEvent(event)
             this.#hoverFocusEnabled = !this.#hoverFocusEnabled
             this.#lastHoverKey = ''

@@ -30,10 +30,7 @@ export class PcbLayerShortcutController {
      * @returns {void}
      */
     dispose() {
-        this.#contentNode?.removeEventListener?.(
-            'keydown',
-            this.#handleKeyDown
-        )
+        this.#contentNode?.removeEventListener?.('keydown', this.#handleKeyDown)
     }
 
     /**

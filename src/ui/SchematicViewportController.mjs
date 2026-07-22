@@ -633,12 +633,15 @@ export class SchematicViewportController {
      * @returns {void}
      */
     #centerBoundsWithSize(bounds, width, height, options = {}) {
-        this.#applyViewBoxChange({
-            x: bounds.x + bounds.width / 2 - width / 2,
-            y: bounds.y + bounds.height / 2 - height / 2,
-            width,
-            height
-        }, options)
+        this.#applyViewBoxChange(
+            {
+                x: bounds.x + bounds.width / 2 - width / 2,
+                y: bounds.y + bounds.height / 2 - height / 2,
+                width,
+                height
+            },
+            options
+        )
     }
 
     /**
@@ -649,7 +652,10 @@ export class SchematicViewportController {
      */
     #applyViewBoxChange(nextViewBox, options = {}) {
         this.#cancelAnimation()
-        if (options.animate && typeof globalThis.requestAnimationFrame === 'function') {
+        if (
+            options.animate &&
+            typeof globalThis.requestAnimationFrame === 'function'
+        ) {
             this.#animateViewBox(nextViewBox, options.durationMs)
             return
         }

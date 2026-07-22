@@ -11,6 +11,7 @@
 ### Task 1: Add the regression test for themed SVG colors
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 
 **Step 1: Write the failing test**
@@ -34,6 +35,7 @@ Run the same command and confirm the mismatch is still the literal color output.
 ### Task 2: Add a shared schematic color resolver
 
 **Files:**
+
 - Create: `src/ui/SchematicColorResolver.mjs`
 
 **Step 1: Write the minimal resolver**
@@ -54,6 +56,7 @@ Expected: still FAIL because renderers are not using the resolver yet.
 ### Task 3: Route schematic renderers through the resolver
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 - Modify: `src/ui/SchematicPortRenderer.mjs`
 - Modify: `src/ui/SchematicPowerPortRenderer.mjs`
@@ -74,6 +77,7 @@ Expected: PASS.
 ### Task 4: Move schematic stylesheet colors to variables
 
 **Files:**
+
 - Modify: `src/styles/20-viewer.css`
 
 **Step 1: Define the default palette**
@@ -89,5 +93,6 @@ Expected: PASS.
 ### Task 5: Update renderer expectations and versioning
 
 **Files:**
+
 - Modify: `tests/ui/renderers.test.mjs`
 - Modify: `package.json`

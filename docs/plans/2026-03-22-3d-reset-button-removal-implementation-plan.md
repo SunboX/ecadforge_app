@@ -11,6 +11,7 @@
 ### Task 1: Lock the toolbar contract with a failing renderer test
 
 **Files:**
+
 - Modify: `tests/ui/renderers/scene3d.mjs`
 
 **Step 1: Write the failing test**
@@ -34,6 +35,7 @@ Expected: PASS.
 ### Task 2: Keep controller coverage aligned with the visible toolbar
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene3d-controller.test.mjs`
 
 **Step 1: Write the failing test**
@@ -57,6 +59,7 @@ Expected: PASS.
 ### Task 3: Bump version and verify the repo scripts
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Update version**

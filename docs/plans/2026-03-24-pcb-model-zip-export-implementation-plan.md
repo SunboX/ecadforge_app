@@ -11,6 +11,7 @@
 ### Task 1: Capture the Export Button Contract
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/Scene3dRenderer.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/renderers/scene3d.mjs`
 
@@ -35,12 +36,14 @@ Expected: PASS
 ### Task 2: Add Export Utility Tests
 
 **Files:**
+
 - Create: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/PcbModelArchiveExporter.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/pcb-model-archive-exporter.test.mjs`
 
 **Step 1: Write the failing test**
 
 Add tests that verify:
+
 - embedded STEP payloads are exported as UTF-8 text entries
 - companion `STEP` and `WRL` assets are exported as raw bytes
 - repeated placements of the same pattern/model pair are deduplicated
@@ -54,6 +57,7 @@ Expected: FAIL because no export utility exists.
 **Step 3: Write minimal implementation**
 
 Implement a browser-side export utility that:
+
 - accepts resolved export entries
 - normalizes archive names from patterns and extensions
 - reads model bytes from embedded text or session files
@@ -68,12 +72,14 @@ Expected: PASS
 ### Task 3: Add Controller Export Wiring
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/ui/PcbScene3dController.mjs`
 - Test: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/pcb-scene3d-controller.test.mjs`
 
 **Step 1: Write the failing test**
 
 Add controller tests that verify:
+
 - the export button is bound
 - clicking it collects deduplicated pattern-based export entries from the resolved model data
 - success and empty-state summaries update the diagnostics area
@@ -86,6 +92,7 @@ Expected: FAIL because the controller does not wire the button or call any expor
 **Step 3: Write minimal implementation**
 
 Update the controller to:
+
 - find the export button and diagnostics node
 - build export entries from the current document model and resolved scene/model data
 - invoke the export utility
@@ -99,6 +106,7 @@ Expected: PASS
 ### Task 4: Add Sample-Driven Resolution Coverage
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/tests/ui/pcb-scene-builder.test.mjs`
 
 **Step 1: Write the failing test**
@@ -122,6 +130,7 @@ Expected: PASS
 ### Task 5: Style Hooks and Final Verification
 
 **Files:**
+
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/src/styles/20-viewer.css`
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/package.json`
 - Modify: `/Users/afiedler/Documents/privat/Andrés_Werkstatt/ecadforge_app/package-lock.json`

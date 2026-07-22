@@ -11,6 +11,7 @@
 ### Task 1: Lock session-based app state in tests
 
 **Files:**
+
 - Modify: `tests/app-state.test.mjs`
 - Modify: `src/core/AppState.mjs`
 
@@ -37,6 +38,7 @@ Expected: The state tests pass with the new session model.
 ### Task 2: Lock multi-file controller behavior in tests
 
 **Files:**
+
 - Create: `tests/app-controller.test.mjs`
 - Modify: `src/AppController.mjs`
 - Modify: `src/workers/altium-parser.worker.mjs`
@@ -69,6 +71,7 @@ Expected: The controller tests pass with multi-file session behavior.
 ### Task 3: Lock sidebar rendering and selection behavior in tests
 
 **Files:**
+
 - Modify: `tests/ui/app-view.test.mjs`
 - Modify: `src/ui/AppView.mjs`
 - Modify: `src/index.html`
@@ -103,6 +106,7 @@ Expected: The view tests pass with the new sidebar interaction.
 ### Task 4: Bump version and run full verification
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

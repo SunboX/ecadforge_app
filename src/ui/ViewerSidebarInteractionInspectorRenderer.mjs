@@ -81,14 +81,14 @@ export class ViewerSidebarInteractionInspectorRenderer {
             (selected ? ' is-selected' : '') +
             '" data-pcb-interaction-candidate="' +
             ViewerSidebarInteractionInspectorRenderer.#escapeHtml(index) +
-                '"><strong>' +
+            '"><strong>' +
             ViewerSidebarInteractionInspectorRenderer.#escapeHtml(label) +
             '</strong><span>' +
-            ViewerSidebarInteractionInspectorRenderer.#escapeHtml(detail || '-') +
-            '</span>' +
-            ViewerSidebarInteractionInspectorRenderer.#renderGroups(
-                candidate
+            ViewerSidebarInteractionInspectorRenderer.#escapeHtml(
+                detail || '-'
             ) +
+            '</span>' +
+            ViewerSidebarInteractionInspectorRenderer.#renderGroups(candidate) +
             '</span>'
         )
     }
@@ -99,9 +99,7 @@ export class ViewerSidebarInteractionInspectorRenderer {
      * @returns {string}
      */
     static #renderGroups(candidate) {
-        const groups = Array.isArray(candidate?.groups)
-            ? candidate.groups
-            : []
+        const groups = Array.isArray(candidate?.groups) ? candidate.groups : []
         if (!groups.length) return ''
         return (
             '<span class="viewer-sidebar__interaction-groups">' +
@@ -188,10 +186,7 @@ export class ViewerSidebarInteractionInspectorRenderer {
      * @returns {string}
      */
     static #compactNumber(value) {
-        return value
-            .toFixed(3)
-            .replace(/0+$/u, '')
-            .replace(/\.$/u, '')
+        return value.toFixed(3).replace(/0+$/u, '').replace(/\.$/u, '')
     }
 
     /**

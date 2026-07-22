@@ -11,6 +11,7 @@
 ### Task 1: Add The Low-Level Binary Reader
 
 **Files:**
+
 - Create: `src/core/BinaryReader.mjs`
 - Create: `tests/core/binary-reader.test.mjs`
 
@@ -63,6 +64,7 @@ git commit -m "feat: add binary reader utility"
 ### Task 2: Add OLE Compound Document Parsing
 
 **Files:**
+
 - Create: `src/core/ole/OleConstants.mjs`
 - Create: `src/core/ole/OleDirectoryEntry.mjs`
 - Create: `src/core/ole/OleCompoundDocument.mjs`
@@ -120,6 +122,7 @@ git commit -m "feat: add ole compound document parser"
 ### Task 3: Add Fixture-Backed Failing Tests For Stream-Aware PCB Recovery
 
 **Files:**
+
 - Modify: `tests/fixtures/AltiumFixtureLoader.mjs`
 - Modify: `tests/core/altium-parser/forge-relic.mjs`
 - Create: `tests/core/altium-parser/pcb-streams.mjs`
@@ -171,6 +174,7 @@ Expected: still FAIL, now specifically because production parsing does not yet r
 ### Task 4: Implement Stream-Aware PCB Extraction And Primitive Normalization
 
 **Files:**
+
 - Create: `src/core/altium/PcbStreamExtractor.mjs`
 - Create: `src/core/altium/PcbPrimitiveParser.mjs`
 - Modify: `src/core/altium/PrintableTextDecoder.mjs`
@@ -243,6 +247,7 @@ git commit -m "feat: add stream-aware pcb primitive recovery"
 ### Task 5: Add Failing PCB Renderer And Theme Tests
 
 **Files:**
+
 - Modify: `tests/ui/renderers/output-renderers.mjs`
 
 **Step 1: Write the failing test**
@@ -282,6 +287,7 @@ Expected: same FAIL reason.
 ### Task 6: Implement PCB SVG Primitive Rendering And CSS Variables
 
 **Files:**
+
 - Create: `src/ui/PcbColorResolver.mjs`
 - Modify: `src/ui/PcbSvgRenderer.mjs`
 - Modify: `src/styles/20-viewer.css`
@@ -332,6 +338,7 @@ git commit -m "feat: render pcb primitives with theme variables"
 ### Task 7: Verify Whole-Repo Behavior And Versioning
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `README.md`

@@ -11,6 +11,7 @@
 ### Task 1: Capture the 3D loading contract in renderer and view tests
 
 **Files:**
+
 - Modify: `tests/ui/renderers/scene3d.mjs`
 - Modify: `tests/ui/app-view.test.mjs`
 - Modify: `src/ui/Scene3dRenderer.mjs`
@@ -45,6 +46,7 @@ git commit -m "feat: add 3d loading shell contract"
 ### Task 2: Define the dedicated 3D worker URL and controller protocol
 
 **Files:**
+
 - Modify: `tests/worker-url-builder.test.mjs`
 - Modify: `src/WorkerUrlBuilder.mjs`
 - Modify: `tests/ui/pcb-scene3d-controller.test.mjs`
@@ -82,6 +84,7 @@ git commit -m "feat: add pcb 3d worker protocol"
 ### Task 3: Move scene-description prep behind the worker boundary
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-builder.test.mjs`
 - Modify: `src/ui/PcbScene3dBuilder.mjs`
 - Create: `src/ui/PcbScene3dWorkerClient.mjs`
@@ -115,6 +118,7 @@ git commit -m "feat: move 3d scene prep behind worker client"
 ### Task 4: Keep the spinner up until runtime settlement finishes
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-external-models.test.mjs`
 - Modify: `tests/ui/pcb-scene3d-controller.test.mjs`
 - Modify: `src/ui/PcbScene3dRuntime.mjs`
@@ -153,6 +157,7 @@ git commit -m "feat: wait for complete 3d scene settlement"
 ### Task 5: Offload STEP preprocessing into the 3D worker
 
 **Files:**
+
 - Modify: `tests/ui/pcb-scene-step-loader.test.mjs`
 - Modify: `tests/ui/pcb-scene3d-controller.test.mjs`
 - Modify: `src/ui/PcbScene3dStepLoader.mjs`
@@ -188,6 +193,7 @@ git commit -m "feat: preprocess 3d step models in worker"
 ### Task 6: Integrate bootstrap wiring and version the change
 
 **Files:**
+
 - Modify: `src/main.mjs`
 - Modify: `src/ui/AppView.mjs`
 - Modify: `package.json`
@@ -222,6 +228,7 @@ git commit -m "feat: wire dedicated 3d worker into app startup"
 ### Task 7: Verify the focused path and full suite
 
 **Files:**
+
 - Modify: any files touched in Tasks 1-6
 
 **Step 1: Run focused regression tests**

@@ -370,8 +370,7 @@ test('AppController links deferred GitHub models without re-appending source ass
     const source = {
         sourceType: 'github',
         formatFamily: 'kicad',
-        boardUrl:
-            'https://raw.githubusercontent.com/a/b/main/Target.kicad_pcb',
+        boardUrl: 'https://raw.githubusercontent.com/a/b/main/Target.kicad_pcb',
         entries: [
             createEntry('Demo.kicad_pro'),
             createEntry('Target.kicad_pcb'),
@@ -448,16 +447,12 @@ test('AppController links deferred GitHub models without re-appending source ass
     const deferredComponent = state
         .getSnapshot()
         .documents.find(
-            (entry) =>
-                entry.documentModel.fileName === 'Other.kicad_pcb'
+            (entry) => entry.documentModel.fileName === 'Other.kicad_pcb'
         )?.documentModel.pcb.components[0]
 
     assert.equal(assetReadCount, 1)
     assert.equal(deferredComponent.modelName, 'body.step')
-    assert.equal(
-        deferredComponent.modelPath,
-        '${KIPRJMOD}/parts/body.step'
-    )
+    assert.equal(deferredComponent.modelPath, '${KIPRJMOD}/parts/body.step')
 })
 
 test('AppController ignores non-renderable project document selections in 3D view', async () => {

@@ -11,6 +11,7 @@
 ### Task 1: Lock the promoted-sheet placement with failing regressions
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-sheet-scaling.mjs`
 
 **Step 1: Write the failing test**
@@ -42,6 +43,7 @@ Expected: FAIL because the current transform still anchors both cases to `bounds
 ### Task 2: Update normalized-sheet fit math
 
 **Files:**
+
 - Modify: `src/ui/SchematicContentLayout.mjs`
 
 **Step 1: Write minimal implementation**
@@ -66,6 +68,7 @@ Expected: PASS for the updated normalized-sheet placement and existing sparse cu
 ### Task 3: Final verification and version bump
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

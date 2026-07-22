@@ -11,6 +11,7 @@
 ### Task 1: Lock the expected gutter separators in a failing renderer test
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -33,6 +34,7 @@ Expected: FAIL because the current renderer emits zone labels but no gutter sepa
 ### Task 2: Implement the synthesized gutter separators
 
 **Files:**
+
 - Modify: `src/ui/SchematicSheetChromeRenderer.mjs`
 - Modify: `src/styles/20-viewer.css`
 
@@ -58,6 +60,7 @@ Expected: PASS with the new separator assertions green.
 ### Task 3: Final verification and version bump
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

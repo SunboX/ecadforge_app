@@ -11,6 +11,7 @@
 ### Task 1: Lock the rounded-cap scope in a renderer test
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: FAIL because the current renderer does not add rounded stroke caps to 
 ### Task 2: Add rounded caps to open schematic primitive groups
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 - Modify: `src/ui/SchematicPowerPortRenderer.mjs`
 
@@ -42,6 +44,7 @@ Expected: PASS for the new rounded-cap assertions and the existing renderer cove
 ### Task 3: Verify and version the change
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Bump version**

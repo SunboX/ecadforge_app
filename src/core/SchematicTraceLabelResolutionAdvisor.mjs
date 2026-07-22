@@ -36,11 +36,12 @@ export class SchematicTraceLabelResolutionAdvisor {
                     label,
                     accepted,
                     collisionIndex,
-                    candidateIndex:
-                        traceLabelResolutionCandidateBounds.length
+                    candidateIndex: traceLabelResolutionCandidateBounds.length
                 })
                 traceLabelResolutionCandidateBounds.push(row)
-                candidateDecisions.push(this.#acceptedDecision(row, 'move-label'))
+                candidateDecisions.push(
+                    this.#acceptedDecision(row, 'move-label')
+                )
                 continue
             }
 
@@ -53,11 +54,12 @@ export class SchematicTraceLabelResolutionAdvisor {
                     traceCandidate,
                     collisionIndex,
                     candidateIndex: traceLabelResolutionSegments.length,
-                    blockedReasons:
-                        rejectedReasonsByLabel.get(label.id) || []
+                    blockedReasons: rejectedReasonsByLabel.get(label.id) || []
                 })
                 traceLabelResolutionSegments.push(row)
-                candidateDecisions.push(this.#acceptedDecision(row, 'move-trace'))
+                candidateDecisions.push(
+                    this.#acceptedDecision(row, 'move-trace')
+                )
                 continue
             }
 
@@ -210,8 +212,7 @@ export class SchematicTraceLabelResolutionAdvisor {
             kind: row.kind,
             candidateKind: row.kind,
             status: 'accepted',
-            reason:
-                strategy === 'move-trace' ? 'label-candidates-blocked' : '',
+            reason: strategy === 'move-trace' ? 'label-candidates-blocked' : '',
             selected: true,
             score: row.candidateIndex,
             collisionSource: 'trace-label',

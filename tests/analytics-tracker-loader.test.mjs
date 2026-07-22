@@ -71,7 +71,10 @@ test('AnalyticsTrackerLoader skips local browser origins', () => {
     ]
 
     for (const origin of localOrigins) {
-        assert.equal(AnalyticsTrackerLoader.shouldLoadForLocation(origin), false)
+        assert.equal(
+            AnalyticsTrackerLoader.shouldLoadForLocation(origin),
+            false
+        )
     }
 })
 

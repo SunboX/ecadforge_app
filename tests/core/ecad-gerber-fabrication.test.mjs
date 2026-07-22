@@ -44,15 +44,11 @@ test('EcadGerberFabrication returns only usable retained fabrication documents',
     const retained = createRetainedGerberDocument()
 
     assert.equal(
-        EcadGerberFabrication.nativeDocument(
-            createCanonicalGerberDocument()
-        ),
+        EcadGerberFabrication.nativeDocument(createCanonicalGerberDocument()),
         null
     )
     assert.equal(
-        EcadGerberFabrication.nativeDocument(
-            createCanonicalGerberDocument({})
-        ),
+        EcadGerberFabrication.nativeDocument(createCanonicalGerberDocument({})),
         null
     )
     assert.equal(

@@ -643,9 +643,7 @@ export class SchematicSupplementalConnectionAdvisor {
                 routeStyle: data.row.debug.routeStyle,
                 directReason: data.evaluation.reason,
                 collisionSourceId:
-                    data.obstacle?.id ||
-                    data.evaluation.collisionSourceId ||
-                    ''
+                    data.obstacle?.id || data.evaluation.collisionSourceId || ''
             }
         }
     }

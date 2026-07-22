@@ -50,7 +50,7 @@ test('Gerber PCB stylesheet maps renderer output onto the app palette', async ()
     assert.match(css, /\.pcb-svg--app-palette\.pcb-svg--gerber/)
     assert.match(
         css,
-        /\.pcb-svg--gerber \.pcb-copper--surface \.pcb-copper--mask-covered\.gerber-region\.gerber-polarity-dark/
+        /\.pcb-svg--gerber\s+\.pcb-copper--surface\s+\.pcb-copper--mask-covered\.gerber-region\.gerber-polarity-dark/
     )
     assert.match(
         surfaceRegionRule,
@@ -58,7 +58,7 @@ test('Gerber PCB stylesheet maps renderer output onto the app palette', async ()
     )
     assert.match(
         css,
-        /\.pcb-svg--gerber \.pcb-copper--surface \.pcb-copper--mask-covered\.gerber-region\.gerber-polarity-dark\s*\{[\s\S]*fill:\s*var\(--pcb-mask-covered-fill\)\s*!important;/
+        /\.pcb-svg--gerber\s+\.pcb-copper--surface\s+\.pcb-copper--mask-covered\.gerber-region\.gerber-polarity-dark\s*\{[\s\S]*fill:\s*var\(--pcb-mask-covered-fill\)\s*!important;/
     )
     assert.match(
         css,

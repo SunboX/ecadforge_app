@@ -238,8 +238,7 @@ export class SchematicCandidateDecisionTimeline {
             routeStyle: candidate.debug?.routeStyle || '',
             directReason: candidate.debug?.directReason || '',
             normalizationKind: candidate.debug?.normalizationKind || '',
-            sourceCandidateIndex:
-                candidate.debug?.sourceCandidateIndex ?? null,
+            sourceCandidateIndex: candidate.debug?.sourceCandidateIndex ?? null,
             blockedLabelReasons: Array.isArray(
                 candidate.debug?.blockedLabelReasons
             )

@@ -11,6 +11,7 @@
 ### Task 1: Add the failing renderer regression
 
 **Files:**
+
 - Modify: `tests/ui/renderers/schematic-core.mjs`
 
 **Step 1: Write the failing test**
@@ -26,6 +27,7 @@ Expected: The new assertion fails because the renderer does not yet emit a scali
 ### Task 2: Implement content-group scaling
 
 **Files:**
+
 - Modify: `src/ui/SchematicSvgRenderer.mjs`
 
 **Step 1: Add a content-transform resolver**
@@ -45,6 +47,7 @@ Expected: The new regression passes.
 ### Task 3: Final verification and version bump
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `package-lock.json`
 

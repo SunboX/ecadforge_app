@@ -109,8 +109,7 @@ export class SvgTransformBoundsMapper {
      */
     static #numbers(args) {
         return (
-            String(args || '')
-                .match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) || []
+            String(args || '').match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) || []
         ).map(Number)
     }
 

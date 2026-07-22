@@ -9,7 +9,9 @@ export class AppMetaLoader {
      * @param {typeof fetch | undefined} fetchImplementation
      * @returns {Promise<string>}
      */
-    static async loadVersion(fetchImplementation = AppMetaLoader.#defaultFetch()) {
+    static async loadVersion(
+        fetchImplementation = AppMetaLoader.#defaultFetch()
+    ) {
         if (typeof fetchImplementation !== 'function') {
             return ''
         }
