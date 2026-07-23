@@ -8,6 +8,7 @@ import { PcbBoardClickGuard } from './PcbBoardClickGuard.mjs'
 import { PcbDiagnosticNavigationController } from './PcbDiagnosticNavigationController.mjs'
 import { PcbGerberRenderSelectionModel } from './PcbGerberRenderSelectionModel.mjs'
 import { PcbHitTestPointResolver } from './PcbHitTestPointResolver.mjs'
+import { PcbHoveredNetHighlighter } from './PcbHoveredNetHighlighter.mjs'
 import { PcbMeasurementActionHandler } from './PcbMeasurementActionHandler.mjs'
 import { PcbMeasurementInteractionController } from './PcbMeasurementInteractionController.mjs'
 import { PcbSelectionMarkerBoundsResolver } from './PcbSelectionMarkerBoundsResolver.mjs'
@@ -21,9 +22,7 @@ import { SvgClientBoundsGuard } from './SvgClientBoundsGuard.mjs'
 import { PcbSvgPointResolver } from './PcbSvgPointResolver.mjs'
 import { TouchTapSelectionGuard } from './TouchTapSelectionGuard.mjs'
 import { ViewportInteractionGateController } from './ViewportInteractionGateController.mjs'
-
 const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
-
 /**
  * Handles board-side selection and pan/zoom wiring for the 2D PCB view.
  */
@@ -185,7 +184,6 @@ export class PcbViewController {
         this.#handleTouchStart = (event) => this.#handleTouchStartEvent(event)
         this.#handleTouchMove = (event) => this.#touchTapGuard.move(event)
         this.#handleTouchEnd = (event) => this.#handleTouchEndEvent(event)
-
         this.#contentNode.addEventListener('click', this.#handleClick)
         this.#contentNode.addEventListener('change', this.#handleChange)
         this.#contentNode.addEventListener(
@@ -221,7 +219,6 @@ export class PcbViewController {
         ) {
             return
         }
-
         const requestedLayerIds =
             selection.layerIds === undefined && selection.layerId === undefined
                 ? this.#gerberLayerIds
@@ -245,7 +242,6 @@ export class PcbViewController {
         ) {
             return
         }
-
         this.#gerberLayerId = nextLayerId
         this.#gerberLayerIds = nextLayerIds
         this.#gerberRenderMode = nextRenderMode
@@ -302,29 +298,22 @@ export class PcbViewController {
         if (this.#handleSideSelection(event)) {
             return
         }
-
         if (this.#handleGerberCompositeSelection(event)) {
             return
         }
-
         if (this.#traceLengthToggle.handleClick(event)) {
             return
         }
-
         if (this.#viewportToolbar.handleClick(event)) return
-
         if (this.#measurement.handleAction(event)) {
             return
         }
-
         if (this.#measurement.handleCopy(event)) {
             return
         }
-
         if (this.#measurement.handleToolSelection(event)) {
             return
         }
-
         this.#handleBoardClick(event)
     }
     /**
@@ -348,7 +337,6 @@ export class PcbViewController {
             typeof target.closest === 'function'
                 ? target.closest('[data-pcb-view-side]')
                 : null
-
         if (!button || typeof button.getAttribute !== 'function') {
             return false
         }
@@ -533,6 +521,7 @@ export class PcbViewController {
      * @returns {void}
      */
     #handlePointerMoveEvent(event) {
+        if (Number(event?.buttons || 0) !== 0) return
         if (this.#measurement.isActive()) {
             this.#setHoveredNetName('')
             this.#setMeasurementCursor(true)
@@ -669,6 +658,15 @@ export class PcbViewController {
         if (nextNetName === this.#hoveredNetName) return
 
         this.#hoveredNetName = nextNetName
+        if (
+            PcbHoveredNetHighlighter.update(
+                this.#contentNode,
+                this.#selectedNetName,
+                this.#hoveredNetName
+            )
+        ) {
+            return
+        }
         this.#renderSide(this.#side, {
             refreshFonts: false,
             preserveViewport: true
@@ -821,6 +819,11 @@ export class PcbViewController {
                 hoverFocusEnabled: this.#viewportToolbar.hoverFocusEnabled,
                 focusedDiagnosticId: this.#focusedDiagnosticId
             }
+        )
+        PcbHoveredNetHighlighter.update(
+            this.#contentNode,
+            this.#selectedNetName,
+            this.#hoveredNetName
         )
         const renderedDefaultViewBox = this.#readCurrentViewBox()
         const restoredViewport = this.#restorePreservedViewport()

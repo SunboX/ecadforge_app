@@ -581,8 +581,7 @@ test('PcbViewRenderer highlights the selected PCB net', () => {
     assert.match(html, /class="pcb-net-highlight-style"/)
     assert.match(html, /data-pcb-net-name="SENSE_A"/)
     assert.match(html, /data-pcb-net-name="RETURN"/)
-    assert.match(html, /\[data-pcb-net-name='SENSE_A'\]/)
-    assert.match(html, /drop-shadow/)
+    assert.match(html, /\.pcb-net-highlight\s*\{/)
 })
 
 /**

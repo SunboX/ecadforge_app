@@ -131,6 +131,19 @@ class FakeSvgElement extends FakeNode {
     getBoundingClientRect() {
         return { left: 0, top: 0, width: 400, height: 200 }
     }
+    /**
+     * @param {string} _selector Requested selector.
+     * @returns {FakeNode[]}
+     */
+    querySelectorAll(_selector) {
+        return []
+    }
+}
+/**
+ * Minimal SVG stylesheet node used for dynamic net highlighting.
+ */
+class FakeStyleElement extends FakeNode {
+    textContent = ''
 }
 /**
  * Minimal PCB measurement toolbar button.
@@ -151,7 +164,6 @@ class FakePcbMeasureButton extends FakeNode {
         return selector === '[data-pcb-measure-tool]' ? this : null
     }
 }
-
 /**
  * Minimal PCB trace length toolbar button.
  */
@@ -160,7 +172,6 @@ class FakePcbTraceLengthButton extends FakeNode {
         super()
         this.setAttribute('data-pcb-trace-length-toggle', 'true')
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbTraceLengthButton | null}
@@ -169,7 +180,6 @@ class FakePcbTraceLengthButton extends FakeNode {
         return selector === '[data-pcb-trace-length-toggle]' ? this : null
     }
 }
-
 /**
  * Minimal PCB view setting toolbar button.
  */
@@ -183,7 +193,6 @@ class FakePcbViewSettingButton extends FakeNode {
         this.setAttribute('data-pcb-view-setting', objectKey)
         this.setAttribute('data-pcb-view-setting-visible', visible)
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbViewSettingButton | null}
@@ -192,7 +201,6 @@ class FakePcbViewSettingButton extends FakeNode {
         return selector === '[data-pcb-view-setting]' ? this : null
     }
 }
-
 /**
  * Minimal diagnostic focus button.
  */
@@ -204,7 +212,6 @@ class FakePcbDiagnosticFocusButton extends FakeNode {
         super()
         this.setAttribute('data-pcb-diagnostic-focus', diagnosticId)
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbDiagnosticFocusButton | null}
@@ -213,7 +220,6 @@ class FakePcbDiagnosticFocusButton extends FakeNode {
         return selector === '[data-pcb-diagnostic-focus]' ? this : null
     }
 }
-
 /**
  * Minimal measurement copy button.
  */
@@ -225,7 +231,6 @@ class FakePcbMeasureCopyButton extends FakeNode {
         super()
         this.setAttribute('data-pcb-measure-copy', value)
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbMeasureCopyButton | null}
@@ -235,7 +240,6 @@ class FakePcbMeasureCopyButton extends FakeNode {
         return null
     }
 }
-
 /**
  * Minimal measurement action button.
  */
@@ -251,7 +255,6 @@ class FakePcbMeasureActionButton extends FakeNode {
             this.setAttribute(name, value)
         })
     }
-
     /**
      * @param {string} selector Selector.
      * @returns {FakePcbMeasureActionButton | null}
@@ -261,7 +264,6 @@ class FakePcbMeasureActionButton extends FakeNode {
         return null
     }
 }
-
 /**
  * Minimal content node that reparses rendered PCB view markup.
  */
@@ -274,7 +276,8 @@ class FakeContentNode extends FakeEventTarget {
     #diagnosticButtons
     #measureCopyButton
     #measureActions
-
+    #netHighlightStyle
+    #renderCount
     /**
      * @param {FakeDocument} ownerDocument Owner document.
      */
@@ -287,13 +290,15 @@ class FakeContentNode extends FakeEventTarget {
         this.#diagnosticButtons = new Map()
         this.#measureCopyButton = null
         this.#measureActions = new Map()
+        this.#netHighlightStyle = null
+        this.#renderCount = 0
         this._innerHTML = ''
     }
-
     /**
      * @param {string} value Markup.
      */
     set innerHTML(value) {
+        this.#renderCount += 1
         this._innerHTML = String(value)
         this.#svg = null
         this.#measureButtons = new Map()
@@ -302,14 +307,20 @@ class FakeContentNode extends FakeEventTarget {
         this.#diagnosticButtons = new Map()
         this.#measureCopyButton = null
         this.#measureActions = new Map()
-
+        this.#netHighlightStyle = null
         const svgMatch = this._innerHTML.match(
             /<svg[^>]*class="[^"]*\bpcb-svg\b[^"]*"[^>]*viewBox="([^"]+)"/
         )
         if (svgMatch) {
             this.#svg = new FakeSvgElement(this.#ownerDocument, svgMatch[1])
         }
-
+        const netHighlightMatch = this._innerHTML.match(
+            /<style class="pcb-net-highlight-style">([\s\S]*?)<\/style>/
+        )
+        if (netHighlightMatch) {
+            this.#netHighlightStyle = new FakeStyleElement()
+            this.#netHighlightStyle.textContent = netHighlightMatch[1]
+        }
         for (const match of this._innerHTML.matchAll(
             /<button[^>]*data-pcb-measure-tool="([^"]+)"/g
         )) {
@@ -318,11 +329,9 @@ class FakeContentNode extends FakeEventTarget {
                 new FakePcbMeasureButton(match[1])
             )
         }
-
         if (this._innerHTML.includes('data-pcb-trace-length-toggle')) {
             this.#traceLengthButton = new FakePcbTraceLengthButton()
         }
-
         for (const match of this._innerHTML.matchAll(
             /<button[^>]*data-pcb-view-setting="([^"]+)"[^>]*data-pcb-view-setting-visible="([^"]+)"/g
         )) {
@@ -331,7 +340,6 @@ class FakeContentNode extends FakeEventTarget {
                 new FakePcbViewSettingButton(match[1], match[2])
             )
         }
-
         for (const match of this._innerHTML.matchAll(
             /<button[^>]*data-pcb-diagnostic-focus="([^"]+)"/g
         )) {
@@ -340,7 +348,6 @@ class FakeContentNode extends FakeEventTarget {
                 new FakePcbDiagnosticFocusButton(match[1])
             )
         }
-
         const copyMatch = this._innerHTML.match(
             /<button[^>]*data-pcb-measure-copy="([^"]+)"/
         )
@@ -349,7 +356,6 @@ class FakeContentNode extends FakeEventTarget {
                 copyMatch[1].replaceAll('&quot;', '"')
             )
         }
-
         for (const match of this._innerHTML.matchAll(
             /<button[^>]*data-pcb-measure-action="([^"]+)"[^>]*>/g
         )) {
@@ -364,20 +370,28 @@ class FakeContentNode extends FakeEventTarget {
             )
         }
     }
-
     /**
      * @returns {string}
      */
     get innerHTML() {
         return this._innerHTML || ''
     }
-
+    /**
+     * Returns the number of full PCB markup replacements.
+     * @returns {number}
+     */
+    get renderCount() {
+        return this.#renderCount
+    }
     /**
      * @param {string} selector Selector.
      * @returns {FakeSvgElement | FakePcbMeasureButton | null}
      */
     querySelector(selector) {
         if (selector === '.pcb-svg') return this.#svg
+        if (selector === '.pcb-net-highlight-style') {
+            return this.#netHighlightStyle
+        }
         if (selector === '[data-pcb-trace-length-toggle]') {
             return this.#traceLengthButton
         }
@@ -397,7 +411,6 @@ class FakeContentNode extends FakeEventTarget {
         const match = selector.match(/^\[data-pcb-measure-tool="([^"]+)"\]$/)
         return match ? this.#measureButtons.get(match[1]) || null : null
     }
-
     /**
      * Clicks a PCB measurement toolbar button.
      * @param {string} tool Tool id.
@@ -406,23 +419,19 @@ class FakeContentNode extends FakeEventTarget {
     clickMeasureTool(tool) {
         const button = this.#measureButtons.get(tool)
         if (!button) return
-
         this.dispatch('click', { target: button, preventDefault() {} })
     }
-
     /**
      * Clicks the trace-length overlay toolbar button.
      * @returns {void}
      */
     clickTraceLengthToggle() {
         if (!this.#traceLengthButton) return
-
         this.dispatch('click', {
             target: this.#traceLengthButton,
             preventDefault() {}
         })
     }
-
     /**
      * Clicks a rendered PCB view setting button.
      * @param {string} objectKey Object setting key.
@@ -431,7 +440,6 @@ class FakeContentNode extends FakeEventTarget {
     clickViewSetting(objectKey) {
         const button = this.#viewSettingButtons.get(objectKey)
         if (!button) return
-
         this.dispatch('click', {
             target: button,
             preventDefault() {},
@@ -439,7 +447,6 @@ class FakeContentNode extends FakeEventTarget {
             stopImmediatePropagation() {}
         })
     }
-
     /**
      * Clicks one rendered diagnostic focus row.
      * @param {string} diagnosticId Diagnostic id.
@@ -448,23 +455,19 @@ class FakeContentNode extends FakeEventTarget {
     clickDiagnosticFocus(diagnosticId) {
         const button = this.#diagnosticButtons.get(diagnosticId)
         if (!button) return
-
         this.dispatch('click', { target: button, preventDefault() {} })
     }
-
     /**
      * Clicks the rendered measurement copy button.
      * @returns {void}
      */
     clickMeasurementCopy() {
         if (!this.#measureCopyButton) return
-
         this.dispatch('click', {
             target: this.#measureCopyButton,
             preventDefault() {}
         })
     }
-
     /**
      * Clicks the rendered measurement action button.
      * @param {string} action Action id.
@@ -473,13 +476,11 @@ class FakeContentNode extends FakeEventTarget {
     clickMeasurementAction(action) {
         const button = this.#measureActions.get(action)
         if (!button) return
-
         this.dispatch('click', {
             target: button,
             preventDefault() {}
         })
     }
-
     /**
      * Dispatches a click on the rendered PCB SVG.
      * @param {number} clientX Client x coordinate.
@@ -488,7 +489,6 @@ class FakeContentNode extends FakeEventTarget {
      */
     clickPcbBoard(clientX, clientY) {
         if (!this.#svg) return
-
         this.dispatch('click', {
             target: this.#svg,
             clientX,
@@ -496,7 +496,6 @@ class FakeContentNode extends FakeEventTarget {
             preventDefault() {}
         })
     }
-
     /**
      * Dispatches pointer movement on the rendered PCB SVG.
      * @param {number} clientX Client x coordinate.
@@ -505,7 +504,6 @@ class FakeContentNode extends FakeEventTarget {
      */
     movePcbBoard(clientX, clientY) {
         if (!this.#svg) return
-
         this.dispatch('mousemove', {
             target: this.#svg,
             clientX,
@@ -514,7 +512,6 @@ class FakeContentNode extends FakeEventTarget {
         })
     }
 }
-
 /**
  * Builds a compact standards-native PCB document.
  * @returns {object[]}
@@ -639,7 +636,7 @@ test('PcbViewController selects CircuitJSON PCB components and nets', () => {
 /**
  * Verifies hover hit testing feeds net context back into the rendered PCB.
  */
-test('PcbViewController renders CircuitJSON PCB net hover context', () => {
+test('PcbViewController updates CircuitJSON net hover styles without replacing the PCB SVG', () => {
     const content = new FakeContentNode(new FakeDocument())
     const controller = new PcbViewController(
         content,
@@ -648,13 +645,16 @@ test('PcbViewController renders CircuitJSON PCB net hover context', () => {
     const viewBox = parseViewBox(
         content.querySelector('.pcb-svg')?.getAttribute('viewBox')
     )
+    const initialSvg = content.querySelector('.pcb-svg')
+    const initialRenderCount = content.renderCount
 
     content.movePcbBoard(
         ((1 - viewBox.minX) / viewBox.width) * 400,
         ((1 - viewBox.minY) / viewBox.height) * 200
     )
 
-    assert.match(content.innerHTML, /data-pcb-hover-net-name="VCC"/)
+    assert.equal(content.renderCount, initialRenderCount)
+    assert.equal(content.querySelector('.pcb-svg'), initialSvg)
 
     controller.dispose()
 })

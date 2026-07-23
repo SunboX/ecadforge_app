@@ -278,7 +278,6 @@ test('GitHubSourceLoader fetches GitLab Altium project files through API raw end
         apiUrl,
         projectApiUrl,
         bodiesApiUrl,
-        projectApiUrl,
         schematicApiUrl,
         boardApiUrl
     ])
@@ -336,7 +335,6 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
         apiUrl,
         projectUrl,
         'https://api.github.com/repos/acme/demo/contents/hardware/project/3D%20Bodies?ref=main',
-        projectUrl,
         schematicUrl,
         boardUrl
     ])
@@ -346,6 +344,84 @@ test('GitHubSourceLoader resolves Altium project manifests before generated fold
     assert.deepEqual(
         result.entries.map((entry) => entry.name),
         ['Demo.PrjPcb', 'Schematics/Main.SchDoc', 'PCB/Main.PcbDoc']
+    )
+})
+
+test('GitHubSourceLoader fetches a preferred project document before background siblings', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project?ref=main'
+    const bodiesApiUrl =
+        'https://api.github.com/repos/acme/demo/contents/hardware/project/3D%20Bodies?ref=main'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/main/hardware/project/'
+    const projectUrl = baseUrl + 'Demo.PrjPcb'
+    const schematicUrl = baseUrl + 'Schematics/Main.SchDoc'
+    const boardUrl = baseUrl + 'PCB/Main.PcbDoc'
+    const urls = []
+    let releaseBoard
+    const boardResponse = new Promise((resolve) => {
+        releaseBoard = () =>
+            resolve(
+                new Response('|HEADER=Protel for Windows - PCB', {
+                    status: 200
+                })
+            )
+    })
+    const fetcher = async (url) => {
+        urls.push(String(url))
+        if (url === GITHUB_RATE_LIMIT_URL) {
+            return new Response(
+                JSON.stringify({ resources: { core: { remaining: 60 } } })
+            )
+        }
+        if (url === apiUrl) {
+            return new Response(
+                JSON.stringify([
+                    {
+                        name: 'Demo.PrjPcb',
+                        type: 'file',
+                        download_url: projectUrl
+                    }
+                ])
+            )
+        }
+        if (url === projectUrl) {
+            return new Response(
+                '[Document1]\n' +
+                    'DocumentPath=Schematics\\Main.SchDoc\n' +
+                    '[Document2]\n' +
+                    'DocumentPath=PCB\\Main.PcbDoc\n'
+            )
+        }
+        if (url === bodiesApiUrl) return new Response(JSON.stringify([]))
+        if (url === boardUrl) return boardResponse
+        if (url === schematicUrl) {
+            return new Response('|HEADER=Schematic Document')
+        }
+        return new Response('missing', { status: 404 })
+    }
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const load = loader.loadUrl(
+        'https://github.com/acme/demo/tree/main/hardware/project',
+        { preferredDocument: 'PCB/Main.PcbDoc' }
+    )
+    await new Promise((resolve) => setImmediate(resolve))
+
+    assert.equal(urls.includes(boardUrl), true)
+    assert.equal(urls.includes(schematicUrl), false)
+
+    releaseBoard()
+    const result = await load
+    const deferred = await result.deferredSource
+
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['Demo.PrjPcb', 'PCB/Main.PcbDoc']
+    )
+    assert.deepEqual(
+        deferred.entries.map((entry) => entry.name),
+        ['Demo.PrjPcb', 'Schematics/Main.SchDoc']
     )
 })
 

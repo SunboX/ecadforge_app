@@ -19,6 +19,16 @@ test('index html leaves tracker loading to the browser entrypoint', async () => 
     assert.match(main, /AnalyticsTrackerLoader/)
 })
 
+test('browser entry loads analytics only after startup content is ready', async () => {
+    const main = await readFile(new URL('src/main.mjs', root), 'utf8')
+
+    assert.ok(
+        main.indexOf('await controller.init()') <
+            main.indexOf('AnalyticsTrackerLoader.loadBrowserTracker'),
+        'analytics must not compete with startup source loading'
+    )
+})
+
 test('getting started docs include analytics site registration values', async () => {
     const docs = await readFile(
         new URL('docs/getting-started.md', root),

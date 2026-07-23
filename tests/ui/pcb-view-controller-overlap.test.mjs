@@ -180,6 +180,24 @@ class FakeContentNode extends FakeEventTarget {
             preventDefault() {}
         })
     }
+
+    /**
+     * Dispatches pointer movement on the rendered PCB SVG.
+     * @param {number} clientX Client x coordinate.
+     * @param {number} clientY Client y coordinate.
+     * @param {number} buttons Pressed mouse-button mask.
+     * @returns {void}
+     */
+    movePcbBoard(clientX, clientY, buttons) {
+        if (!this.#svg) return
+
+        this.dispatch('mousemove', {
+            target: this.#svg,
+            buttons,
+            clientX,
+            clientY
+        })
+    }
 }
 
 /**
@@ -362,6 +380,33 @@ test('PcbViewController selects components before overlapping PCB nets', () => {
             source: 'pcb-board'
         }
     ])
+
+    controller.dispose()
+})
+
+/**
+ * Verifies drag movement bypasses hover hit testing and preview mutations.
+ */
+test('PcbViewController skips hover candidates during active drag movement', () => {
+    const fakeDocument = new FakeDocument()
+    const content = new FakeContentNode(fakeDocument)
+    const candidateChanges = []
+    const controller = new PcbViewController(
+        content,
+        PcbSelectionFixture.createOverlappingPcbDocument(),
+        {
+            documentId: 'doc-1',
+            onInteractionCandidatesChange: (change) => {
+                candidateChanges.push(change)
+            }
+        }
+    )
+    const svg = content.querySelector('.pcb-svg')
+
+    svg?.setAttribute('viewBox', '0 0 100 100')
+    content.movePcbBoard(200, 100, 1)
+
+    assert.deepEqual(candidateChanges, [])
 
     controller.dispose()
 })

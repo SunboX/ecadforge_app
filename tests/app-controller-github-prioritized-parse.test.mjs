@@ -354,6 +354,163 @@ test('AppController prioritizes startup GitHub document parsing and defers backg
     assert.equal(snapshot.activeFileName, 'Schematics/Target.SchDoc')
 })
 
+test('AppController consumes progressive GitHub project entries after first render', async () => {
+    const state = new AppState()
+    const parser = new SequencedBatchParser([
+        {
+            documents: [createPcbDocument('PCB/Target.PcbDoc')],
+            assets: []
+        },
+        {
+            documents: [createSchematicDocument('Schematics/Other.SchDoc')],
+            assets: []
+        }
+    ])
+    const originalRequestIdleCallback = globalThis.requestIdleCallback
+    const idleCallbacks = []
+    const controller = new AppController({
+        state,
+        view: new FakeView(),
+        parser,
+        analytics: new RecordingAnalytics(),
+        githubSourceLoader: {
+            async loadUrl() {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'altium',
+                    entries: [
+                        createEntry('Demo.PrjPcb'),
+                        createEntry('PCB/Target.PcbDoc')
+                    ],
+                    deferredSource: Promise.resolve({
+                        entries: [
+                            createEntry('Demo.PrjPcb'),
+                            createEntry('Schematics/Other.SchDoc')
+                        ],
+                        assets: [],
+                        modelReferences: [],
+                        includeDeferredAssets: true
+                    })
+                }
+            }
+        },
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/a/b/tree/main/hardware',
+            view: 'pcb',
+            document: 'PCB/Target.PcbDoc'
+        }
+    })
+
+    try {
+        globalThis.requestIdleCallback = (callback) => {
+            idleCallbacks.push(callback)
+            return idleCallbacks.length
+        }
+        await controller.init()
+
+        assert.deepEqual(parser.calls[0], ['Demo.PrjPcb', 'PCB/Target.PcbDoc'])
+        assert.equal(idleCallbacks.length, 1)
+
+        await idleCallbacks[0]({
+            didTimeout: false,
+            timeRemaining: () => 50
+        })
+        await new Promise((resolve) => setTimeout(resolve, 0))
+    } finally {
+        if (originalRequestIdleCallback === undefined) {
+            delete globalThis.requestIdleCallback
+        } else {
+            globalThis.requestIdleCallback = originalRequestIdleCallback
+        }
+    }
+
+    assert.deepEqual(parser.calls[1], [
+        'Demo.PrjPcb',
+        'Schematics/Other.SchDoc'
+    ])
+    assert.equal(state.getSnapshot().documents.length, 2)
+    assert.equal(state.getSnapshot().activeFileName, 'PCB/Target.PcbDoc')
+})
+
+test('AppController retains progressive assets without additional documents', async () => {
+    const state = new AppState()
+    const parser = new SequencedBatchParser([
+        {
+            documents: [createPcbDocument('PCB/Target.PcbDoc')],
+            assets: []
+        },
+        {
+            documents: [],
+            assets: []
+        }
+    ])
+    const originalRequestIdleCallback = globalThis.requestIdleCallback
+    const idleCallbacks = []
+    const controller = new AppController({
+        state,
+        view: new FakeView(),
+        parser,
+        analytics: new RecordingAnalytics(),
+        githubSourceLoader: {
+            async loadUrl() {
+                return {
+                    sourceType: 'github',
+                    formatFamily: 'altium',
+                    entries: [
+                        createEntry('Demo.PrjPcb'),
+                        createEntry('PCB/Target.PcbDoc')
+                    ],
+                    deferredSource: Promise.resolve({
+                        entries: [createEntry('Demo.PrjPcb')],
+                        assets: [
+                            {
+                                name: 'body.step',
+                                relativePath: 'parts/body.step',
+                                data: new Uint8Array([1, 2, 3]),
+                                format: 'step'
+                            }
+                        ],
+                        modelReferences: [],
+                        includeDeferredAssets: true
+                    })
+                }
+            }
+        },
+        startupSource: {
+            type: 'url',
+            url: 'https://github.com/a/b/tree/main/hardware',
+            view: 'pcb',
+            document: 'PCB/Target.PcbDoc'
+        }
+    })
+
+    try {
+        globalThis.requestIdleCallback = (callback) => {
+            idleCallbacks.push(callback)
+            return idleCallbacks.length
+        }
+        await controller.init()
+        await idleCallbacks[0]({
+            didTimeout: false,
+            timeRemaining: () => 50
+        })
+    } finally {
+        if (originalRequestIdleCallback === undefined) {
+            delete globalThis.requestIdleCallback
+        } else {
+            globalThis.requestIdleCallback = originalRequestIdleCallback
+        }
+    }
+
+    const snapshot = state.getSnapshot()
+
+    assert.equal(snapshot.documents.length, 1)
+    assert.equal(snapshot.activeFileName, 'PCB/Target.PcbDoc')
+    assert.equal(snapshot.sessionAssets.length, 1)
+    assert.equal(snapshot.sessionAssets[0].relativePath, 'parts/body.step')
+})
+
 test('AppController links deferred GitHub models without re-appending source assets', async () => {
     const state = new AppState()
     const initialDocument = createPcbDocument('Target.kicad_pcb')

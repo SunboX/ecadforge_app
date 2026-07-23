@@ -19,8 +19,6 @@ import { WorkerUrlBuilder } from './WorkerUrlBuilder.mjs'
  * App bootstrap.
  */
 async function bootstrap() {
-    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location)
-
     const loadedVersion = AppRuntimeVersion.readLoadedVersion(import.meta.url)
     const i18n = await I18nService.createFromBrowserStorage()
     const state = new AppState({
@@ -68,6 +66,7 @@ async function bootstrap() {
     })
 
     await controller.init()
+    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location)
     await WebMcpRuntimeLoader.initialize()
     await webMcpAdapter.initialize()
     if (!startupSource) {

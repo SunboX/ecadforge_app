@@ -7,6 +7,7 @@ import { PcbComponentSideAttributeRenderer } from './PcbComponentSideAttributeRe
 import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMarkerRenderer.mjs'
 import { PcbDiagnosticFocusRenderer } from './PcbDiagnosticFocusRenderer.mjs'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
+import { PcbNetHighlightCssRenderer } from './PcbNetHighlightCssRenderer.mjs'
 import { PcbViewGerberLayerSelection } from './PcbViewGerberLayerSelection.mjs'
 import { PcbViewInteractionPreparation } from './PcbViewInteractionPreparation.mjs'
 import { PcbViewportToolbarRenderer } from './PcbViewportToolbarRenderer.mjs'
@@ -112,10 +113,8 @@ export class PcbViewRenderer {
                 hiddenObjects,
                 selectedComponentKey,
                 objectOpacities,
-                selectedNetName,
                 gerberOptions,
                 measurement,
-                hoveredNetName,
                 showTraceLengths,
                 focusedDiagnosticId,
                 t,
@@ -150,10 +149,8 @@ export class PcbViewRenderer {
      * @param {string[]} hiddenObjects Hidden object category keys.
      * @param {string} selectedComponentKey Selected component key.
      * @param {{ [objectKey: string]: number }} objectOpacities Object opacity map.
-     * @param {string} selectedNetName Selected net name.
      * @param {{ renderMode: string, layerId: string, layerIds: string[], side?: string }} gerberOptions Gerber render options.
      * @param {{ tool: string, mode: string, start: object | null, end: object | null }} measurement Measurement state.
-     * @param {string} hoveredNetName Hovered net name.
      * @param {boolean} showTraceLengths Whether trace labels are visible.
      * @param {string} focusedDiagnosticId Focused diagnostic id.
      * @param {(key: string) => string} translate Translation lookup.
@@ -167,10 +164,8 @@ export class PcbViewRenderer {
         hiddenObjects,
         selectedComponentKey,
         objectOpacities,
-        selectedNetName,
         gerberOptions,
         measurement,
-        hoveredNetName,
         showTraceLengths,
         focusedDiagnosticId,
         translate,
@@ -214,10 +209,8 @@ export class PcbViewRenderer {
                 visibleMarkup,
                 selectedComponentKey
             )
-        const netHighlightedMarkup = PcbViewRenderer.#injectNetHighlightStyle(
-            highlightedMarkup,
-            selectedNetName || hoveredNetName
-        )
+        const netHighlightedMarkup =
+            PcbViewRenderer.#injectNetHighlightStyle(highlightedMarkup)
         const traceLengthMarkup =
             PcbViewRenderer.#injectTraceLengthVisibilityStyle(
                 netHighlightedMarkup,
@@ -829,31 +822,15 @@ export class PcbViewRenderer {
     /**
      * Injects SVG-local CSS rules for selected net highlighting.
      * @param {string} markup Renderer-owned SVG markup.
-     * @param {string} selectedNetName Selected net name.
      * @returns {string}
      */
-    static #injectNetHighlightStyle(markup, selectedNetName) {
-        const key = String(selectedNetName || '').trim()
-        if (!key) return markup
-
-        const netName = PcbViewRenderer.#escapeCssString(key)
-        const rules =
-            '.pcb-svg [data-pcb-net-name] {' +
-            ' transition: opacity 120ms ease, filter 120ms ease, stroke 120ms ease, fill 120ms ease; }' +
-            ".pcb-svg [data-pcb-net-name='" +
-            netName +
-            "'] { opacity: 1 !important; filter: drop-shadow(0 0 1.4px rgba(27, 191, 227, 0.68)) drop-shadow(0 0 3px rgba(27, 191, 227, 0.32)); }" +
-            ".pcb-svg [data-pcb-net-name='" +
-            netName +
-            "'] { stroke: rgba(27, 191, 227, 0.94) !important; }" +
-            ".pcb-svg [data-pcb-net-name='" +
-            netName +
-            "'][fill]:not([fill='none']) { fill: rgba(27, 191, 227, 0.38) !important; }"
-
+    static #injectNetHighlightStyle(markup) {
         return String(markup).replace(
             /(<svg\b[^>]*>)/,
             '$1<style class="pcb-net-highlight-style">' +
-                PcbViewRenderer.#escapeHtml(rules) +
+                PcbViewRenderer.#escapeHtml(
+                    PcbNetHighlightCssRenderer.render()
+                ) +
                 '</style>'
         )
     }

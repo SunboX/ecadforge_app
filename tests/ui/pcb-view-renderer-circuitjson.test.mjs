@@ -135,7 +135,7 @@ test('PcbViewRenderer renders CircuitJSON PCB artwork and interaction metadata',
     assert.match(html, /data-viewport-interaction-gate="locked"/)
     assert.match(html, /data-viewport-interaction-unlock="true"/)
     assert.match(html, /\[data-layer='inner1'\]\s*\{\s*display: none/)
-    assert.match(html, /\[data-pcb-net-name='VCC'\]/)
+    assert.match(html, /\.pcb-net-highlight\s*\{/)
 })
 
 /**

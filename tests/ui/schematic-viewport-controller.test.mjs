@@ -112,6 +112,9 @@ class FakeSvgElement extends FakeEventTarget {
     /** @type {{ left: number, top: number, width: number, height: number }} */
     #rect
 
+    /** @type {number} */
+    #rectReadCount
+
     /**
      * @param {{
      * viewBox: string,
@@ -123,8 +126,17 @@ class FakeSvgElement extends FakeEventTarget {
         super()
         this.#attributes = new Map([['viewBox', options.viewBox]])
         this.#rect = options.rect
+        this.#rectReadCount = 0
         this.ownerDocument = options.ownerDocument || new FakeDocument()
         this.classList = new FakeClassList(['schematic-svg'])
+    }
+
+    /**
+     * Returns the number of client-box reads.
+     * @returns {number}
+     */
+    get rectReadCount() {
+        return this.#rectReadCount
     }
 
     /**
@@ -151,6 +163,7 @@ class FakeSvgElement extends FakeEventTarget {
      * @returns {{ left: number, top: number, width: number, height: number }}
      */
     getBoundingClientRect() {
+        this.#rectReadCount += 1
         return this.#rect
     }
 }
@@ -305,6 +318,42 @@ test('SchematicViewportController pans while the primary mouse button is held', 
     ownerDocument.dispatch('mouseup', { button: 0 })
 
     assert.equal(svg.classList.contains('is-panning'), false)
+
+    controller.dispose()
+})
+
+/**
+ * Verifies one stable client-box measurement is reused throughout a drag.
+ */
+test('SchematicViewportController measures viewport geometry once per drag', () => {
+    const ownerDocument = new FakeDocument()
+    const svg = new FakeSvgElement({
+        viewBox: '0 0 200 100',
+        rect: { left: 0, top: 0, width: 400, height: 200 },
+        ownerDocument
+    })
+    const controller = new SchematicViewportController(svg)
+
+    svg.dispatch('mousedown', {
+        button: 0,
+        clientX: 200,
+        clientY: 100,
+        preventDefault() {}
+    })
+    ownerDocument.dispatch('mousemove', {
+        buttons: 1,
+        clientX: 220,
+        clientY: 110,
+        preventDefault() {}
+    })
+    ownerDocument.dispatch('mousemove', {
+        buttons: 1,
+        clientX: 240,
+        clientY: 120,
+        preventDefault() {}
+    })
+
+    assert.equal(svg.rectReadCount, 1)
 
     controller.dispose()
 })

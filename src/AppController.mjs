@@ -420,9 +420,12 @@ export class AppController {
     async #loadGitHubUrl(url, options = {}) {
         await this.#loadGitHubSource(
             async () =>
-                Object.assign(await this.#githubSourceLoader.loadUrl(url), {
-                    shareUrl: url
-                }),
+                Object.assign(
+                    await this.#githubSourceLoader.loadUrl(url, options),
+                    {
+                        shareUrl: url
+                    }
+                ),
             options
         )
     }
@@ -437,10 +440,14 @@ export class AppController {
         await this.#loadGitHubSource(
             () =>
                 typeof this.#githubSourceLoader.loadGitHubPath === 'function'
-                    ? this.#githubSourceLoader.loadGitHubPath(githubPath, ref)
+                    ? this.#githubSourceLoader.loadGitHubPath(
+                          githubPath,
+                          ref,
+                          options
+                      )
                     : new GitHubSourceLoader({
                           fetcher: this.#fetcher
-                      }).loadGitHubPath(githubPath, ref),
+                      }).loadGitHubPath(githubPath, ref, options),
             options
         )
     }
@@ -495,11 +502,11 @@ export class AppController {
                 String(source.shareUrl || ''),
                 snapshotAfterLoad
             )
-            if (parsePlan.prioritized) {
-                this.#scheduleDeferredGitHubEntries(
-                    source,
-                    parsePlan.deferredEntries
-                )
+            const deferredEntries =
+                source.deferredSource ||
+                (parsePlan.prioritized ? parsePlan.deferredEntries : null)
+            if (deferredEntries) {
+                this.#scheduleDeferredGitHubEntries(source, deferredEntries)
             }
         } catch (error) {
             if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
@@ -514,13 +521,19 @@ export class AppController {
     /**
      * Schedules non-critical GitHub project parsing after first paint.
      * @param {object} source GitHub source descriptor.
-     * @param {{ name: string, buffer: ArrayBuffer }[]} entries Deferred entries.
+     * @param {{ name: string, buffer: ArrayBuffer }[] | Promise<object>} entries Deferred entries.
      * @returns {void}
      */
     #scheduleDeferredGitHubEntries(source, entries) {
-        if (!entries.length) return
-        const runDeferredParse = () =>
-            this.#loadDeferredGitHubEntries(source, entries)
+        if (!entries?.length && typeof entries?.then !== 'function') return
+        const runDeferredParse = async () => {
+            const deferred = await Promise.resolve(entries)
+            const batch = Array.isArray(deferred) ? deferred : deferred.entries
+            await this.#loadDeferredGitHubEntries(
+                Array.isArray(deferred) ? source : { ...source, ...deferred },
+                batch
+            )
+        }
         if (typeof globalThis.requestIdleCallback === 'function') {
             globalThis.requestIdleCallback(runDeferredParse, { timeout: 2000 })
             return
@@ -542,14 +555,17 @@ export class AppController {
             const parseResult = await this.#parseEntries(entries)
             if (!this.#lifecycle.isCurrent(lifecycleGeneration)) return
             GitHubSourceModelLinker.apply(parseResult, source, {
-                includeAssets: false
+                includeAssets: source.includeDeferredAssets === true
             })
             const filteredResult = GitHubParsePlan.filterNewDocuments(
                 parseResult,
                 this.#state.getSnapshot().documents
             )
-            if (!filteredResult.documents.length) return
+            const hasNewContent =
+                filteredResult.documents.length || filteredResult.assets.length
+            if (!hasNewContent) return
             this.#applyParseResult(filteredResult, {
+                allowEmptyDocuments: true,
                 preserveActiveDocument: true,
                 statusMessage: this.#translate('status.loadedGithub')
             })
@@ -680,14 +696,13 @@ export class AppController {
     /**
      * Applies parser assets and documents to state.
      * @param {{ documents: object[], assets: object[] }} parseResult Parse result.
-     * @param {{ adoptPreferredView?: boolean, preserveActiveDocument?: boolean, preferredDocument?: string, preferredView?: string, statusMessage?: string }} options
+     * @param {{ adoptPreferredView?: boolean, allowEmptyDocuments?: boolean, preserveActiveDocument?: boolean, preferredDocument?: string, preferredView?: string, statusMessage?: string }} options
      * @returns {{ activeView: string, locale: string, parseStatus: string, statusMessage: string, documents: { id: string, documentModel: object }[], activeDocumentId: string, sessionAssets: { name: string, relativePath: string, file: any, format: string }[], activeFileName: string, documentModel: object | null }}
      */
     #applyParseResult(parseResult, options = {}) {
         const parsedAssets = parseResult.assets.map((asset) =>
             AppControllerParserData.buildParsedAsset(asset)
         )
-
         if (parsedAssets.length) {
             this.#state.setValue(
                 'sessionAssets',
@@ -696,6 +711,10 @@ export class AppController {
                     parsedAssets
                 )
             )
+        }
+
+        if (!parseResult.documents.length && options.allowEmptyDocuments) {
+            return this.#state.getSnapshot()
         }
 
         return this.#handleParsedDocuments(parseResult.documents, options)

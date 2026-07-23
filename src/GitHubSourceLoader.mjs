@@ -31,34 +31,44 @@ export class GitHubSourceLoader {
     /**
      * Loads one supported hosted Git URL into parser entries.
      * @param {string} sourceUrl Raw, blob, or tree URL.
+     * @param {{ preferredDocument?: string }} [options] Optional deep-link priority.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
-    async loadUrl(sourceUrl) {
+    async loadUrl(sourceUrl, options = {}) {
         const treeSource = GitSourceUrlResolver.normalizeTreeUrl(sourceUrl)
         const resolved = treeSource
             ? await this.#resolveTreeSource(treeSource)
             : GitSourceUrlResolver.normalizeSourceUrl(sourceUrl)
 
-        return this.#buildLoadResult(resolved)
+        return this.#buildLoadResult(resolved, options)
     }
 
     /**
      * Loads one owner/repo/path query value from raw GitHub.
      * @param {string} githubPath Query path in owner/repo/path form.
      * @param {string} [ref] Optional git ref.
+     * @param {{ preferredDocument?: string }} [options] Optional deep-link priority.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
-    async loadGitHubPath(githubPath, ref = 'main') {
+    async loadGitHubPath(githubPath, ref = 'main', options = {}) {
         const resolved = GitHubSourceLoader.normalizeGitHubPath(githubPath, ref)
-        return this.#buildLoadResult(resolved)
+        return this.#buildLoadResult(resolved, options)
     }
 
     /**
      * Builds a complete source descriptor from one resolved source file.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[], companionAssetFiles?: { rawUrl: string, fileName: string, relativePath: string, format: string }[] }} resolved Resolved source file.
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[], projectManifestBuffer?: ArrayBuffer, companionAssetFiles?: { rawUrl: string, fileName: string, relativePath: string, format: string }[] }} resolved Resolved source file.
+     * @param {{ preferredDocument?: string }} [options] Deep-link priority.
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
-    async #buildLoadResult(resolved) {
+    async #buildLoadResult(resolved, options = {}) {
+        const prioritized = await this.#loadPrioritizedEntries(
+            resolved,
+            options.preferredDocument
+        )
+        if (prioritized) {
+            return this.#buildPrioritizedLoadResult(resolved, prioritized)
+        }
         const entries = await this.#loadEntries(resolved)
         const modelReferences =
             GitHubSourceLoader.#extractKicadModelReferences(entries)
@@ -81,6 +91,69 @@ export class GitHubSourceLoader {
             entries,
             assets,
             modelReferences
+        }
+    }
+
+    /**
+     * Builds an initial source and starts its non-critical project load.
+     * @param {object} resolved Resolved source.
+     * @param {{ entries: object[], deferredFiles: object[] }} prioritized Prioritized entries.
+     * @returns {object} Progressive source descriptor.
+     */
+    #buildPrioritizedLoadResult(resolved, prioritized) {
+        const modelReferences = GitHubSourceLoader.#extractKicadModelReferences(
+            prioritized.entries
+        )
+        const deferredSource = this.#loadDeferredSource(
+            resolved,
+            prioritized.entries,
+            prioritized.deferredFiles
+        )
+        void deferredSource.catch(() => {})
+
+        return {
+            sourceType: 'github',
+            formatFamily: resolved.formatFamily,
+            rawUrl: resolved.rawUrl,
+            boardUrl: GitHubSourceLoader.#resolveBoardUrl(resolved),
+            entries: prioritized.entries,
+            assets: [],
+            modelReferences,
+            deferredSource
+        }
+    }
+
+    /**
+     * Loads project siblings and companion assets after the preferred file.
+     * @param {object} resolved Resolved source.
+     * @param {{ name: string, buffer: ArrayBuffer }[]} initialEntries Initial entries.
+     * @param {object[]} deferredFiles Deferred source files.
+     * @returns {Promise<object>} Deferred source descriptor.
+     */
+    async #loadDeferredSource(resolved, initialEntries, deferredFiles) {
+        const deferredEntries = await this.#loadEntryFiles(deferredFiles)
+        const allEntries = [...initialEntries, ...deferredEntries]
+        const modelReferences =
+            GitHubSourceLoader.#extractKicadModelReferences(allEntries)
+        const assets = GitHubCompanionAssetLoader.mergeAssets([
+            ...(await this.#loadReferencedModelAssets(
+                resolved.rawUrl,
+                modelReferences
+            )),
+            ...(await GitHubCompanionAssetLoader.loadAssetFiles(
+                resolved.companionAssetFiles || [],
+                (rawUrl) => this.#fetchArrayBuffer(rawUrl)
+            ))
+        ])
+        const projectEntries = initialEntries.filter((entry) =>
+            GitHubSourceLoader.#isProjectEntry(entry.name)
+        )
+
+        return {
+            entries: [...projectEntries, ...deferredEntries],
+            assets,
+            modelReferences,
+            includeDeferredAssets: true
         }
     }
 
@@ -166,7 +239,7 @@ export class GitHubSourceLoader {
      * Resolves an Altium `.PrjPcb` manifest from a hosted folder, if present.
      * @param {{ provider: string, providerLabel: string, apiUrl: string }} treeSource Git host folder API source.
      * @param {object[]} entries Git host folder API entries.
-     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[], companionAssetFiles: { rawUrl: string, fileName: string, relativePath: string, format: string }[] } | null>}
+     * @returns {Promise<{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles: { rawUrl: string, fileName: string }[], projectManifestBuffer: ArrayBuffer, companionAssetFiles: { rawUrl: string, fileName: string, relativePath: string, format: string }[] } | null>}
      */
     async #resolveAltiumProject(treeSource, entries) {
         const projectEntries = (entries || [])
@@ -192,9 +265,9 @@ export class GitHubSourceLoader {
 
         const projectEntry = projectEntries[0]
         const projectRawUrl = String(projectEntry.rawUrl)
-        const manifestText = new TextDecoder().decode(
+        const projectManifestBuffer =
             await this.#fetchArrayBuffer(projectRawUrl)
-        )
+        const manifestText = new TextDecoder().decode(projectManifestBuffer)
         const projectFiles = GitHubAltiumProjectManifest.resolveSourceFiles(
             projectRawUrl,
             manifestText
@@ -222,6 +295,7 @@ export class GitHubSourceLoader {
             formatFamily: 'altium',
             fileType: 'prjpcb',
             projectFiles,
+            projectManifestBuffer,
             companionAssetFiles
         }
     }
@@ -247,16 +321,101 @@ export class GitHubSourceLoader {
 
     /**
      * Fetches every parser entry required by one resolved URL.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string }} resolved Resolved URL.
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectManifestBuffer?: ArrayBuffer }} resolved Resolved URL.
      * @returns {Promise<{ name: string, buffer: ArrayBuffer }[]>}
      */
     async #loadEntries(resolved) {
-        const resolvedFiles = GitHubSourceLoader.#resolveProjectFiles(resolved)
+        return this.#loadEntryFiles(
+            GitHubSourceLoader.#resolveProjectFiles(resolved)
+        )
+    }
+
+    /**
+     * Fetches one explicit source-file collection.
+     * @param {{ rawUrl: string, fileName: string, buffer?: ArrayBuffer }[]} files Source files.
+     * @returns {Promise<{ name: string, buffer: ArrayBuffer }[]>} Parser entries.
+     */
+    async #loadEntryFiles(files) {
         return Promise.all(
-            resolvedFiles.map(async (file) => ({
+            files.map(async (file) => ({
                 name: file.fileName,
-                buffer: await this.#fetchArrayBuffer(file.rawUrl)
+                buffer:
+                    file.buffer instanceof ArrayBuffer
+                        ? file.buffer
+                        : await this.#fetchArrayBuffer(file.rawUrl)
             }))
+        )
+    }
+
+    /**
+     * Loads only the requested project document and buffered project context.
+     * @param {object} resolved Resolved source.
+     * @param {unknown} preferredDocument Requested document path.
+     * @returns {Promise<{ entries: object[], deferredFiles: object[] } | null>} Prioritized load plan.
+     */
+    async #loadPrioritizedEntries(resolved, preferredDocument) {
+        const preferredPath =
+            GitHubSourceLoader.#normalizeEntryPath(preferredDocument)
+        if (!preferredPath) return null
+        const files = GitHubSourceLoader.#resolveProjectFiles(resolved)
+        if (files.length < 2) return null
+        const preferredFile = files.find((file) =>
+            GitHubSourceLoader.#entryPathsMatch(
+                GitHubSourceLoader.#normalizeEntryPath(file.fileName),
+                preferredPath
+            )
+        )
+        if (!preferredFile) return null
+        const initialFiles = files.filter(
+            (file) =>
+                file === preferredFile || file.buffer instanceof ArrayBuffer
+        )
+        const initialSet = new Set(initialFiles)
+
+        return {
+            entries: await this.#loadEntryFiles(initialFiles),
+            deferredFiles: files.filter((file) => !initialSet.has(file))
+        }
+    }
+
+    /**
+     * Returns true for project context entries required in deferred batches.
+     * @param {unknown} fileName Entry file name.
+     * @returns {boolean} Whether the entry is project context.
+     */
+    static #isProjectEntry(fileName) {
+        const role = EcadFormatRegistry.resolveNativeRole(fileName)
+        return (
+            role?.fileType === 'kicad_pro' ||
+            EcadFormatRegistry.resolveCompanionFormat(fileName) ===
+                'altium-project'
+        )
+    }
+
+    /**
+     * Normalizes one parser-entry path for deep-link matching.
+     * @param {unknown} value Path value.
+     * @returns {string} Normalized path.
+     */
+    static #normalizeEntryPath(value) {
+        return String(value || '')
+            .trim()
+            .replaceAll('\\', '/')
+            .replace(/^\/+/u, '')
+            .toLowerCase()
+    }
+
+    /**
+     * Matches a source entry against a full or suffix deep-link path.
+     * @param {string} entryPath Entry path.
+     * @param {string} preferredPath Preferred path.
+     * @returns {boolean} Whether the paths identify the same file.
+     */
+    static #entryPathsMatch(entryPath, preferredPath) {
+        return (
+            entryPath === preferredPath ||
+            entryPath.endsWith('/' + preferredPath) ||
+            preferredPath.endsWith('/' + entryPath)
         )
     }
 
@@ -462,8 +621,8 @@ export class GitHubSourceLoader {
 
     /**
      * Resolves the set of files required to parse one source.
-     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[] }} resolved Resolved URL.
-     * @returns {{ rawUrl: string, fileName: string }[]}
+     * @param {{ rawUrl: string, fileName: string, formatFamily: string, fileType: string, projectFiles?: { rawUrl: string, fileName: string }[], projectManifestBuffer?: ArrayBuffer }} resolved Resolved URL.
+     * @returns {{ rawUrl: string, fileName: string, buffer?: ArrayBuffer }[]}
      */
     static #resolveProjectFiles(resolved) {
         if (
@@ -473,7 +632,11 @@ export class GitHubSourceLoader {
             const sourceFiles = resolved.projectFiles
             return resolved.fileType === 'prjpcb'
                 ? [
-                      { rawUrl: resolved.rawUrl, fileName: resolved.fileName },
+                      {
+                          rawUrl: resolved.rawUrl,
+                          fileName: resolved.fileName,
+                          buffer: resolved.projectManifestBuffer
+                      },
                       ...sourceFiles
                   ]
                 : sourceFiles

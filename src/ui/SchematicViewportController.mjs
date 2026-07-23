@@ -17,7 +17,7 @@ export class SchematicViewportController {
     /** @type {{ x: number, y: number, width: number, height: number }} */
     #viewBox
 
-    /** @type {{ startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number } } | null} */
+    /** @type {{ startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number }, viewport: { left: number, top: number, scaleX: number, scaleY: number } } | null} */
     #dragState
 
     /** @type {{ mode: 'pan', startClientX: number, startClientY: number, originViewBox: { x: number, y: number, width: number, height: number } } | { mode: 'pinch', startDistance: number, anchorPoint: { x: number, y: number }, originViewBox: { x: number, y: number, width: number, height: number } } | null} */
@@ -258,12 +258,17 @@ export class SchematicViewportController {
     #handleMouseDown(event) {
         if (Number(event?.button) !== 0) return
 
+        const originViewBox = { ...this.#viewBox }
+        const viewport = this.#resolveViewportGeometry(originViewBox)
+        if (!viewport) return
+
         event?.preventDefault?.()
         this.#lockDocumentScroll()
         this.#dragState = {
             startClientX: Number(event?.clientX || 0),
             startClientY: Number(event?.clientY || 0),
-            originViewBox: { ...this.#viewBox }
+            originViewBox,
+            viewport
         }
         this.#svg.classList?.add('is-panning')
     }
@@ -281,19 +286,14 @@ export class SchematicViewportController {
             return
         }
 
-        const viewport = this.#resolveViewportGeometry(
-            this.#dragState.originViewBox
-        )
-        if (!viewport) return
-
         event?.preventDefault?.()
 
         const deltaX =
             (Number(event?.clientX || 0) - this.#dragState.startClientX) /
-            viewport.scaleX
+            this.#dragState.viewport.scaleX
         const deltaY =
             (Number(event?.clientY || 0) - this.#dragState.startClientY) /
-            viewport.scaleY
+            this.#dragState.viewport.scaleY
 
         this.#viewBox = {
             x: this.#dragState.originViewBox.x - deltaX,

@@ -11,6 +11,7 @@ import { AppViewPcbComponentScroller } from './AppViewPcbComponentScroller.mjs'
 import { AppViewPcbContentReuseModel } from './AppViewPcbContentReuseModel.mjs'
 import { AppViewPcbControllerBinder } from './AppViewPcbControllerBinder.mjs'
 import { AppViewPcbInteractionPreviewStore } from './AppViewPcbInteractionPreviewStore.mjs'
+import { AppViewPcbInteractionPreviewUpdater } from './AppViewPcbInteractionPreviewUpdater.mjs'
 import { AppViewGerberRenderSelectionStore } from './AppViewGerberRenderSelectionStore.mjs'
 import { AppViewPcbStylerTipController } from './AppViewPcbStylerTipController.mjs'
 import { AppViewScene3dPanelController } from './AppViewScene3dPanelController.mjs'
@@ -97,6 +98,9 @@ export class AppView {
     /** @type {AppViewPcbInteractionPreviewStore} */
     #pcbInteractionPreviewStore
 
+    /** @type {AppViewPcbInteractionPreviewUpdater} */
+    #pcbInteractionPreviewUpdater
+
     /** @type {((change: { documentModel?: object, sessionAssets?: object[] }) => void) | null} */
     #sessionAssetsResolvedCallback
 
@@ -156,6 +160,8 @@ export class AppView {
         this.#pcbNetSelectionCallback = null
         this.#pcbInteractionPreviewStore =
             new AppViewPcbInteractionPreviewStore()
+        this.#pcbInteractionPreviewUpdater =
+            new AppViewPcbInteractionPreviewUpdater(this.#translate)
         this.#sessionAssetsResolvedCallback = null
         this.#componentSelectionScrollGuard =
             new AppViewComponentSelectionScrollGuard()
@@ -693,7 +699,10 @@ export class AppView {
             this.#lastSnapshot
         )
         if (!this.#lastSnapshot) return
-        this.#renderDocumentRail(this.#lastSnapshot)
+        this.#pcbInteractionPreviewUpdater.update(
+            this.#documentRailNode,
+            this.#lastSnapshot
+        )
     }
 
     /**
