@@ -27,6 +27,11 @@ SEO landing pages, allows crawling through `/robots.txt`, and exposes
 `/sitemap.xml` for the app shell, public view URLs, and ECAD-specific landing
 pages.
 
+Static deployments route extensionless browser URLs to the app shell even when
+the URL also matches an asset directory. This keeps direct demo routes such as
+`/demo/kicad` and `/demo/altium` crawlable while their nested files continue to
+be served as static assets.
+
 Search Console setup is manual: verify `ecadforge.app`, submit
 `https://ecadforge.app/sitemap.xml`, inspect the main URLs, and request
 indexing after deployment.

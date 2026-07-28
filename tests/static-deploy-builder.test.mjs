@@ -354,3 +354,22 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         /RewriteCond %\{REQUEST_URI\} !\\\.\[\^\/\]\+\$/
     )
 })
+
+/**
+ * Verifies extensionless app routes still reach the SPA shell when their path
+ * also names a physical directory containing browser assets.
+ */
+test('Apache fallback serves app routes that match asset directories', async () => {
+    const { StaticDeployBuilder } = await importStaticDeployBuilder()
+    const htaccessSource = StaticDeployBuilder.buildApacheCachePolicy()
+    const extensionlessFallback = [
+        '    RewriteCond %{REQUEST_FILENAME} !-f',
+        '    RewriteCond %{REQUEST_URI} !\\.[^/]+$',
+        '    RewriteRule ^ index.html [L]'
+    ].join('\n')
+
+    assert.ok(
+        htaccessSource.includes(extensionlessFallback),
+        'extensionless directory routes should not be excluded from SPA fallback'
+    )
+})
