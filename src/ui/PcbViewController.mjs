@@ -9,6 +9,7 @@ import { PcbDiagnosticNavigationController } from './PcbDiagnosticNavigationCont
 import { PcbGerberRenderSelectionModel } from './PcbGerberRenderSelectionModel.mjs'
 import { PcbHitTestPointResolver } from './PcbHitTestPointResolver.mjs'
 import { PcbHoveredNetHighlighter } from './PcbHoveredNetHighlighter.mjs'
+import { PcbInteractionCandidatePolicy } from './PcbInteractionCandidatePolicy.mjs'
 import { PcbMeasurementActionHandler } from './PcbMeasurementActionHandler.mjs'
 import { PcbMeasurementInteractionController } from './PcbMeasurementInteractionController.mjs'
 import { PcbSelectionMarkerBoundsResolver } from './PcbSelectionMarkerBoundsResolver.mjs'
@@ -582,22 +583,20 @@ export class PcbViewController {
         const point = this.#resolveSvgPoint(svgNode, event)
         if (!point) return null
         const hitPoint = this.#resolveHitTestPoint(svgNode, point)
-
+        const candidates = PcbInteractionCandidatePolicy.filter(
+            EcadRendererService.hitTestPcb(this.#documentModel, hitPoint, {
+                side: this.#side,
+                hiddenLayers: this.#hiddenLayers,
+                hiddenObjects: this.#hiddenObjects,
+                renderMode: this.#gerberRenderMode,
+                layerId: this.#gerberLayerId,
+                layerIds: this.#gerberLayerIds
+            })
+        )
         return {
             svgNode,
             point: hitPoint,
-            candidates: EcadRendererService.hitTestPcb(
-                this.#documentModel,
-                hitPoint,
-                {
-                    side: this.#side,
-                    hiddenLayers: this.#hiddenLayers,
-                    hiddenObjects: this.#hiddenObjects,
-                    renderMode: this.#gerberRenderMode,
-                    layerId: this.#gerberLayerId,
-                    layerIds: this.#gerberLayerIds
-                }
-            )
+            candidates
         }
     }
     /**

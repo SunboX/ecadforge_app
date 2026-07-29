@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 import { PcbViewController } from '../../src/ui/PcbViewController.mjs'
 
 /**
@@ -459,4 +460,78 @@ test('PcbViewController selects mirrored bottom-side components at their visual 
     ])
 
     controller.dispose()
+})
+
+test('PcbViewController excludes pours and component-owned silkscreen from hover previews', () => {
+    const originalHitTestPcb = EcadRendererService.hitTestPcb
+    const content = new FakeContentNode(new FakeDocument())
+    const changes = []
+    EcadRendererService.hitTestPcb = () => [
+        { type: 'zone', netName: 'GND' },
+        { kind: 'silkscreen', componentKey: 'U1' }
+    ]
+
+    try {
+        const controller = new PcbViewController(
+            content,
+            PcbSelectionFixture.createOverlappingPcbDocument(),
+            {
+                documentId: 'doc-1',
+                onInteractionCandidatesChange: (change) => changes.push(change)
+            }
+        )
+        const svg = content.querySelector('.pcb-svg')
+        svg?.setAttribute('viewBox', '0 0 100 100')
+
+        content.movePcbBoard(200, 100)
+
+        assert.equal(changes.at(-1)?.source, 'hover')
+        assert.deepEqual(changes.at(-1)?.candidates, [])
+        assert.equal(changes.at(-1)?.selectedCandidate, null)
+        assert.equal(svg?.style.cursor, '')
+        controller.dispose()
+    } finally {
+        EcadRendererService.hitTestPcb = originalHitTestPcb
+    }
+})
+
+test('PcbViewController treats clicks on pours and silkscreen as empty board space', () => {
+    const originalHitTestPcb = EcadRendererService.hitTestPcb
+    const content = new FakeContentNode(new FakeDocument())
+    const interactions = []
+    const componentChanges = []
+    const netChanges = []
+    EcadRendererService.hitTestPcb = () => [
+        { type: 'zone', netName: 'GND' },
+        { kind: 'silkscreen', componentKey: 'U1' }
+    ]
+
+    try {
+        const controller = new PcbViewController(
+            content,
+            PcbSelectionFixture.createOverlappingPcbDocument(),
+            {
+                documentId: 'doc-1',
+                selectedComponentKey: 'U1',
+                selectedNetName: 'GND',
+                onInteractionCandidatesChange: (change) =>
+                    interactions.push(change),
+                onComponentSelectionChange: (change) =>
+                    componentChanges.push(change),
+                onNetSelectionChange: (change) => netChanges.push(change)
+            }
+        )
+        const svg = content.querySelector('.pcb-svg')
+        svg?.setAttribute('viewBox', '0 0 100 100')
+
+        content.clickPcbBoard(200, 100)
+
+        assert.deepEqual(interactions.at(-1)?.candidates, [])
+        assert.equal(interactions.at(-1)?.selectedCandidate, null)
+        assert.equal(componentChanges.at(-1)?.componentKey, '')
+        assert.equal(netChanges.at(-1)?.netName, '')
+        controller.dispose()
+    } finally {
+        EcadRendererService.hitTestPcb = originalHitTestPcb
+    }
 })

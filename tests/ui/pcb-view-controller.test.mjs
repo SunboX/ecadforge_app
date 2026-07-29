@@ -781,9 +781,9 @@ test('PcbViewController skips repeated font refreshes after side changes', async
 
 /**
  * Verifies PCB SVG clicks are converted into board-space hit-test requests and
- * overlap candidates are reported in selection-priority order.
+ * selectable overlap candidates are reported in selection-priority order.
  */
-test('PcbViewController reports prioritized PCB click candidates', () => {
+test('PcbViewController reports prioritized selectable PCB click candidates', () => {
     const fakeDocument = new FakeDocument()
     const content = new FakeContentNode(fakeDocument)
     const candidateChanges = []
@@ -806,7 +806,7 @@ test('PcbViewController reports prioritized PCB click candidates', () => {
     assert.equal(candidateChanges[0].documentId, 'doc-1')
     assert.deepEqual(
         candidateChanges[0].candidates.map((candidate) => candidate.type),
-        ['track', 'pad', 'via', 'component', 'zone']
+        ['track', 'pad', 'via', 'component']
     )
     assert.equal(candidateChanges[0].point.x, 50)
     assert.equal(candidateChanges[0].point.y, 50)
