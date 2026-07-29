@@ -639,6 +639,44 @@ test('PcbViewRenderer renders selected PCB component markers with visible contra
 })
 
 /**
+ * Verifies Altium rendered component ownership provides selection geometry
+ * when parsed primitives cannot provide usable bounds.
+ */
+test('PcbViewRenderer bounds Altium selection markers from rendered component geometry', () => {
+    const documentModel = createWrappedPcbDocument()
+    const originalRenderPcb = EcadRendererService.renderPcb
+    EcadRendererService.renderPcb = () =>
+        '<svg class="pcb-svg pcb-svg--altium pcb-svg--top" viewBox="0 0 1000 800">' +
+        '<g class="pcb-component" data-component-key="A1" transform="translate(500 250) rotate(0)"></g>' +
+        '<line data-component="A1" x1="320" y1="100" x2="680" y2="100"></line>' +
+        '<rect data-component="A1" x="300" y="120" width="400" height="360"></rect>' +
+        '<rect data-component="A10" x="0" y="0" width="1000" height="800"></rect>' +
+        '</svg>'
+
+    try {
+        const html = PcbViewRenderer.render(
+            documentModel,
+            'top',
+            null,
+            [],
+            [],
+            'A1'
+        )
+
+        assert.match(
+            html,
+            /pcb-component-selection-marker__fill" x="260" y="60" width="480" height="460"/
+        )
+        assert.doesNotMatch(
+            html,
+            /class="pcb-component-selection-marker"[^>]*transform=/
+        )
+    } finally {
+        EcadRendererService.renderPcb = originalRenderPcb
+    }
+})
+
+/**
  * Verifies rendered footprint geometry is used when parsed primitive
  * coordinates do not overlap the SVG viewBox.
  */

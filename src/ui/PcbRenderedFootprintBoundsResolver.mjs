@@ -12,15 +12,24 @@ export class PcbRenderedFootprintBoundsResolver {
      * @returns {{ x: number, y: number, width: number, height: number, rx: number } | null}
      */
     static resolveMarkerBounds(markup, selectedComponentKey, viewBox) {
-        const prefix = PcbRenderedFootprintBoundsResolver.#escapeRegExp(
-            PcbRenderedFootprintBoundsResolver.#escapeHtml(
-                'footprint:' + selectedComponentKey + ':'
+        const escapedComponentKey =
+            PcbRenderedFootprintBoundsResolver.#escapeRegExp(
+                PcbRenderedFootprintBoundsResolver.#escapeHtml(
+                    selectedComponentKey
+                )
             )
-        )
+        const footprintPrefix =
+            PcbRenderedFootprintBoundsResolver.#escapeRegExp(
+                PcbRenderedFootprintBoundsResolver.#escapeHtml(
+                    'footprint:' + selectedComponentKey + ':'
+                )
+            )
         const matcher = new RegExp(
-            '<([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\bdata-footprint-id="' +
-                prefix +
-                ')[^>]*>',
+            '<([a-zA-Z][\\w:-]*)\\b(?=[^>]*\\b(?:data-footprint-id="' +
+                footprintPrefix +
+                '|data-component="' +
+                escapedComponentKey +
+                '"))[^>]*>',
             'g'
         )
         let bounds = null
