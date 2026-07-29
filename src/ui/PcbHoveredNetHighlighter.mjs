@@ -1,3 +1,6 @@
+const NET_HIGHLIGHT_SELECTOR =
+    '[data-pcb-net-name]:is(.pcb-track, .pcb-segment, .pcb-arc, .pcb-pad, .pcb-via, .pcb-via-group, .pcb-via-drill)'
+
 /**
  * Applies lightweight DOM updates for PCB net hover feedback.
  */
@@ -49,7 +52,7 @@ export class PcbHoveredNetHighlighter {
         if (existing) return existing
 
         const nodesByNetName = new Map()
-        svgNode.querySelectorAll('[data-pcb-net-name]').forEach((node) => {
+        svgNode.querySelectorAll(NET_HIGHLIGHT_SELECTOR).forEach((node) => {
             const netName = String(
                 node.getAttribute?.('data-pcb-net-name') || ''
             ).trim()

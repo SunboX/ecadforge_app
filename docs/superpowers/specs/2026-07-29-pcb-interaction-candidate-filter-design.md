@@ -76,6 +76,13 @@ are:
 - `pad`;
 - `via`.
 
+Trace-shaped candidates must additionally belong to a copper layer.
+Format-owned indexes may use `track` for overlay, mechanical, mask, paste, or
+other documentation lines, so the primitive type alone is not sufficient.
+Known non-copper layer metadata such as `Top Overlay`, `Mechanical 13`, or
+`F.SilkS` rejects the candidate even when it carries stale component or net
+metadata.
+
 The policy evaluates the object kind before component or net metadata. This is
 required because component-owned silkscreen may legitimately contain a
 `componentKey`, but that metadata must not make the documentation primitive
@@ -102,6 +109,11 @@ All existing downstream behavior then consumes the same filtered list:
 The raw toolkit hit-test result remains unchanged for measurements and any
 other consumers.
 
+Net hover and selection highlighting independently indexes only trace or arc,
+pad, and via SVG primitives. This prevents stale `data-net` metadata on
+non-copper artwork or plane regions from coloring excluded geometry when a
+legitimate copper object on the same net is hovered.
+
 ## Testing
 
 Add focused policy tests using source-neutral candidate records. They must
@@ -112,6 +124,8 @@ prove:
 - zones, regions, ground planes, text, and silkscreen are rejected;
 - component-owned silkscreen is rejected despite its `componentKey`;
 - net-backed pours are rejected despite their `netName`;
+- track-shaped overlay, mechanical, and silkscreen artwork is rejected from
+  layer metadata while copper-layer tracks remain selectable;
 - Gerber copper lines, arcs, flashes, drills, and slots map to accepted
   semantics while Gerber regions and non-copper artwork are rejected;
 - invalid input returns an empty list without throwing.
@@ -121,13 +135,17 @@ Add controller regressions that observe emitted interaction changes:
 - hover sends only retained candidates and chooses its preview from them;
 - clicking a location whose hit list contains only a pour and silkscreen emits
   an empty candidate list and clears existing component and net selection;
+- stale net metadata highlights only trace, arc, pad, and via SVG primitives,
+  never planes or non-copper artwork;
 - the existing component, trace, pad, and via selection tests remain green.
 
 Tests and fixtures must not identify any provided board or screenshot source.
 
 ## Versioning and Verification
 
-Increment ECAD Forge from `1.13.12` to `1.13.13`. After the red-green cycle:
+The original implementation incremented ECAD Forge from `1.13.12` to
+`1.13.13`. The layer-semantics follow-up increments it to `1.13.14`. After the
+red-green cycle:
 
 1. Run the focused policy and controller tests.
 2. Run `npm test`.

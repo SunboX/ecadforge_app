@@ -79,6 +79,44 @@ test('PcbInteractionCandidatePolicy maps unambiguous Gerber fabrication primitiv
     )
 })
 
+test('PcbInteractionCandidatePolicy rejects track-shaped non-copper artwork', () => {
+    const copperTrack = {
+        type: 'track',
+        layerKeys: ['Top Layer'],
+        netName: 'SIG'
+    }
+    const internalTrack = {
+        type: 'track',
+        layerKeys: ['Internal Plane 2'],
+        netName: 'POWER'
+    }
+
+    assert.deepEqual(
+        PcbInteractionCandidatePolicy.filter([
+            {
+                type: 'track',
+                layerKeys: ['Top Overlay'],
+                componentKey: 'U1',
+                netName: 'STALE_NET'
+            },
+            {
+                type: 'track',
+                layerKeys: ['Mechanical 13'],
+                componentKey: 'U1',
+                netName: 'STALE_NET'
+            },
+            {
+                type: 'track',
+                layerKeys: ['F.SilkS'],
+                componentKey: 'U2'
+            },
+            copperTrack,
+            internalTrack
+        ]),
+        [copperTrack, internalTrack]
+    )
+})
+
 test('PcbInteractionCandidatePolicy rejects invalid candidate input', () => {
     assert.deepEqual(PcbInteractionCandidatePolicy.filter(), [])
     assert.deepEqual(

@@ -462,13 +462,24 @@ test('PcbViewController selects mirrored bottom-side components at their visual 
     controller.dispose()
 })
 
-test('PcbViewController excludes pours and component-owned silkscreen from hover previews', () => {
+test('PcbViewController excludes pours and non-copper tracks from hover previews', () => {
     const originalHitTestPcb = EcadRendererService.hitTestPcb
     const content = new FakeContentNode(new FakeDocument())
     const changes = []
     EcadRendererService.hitTestPcb = () => [
         { type: 'zone', netName: 'GND' },
-        { kind: 'silkscreen', componentKey: 'U1' }
+        {
+            type: 'track',
+            layerKeys: ['Top Overlay'],
+            componentKey: 'U1',
+            netName: 'STALE_NET'
+        },
+        {
+            type: 'track',
+            layerKeys: ['Mechanical 13'],
+            componentKey: 'U1',
+            netName: 'STALE_NET'
+        }
     ]
 
     try {
@@ -495,7 +506,7 @@ test('PcbViewController excludes pours and component-owned silkscreen from hover
     }
 })
 
-test('PcbViewController treats clicks on pours and silkscreen as empty board space', () => {
+test('PcbViewController treats clicks on pours and non-copper tracks as empty board space', () => {
     const originalHitTestPcb = EcadRendererService.hitTestPcb
     const content = new FakeContentNode(new FakeDocument())
     const interactions = []
@@ -503,7 +514,18 @@ test('PcbViewController treats clicks on pours and silkscreen as empty board spa
     const netChanges = []
     EcadRendererService.hitTestPcb = () => [
         { type: 'zone', netName: 'GND' },
-        { kind: 'silkscreen', componentKey: 'U1' }
+        {
+            type: 'track',
+            layerKeys: ['Top Overlay'],
+            componentKey: 'U1',
+            netName: 'STALE_NET'
+        },
+        {
+            type: 'track',
+            layerKeys: ['Mechanical 13'],
+            componentKey: 'U1',
+            netName: 'STALE_NET'
+        }
     ]
 
     try {

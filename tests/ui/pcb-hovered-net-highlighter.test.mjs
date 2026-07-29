@@ -39,10 +39,12 @@ class FakeClassList {
 class FakeNetPrimitive {
     /**
      * @param {string} netName Net name.
+     * @param {string[]} [classNames] Semantic SVG class names.
      */
-    constructor(netName) {
+    constructor(netName, classNames = ['pcb-track']) {
         this.netName = netName
         this.classList = new FakeClassList()
+        classNames.forEach((className) => this.classList.add(className))
     }
 
     /**
@@ -70,7 +72,20 @@ class FakeSvg {
      * @returns {FakeNetPrimitive[]}
      */
     querySelectorAll(selector) {
-        return selector === '[data-pcb-net-name]' ? this.primitives : []
+        if (selector === '[data-pcb-net-name]') return this.primitives
+        return selector.includes('[data-pcb-net-name]:is(')
+            ? this.primitives.filter((primitive) =>
+                  [
+                      'pcb-track',
+                      'pcb-segment',
+                      'pcb-arc',
+                      'pcb-pad',
+                      'pcb-via',
+                      'pcb-via-group',
+                      'pcb-via-drill'
+                  ].some((className) => primitive.classList.contains(className))
+              )
+            : []
     }
 }
 
@@ -106,4 +121,27 @@ test('PcbHoveredNetHighlighter toggles only the previous and current net primiti
     assert.equal(PcbHoveredNetHighlighter.update(content, '', 'GND'), true)
     assert.equal(vcc.classList.contains('pcb-net-highlight'), false)
     assert.equal(gnd.classList.contains('pcb-net-highlight'), true)
+})
+
+test('PcbHoveredNetHighlighter excludes planes and non-copper artwork carrying stale net metadata', () => {
+    const copperTrack = new FakeNetPrimitive('SIG', ['pcb-track'])
+    const pad = new FakeNetPrimitive('SIG', ['pcb-pad'])
+    const via = new FakeNetPrimitive('SIG', ['pcb-via'])
+    const plane = new FakeNetPrimitive('SIG', ['pcb-region'])
+    const overlay = new FakeNetPrimitive('SIG', ['pcb-footprint-track'])
+    const mechanical = new FakeNetPrimitive('SIG', [
+        'pcb-detail-track',
+        'pcb-detail-track--mechanical'
+    ])
+    const content = new FakeContentNode(
+        new FakeSvg([copperTrack, pad, via, plane, overlay, mechanical])
+    )
+
+    assert.equal(PcbHoveredNetHighlighter.update(content, '', 'SIG'), true)
+    assert.equal(copperTrack.classList.contains('pcb-net-highlight'), true)
+    assert.equal(pad.classList.contains('pcb-net-highlight'), true)
+    assert.equal(via.classList.contains('pcb-net-highlight'), true)
+    assert.equal(plane.classList.contains('pcb-net-highlight'), false)
+    assert.equal(overlay.classList.contains('pcb-net-highlight'), false)
+    assert.equal(mechanical.classList.contains('pcb-net-highlight'), false)
 })

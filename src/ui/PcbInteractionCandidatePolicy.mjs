@@ -14,6 +14,9 @@ const SELECTABLE_KINDS = new Set([
 
 const GERBER_COPPER_KINDS = new Set(['arc', 'flash', 'line'])
 const GERBER_VIA_KINDS = new Set(['drill', 'slot'])
+const TRACE_KINDS = new Set(['pcb-trace', 'trace', 'track'])
+const NON_COPPER_TRACE_LAYER_PATTERN =
+    /(?:^|[^a-z0-9])(assembly|comment|courtyard|dimension|drawing|drill|dwg|edge|fab|keepout|legend|margin|mask|mechanical|overlay|paste|silk|silks|silkscreen|solder|user)(?:[^a-z0-9]|$)/
 
 /**
  * Filters cross-format PCB interaction candidates by selectable semantics.
@@ -41,10 +44,47 @@ export class PcbInteractionCandidatePolicy {
         const kind = PcbInteractionCandidatePolicy.#token(
             candidate.kind ?? candidate.type ?? candidate.role
         )
-        if (SELECTABLE_KINDS.has(kind)) return true
+        if (SELECTABLE_KINDS.has(kind)) {
+            return (
+                !TRACE_KINDS.has(kind) ||
+                PcbInteractionCandidatePolicy.#isSelectableTraceLayer(candidate)
+            )
+        }
         return PcbInteractionCandidatePolicy.#isSelectableGerber(
             candidate,
             kind
+        )
+    }
+
+    /**
+     * Returns whether a trace-shaped candidate belongs to copper rather than
+     * overlay, mechanical, mask, or other board artwork.
+     * @param {object} candidate Trace-shaped hit-test candidate.
+     * @returns {boolean}
+     */
+    static #isSelectableTraceLayer(candidate) {
+        const source =
+            candidate.source && typeof candidate.source === 'object'
+                ? candidate.source
+                : {}
+        const layerLabels = [
+            ...(Array.isArray(candidate.layerKeys) ? candidate.layerKeys : []),
+            candidate.layer,
+            candidate.layerName,
+            candidate.layerDisplayName,
+            source.layer,
+            source.layerName,
+            source.layerDisplayName
+        ]
+            .map((value) =>
+                String(value || '')
+                    .trim()
+                    .toLowerCase()
+            )
+            .filter(Boolean)
+
+        return !layerLabels.some((layerLabel) =>
+            NON_COPPER_TRACE_LAYER_PATTERN.test(layerLabel)
         )
     }
 
