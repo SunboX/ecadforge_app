@@ -147,6 +147,51 @@ test('Altium PCB renderer keeps unowned overlay text visible', () => {
 })
 
 /**
+ * Verifies the installed Altium side resolver excludes fabrication primitives
+ * authored for the opposite board side.
+ */
+test('Altium PCB renderer filters opposite-side fabrication details', () => {
+    const documentModel = createPcbDocument({
+        primitiveLayers: [
+            { name: 'Top Overlay', layerId: 33 },
+            { name: 'Bottom Overlay', layerId: 34 }
+        ],
+        tracks: [
+            {
+                x1: 10,
+                y1: 10,
+                x2: 20,
+                y2: 10,
+                width: 3,
+                layerId: 33,
+                layerCode: 33
+            },
+            {
+                x1: 70,
+                y1: 70,
+                x2: 80,
+                y2: 70,
+                width: 3,
+                layerId: 34,
+                layerCode: 34
+            }
+        ]
+    })
+
+    const topMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'top'
+    })
+    const bottomMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'bottom'
+    })
+
+    assert.match(topMarkup, /data-layer-id="33"/)
+    assert.doesNotMatch(topMarkup, /data-layer-id="34"/)
+    assert.match(bottomMarkup, /data-layer-id="34"/)
+    assert.doesNotMatch(bottomMarkup, /data-layer-id="33"/)
+})
+
+/**
  * Verifies Altium PCB output opts into the same app-level PCB palette used by
  * the KiCad renderer.
  */

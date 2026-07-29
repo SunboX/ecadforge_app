@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const root = new URL('../', import.meta.url)
 const TARGET_DEPENDENCIES = {
-    'altium-toolkit': '^1.4.2',
+    'altium-toolkit': '^1.4.3',
     'circuitjson-toolkit': '^1.4.2',
     'gerber-toolkit': '^0.4.4',
     'kicad-toolkit': '^1.3.2',
