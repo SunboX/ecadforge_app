@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { EcadParserService } from '../../src/core/ecad/EcadParserService.mjs'
 import { EcadRendererService } from '../../src/core/ecad/EcadRendererService.mjs'
 
 /**
@@ -89,3 +90,59 @@ test('ECAD renderer includes opposite-side KiCad copper pads on both views', () 
         assert.equal(markup.match(/class="pcb-pad"/gu)?.length, 3)
     }
 })
+
+test('ECAD renderer retains rotated KiCad pad apertures on both board views', () => {
+    const source = new TextEncoder().encode(rotatedFrontPadFixture())
+    const documentModel = EcadParserService.parseArrayBuffer(
+        'rotated-front-pad-fake.kicad_pcb',
+        source.buffer
+    )
+
+    for (const side of ['front', 'back']) {
+        const markup = EcadRendererService.renderPcb(documentModel, { side })
+
+        assert.match(
+            markup,
+            /<rect class="pcb-pad"(?=[^>]*data-pad-number="1")[^>]*transform="rotate\(270 /u
+        )
+    }
+})
+
+/**
+ * Builds a source-neutral KiCad fixture with board-oriented pad angles.
+ * @returns {string}
+ */
+function rotatedFrontPadFixture() {
+    return `(kicad_pcb
+        (version 20240108)
+        (generator "ecad-forge-test")
+        (general (thickness 1.6))
+        (layers
+            (0 "F.Cu" signal)
+            (31 "B.Cu" signal)
+            (37 "F.SilkS" user "f.silkscreen")
+            (44 "Edge.Cuts" user)
+        )
+        (footprint "Fake:Rotated_Pair"
+            (layer "F.Cu")
+            (at 10 20 -90)
+            (property "Reference" "X1"
+                (at 0 -2 270)
+                (layer "F.SilkS")
+                (effects (font (size 1 1) (thickness 0.15)))
+            )
+            (pad "1" smd roundrect
+                (at -1 0 270)
+                (size 0.6 1.4)
+                (layers "F.Cu" "F.Paste" "F.Mask")
+                (roundrect_rratio 0.25)
+            )
+            (pad "2" smd roundrect
+                (at 1 0 270)
+                (size 0.6 1.4)
+                (layers "F.Cu" "F.Paste" "F.Mask")
+                (roundrect_rratio 0.25)
+            )
+        )
+    )`
+}

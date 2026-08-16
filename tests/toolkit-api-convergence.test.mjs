@@ -7,7 +7,7 @@ const TARGET_DEPENDENCIES = {
     'altium-toolkit': '^1.4.3',
     'circuitjson-toolkit': '^1.4.2',
     'gerber-toolkit': '^0.4.4',
-    'kicad-toolkit': '^1.3.3',
+    'kicad-toolkit': '^1.3.4',
     'pcb-scene3d-viewer': '^1.3.2'
 }
 
@@ -213,7 +213,7 @@ test('app pins the converged toolkit release family', async () => {
     const pkg = JSON.parse(
         await readFile(new URL('package.json', root), 'utf8')
     )
-    assert.equal(pkg.version, '1.13.16')
+    assert.equal(pkg.version, '1.13.17')
     for (const [name, version] of Object.entries(TARGET_DEPENDENCIES)) {
         assert.equal(pkg.dependencies[name], version, name)
     }
