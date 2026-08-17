@@ -662,6 +662,27 @@ test('viewer stylesheet maps bottom-side PCB surface output to bottom layer colo
 })
 
 /**
+ * Verifies Altium pads authored on the opposite surface use the same
+ * subsurface copper color as their matching tracks.
+ */
+test('viewer stylesheet colors opposite-side Altium pads as subsurface copper', async () => {
+    const css = await readStylesheet('25-kicad-pcb.css')
+
+    assert.match(
+        css,
+        /\.pcb-svg--altium\.pcb-svg--top[\s\S]*?\.pcb-pad\[data-layer-id='32'\][\s\S]*?\.pcb-pad__ring/u
+    )
+    assert.match(
+        css,
+        /\.pcb-svg--altium\.pcb-svg--bottom[\s\S]*?\.pcb-pad\[data-layer-id='1'\][\s\S]*?\.pcb-pad__ring/u
+    )
+    assert.match(
+        css,
+        /fill:\s*var\(--pcb-subsurface-track-color\);/u
+    )
+})
+
+/**
  * Verifies KiCad vias use copper coloring rather than a large white annular
  * fill that overpowers dense PCB views.
  */

@@ -601,7 +601,10 @@ export class EcadRendererService {
     static #renderNormalizedPcb(documentModel, side, formatClass) {
         const sideResolvedModel = prepareAltiumPcbSideResolvedRenderModel(
             documentModel,
-            { side: side === 'bottom' ? 'back' : 'front' }
+            {
+                includeOppositeCopper: true,
+                side: side === 'bottom' ? 'back' : 'front'
+            }
         )
         const renderModel =
             side === 'bottom'

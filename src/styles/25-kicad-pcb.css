@@ -4,6 +4,7 @@
     --pcb-subsurface-fill: rgba(15, 116, 108, 0.07);
     --pcb-subsurface-track-color: rgba(15, 116, 108, 0.56);
     --pcb-copper-solid-fill: rgba(196, 118, 70, 0.68);
+    --pcb-through-hole-pad-fill: rgba(196, 118, 70, 0.68);
     --pcb-footprint-fill: rgba(66, 93, 112, 0.1);
     --pcb-footprint-track-color: rgba(66, 93, 112, 0.72);
 }
@@ -14,6 +15,19 @@
     --pcb-subsurface-fill: rgba(199, 109, 61, 0.12);
     --pcb-subsurface-track-color: rgba(199, 82, 45, 0.92);
     --pcb-copper-solid-fill: rgba(15, 116, 108, 0.56);
+}
+
+.pcb-svg--altium.pcb-svg--top
+    .pcb-pad[data-layer-id='32']
+    .pcb-pad__ring,
+.pcb-svg--altium.pcb-svg--bottom
+    .pcb-pad[data-layer-id='1']
+    .pcb-pad__ring {
+    fill: var(--pcb-subsurface-track-color);
+}
+
+.pcb-svg--altium .pcb-pad--through-hole .pcb-pad__ring {
+    fill: var(--pcb-through-hole-pad-fill);
 }
 
 .pcb-svg--app-palette.pcb-svg--gerber {
