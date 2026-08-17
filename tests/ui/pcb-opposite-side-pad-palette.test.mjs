@@ -20,15 +20,17 @@ async function readPcbPaletteStylesheet() {
  */
 test('viewer stylesheet fades opposite-side SMD pads with their traces', async () => {
     const css = await readPcbPaletteStylesheet()
+    const altiumRules =
+        css.match(
+            /\.pcb-svg--altium \.pcb-copper--subsurface \.pcb-pad--smd \.pcb-pad__ring\s*\{(?<rules>[\s\S]*?)\}/u
+        )?.groups?.rules || ''
 
     assert.match(
         css,
-        /\.pcb-svg--altium\.pcb-svg--top[\s\S]*?\.pcb-pad--smd\[data-layer-id='32'\][\s\S]*?\.pcb-pad__ring/u
+        /\.pcb-svg--altium \.pcb-copper--subsurface \.pcb-pad--smd \.pcb-pad__ring/u
     )
-    assert.match(
-        css,
-        /\.pcb-svg--altium\.pcb-svg--bottom[\s\S]*?\.pcb-pad--smd\[data-layer-id='1'\][\s\S]*?\.pcb-pad__ring/u
-    )
+    assert.match(altiumRules, /fill:\s*var\(--pcb-subsurface-track-color\);/u)
+    assert.doesNotMatch(altiumRules, /opacity:/u)
     assert.match(
         css,
         /\.pcb-svg--kicad\.pcb-svg--top[\s\S]*?\.pcb-pad\[data-pad-type='smd'\]\[data-layer-id='31'\]/u
@@ -37,16 +39,9 @@ test('viewer stylesheet fades opposite-side SMD pads with their traces', async (
         css,
         /\.pcb-svg--kicad\.pcb-svg--bottom[\s\S]*?\.pcb-pad\[data-pad-type='smd'\]\[data-layer-id='0'\]/u
     )
-    assert.match(
-        css,
-        /fill:\s*var\(--pcb-subsurface-track-color\);/u
-    )
-    assert.match(css, /--pcb-opposite-pad-opacity:\s*0\.45;/u)
+    assert.match(css, /fill:\s*var\(--pcb-subsurface-track-color\);/u)
     assert.match(css, /--pcb-opposite-pad-opacity:\s*0\.78;/u)
-    assert.match(
-        css,
-        /opacity:\s*var\(--pcb-opposite-pad-opacity\);/u
-    )
+    assert.match(css, /opacity:\s*var\(--pcb-opposite-pad-opacity\);/u)
     assert.match(
         css,
         /\.pcb-svg--kicad\.pcb-svg--top[\s\S]*?line\.pcb-segment\[data-layer='B\.Cu'\]/u

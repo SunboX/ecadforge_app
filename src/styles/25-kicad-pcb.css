@@ -17,26 +17,15 @@
     --pcb-copper-solid-fill: rgba(15, 116, 108, 0.56);
 }
 
-.pcb-svg--altium {
-    --pcb-opposite-pad-opacity: 0.45;
-}
-
 .pcb-svg--kicad {
     --pcb-opposite-pad-opacity: 0.78;
 }
 
-.pcb-svg--altium.pcb-svg--top
-    .pcb-pad--smd[data-layer-id='32']
-    .pcb-pad__ring,
-.pcb-svg--altium.pcb-svg--bottom
-    .pcb-pad--smd[data-layer-id='1']
-    .pcb-pad__ring {
+.pcb-svg--altium .pcb-copper--subsurface .pcb-pad--smd .pcb-pad__ring {
     fill: var(--pcb-subsurface-track-color);
-    opacity: var(--pcb-opposite-pad-opacity);
 }
 
-.pcb-svg--kicad.pcb-svg--top
-    .pcb-pad[data-pad-type='smd'][data-layer-id='31'],
+.pcb-svg--kicad.pcb-svg--top .pcb-pad[data-pad-type='smd'][data-layer-id='31'],
 .pcb-svg--kicad.pcb-svg--bottom
     .pcb-pad[data-pad-type='smd'][data-layer-id='0'] {
     fill: var(--pcb-subsurface-track-color);
