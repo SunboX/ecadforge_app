@@ -15,27 +15,38 @@ async function readPcbPaletteStylesheet() {
 }
 
 /**
- * Verifies plated Altium through-hole pads keep the same copper annulus on
- * both board sides instead of inheriting the selected surface palette.
+ * Verifies plated through-hole pads remain full-strength and inherit the
+ * active surface trace color in both supported source formats.
  */
-test('Altium through-hole pad rings use side-neutral copper', async () => {
+test('through-hole pad rings use active-side trace copper', async () => {
     const css = await readPcbPaletteStylesheet()
     const paletteRules =
         css.match(
             /\.pcb-svg--app-palette\s*\{(?<rules>[\s\S]*?)\}/
         )?.groups?.rules || ''
-    const bottomRules =
-        css.match(
-            /\.pcb-svg--app-palette\.pcb-svg--bottom\s*\{(?<rules>[\s\S]*?)\}/
-        )?.groups?.rules || ''
 
     assert.match(
         paletteRules,
-        /--pcb-through-hole-pad-fill:\s*rgba\(196,\s*118,\s*70,\s*0\.68\);/
+        /--pcb-through-hole-pad-fill:\s*var\(--pcb-surface-track-color\);/
     )
-    assert.doesNotMatch(bottomRules, /--pcb-through-hole-pad-fill:/)
     assert.match(
         css,
         /\.pcb-svg--altium \.pcb-pad--through-hole \.pcb-pad__ring\s*\{[\s\S]*?fill:\s*var\(--pcb-through-hole-pad-fill\);[\s\S]*?\}/u
     )
+    assert.match(
+        css,
+        /\.pcb-svg--kicad \.pcb-pad\[data-pad-type='thru_hole'\]\s*\{[\s\S]*?fill:\s*var\(--pcb-surface-track-color\);[\s\S]*?stroke:\s*var\(--pcb-surface-track-color\);[\s\S]*?opacity:\s*0\.96;[\s\S]*?\}/u
+    )
+
+    const altiumThroughHoleRules =
+        css.match(
+            /\.pcb-svg--altium \.pcb-pad--through-hole \.pcb-pad__ring\s*\{(?<rules>[\s\S]*?)\}/u
+        )?.groups?.rules || ''
+    const kicadThroughHoleRules =
+        css.match(
+            /\.pcb-svg--kicad \.pcb-pad\[data-pad-type='thru_hole'\]\s*\{(?<rules>[\s\S]*?)\}/u
+        )?.groups?.rules || ''
+
+    assert.doesNotMatch(altiumThroughHoleRules, /--pcb-opposite-pad-opacity/)
+    assert.doesNotMatch(kicadThroughHoleRules, /--pcb-opposite-pad-opacity/)
 })

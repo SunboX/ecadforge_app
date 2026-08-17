@@ -588,7 +588,8 @@ export class EcadRendererService {
         return EcadRendererService.#withPcbSvgClasses(
             markup,
             'pcb-svg--app-palette',
-            'pcb-svg--kicad'
+            'pcb-svg--kicad',
+            side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
         )
     }
     /**

@@ -78,11 +78,14 @@ test('ECAD renderer includes opposite-side KiCad copper pads on both views', () 
         bom: []
     }
     const topMarkup = EcadRendererService.renderPcb(kicadPcbDocument, {
-        side: 'front'
+        side: 'top'
     })
     const bottomMarkup = EcadRendererService.renderPcb(kicadPcbDocument, {
-        side: 'back'
+        side: 'bottom'
     })
+
+    assert.match(topMarkup, /class="[^"]*\bpcb-svg--top\b/u)
+    assert.match(bottomMarkup, /class="[^"]*\bpcb-svg--bottom\b/u)
 
     for (const markup of [topMarkup, bottomMarkup]) {
         assert.match(markup, /data-pad-number="front-pad"/)
@@ -98,10 +101,10 @@ test('ECAD renderer includes opposite-side KiCad copper pads on both views', () 
 test('ECAD renderer includes opposite-side Altium copper pads on both views', () => {
     const documentModel = altiumLayeredPadFixture()
     const topMarkup = EcadRendererService.renderPcb(documentModel, {
-        side: 'front'
+        side: 'top'
     })
     const bottomMarkup = EcadRendererService.renderPcb(documentModel, {
-        side: 'back'
+        side: 'bottom'
     })
 
     for (const markup of [topMarkup, bottomMarkup]) {
@@ -124,7 +127,7 @@ test('ECAD renderer retains rotated KiCad pad apertures on both board views', ()
         source.buffer
     )
 
-    for (const side of ['front', 'back']) {
+    for (const side of ['top', 'bottom']) {
         const markup = EcadRendererService.renderPcb(documentModel, { side })
 
         assert.match(
