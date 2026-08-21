@@ -29,6 +29,18 @@ test('browser entry loads analytics only after startup content is ready', async 
     )
 })
 
+test('browser entry publishes bounded runtime and render graph context', async () => {
+    const main = await readFile(new URL('src/main.mjs', root), 'utf8')
+
+    assert.match(main, /state\.subscribe/)
+    assert.match(main, /analytics\.setContext/)
+    assert.match(main, /view\.getRenderStatistics/)
+    assert.match(main, /appVersion:\s*loadedVersion/)
+    assert.match(main, /runtimePhase:\s*snapshot\.parseStatus/)
+    assert.match(main, /onLoad:\s*\(\)\s*=>\s*analytics\.syncContext\(\)/)
+    assert.doesNotMatch(main, /activeFileName/)
+})
+
 test('getting started docs include analytics site registration values', async () => {
     const docs = await readFile(
         new URL('docs/getting-started.md', root),

@@ -115,3 +115,18 @@ test('AnalyticsTrackerLoader does not append duplicate tracker scripts', () => {
     assert.equal(didLoadAgain, false)
     assert.equal(documentObject.head.children.length, 1)
 })
+
+test('AnalyticsTrackerLoader invokes the optional tracker load callback', () => {
+    const documentObject = new FakeDocument()
+    let loadCount = 0
+
+    const didLoad = AnalyticsTrackerLoader.loadBrowserTracker(
+        documentObject,
+        'https://ecadforge.app/',
+        { onLoad: () => (loadCount += 1) }
+    )
+    documentObject.head.children[0].onload()
+
+    assert.equal(didLoad, true)
+    assert.equal(loadCount, 1)
+})

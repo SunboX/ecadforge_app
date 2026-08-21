@@ -11,11 +11,13 @@ export class AnalyticsTrackerLoader {
      * production-key analytics.
      * @param {Document} [documentObject] Browser document.
      * @param {Location | URL | string} [locationObject] Browser location.
+     * @param {{ onLoad?: () => void }} [options] Optional load callback.
      * @returns {boolean}
      */
     static loadBrowserTracker(
         documentObject = globalThis.document,
-        locationObject = globalThis.location
+        locationObject = globalThis.location,
+        options = {}
     ) {
         if (
             !documentObject?.head ||
@@ -27,7 +29,7 @@ export class AnalyticsTrackerLoader {
         }
 
         documentObject.head.appendChild(
-            AnalyticsTrackerLoader.#createTrackerScript(documentObject)
+            AnalyticsTrackerLoader.#createTrackerScript(documentObject, options)
         )
         return true
     }
@@ -52,15 +54,19 @@ export class AnalyticsTrackerLoader {
     /**
      * Creates the external tracker script node.
      * @param {Document} documentObject Browser document.
+     * @param {{ onLoad?: () => void }} options Optional script callback.
      * @returns {HTMLScriptElement}
      */
-    static #createTrackerScript(documentObject) {
+    static #createTrackerScript(documentObject, options) {
         const script = documentObject.createElement('script')
         script.async = false
         script.defer = true
         script.src = AnalyticsTrackerLoader.#trackerUrl
         script.dataset.analyticsTracker = 'ecadforge'
         script.dataset.site = AnalyticsTrackerLoader.#siteKey
+        if (typeof options.onLoad === 'function') {
+            script.onload = options.onLoad
+        }
         return script
     }
 

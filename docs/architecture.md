@@ -5,12 +5,12 @@
 - `src/index.html`: static viewer shell with file intake, tabs, and render anchors
 - `src/main.mjs`: bootstrap and dependency wiring
 - `src/AppController.mjs`: file intake, worker coordination, state transitions
-- `src/AnalyticsTrackerLoader.mjs`: deployed-origin analytics tracker loader that disables production-key analytics on local/private dev origins
+- `src/AnalyticsTrackerLoader.mjs`: deployed-origin analytics tracker loader that disables production-key analytics on local/private dev origins and synchronizes retained host context when the remote tracker loads
 - `src/StartupSourceResolver.mjs`: route and query-string startup source detection
 - `src/DemoProjectRegistry.mjs`: bundled demo metadata, source URLs, and license metadata
 - `src/GitHubSourceLoader.mjs`: GitHub/GitLab raw/blob/tree URL loading, folder discovery, browser fetch handling, Gerber/CircuitJSON direct-source handling, and project-local KiCad model asset discovery
 - `src/GitSourceUrlResolver.mjs`: Git host URL normalization and folder API entry resolution for GitHub and GitLab sources
-- `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation, view, and WebMCP method-usage events without file names, raw URLs, contents, or WebMCP payload data
+- `src/PrivacySafeAnalytics.mjs`: event wrapper that emits activation, view, and WebMCP method-usage events without file names, raw URLs, contents, or WebMCP payload data; it also publishes allowlisted version, runtime phase, format/view, document-count, and render-graph statistics for later error recordings
 - `src/core/AppState.mjs`: normalized view state container and explicit
   changed-root publisher for self-adjusting render propagation
 - `src/core/ecad/*.mjs`: format registry, common parser/project facade, and

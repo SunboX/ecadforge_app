@@ -78,6 +78,14 @@ export class AppViewRenderGraph {
     }
 
     /**
+     * Returns a copied bounded render dependency summary.
+     * @returns {{ computations: number, dependencies: number, readerEdges: number }}
+     */
+    getStatistics() {
+        return { ...this.#computation.getStatistics() }
+    }
+
+    /**
      * Updates persistent and landing status nodes.
      * @param {object} snapshot Tracked app snapshot.
      * @returns {void}

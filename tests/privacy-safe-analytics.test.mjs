@@ -101,3 +101,84 @@ test('PrivacySafeAnalytics resolves window tracker at track time', () => {
         }
     ])
 })
+
+test('PrivacySafeAnalytics publishes only bounded runtime context', () => {
+    const contexts = []
+    const analytics = new PrivacySafeAnalytics({
+        tracker: {
+            setContext(context) {
+                contexts.push(context)
+            }
+        }
+    })
+
+    analytics.setContext({
+        appVersion: '1.13.24',
+        runtimePhase: 'Ready',
+        sourceType: 'Local File',
+        formatFamily: 'KiCad',
+        activeView: 'PCB',
+        documentCount: 2,
+        traceComputations: 6,
+        traceDependencies: 19,
+        traceReaderEdges: 11,
+        fileName: 'private-board.kicad_pcb',
+        rawUrl: 'https://example.test/private'
+    })
+
+    assert.deepEqual(contexts, [
+        {
+            app_version: '1_13_24',
+            runtime_phase: 'ready',
+            source_type: 'local_file',
+            format_family: 'kicad',
+            active_view: 'pcb',
+            document_count: 2,
+            trace_computations: 6,
+            trace_dependencies: 19,
+            trace_reader_edges: 11
+        }
+    ])
+})
+
+test('PrivacySafeAnalytics synchronizes retained context after tracker load', () => {
+    const contexts = []
+    let tracker = null
+    const analytics = new PrivacySafeAnalytics({
+        trackerProvider: () => tracker
+    })
+
+    analytics.setContext({ appVersion: '1.13.24', documentCount: 0 })
+    tracker = {
+        setContext(context) {
+            contexts.push(context)
+        }
+    }
+
+    assert.equal(analytics.syncContext(), true)
+    assert.deepEqual(contexts, [{ app_version: '1_13_24', document_count: 0 }])
+})
+
+test('PrivacySafeAnalytics promotes safe event dimensions into error context', () => {
+    const contexts = []
+    const analytics = new PrivacySafeAnalytics({
+        tracker: {
+            setContext(context) {
+                contexts.push(context)
+            },
+            trackEvent() {}
+        }
+    })
+
+    analytics.track('sample_loaded_success', {
+        sourceType: 'sample',
+        formatFamily: 'altium',
+        activeView: 'pcb'
+    })
+
+    assert.deepEqual(contexts.at(-1), {
+        source_type: 'sample',
+        format_family: 'altium',
+        active_view: 'pcb'
+    })
+})

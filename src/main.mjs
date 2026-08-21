@@ -5,6 +5,7 @@ import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
 import { EcadModelSearchPreference } from './core/ecad/EcadModelSearchPreference.mjs'
+import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
 import { WebMcpRuntimeLoader } from './core/webmcp/WebMcpRuntimeLoader.mjs'
 import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
@@ -66,7 +67,24 @@ async function bootstrap() {
     })
 
     await controller.init()
-    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location)
+    state.subscribe((snapshot) => {
+        const renderStatistics = view.getRenderStatistics()
+        analytics.setContext({
+            appVersion: loadedVersion,
+            runtimePhase: snapshot.parseStatus,
+            formatFamily: EcadFormatRegistry.sourceFormatForDocument(
+                snapshot.documentModel
+            ),
+            activeView: snapshot.activeView,
+            documentCount: snapshot.documents.length,
+            traceComputations: renderStatistics.computations,
+            traceDependencies: renderStatistics.dependencies,
+            traceReaderEdges: renderStatistics.readerEdges
+        })
+    })
+    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location, {
+        onLoad: () => analytics.syncContext()
+    })
     await WebMcpRuntimeLoader.initialize()
     await webMcpAdapter.initialize()
     if (!startupSource) {

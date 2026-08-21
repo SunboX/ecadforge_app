@@ -234,6 +234,14 @@ export class AppView {
     }
 
     /**
+     * Returns bounded render graph statistics for runtime diagnostics.
+     * @returns {{ computations: number, dependencies: number, readerEdges: number }}
+     */
+    getRenderStatistics() {
+        return this.#renderGraph.getStatistics()
+    }
+
+    /**
      * Renders status text.
      * @param {string} value
      */
