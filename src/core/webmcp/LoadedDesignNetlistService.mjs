@@ -4,6 +4,7 @@ import { EcadFormatRegistry } from '../ecad/EcadFormatRegistry.mjs'
 import { EcadDocumentType } from '../ecad/EcadDocumentType.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 import { WebMcpDesignInspector } from './WebMcpDesignInspector.mjs'
+import { WebMcpExecution } from './WebMcpExecution.mjs'
 import { WebMcpFocusedInspector } from './WebMcpFocusedInspector.mjs'
 import { WebMcpPcbInspector } from './WebMcpPcbInspector.mjs'
 
@@ -35,15 +36,17 @@ export class LoadedDesignNetlistService {
     /**
      * Lists loaded session designs.
      * @param {{ pattern?: string, max_results?: number }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object[] | { error: string }}
      */
-    listDesigns(args = {}) {
+    listDesigns(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const entriesByFormat = this.#supportedEntriesByFormat()
         const results = []
 
         for (const [sourceFormat, entries] of entriesByFormat.entries()) {
             const service = this.#createService(sourceFormat, entries)
-            const serviceResult = service.listDesigns(args)
+            const serviceResult = service.listDesigns(args, executionOptions)
             if (Array.isArray(serviceResult)) {
                 results.push(...serviceResult)
             }
@@ -58,11 +61,16 @@ export class LoadedDesignNetlistService {
     /**
      * Lists components matching one reference-designator prefix.
      * @param {{ design?: string, type?: string, include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ components: object[] } | { error: string }}
      */
-    listComponents(args = {}) {
-        const result = this.#dispatch(args.design, (service) =>
-            service.listComponents({ ...args, design: 'active' })
+    listComponents(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        const result = this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.listComponents({ ...args, design: 'active' }, options),
+            executionOptions
         )
         return WebMcpDesignAnalyzer.shapeListResult(
             result,
@@ -75,11 +83,16 @@ export class LoadedDesignNetlistService {
     /**
      * Lists net names for one loaded design.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ nets: string[] } | { error: string }}
      */
-    listNets(args = {}) {
-        const result = this.#dispatch(args.design, (service) =>
-            service.listNets({ ...args, design: 'active' })
+    listNets(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        const result = this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.listNets({ ...args, design: 'active' }, options),
+            executionOptions
         )
         return WebMcpDesignAnalyzer.shapeListResult(
             result,
@@ -92,9 +105,11 @@ export class LoadedDesignNetlistService {
     /**
      * Reviews loaded design coverage for agent planning.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    reviewDesign(args = {}) {
+    reviewDesign(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -108,9 +123,11 @@ export class LoadedDesignNetlistService {
     /**
      * Audits loaded designs for parser, metadata, and connectivity issues.
      * @param {{ design?: string, max_issues?: number }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ summary: object, issues: object[] } | { error: string }}
      */
-    auditDesign(args = {}) {
+    auditDesign(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -126,9 +143,11 @@ export class LoadedDesignNetlistService {
     /**
      * Cross-references one schematic net against matching PCB pads.
      * @param {{ design?: string, pcb_design?: string, net_name?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    crossrefNet(args = {}) {
+    crossrefNet(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolveCrossrefEntries(args)
         if (resolved.error) return resolved
 
@@ -142,9 +161,11 @@ export class LoadedDesignNetlistService {
     /**
      * Compares schematic connectivity against matching PCB pad assignments.
      * @param {{ design?: string, pcb_design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    compareSchematicPcb(args = {}) {
+    compareSchematicPcb(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolveCrossrefEntries(args)
         if (resolved.error) return resolved
 
@@ -157,9 +178,11 @@ export class LoadedDesignNetlistService {
     /**
      * Summarizes loaded design state for agent planning.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    summarizeDesign(args = {}) {
+    summarizeDesign(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -174,9 +197,11 @@ export class LoadedDesignNetlistService {
     /**
      * Finds components across common metadata fields.
      * @param {{ design?: string, query?: string, limit?: number }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    findComponents(args = {}) {
+    findComponents(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -191,9 +216,11 @@ export class LoadedDesignNetlistService {
     /**
      * Queries BOM rows by refdes, MPN, or text pattern.
      * @param {{ design?: string, refdes?: string, mpn?: string, pattern?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryBomItem(args = {}) {
+    queryBomItem(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -208,9 +235,11 @@ export class LoadedDesignNetlistService {
     /**
      * Lists compact pin-to-net rows for one component.
      * @param {{ design?: string, refdes?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    listPinConnections(args = {}) {
+    listPinConnections(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolveEntry(args.design)
         if (resolved.error) return resolved
 
@@ -220,9 +249,11 @@ export class LoadedDesignNetlistService {
     /**
      * Returns direct schematic net membership without traversal.
      * @param {{ design?: string, net_name?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryNet(args = {}) {
+    queryNet(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolveEntry(args.design)
         if (resolved.error) return resolved
 
@@ -232,9 +263,11 @@ export class LoadedDesignNetlistService {
     /**
      * Lists component counts by reference-designator prefix.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    listComponentTypes(args = {}) {
+    listComponentTypes(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -248,9 +281,11 @@ export class LoadedDesignNetlistService {
     /**
      * Lists parser diagnostics directly.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    listDiagnostics(args = {}) {
+    listDiagnostics(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -264,9 +299,11 @@ export class LoadedDesignNetlistService {
     /**
      * Compares BOM component rows against matching PCB components.
      * @param {{ design?: string, pcb_design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    compareBomPcb(args = {}) {
+    compareBomPcb(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolveCrossrefEntries(args)
         if (resolved.error) return resolved
 
@@ -279,9 +316,11 @@ export class LoadedDesignNetlistService {
     /**
      * Lists schematic nets that have exactly one connected pin.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    listSinglePinNets(args = {}) {
+    listSinglePinNets(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolvedEntries = this.#resolveEntries(args.design)
         if (resolvedEntries.error) return resolvedEntries
 
@@ -295,9 +334,11 @@ export class LoadedDesignNetlistService {
     /**
      * Queries PCB placement, pads, and model metadata for one component.
      * @param {{ design?: string, refdes?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryPcbComponent(args = {}) {
+    queryPcbComponent(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolvePcbEntry(
             args.design,
             'query_pcb_component'
@@ -310,9 +351,11 @@ export class LoadedDesignNetlistService {
     /**
      * Queries physical PCB membership for one net.
      * @param {{ design?: string, net_name?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryPcbNet(args = {}) {
+    queryPcbNet(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolvePcbEntry(args.design, 'query_pcb_net')
         if (resolved.error) return resolved
 
@@ -322,9 +365,11 @@ export class LoadedDesignNetlistService {
     /**
      * Summarizes loaded PCB board, placement, routing, and stackup data.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    summarizePcb(args = {}) {
+    summarizePcb(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolvePcbEntry(args.design, 'summarize_pcb')
         if (resolved.error) return resolved
 
@@ -334,9 +379,11 @@ export class LoadedDesignNetlistService {
     /**
      * Lists compact normalized PCB design rules.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    listDesignRules(args = {}) {
+    listDesignRules(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolvePcbEntry(args.design, 'list_design_rules')
         if (resolved.error) return resolved
 
@@ -346,9 +393,11 @@ export class LoadedDesignNetlistService {
     /**
      * Reviews loaded PCB data for fabrication-readiness signals.
      * @param {{ design?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    reviewFabricationReadiness(args = {}) {
+    reviewFabricationReadiness(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
         const resolved = this.#resolvePcbEntry(
             args.design,
             'review_fabrication_readiness'
@@ -361,80 +410,130 @@ export class LoadedDesignNetlistService {
     /**
      * Searches net names by regex.
      * @param {{ design?: string, pattern?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ results: Record<string, string[]>, notes?: string[] } | { error: string }}
      */
-    searchNets(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.searchNets({ ...args, design: 'active' })
+    searchNets(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.searchNets({ ...args, design: 'active' }, options),
+            executionOptions
         )
     }
 
     /**
      * Searches components by reference designator.
      * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
-    searchComponentsByRefdes(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.searchComponentsByRefdes({ ...args, design: 'active' })
+    searchComponentsByRefdes(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.searchComponentsByRefdes(
+                    { ...args, design: 'active' },
+                    options
+                ),
+            executionOptions
         )
     }
 
     /**
      * Searches components by MPN.
      * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
-    searchComponentsByMpn(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.searchComponentsByMpn({ ...args, design: 'active' })
+    searchComponentsByMpn(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.searchComponentsByMpn(
+                    { ...args, design: 'active' },
+                    options
+                ),
+            executionOptions
         )
     }
 
     /**
      * Searches components by description.
      * @param {{ design?: string, pattern?: string, include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {{ results: Record<string, object[]>, notes?: string[] } | { error: string }}
      */
-    searchComponentsByDescription(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.searchComponentsByDescription({
-                ...args,
-                design: 'active'
-            })
+    searchComponentsByDescription(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.searchComponentsByDescription(
+                    {
+                        ...args,
+                        design: 'active'
+                    },
+                    options
+                ),
+            executionOptions
         )
     }
 
     /**
      * Queries one component and all known pin connections.
      * @param {{ design?: string, refdes?: string }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryComponent(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.queryComponent({ ...args, design: 'active' })
+    queryComponent(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.queryComponent({ ...args, design: 'active' }, options),
+            executionOptions
         )
     }
 
     /**
      * Queries extended connectivity starting from a net name.
      * @param {{ design?: string, net_name?: string, skip_types?: string[], include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryXnetByNetName(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.queryXnetByNetName({ ...args, design: 'active' })
+    queryXnetByNetName(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.queryXnetByNetName(
+                    { ...args, design: 'active' },
+                    options
+                ),
+            executionOptions
         )
     }
 
     /**
      * Queries extended connectivity starting from a component pin.
      * @param {{ design?: string, pin_name?: string, skip_types?: string[], include_dns?: boolean }} [args] Tool args.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object | { error: string }}
      */
-    queryXnetByPinName(args = {}) {
-        return this.#dispatch(args.design, (service) =>
-            service.queryXnetByPinName({ ...args, design: 'active' })
+    queryXnetByPinName(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        return this.#dispatch(
+            args.design,
+            (service, options) =>
+                service.queryXnetByPinName(
+                    { ...args, design: 'active' },
+                    options
+                ),
+            executionOptions
         )
     }
 
@@ -555,10 +654,11 @@ export class LoadedDesignNetlistService {
     /**
      * Runs a query against the toolkit service for the selected document.
      * @param {string | undefined} design Design selector.
-     * @param {(service: object) => object} callback Query callback.
+     * @param {(service: object, executionOptions: object) => object} callback Query callback.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Execution options.
      * @returns {object}
      */
-    #dispatch(design, callback) {
+    #dispatch(design, callback, executionOptions = {}) {
         const resolved = this.#resolveEntry(design)
         if (resolved.error) return resolved
 
@@ -578,7 +678,8 @@ export class LoadedDesignNetlistService {
                     ...resolved.entry,
                     active: true
                 }
-            ])
+            ]),
+            executionOptions
         )
     }
 

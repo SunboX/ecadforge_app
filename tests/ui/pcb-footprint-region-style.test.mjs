@@ -19,9 +19,8 @@ async function readViewerStylesheet() {
 test('viewer stylesheet keeps footprint regions in the overlay color', async () => {
     const css = await readViewerStylesheet()
     const regionBlock =
-        css.match(
-            /\.pcb-footprint-region\s*\{(?<rules>[\s\S]*?)\}/
-        )?.groups?.rules || ''
+        css.match(/\.pcb-footprint-region\s*\{(?<rules>[\s\S]*?)\}/)?.groups
+            ?.rules || ''
 
     assert.match(
         regionBlock,

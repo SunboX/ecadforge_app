@@ -88,7 +88,7 @@ export class WebMcpAdapter {
 
     /**
      * Registers one tool using the available browser signature.
-     * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
+     * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object, executionOptions?: object) => unknown }} tool Tool definition.
      * @param {string} apiForm Browser API form.
      * @returns {Promise<void>}
      */
@@ -153,7 +153,7 @@ export class WebMcpAdapter {
      * Converts one registry tool to the current object-form WebMCP API.
      * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
      * @param {string} apiForm Browser API form.
-     * @returns {{ name: string, description: string, inputSchema: object, annotations?: object, execute: (args?: object) => Promise<unknown> }}
+     * @returns {{ name: string, description: string, inputSchema: object, annotations?: object, execute: (args?: object, callbackOptions?: object) => Promise<unknown> }}
      */
     #toNativeTool(tool, apiForm) {
         return {
@@ -161,35 +161,46 @@ export class WebMcpAdapter {
             description: tool.description,
             inputSchema: tool.inputSchema,
             annotations: tool.annotations,
-            execute: async (args = {}) =>
-                this.#trackToolCall(tool, apiForm, args || {})
+            execute: async (args = {}, callbackOptions = {}) =>
+                this.#trackToolCall(
+                    tool,
+                    apiForm,
+                    args || {},
+                    WebMcpAdapter.#executionOptions(callbackOptions)
+                )
         }
     }
 
     /**
      * Builds a handler for older positional browser APIs.
-     * @param {{ handler: (args: object) => object }} tool Tool definition.
+     * @param {{ handler: (args: object, executionOptions?: object) => object }} tool Tool definition.
      * @param {string} apiForm Browser API form.
-     * @returns {(args?: object) => Promise<{ content: { type: 'text', text: string }[] }>}
+     * @returns {(args?: object, callbackOptions?: object) => Promise<{ content: { type: 'text', text: string }[] }>}
      */
     #toLegacyHandler(tool, apiForm) {
-        return async (args = {}) => {
+        return async (args = {}, callbackOptions = {}) => {
             return WebMcpAdapter.#formatResult(
-                await this.#trackToolCall(tool, apiForm, args || {})
+                await this.#trackToolCall(
+                    tool,
+                    apiForm,
+                    args || {},
+                    WebMcpAdapter.#executionOptions(callbackOptions)
+                )
             )
         }
     }
 
     /**
      * Executes one tool while emitting privacy-safe method-call analytics.
-     * @param {{ name: string, handler: (args: object) => unknown }} tool Tool definition.
+     * @param {{ name: string, handler: (args: object, executionOptions?: object) => unknown }} tool Tool definition.
      * @param {string} apiForm Browser API form.
      * @param {object} args Tool arguments.
+     * @param {{ signal?: AbortSignal }} [executionOptions] Execution options.
      * @returns {Promise<unknown>}
      */
-    async #trackToolCall(tool, apiForm, args) {
+    async #trackToolCall(tool, apiForm, args, executionOptions = {}) {
         try {
-            const result = await tool.handler(args)
+            const result = await tool.handler(args, executionOptions)
             this.#track('webmcp_tool_called', {
                 methodName: tool.name,
                 apiForm,
@@ -204,6 +215,23 @@ export class WebMcpAdapter {
             })
             throw error
         }
+    }
+
+    /**
+     * Keeps browser execution context separate from JSON tool arguments.
+     * @param {object | null | undefined} callbackOptions Browser callback options.
+     * @returns {{ signal?: AbortSignal }}
+     */
+    static #executionOptions(callbackOptions) {
+        if (
+            !callbackOptions ||
+            typeof callbackOptions !== 'object' ||
+            callbackOptions.signal === undefined
+        ) {
+            return {}
+        }
+
+        return { signal: callbackOptions.signal }
     }
 
     /**

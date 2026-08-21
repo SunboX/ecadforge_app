@@ -20,7 +20,7 @@ export class WebMcpToolRegistry {
 
     /**
      * Returns all registered tool definitions.
-     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object) => object }[]}
+     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object, executionOptions?: object) => object }[]}
      */
     getTools() {
         return [
@@ -31,7 +31,8 @@ export class WebMcpToolRegistry {
                     pattern: { type: 'string' },
                     max_results: { type: 'number' }
                 },
-                (args) => this.#service.listDesigns(args)
+                (args, executionOptions) =>
+                    this.#service.listDesigns(args, executionOptions)
             ),
             this.#tool(
                 'list_components',
@@ -44,7 +45,8 @@ export class WebMcpToolRegistry {
                     offset: { type: 'number' },
                     compact: { type: 'boolean' }
                 },
-                (args) => this.#service.listComponents(args)
+                (args, executionOptions) =>
+                    this.#service.listComponents(args, executionOptions)
             ),
             this.#tool(
                 'list_nets',
@@ -54,7 +56,8 @@ export class WebMcpToolRegistry {
                     limit: { type: 'number' },
                     offset: { type: 'number' }
                 },
-                (args) => this.#service.listNets(args)
+                (args, executionOptions) =>
+                    this.#service.listNets(args, executionOptions)
             ),
             this.#tool(
                 'review_design',
@@ -62,7 +65,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.reviewDesign(args)
+                (args, executionOptions) =>
+                    this.#service.reviewDesign(args, executionOptions)
             ),
             this.#tool(
                 'audit_design',
@@ -71,7 +75,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     max_issues: { type: 'number' }
                 },
-                (args) => this.#service.auditDesign(args)
+                (args, executionOptions) =>
+                    this.#service.auditDesign(args, executionOptions)
             ),
             this.#tool(
                 'crossref_net',
@@ -81,7 +86,8 @@ export class WebMcpToolRegistry {
                     pcb_design: { type: 'string' },
                     net_name: { type: 'string' }
                 },
-                (args) => this.#service.crossrefNet(args)
+                (args, executionOptions) =>
+                    this.#service.crossrefNet(args, executionOptions)
             ),
             this.#tool(
                 'compare_schematic_pcb',
@@ -90,7 +96,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     pcb_design: { type: 'string' }
                 },
-                (args) => this.#service.compareSchematicPcb(args)
+                (args, executionOptions) =>
+                    this.#service.compareSchematicPcb(args, executionOptions)
             ),
             this.#tool(
                 'summarize_design',
@@ -98,7 +105,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.summarizeDesign(args)
+                (args, executionOptions) =>
+                    this.#service.summarizeDesign(args, executionOptions)
             ),
             this.#tool(
                 'find_components',
@@ -108,7 +116,8 @@ export class WebMcpToolRegistry {
                     query: { type: 'string' },
                     limit: { type: 'number' }
                 },
-                (args) => this.#service.findComponents(args)
+                (args, executionOptions) =>
+                    this.#service.findComponents(args, executionOptions)
             ),
             this.#tool(
                 'query_bom_item',
@@ -119,7 +128,8 @@ export class WebMcpToolRegistry {
                     mpn: { type: 'string' },
                     pattern: { type: 'string' }
                 },
-                (args) => this.#service.queryBomItem(args)
+                (args, executionOptions) =>
+                    this.#service.queryBomItem(args, executionOptions)
             ),
             this.#tool(
                 'list_pin_connections',
@@ -128,7 +138,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     refdes: { type: 'string' }
                 },
-                (args) => this.#service.listPinConnections(args)
+                (args, executionOptions) =>
+                    this.#service.listPinConnections(args, executionOptions)
             ),
             this.#tool(
                 'query_net',
@@ -137,7 +148,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     net_name: { type: 'string' }
                 },
-                (args) => this.#service.queryNet(args)
+                (args, executionOptions) =>
+                    this.#service.queryNet(args, executionOptions)
             ),
             this.#tool(
                 'list_component_types',
@@ -145,7 +157,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.listComponentTypes(args)
+                (args, executionOptions) =>
+                    this.#service.listComponentTypes(args, executionOptions)
             ),
             this.#tool(
                 'list_diagnostics',
@@ -153,7 +166,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.listDiagnostics(args)
+                (args, executionOptions) =>
+                    this.#service.listDiagnostics(args, executionOptions)
             ),
             this.#tool(
                 'compare_bom_pcb',
@@ -162,7 +176,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     pcb_design: { type: 'string' }
                 },
-                (args) => this.#service.compareBomPcb(args)
+                (args, executionOptions) =>
+                    this.#service.compareBomPcb(args, executionOptions)
             ),
             this.#tool(
                 'list_single_pin_nets',
@@ -170,7 +185,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.listSinglePinNets(args)
+                (args, executionOptions) =>
+                    this.#service.listSinglePinNets(args, executionOptions)
             ),
             this.#tool(
                 'query_pcb_component',
@@ -179,7 +195,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     refdes: { type: 'string' }
                 },
-                (args) => this.#service.queryPcbComponent(args)
+                (args, executionOptions) =>
+                    this.#service.queryPcbComponent(args, executionOptions)
             ),
             this.#tool(
                 'query_pcb_net',
@@ -188,7 +205,8 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     net_name: { type: 'string' }
                 },
-                (args) => this.#service.queryPcbNet(args)
+                (args, executionOptions) =>
+                    this.#service.queryPcbNet(args, executionOptions)
             ),
             this.#tool(
                 'summarize_pcb',
@@ -196,7 +214,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.summarizePcb(args)
+                (args, executionOptions) =>
+                    this.#service.summarizePcb(args, executionOptions)
             ),
             this.#tool(
                 'list_design_rules',
@@ -204,7 +223,8 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.listDesignRules(args)
+                (args, executionOptions) =>
+                    this.#service.listDesignRules(args, executionOptions)
             ),
             this.#tool(
                 'review_fabrication_readiness',
@@ -212,7 +232,11 @@ export class WebMcpToolRegistry {
                 {
                     design: { type: 'string' }
                 },
-                (args) => this.#service.reviewFabricationReadiness(args)
+                (args, executionOptions) =>
+                    this.#service.reviewFabricationReadiness(
+                        args,
+                        executionOptions
+                    )
             ),
             this.#tool(
                 'search_nets',
@@ -221,25 +245,35 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     pattern: { type: 'string' }
                 },
-                (args) => this.#service.searchNets(args)
+                (args, executionOptions) =>
+                    this.#service.searchNets(args, executionOptions)
             ),
             this.#tool(
                 'search_components_by_refdes',
                 'Search loaded components by reference designator regex.',
                 WebMcpToolRegistry.#componentSearchSchema(),
-                (args) => this.#service.searchComponentsByRefdes(args)
+                (args, executionOptions) =>
+                    this.#service.searchComponentsByRefdes(
+                        args,
+                        executionOptions
+                    )
             ),
             this.#tool(
                 'search_components_by_mpn',
                 'Search loaded components by MPN regex.',
                 WebMcpToolRegistry.#componentSearchSchema(),
-                (args) => this.#service.searchComponentsByMpn(args)
+                (args, executionOptions) =>
+                    this.#service.searchComponentsByMpn(args, executionOptions)
             ),
             this.#tool(
                 'search_component_descriptions',
                 'Search loaded components by description regex.',
                 WebMcpToolRegistry.#componentSearchSchema(),
-                (args) => this.#service.searchComponentsByDescription(args)
+                (args, executionOptions) =>
+                    this.#service.searchComponentsByDescription(
+                        args,
+                        executionOptions
+                    )
             ),
             this.#tool(
                 'query_component',
@@ -248,19 +282,22 @@ export class WebMcpToolRegistry {
                     design: { type: 'string' },
                     refdes: { type: 'string' }
                 },
-                (args) => this.#service.queryComponent(args)
+                (args, executionOptions) =>
+                    this.#service.queryComponent(args, executionOptions)
             ),
             this.#tool(
                 'query_xnet_by_net_name',
                 'Trace loaded design connectivity starting from a net.',
                 WebMcpToolRegistry.#xnetByNetSchema(),
-                (args) => this.#service.queryXnetByNetName(args)
+                (args, executionOptions) =>
+                    this.#service.queryXnetByNetName(args, executionOptions)
             ),
             this.#tool(
                 'query_xnet_by_pin_name',
                 'Trace loaded design connectivity starting from a component pin.',
                 WebMcpToolRegistry.#xnetByPinSchema(),
-                (args) => this.#service.queryXnetByPinName(args)
+                (args, executionOptions) =>
+                    this.#service.queryXnetByPinName(args, executionOptions)
             )
         ]
     }
@@ -270,8 +307,8 @@ export class WebMcpToolRegistry {
      * @param {string} name Tool name.
      * @param {string} description Tool description.
      * @param {object} properties Input properties.
-     * @param {(args: object) => object} handler Tool handler.
-     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object) => object }}
+     * @param {(args: object, executionOptions?: object) => object} handler Tool handler.
+     * @returns {{ name: string, description: string, inputSchema: object, annotations: object, handler: (args: object, executionOptions?: object) => object }}
      */
     #tool(name, description, properties, handler) {
         return {

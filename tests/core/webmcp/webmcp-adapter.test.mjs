@@ -386,6 +386,39 @@ test('WebMcpAdapter tracks successful object-form tool calls', async () => {
 })
 
 /**
+ * Verifies current object-form executions preserve the browser cancellation
+ * signal as execution context instead of mixing it into tool arguments.
+ */
+test('WebMcpAdapter forwards object-form execution signals', async () => {
+    const fake = createObjectModelContext()
+    const controller = new AbortController()
+    const calls = []
+    const adapter = new WebMcpAdapter({
+        getSnapshot: createSnapshot,
+        modelContext: fake.modelContext,
+        registry: createSingleToolRegistry({
+            handler(args, executionOptions) {
+                calls.push({ args, executionOptions })
+                return { component: 'fake' }
+            }
+        })
+    })
+    await adapter.initialize()
+
+    await fake.calls[0].tool.execute(
+        { refdes: 'U1' },
+        { signal: controller.signal }
+    )
+
+    assert.deepEqual(calls, [
+        {
+            args: { refdes: 'U1' },
+            executionOptions: { signal: controller.signal }
+        }
+    ])
+})
+
+/**
  * Verifies rejected object-form executions preserve errors and track failures.
  */
 test('WebMcpAdapter tracks failed object-form tool calls', async () => {

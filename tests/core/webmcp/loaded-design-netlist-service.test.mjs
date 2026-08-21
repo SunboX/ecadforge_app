@@ -193,6 +193,73 @@ function createPcbDocument(fileName = 'logic.PcbDoc', sourceFormat) {
 }
 
 /**
+ * Verifies app-owned queries stop at a pre-aborted execution boundary.
+ */
+test('LoadedDesignNetlistService aborts app-owned queries before work', () => {
+    const service = createService([
+        { id: 'doc-1', documentModel: createSchematicDocument() }
+    ])
+    const controller = new AbortController()
+    const reason = new Error('browser cancelled query')
+    controller.abort(reason)
+
+    assert.throws(
+        () => service.reviewDesign({}, { signal: controller.signal }),
+        (error) => error === reason
+    )
+    assert.throws(
+        () => service.reviewDesign({}, { signal: { aborted: true } }),
+        /AbortSignal/
+    )
+})
+
+/**
+ * Verifies toolkit-backed queries receive the browser execution signal.
+ */
+test('LoadedDesignNetlistService forwards execution context to toolkits', () => {
+    const controller = new AbortController()
+    const calls = []
+
+    class FakeLoadedDesignService {
+        /**
+         * @param {object} _dependencies Dependencies.
+         */
+        constructor(_dependencies) {}
+
+        /**
+         * @param {object} args Query args.
+         * @param {object} executionOptions Execution options.
+         * @returns {{ components: object[] }}
+         */
+        listComponents(args, executionOptions) {
+            calls.push({ args, executionOptions })
+            return { components: [] }
+        }
+    }
+
+    const service = new LoadedDesignNetlistService({
+        getSnapshot: () => ({
+            activeDocumentId: 'doc-1',
+            documents: [
+                { id: 'doc-1', documentModel: createSchematicDocument() }
+            ]
+        }),
+        serviceFactories: { altium: FakeLoadedDesignService }
+    })
+
+    assert.deepEqual(
+        service.listComponents({}, { signal: controller.signal }),
+        { components: [] }
+    )
+    assert.deepEqual(calls, [
+        {
+            args: { design: 'active' },
+            executionOptions: { signal: controller.signal }
+        }
+    ])
+})
+
+/**
  * Verifies design listing returns only currently loaded documents.
  */
 test('LoadedDesignNetlistService lists loaded designs', () => {

@@ -337,6 +337,23 @@ function createCanonicalPcbDocument() {
     })
 }
 
+/**
+ * Verifies PCB inspection stops at a pre-aborted WebMCP boundary.
+ */
+test('LoadedDesignNetlistService aborts PCB inspection before work', () => {
+    const service = createService([
+        { id: 'doc-1', documentModel: createPcbDocument() }
+    ])
+    const controller = new AbortController()
+    const reason = new Error('browser cancelled PCB query')
+    controller.abort(reason)
+
+    assert.throws(
+        () => service.queryPcbComponent({}, { signal: controller.signal }),
+        (error) => error === reason
+    )
+})
+
 test('LoadedDesignNetlistService inspects canonical CircuitJSON PCB data', () => {
     const service = createService([
         { id: 'doc-1', documentModel: createCanonicalPcbDocument() }

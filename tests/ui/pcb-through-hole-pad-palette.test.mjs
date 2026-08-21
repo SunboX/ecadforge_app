@@ -21,9 +21,8 @@ async function readPcbPaletteStylesheet() {
 test('through-hole pad rings use active-side trace copper', async () => {
     const css = await readPcbPaletteStylesheet()
     const paletteRules =
-        css.match(
-            /\.pcb-svg--app-palette\s*\{(?<rules>[\s\S]*?)\}/
-        )?.groups?.rules || ''
+        css.match(/\.pcb-svg--app-palette\s*\{(?<rules>[\s\S]*?)\}/)?.groups
+            ?.rules || ''
 
     assert.match(
         paletteRules,

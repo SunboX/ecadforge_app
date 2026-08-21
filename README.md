@@ -115,6 +115,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - [Testing](docs/testing.md)
 - [Security](docs/security.md)
 - [WebMCP](docs/webmcp.md)
+- [1.13.23 release notes](docs/release-notes-v1.13.23.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [1.13.4 release notes](docs/release-notes-v1.13.4.md)
 - [1.13.3 release notes](docs/release-notes-v1.13.3.md)
@@ -167,6 +168,11 @@ validation, component grouping, and traversal rules are delegated to the Altium
 and KiCad toolkit query APIs; the app WebMCP layer owns session-level review,
 audit, BOM/component search, cross-reference, PCB inspection, focused
 inspection summaries, and pagination summaries.
+
+Object-form WebMCP execution callbacks also forward the browser's optional
+`AbortSignal` separately from tool JSON. Pre-aborted app-owned and
+toolkit-backed queries stop before synchronous work begins without changing
+existing tool inputs or result shapes.
 
 See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
 constraints, and unsupported browser-only operations.

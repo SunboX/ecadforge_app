@@ -254,6 +254,12 @@ browser/runtime so cross-document publication errors are reported through
 registration analytics. Older positional browser APIs remain supported with
 MCP-style JSON text results.
 
+Object-form execution options are a separate call context: the adapter forwards
+`execute(input, { signal })` through the registry to the app service. Genuine
+pre-aborted signals fail at that synchronous boundary before app inspection or
+selected-toolkit dispatch starts; JSON input, frozen toolkit contracts, and
+existing return shapes remain unchanged.
+
 The app WebMCP service owns session selection, source-format dispatch, bounded
 list response shaping, design review, audit issue generation, BOM/component
 search, compact net and pin summaries, focused diagnostics, BOM-to-PCB

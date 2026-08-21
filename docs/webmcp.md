@@ -43,6 +43,14 @@ from cross-document tool publication are counted before startup continues.
 Older positional browser APIs remain supported when exposed through
 `document.modelContext` and receive MCP-style JSON text content.
 
+Current object-form `execute(input, { signal })` callbacks keep the browser
+execution options separate from JSON tool input and forward the genuine
+`AbortSignal` through the registry and loaded-design service. A signal that is
+already aborted stops both app-owned inspection and toolkit-backed queries
+before synchronous work starts. Existing callers without execution options and
+legacy positional registrations retain their prior behavior. Synchronous
+queries do not claim mid-loop interruption after execution has started.
+
 ## Analytics
 
 When the production analytics tracker is available, ECAD Forge records
