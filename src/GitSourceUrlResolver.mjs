@@ -39,6 +39,7 @@ export class GitSourceUrlResolver {
         const parts = String(githubPath || '')
             .split('/')
             .filter(Boolean)
+            .map((part) => GitSourceUrlResolver.#decodeUrlPathPart(part))
 
         if (parts.length < 3) {
             throw new Error(
@@ -49,7 +50,7 @@ export class GitSourceUrlResolver {
         const rawPath = [
             parts[0],
             parts[1],
-            String(ref || 'main'),
+            GitSourceUrlResolver.#decodeUrlPathPart(String(ref || 'main')),
             ...parts.slice(2)
         ]
             .map((part) => GitSourceUrlResolver.#encodePathPart(part))
@@ -323,6 +324,7 @@ export class GitSourceUrlResolver {
         const rawPath = parts
             .slice(0, 2)
             .concat(parts.slice(3))
+            .map((part) => GitSourceUrlResolver.#decodeUrlPathPart(part))
             .map((part) => GitSourceUrlResolver.#encodePathPart(part))
             .join('/')
 
@@ -373,14 +375,18 @@ export class GitSourceUrlResolver {
             )
         }
 
+        const [owner, repositoryName, , ref, ...directoryParts] = parts.map(
+            (part) => GitSourceUrlResolver.#decodeUrlPathPart(part)
+        )
+
         return {
             provider: 'github',
             providerLabel: 'GitHub',
             apiUrl: GitSourceUrlResolver.#buildGitHubContentsApiUrl(
-                parts[0],
-                parts[1],
-                parts[3],
-                parts.slice(4)
+                owner,
+                repositoryName,
+                ref,
+                directoryParts
             )
         }
     }
@@ -395,7 +401,7 @@ export class GitSourceUrlResolver {
         if (parts.length !== 2) return null
 
         const [owner, repositoryName] = parts.map((part) =>
-            decodeURIComponent(part)
+            GitSourceUrlResolver.#decodeUrlPathPart(part)
         )
 
         return {
@@ -449,7 +455,7 @@ export class GitSourceUrlResolver {
         if (parts.length < 2 || parts.includes('-')) return null
 
         const projectPath = parts
-            .map((part) => decodeURIComponent(part))
+            .map((part) => GitSourceUrlResolver.#decodeUrlPathPart(part))
             .join('/')
 
         return {
@@ -827,11 +833,20 @@ export class GitSourceUrlResolver {
     }
 
     /**
-     * Encodes one path segment while accepting already-encoded input.
+     * Decodes one URL-derived path segment.
+     * @param {string} part URL path segment.
+     * @returns {string}
+     */
+    static #decodeUrlPathPart(part) {
+        return decodeURIComponent(String(part || ''))
+    }
+
+    /**
+     * Encodes one decoded path segment.
      * @param {string} part Path segment.
      * @returns {string}
      */
     static #encodePathPart(part) {
-        return encodeURIComponent(decodeURIComponent(String(part || '')))
+        return encodeURIComponent(String(part || ''))
     }
 }
