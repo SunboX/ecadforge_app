@@ -514,6 +514,56 @@ export class PcbLayerVisibilityModel {
     }
 
     /**
+     * Resolves mechanical drawing layers that contain renderable primitives.
+     * Declared but empty mechanical layer slots do not represent a technical
+     * drawing and therefore are excluded.
+     * @param {any} documentModel Active document model.
+     * @returns {string[]}
+     */
+    static resolvePopulatedMechanicalDrawingLayerKeys(documentModel) {
+        const drawingLayers = PcbLayerVisibilityModel.resolveLayers(
+            documentModel
+        )
+            .map((layer, index) => ({
+                layer,
+                key: PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+            }))
+            .filter(({ layer, key }) =>
+                PcbLayerVisibilityModel.isMechanicalDrawingLayer(layer, key)
+            )
+        if (!drawingLayers.length) return []
+
+        const keysByAlias = new Map()
+        for (const { layer, key } of drawingLayers) {
+            for (const alias of PcbLayerVisibilityModel.#layerAliases(
+                layer,
+                key
+            )) {
+                keysByAlias.set(
+                    PcbLayerVisibilityModel.#normalizeLayerAlias(alias),
+                    key
+                )
+            }
+        }
+
+        const populated = new Set()
+        for (const primitive of PcbLayerVisibilityModel.#drawingPrimitives(
+            documentModel
+        )) {
+            for (const alias of PcbLayerVisibilityModel.#primitiveLayerAliases(
+                primitive
+            )) {
+                const key = keysByAlias.get(alias)
+                if (key) populated.add(key)
+            }
+        }
+
+        return drawingLayers
+            .map(({ key }) => key)
+            .filter((key) => populated.has(key))
+    }
+
+    /**
      * Returns true when one physical layer belongs to mechanical drawings.
      * @param {any} layer Layer metadata.
      * @param {string} layerKey Resolved layer key.
@@ -538,7 +588,7 @@ export class PcbLayerVisibilityModel {
             const documentId = String(entry?.id || '')
             if (!documentId || Object.hasOwn(next, documentId)) continue
             const layerKeys =
-                PcbLayerVisibilityModel.resolveMechanicalDrawingLayerKeys(
+                PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
                     entry?.documentModel
                 )
             if (layerKeys.length) next[documentId] = layerKeys
@@ -687,6 +737,59 @@ export class PcbLayerVisibilityModel {
         ]
             .filter((value) => value !== undefined && value !== null)
             .map(String)
+    }
+
+    /**
+     * Collects renderable PCB primitives that may carry drawing layer data.
+     * @param {any} documentModel Active document model.
+     * @returns {any[]}
+     */
+    static #drawingPrimitives(documentModel) {
+        const nativeModel =
+            EcadRendererService.resolvePcbNativeModel(documentModel)
+        const pcb = nativeModel?.pcb || {}
+        return [
+            'tracks',
+            'arcs',
+            'fills',
+            'regions',
+            'shapeBasedRegions',
+            'polygons',
+            'texts',
+            'dimensions'
+        ].flatMap((collection) =>
+            Array.isArray(pcb[collection]) ? pcb[collection] : []
+        )
+    }
+
+    /**
+     * Resolves normalized layer references carried by one PCB primitive.
+     * @param {any} primitive PCB primitive.
+     * @returns {string[]}
+     */
+    static #primitiveLayerAliases(primitive) {
+        return [
+            primitive?.layerKey,
+            primitive?.layer,
+            primitive?.layerName,
+            primitive?.layerId,
+            primitive?.layerCode,
+            primitive?.legacyLayerId
+        ]
+            .filter((value) => value !== undefined && value !== null)
+            .map(PcbLayerVisibilityModel.#normalizeLayerAlias)
+            .filter(Boolean)
+    }
+
+    /**
+     * Normalizes a layer identifier for content matching.
+     * @param {unknown} value Raw layer identifier.
+     * @returns {string}
+     */
+    static #normalizeLayerAlias(value) {
+        return String(value ?? '')
+            .trim()
+            .toUpperCase()
     }
 
     /**

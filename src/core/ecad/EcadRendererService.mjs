@@ -38,6 +38,23 @@ export class EcadRendererService {
     static #schematicSvgCache = new WeakMap()
     static #pcbSvgCache = new WeakMap()
     static #pcbInteractionIndexCache = new WeakMap()
+
+    /**
+     * Resolves the native PCB renderer model retained by a canonical document.
+     * Historical native models and formats without a retained native extension
+     * pass through unchanged.
+     * @param {object} documentModel Document model.
+     * @returns {object}
+     */
+    static resolvePcbNativeModel(documentModel) {
+        return (
+            EcadGerberFabrication.nativeDocument(documentModel) ||
+            AltiumExtensionResolver.nativeModel(documentModel) ||
+            KicadExtensionResolver.nativeModel(documentModel) ||
+            documentModel
+        )
+    }
+
     /**
      * Renders a schematic document.
      * @param {object} documentModel Document model.

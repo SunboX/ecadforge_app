@@ -46,6 +46,70 @@ test('PcbLayerVisibilityModel resolves mechanical drawing layer keys', () => {
 })
 
 /**
+ * Verifies empty mechanical layer declarations do not count as technical
+ * drawing content while primitives on matching ids populate their layers.
+ */
+test('PcbLayerVisibilityModel resolves populated mechanical drawing layer keys', () => {
+    const documentModel = {
+        kind: 'pcb',
+        pcb: {
+            layers: [{ name: 'Top Layer', layerId: 1 }],
+            primitiveLayers: [
+                { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
+                { name: 'Notes', layerId: 60, role: 'documentation' },
+                { name: 'ASM TOP', layerId: 61, role: 'assembly' }
+            ],
+            tracks: [{ x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 }],
+            texts: [{ text: 'Build note', x: 0, y: 0, layer: 'Notes' }],
+            dimensions: [],
+            arcs: [],
+            fills: [],
+            regions: [],
+            shapeBasedRegions: [],
+            polygons: []
+        }
+    }
+
+    assert.deepEqual(
+        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+            documentModel
+        ),
+        ['Mechanical1', 'Notes']
+    )
+
+    const canonicalDocument = {
+        schema: 'ecad-toolkit.document.v1',
+        model: [
+            {
+                type: 'pcb_board',
+                pcb_board_id: 'board_1',
+                center: { x: 0, y: 0 },
+                width: 10,
+                height: 5
+            }
+        ],
+        source: { format: 'altium' },
+        extensions: { altium: { native: documentModel } }
+    }
+    assert.deepEqual(
+        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+            canonicalDocument
+        ),
+        ['Mechanical1', 'Notes']
+    )
+
+    documentModel.pcb.tracks = []
+    documentModel.pcb.texts = []
+
+    assert.deepEqual(
+        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+            documentModel
+        ),
+        []
+    )
+})
+
+/**
  * Verifies app layer visibility metadata separates board layers from virtual
  * render controls.
  */

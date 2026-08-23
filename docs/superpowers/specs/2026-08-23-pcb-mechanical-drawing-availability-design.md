@@ -25,7 +25,7 @@ resolves the existing mechanical drawing layer keys, then scans the PCB's
 renderable primitive collections and matches each primitive's layer id, legacy
 layer id, layer code, layer name, or layer key against those layers. The
 supported collections are tracks, arcs, fills, regions, shape-based regions,
-polygons, texts, dimensions, and coordinates.
+polygons, texts, and dimensions.
 
 The aggregate checkbox renderer and the default hidden-layer initializer will
 both use the content-aware resolver. This keeps UI availability and initial

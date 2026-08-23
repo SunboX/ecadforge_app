@@ -327,6 +327,44 @@ test('AppController hides mechanical drawings for newly loaded PCBs', async () =
 })
 
 /**
+ * Verifies empty mechanical layer declarations do not create hidden drawing
+ * state for a newly loaded PCB.
+ */
+test('AppController leaves empty mechanical drawing layers without hidden state', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const documentModel = createPcbDocument(
+        'Project/compact-board.PcbDoc',
+        'altium'
+    )
+    documentModel.pcb.layers = [{ name: 'Top Layer', layerId: 1 }]
+    documentModel.pcb.primitiveLayers = [
+        { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
+        { name: 'Notes', layerId: 60, role: 'documentation' }
+    ]
+    documentModel.pcb.tracks = []
+    documentModel.pcb.arcs = []
+    documentModel.pcb.fills = []
+    documentModel.pcb.regions = []
+    documentModel.pcb.shapeBasedRegions = []
+    documentModel.pcb.polygons = []
+    documentModel.pcb.texts = []
+    documentModel.pcb.dimensions = []
+    const controller = new AppController({
+        state,
+        view,
+        parser: new BatchParser({ documents: [documentModel], assets: [] }),
+        analytics: new NoopAnalytics()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('compact-board.PcbDoc')])
+
+    const snapshot = state.getSnapshot()
+    assert.deepEqual(snapshot.hiddenPcbLayers, {})
+})
+
+/**
  * Verifies standalone KiCad library files are parsed as local documents.
  */
 test('AppController opens standalone KiCad library files from local selection', async () => {

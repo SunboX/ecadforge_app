@@ -95,3 +95,26 @@ test('PcbViewRenderer renders the mechanical drawings checkbox', () => {
     assert.doesNotMatch(hiddenHtml, /data-pcb-mechanical-drawings[^>]*checked/)
     assert.match(visibleHtml, /data-pcb-mechanical-drawings[^>]*checked/)
 })
+
+/**
+ * Verifies empty mechanical layer declarations do not expose a checkbox that
+ * cannot change any rendered technical drawing content.
+ */
+test('PcbViewRenderer omits the mechanical drawings checkbox for empty drawing layers', () => {
+    const documentModel = createDrawingBoard()
+    documentModel.pcb.tracks = []
+
+    const html = PcbViewRenderer.render(
+        documentModel,
+        'top',
+        null,
+        [],
+        [],
+        '',
+        {},
+        '',
+        { documentId: 'doc-empty' }
+    )
+
+    assert.doesNotMatch(html, /data-pcb-mechanical-drawings/u)
+})
