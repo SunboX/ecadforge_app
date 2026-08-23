@@ -15,7 +15,7 @@ export class PcbMechanicalDrawingsToggleRenderer {
     static render(documentModel, hiddenLayers, documentId, translate) {
         if (!String(documentId || '')) return ''
         const layerKeys =
-            PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+            PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(
                 documentModel
             )
         if (!layerKeys.length) return ''

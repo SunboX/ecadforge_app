@@ -30,17 +30,17 @@ function createDrawingBoard() {
             fills: [],
             tracks: [
                 {
-                    x1: 0,
+                    x1: 1000,
                     y1: 0,
-                    x2: 100,
+                    x2: 1100,
                     y2: 0,
                     width: 1,
                     layerId: 57
                 },
                 {
-                    x1: 0,
+                    x1: 1000,
                     y1: 100,
-                    x2: 100,
+                    x2: 1100,
                     y2: 100,
                     width: 1,
                     layerId: 60
@@ -97,12 +97,14 @@ test('PcbViewRenderer renders the mechanical drawings checkbox', () => {
 })
 
 /**
- * Verifies empty mechanical layer declarations do not expose a checkbox that
- * cannot change any rendered technical drawing content.
+ * Verifies populated on-board mechanical geometry does not expose a checkbox
+ * when it cannot reveal a separate technical drawing sheet.
  */
-test('PcbViewRenderer omits the mechanical drawings checkbox for empty drawing layers', () => {
+test('PcbViewRenderer omits the mechanical drawings checkbox without an off-board drawing', () => {
     const documentModel = createDrawingBoard()
-    documentModel.pcb.tracks = []
+    documentModel.pcb.tracks = [
+        { x1: 10, y1: 10, x2: 100, y2: 10, width: 1, layerId: 57 }
+    ]
 
     const html = PcbViewRenderer.render(
         documentModel,

@@ -11,6 +11,13 @@ test('PcbLayerVisibilityModel resolves mechanical drawing layer keys', () => {
         kind: 'pcb',
         pcb: {
             layers: [{ name: 'Top Layer', layerId: 1 }],
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 400,
+                heightMil: 300,
+                segments: []
+            },
             primitiveLayers: [
                 { name: 'TopOverlay', layerId: 33, role: 'overlay' },
                 { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
@@ -19,9 +26,9 @@ test('PcbLayerVisibilityModel resolves mechanical drawing layer keys', () => {
                 { name: 'Board Outline', layerId: 72, role: 'outline' }
             ],
             tracks: [
-                { x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 },
-                { x1: 0, y1: 1, x2: 1, y2: 1, width: 1, layerId: 58 },
-                { x1: 0, y1: 2, x2: 1, y2: 2, width: 1, layerId: 60 }
+                { x1: 1000, y1: 0, x2: 1100, y2: 0, width: 1, layerId: 57 },
+                { x1: 1000, y1: 1, x2: 1100, y2: 1, width: 1, layerId: 58 },
+                { x1: 1000, y1: 2, x2: 1100, y2: 2, width: 1, layerId: 60 }
             ],
             pads: [],
             vias: [],
@@ -46,21 +53,37 @@ test('PcbLayerVisibilityModel resolves mechanical drawing layer keys', () => {
 })
 
 /**
- * Verifies empty mechanical layer declarations do not count as technical
- * drawing content while primitives on matching ids populate their layers.
+ * Verifies a separate off-board drawing resolves layer keys while ordinary
+ * on-board and empty drawing content does not.
  */
-test('PcbLayerVisibilityModel resolves populated mechanical drawing layer keys', () => {
+test('PcbLayerVisibilityModel resolves off-board technical drawing layer keys', () => {
     const documentModel = {
         kind: 'pcb',
         pcb: {
             layers: [{ name: 'Top Layer', layerId: 1 }],
+            boardOutline: {
+                minX: 0,
+                minY: 0,
+                widthMil: 400,
+                heightMil: 300,
+                segments: []
+            },
             primitiveLayers: [
                 { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
                 { name: 'Notes', layerId: 60, role: 'documentation' },
                 { name: 'ASM TOP', layerId: 61, role: 'assembly' }
             ],
-            tracks: [{ x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 }],
-            texts: [{ text: 'Build note', x: 0, y: 0, layer: 'Notes' }],
+            tracks: [
+                {
+                    x1: 1000,
+                    y1: 0,
+                    x2: 1100,
+                    y2: 0,
+                    width: 1,
+                    layerId: 57
+                }
+            ],
+            texts: [{ text: 'Build note', x: 1000, y: 100, layer: 'Notes' }],
             dimensions: [],
             arcs: [],
             fills: [],
@@ -71,9 +94,7 @@ test('PcbLayerVisibilityModel resolves populated mechanical drawing layer keys',
     }
 
     assert.deepEqual(
-        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
-            documentModel
-        ),
+        PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(documentModel),
         ['Mechanical1', 'Notes']
     )
 
@@ -92,19 +113,36 @@ test('PcbLayerVisibilityModel resolves populated mechanical drawing layer keys',
         extensions: { altium: { native: documentModel } }
     }
     assert.deepEqual(
-        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+        PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(
             canonicalDocument
         ),
         ['Mechanical1', 'Notes']
+    )
+
+    documentModel.pcb.tracks[0] = {
+        x1: 10,
+        y1: 10,
+        x2: 100,
+        y2: 10,
+        width: 1,
+        layerId: 57
+    }
+    documentModel.pcb.texts[0] = {
+        text: 'Package note',
+        x: 20,
+        y: 20,
+        layer: 'Notes'
+    }
+    assert.deepEqual(
+        PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(documentModel),
+        []
     )
 
     documentModel.pcb.tracks = []
     documentModel.pcb.texts = []
 
     assert.deepEqual(
-        PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
-            documentModel
-        ),
+        PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(documentModel),
         []
     )
 })

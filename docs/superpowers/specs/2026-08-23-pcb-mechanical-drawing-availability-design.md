@@ -3,16 +3,17 @@
 ## Problem
 
 The PCB toolbar currently renders the aggregate mechanical-drawings checkbox
-whenever the document declares a layer whose metadata looks mechanical or
-documentary. ECAD formats commonly declare empty mechanical layer slots, so a
-PCB without technical drawing artwork can still show a control that has no
-visible effect.
+whenever the document contains geometry on a layer whose metadata looks
+mechanical or documentary. Ordinary boards also use these layers for on-board
+assembly and package geometry, so populated layers alone do not prove that a
+separate technical-drawing sheet exists.
 
 ## Approved behavior
 
-- Omit the checkbox when no renderable PCB primitive is assigned to a
-  qualifying mechanical or documentation layer.
-- Keep the checkbox for boards containing real drawing geometry or text.
+- Omit the checkbox when qualifying mechanical or documentation geometry stays
+  within or close to the physical PCB envelope.
+- Keep the checkbox only when qualifying drawing geometry materially expands
+  the combined viewport beyond the board envelope.
 - Continue hiding qualifying drawing content by default and fitting the
   viewport to the board when the control is available.
 - Derive the result from normalized model structure, never from file names,
@@ -20,17 +21,19 @@ visible effect.
 
 ## Architecture
 
-`PcbLayerVisibilityModel` will own one public content-aware resolver. It first
-resolves the existing mechanical drawing layer keys, then scans the PCB's
-renderable primitive collections and matches each primitive's layer id, legacy
-layer id, layer code, layer name, or layer key against those layers. The
-supported collections are tracks, arcs, fills, regions, shape-based regions,
-polygons, texts, and dimensions.
+`PcbLayerVisibilityModel` owns one public technical-drawing resolver. It first
+resolves the existing mechanical drawing layer keys, then delegates native
+geometry inspection to `PcbTechnicalDrawingContent`. That helper matches each
+primitive's layer id, legacy layer id, layer code, layer name, or layer key and
+compares the populated artwork envelope with the physical board outline. A
+technical sheet exists when the combined width or height exceeds 120% of the
+board envelope. The supported collections are tracks, arcs, fills, regions,
+shape-based regions, polygons, texts, and dimensions.
 
 The aggregate checkbox renderer and the default hidden-layer initializer will
-both use the content-aware resolver. This keeps UI availability and initial
-visibility state consistent: an empty declared layer neither creates a
-checkbox nor creates hidden-layer state.
+both use the technical-drawing resolver. This keeps UI availability and
+initial visibility state consistent: empty or ordinary on-board drawing layers
+neither create a checkbox nor create hidden-layer state.
 
 ## Error handling and compatibility
 
@@ -41,8 +44,8 @@ classification behavior.
 
 ## Verification
 
-- A synthetic PCB with populated drawing layers continues to render the
-  checkbox.
+- A synthetic PCB with off-board drawing layers renders the checkbox.
+- A synthetic PCB with populated on-board mechanical geometry omits it.
 - A synthetic PCB with only empty mechanical layer declarations omits it.
 - Default hidden-layer initialization follows the same distinction.
 - Existing focused tests, the complete app suite, structured-data validation,

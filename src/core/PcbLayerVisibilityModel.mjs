@@ -1,5 +1,6 @@
 import { EcadRendererService } from './ecad/EcadRendererService.mjs'
 import { EcadDocumentType } from './ecad/EcadDocumentType.mjs'
+import { PcbTechnicalDrawingContent } from './PcbTechnicalDrawingContent.mjs'
 
 /**
  * Resolves PCB layer visibility metadata shared by sidebar and PCB rendering.
@@ -514,13 +515,12 @@ export class PcbLayerVisibilityModel {
     }
 
     /**
-     * Resolves mechanical drawing layers that contain renderable primitives.
-     * Declared but empty mechanical layer slots do not represent a technical
-     * drawing and therefore are excluded.
+     * Resolves drawing-layer keys only when their populated artwork materially
+     * expands beyond the physical PCB envelope as a separate technical sheet.
      * @param {any} documentModel Active document model.
      * @returns {string[]}
      */
-    static resolvePopulatedMechanicalDrawingLayerKeys(documentModel) {
+    static resolveTechnicalDrawingLayerKeys(documentModel) {
         const drawingLayers = PcbLayerVisibilityModel.resolveLayers(
             documentModel
         )
@@ -531,36 +531,16 @@ export class PcbLayerVisibilityModel {
             .filter(({ layer, key }) =>
                 PcbLayerVisibilityModel.isMechanicalDrawingLayer(layer, key)
             )
-        if (!drawingLayers.length) return []
-
-        const keysByAlias = new Map()
-        for (const { layer, key } of drawingLayers) {
-            for (const alias of PcbLayerVisibilityModel.#layerAliases(
+            .map(({ layer, key }) => ({
                 layer,
-                key
-            )) {
-                keysByAlias.set(
-                    PcbLayerVisibilityModel.#normalizeLayerAlias(alias),
-                    key
-                )
-            }
-        }
+                key,
+                aliases: PcbLayerVisibilityModel.#layerAliases(layer, key)
+            }))
 
-        const populated = new Set()
-        for (const primitive of PcbLayerVisibilityModel.#drawingPrimitives(
-            documentModel
-        )) {
-            for (const alias of PcbLayerVisibilityModel.#primitiveLayerAliases(
-                primitive
-            )) {
-                const key = keysByAlias.get(alias)
-                if (key) populated.add(key)
-            }
-        }
-
-        return drawingLayers
-            .map(({ key }) => key)
-            .filter((key) => populated.has(key))
+        return PcbTechnicalDrawingContent.resolveLayerKeys(
+            documentModel,
+            drawingLayers
+        )
     }
 
     /**
@@ -588,7 +568,7 @@ export class PcbLayerVisibilityModel {
             const documentId = String(entry?.id || '')
             if (!documentId || Object.hasOwn(next, documentId)) continue
             const layerKeys =
-                PcbLayerVisibilityModel.resolvePopulatedMechanicalDrawingLayerKeys(
+                PcbLayerVisibilityModel.resolveTechnicalDrawingLayerKeys(
                     entry?.documentModel
                 )
             if (layerKeys.length) next[documentId] = layerKeys
@@ -737,59 +717,6 @@ export class PcbLayerVisibilityModel {
         ]
             .filter((value) => value !== undefined && value !== null)
             .map(String)
-    }
-
-    /**
-     * Collects renderable PCB primitives that may carry drawing layer data.
-     * @param {any} documentModel Active document model.
-     * @returns {any[]}
-     */
-    static #drawingPrimitives(documentModel) {
-        const nativeModel =
-            EcadRendererService.resolvePcbNativeModel(documentModel)
-        const pcb = nativeModel?.pcb || {}
-        return [
-            'tracks',
-            'arcs',
-            'fills',
-            'regions',
-            'shapeBasedRegions',
-            'polygons',
-            'texts',
-            'dimensions'
-        ].flatMap((collection) =>
-            Array.isArray(pcb[collection]) ? pcb[collection] : []
-        )
-    }
-
-    /**
-     * Resolves normalized layer references carried by one PCB primitive.
-     * @param {any} primitive PCB primitive.
-     * @returns {string[]}
-     */
-    static #primitiveLayerAliases(primitive) {
-        return [
-            primitive?.layerKey,
-            primitive?.layer,
-            primitive?.layerName,
-            primitive?.layerId,
-            primitive?.layerCode,
-            primitive?.legacyLayerId
-        ]
-            .filter((value) => value !== undefined && value !== null)
-            .map(PcbLayerVisibilityModel.#normalizeLayerAlias)
-            .filter(Boolean)
-    }
-
-    /**
-     * Normalizes a layer identifier for content matching.
-     * @param {unknown} value Raw layer identifier.
-     * @returns {string}
-     */
-    static #normalizeLayerAlias(value) {
-        return String(value ?? '')
-            .trim()
-            .toUpperCase()
     }
 
     /**

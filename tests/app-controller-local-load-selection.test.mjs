@@ -296,14 +296,21 @@ test('AppController hides mechanical drawings for newly loaded PCBs', async () =
     const view = new FakeView()
     const documentModel = createPcbDocument('Project/board.PcbDoc', 'altium')
     documentModel.pcb.layers = [{ name: 'Top Layer', layerId: 1 }]
+    documentModel.pcb.boardOutline = {
+        minX: 0,
+        minY: 0,
+        widthMil: 400,
+        heightMil: 300,
+        segments: []
+    }
     documentModel.pcb.primitiveLayers = [
         { name: 'TopOverlay', layerId: 33, role: 'overlay' },
         { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
         { name: 'Notes', layerId: 60, role: 'documentation' }
     ]
     documentModel.pcb.tracks = [
-        { x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 },
-        { x1: 0, y1: 1, x2: 1, y2: 1, width: 1, layerId: 60 }
+        { x1: 1000, y1: 0, x2: 1100, y2: 0, width: 1, layerId: 57 },
+        { x1: 1000, y1: 1, x2: 1100, y2: 1, width: 1, layerId: 60 }
     ]
     documentModel.pcb.pads = []
     documentModel.pcb.vias = []
