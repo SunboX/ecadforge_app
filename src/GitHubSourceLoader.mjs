@@ -1,6 +1,7 @@
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
 import { GitHubAltiumProjectManifest } from './GitHubAltiumProjectManifest.mjs'
 import { GitHubCompanionAssetLoader } from './GitHubCompanionAssetLoader.mjs'
+import { GitProjectRootSourceLoader } from './GitProjectRootSourceLoader.mjs'
 import { GitSourceUrlResolver } from './GitSourceUrlResolver.mjs'
 import { SExpressionParser } from 'kicad-toolkit/extensions'
 
@@ -35,7 +36,13 @@ export class GitHubSourceLoader {
      * @returns {Promise<{ sourceType: string, formatFamily: string, rawUrl: string, boardUrl: string, entries: { name: string, buffer: ArrayBuffer }[], assets: object[], modelReferences: object[] }>}
      */
     async loadUrl(sourceUrl, options = {}) {
-        const treeSource = GitSourceUrlResolver.normalizeTreeUrl(sourceUrl)
+        let treeSource = GitSourceUrlResolver.normalizeTreeUrl(sourceUrl)
+        if (treeSource) {
+            treeSource = await GitProjectRootSourceLoader.resolve(
+                treeSource,
+                this.#fetcher
+            )
+        }
         const resolved = treeSource
             ? await this.#resolveTreeSource(treeSource)
             : GitSourceUrlResolver.normalizeSourceUrl(sourceUrl)

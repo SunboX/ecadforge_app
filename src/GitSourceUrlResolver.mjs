@@ -69,14 +69,63 @@ export class GitSourceUrlResolver {
         const parsedUrl = GitSourceUrlResolver.#parseHttpsUrl(sourceUrl)
 
         if (parsedUrl.hostname === 'github.com') {
-            return GitSourceUrlResolver.#normalizeGitHubTreeUrl(parsedUrl)
+            return (
+                GitSourceUrlResolver.#normalizeGitHubTreeUrl(parsedUrl) ||
+                GitSourceUrlResolver.#normalizeGitHubProjectRootUrl(parsedUrl)
+            )
         }
 
         if (parsedUrl.hostname === 'gitlab.com') {
-            return GitSourceUrlResolver.#normalizeGitLabTreeUrl(parsedUrl)
+            return (
+                GitSourceUrlResolver.#normalizeGitLabTreeUrl(parsedUrl) ||
+                GitSourceUrlResolver.#normalizeGitLabProjectRootUrl(parsedUrl)
+            )
         }
 
         return null
+    }
+
+    /**
+     * Resolves a project-home descriptor into a root-folder API source.
+     * @param {object} source Hosted project descriptor.
+     * @param {string} defaultBranch Repository default branch.
+     * @returns {object} Root folder source.
+     */
+    static resolveProjectRootSource(source, defaultBranch) {
+        const ref = String(defaultBranch || '').trim()
+        if (!ref) {
+            throw new Error(
+                'The ' +
+                    GitSourceUrlResolver.getProviderLabel(source) +
+                    ' project does not expose a default branch.'
+            )
+        }
+
+        if (source?.provider === 'github') {
+            return {
+                provider: 'github',
+                providerLabel: 'GitHub',
+                apiUrl: GitSourceUrlResolver.#buildGitHubContentsApiUrl(
+                    String(source.owner || ''),
+                    String(source.repositoryName || ''),
+                    ref,
+                    []
+                )
+            }
+        }
+
+        return {
+            provider: 'gitlab',
+            providerLabel: 'GitLab',
+            apiUrl: GitSourceUrlResolver.#buildGitLabTreeApiUrl(
+                String(source?.projectPath || ''),
+                ref,
+                ''
+            ),
+            projectPath: String(source?.projectPath || ''),
+            ref,
+            directoryPath: ''
+        }
     }
 
     /**
@@ -337,6 +386,32 @@ export class GitSourceUrlResolver {
     }
 
     /**
+     * Normalizes a GitHub project-home URL to a metadata API source.
+     * @param {URL} parsedUrl Parsed GitHub URL.
+     * @returns {{ provider: string, providerLabel: string, metadataApiUrl: string, owner: string, repositoryName: string } | null}
+     */
+    static #normalizeGitHubProjectRootUrl(parsedUrl) {
+        const parts = parsedUrl.pathname.split('/').filter(Boolean)
+        if (parts.length !== 2) return null
+
+        const [owner, repositoryName] = parts.map((part) =>
+            decodeURIComponent(part)
+        )
+
+        return {
+            provider: 'github',
+            providerLabel: 'GitHub',
+            metadataApiUrl:
+                GitSourceUrlResolver.#buildGitHubProjectMetadataApiUrl(
+                    owner,
+                    repositoryName
+                ),
+            owner,
+            repositoryName
+        }
+    }
+
+    /**
      * Normalizes a GitLab tree URL to a Repository Tree API URL.
      * @param {URL} parsedUrl Parsed GitLab URL.
      * @returns {{ provider: string, providerLabel: string, apiUrl: string, projectPath: string, ref: string, directoryPath: string } | null}
@@ -365,6 +440,30 @@ export class GitSourceUrlResolver {
     }
 
     /**
+     * Normalizes a GitLab project-home URL to a metadata API source.
+     * @param {URL} parsedUrl Parsed GitLab URL.
+     * @returns {{ provider: string, providerLabel: string, metadataApiUrl: string, projectPath: string } | null}
+     */
+    static #normalizeGitLabProjectRootUrl(parsedUrl) {
+        const parts = parsedUrl.pathname.split('/').filter(Boolean)
+        if (parts.length < 2 || parts.includes('-')) return null
+
+        const projectPath = parts
+            .map((part) => decodeURIComponent(part))
+            .join('/')
+
+        return {
+            provider: 'gitlab',
+            providerLabel: 'GitLab',
+            metadataApiUrl:
+                GitSourceUrlResolver.#buildGitLabProjectMetadataApiUrl(
+                    projectPath
+                ),
+            projectPath
+        }
+    }
+
+    /**
      * Parses GitLab `/-/{blob,raw,tree}/ref/path` URLs.
      * @param {URL} parsedUrl Parsed GitLab URL.
      * @param {string[]} allowedActions Supported worktree actions.
@@ -373,7 +472,7 @@ export class GitSourceUrlResolver {
     static #parseGitLabWorktreeUrl(parsedUrl, allowedActions) {
         const parts = parsedUrl.pathname.split('/').filter(Boolean)
         const separatorIndex = parts.indexOf('-')
-        if (separatorIndex < 1 || parts.length < separatorIndex + 4) {
+        if (separatorIndex < 1 || parts.length < separatorIndex + 3) {
             return null
         }
 
@@ -392,7 +491,36 @@ export class GitSourceUrlResolver {
             .map((part) => decodeURIComponent(part))
             .join('/')
 
-        return projectPath && ref && path ? { projectPath, ref, path } : null
+        return projectPath && ref && (path || action === 'tree')
+            ? { projectPath, ref, path }
+            : null
+    }
+
+    /**
+     * Builds a GitHub project metadata API URL.
+     * @param {string} owner Repository owner.
+     * @param {string} repositoryName Repository name.
+     * @returns {string}
+     */
+    static #buildGitHubProjectMetadataApiUrl(owner, repositoryName) {
+        return (
+            'https://api.github.com/repos/' +
+            GitSourceUrlResolver.#encodePathPart(owner) +
+            '/' +
+            GitSourceUrlResolver.#encodePathPart(repositoryName)
+        )
+    }
+
+    /**
+     * Builds a GitLab project metadata API URL.
+     * @param {string} projectPath GitLab project path.
+     * @returns {string}
+     */
+    static #buildGitLabProjectMetadataApiUrl(projectPath) {
+        return (
+            'https://gitlab.com/api/v4/projects/' +
+            encodeURIComponent(projectPath)
+        )
     }
 
     /**

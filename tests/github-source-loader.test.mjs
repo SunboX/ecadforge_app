@@ -642,3 +642,148 @@ test('GitHubSourceLoader reports HTTP fetch failures clearly', async () => {
 
     await assert.rejects(() => loader.loadUrl(url), /GitHub returned HTTP 404/)
 })
+
+test('GitHubSourceLoader discovers a KiCad project from a GitHub project root URL', async () => {
+    const metadataApiUrl = 'https://api.github.com/repos/acme/demo'
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents?ref=release-x'
+    const baseUrl =
+        'https://raw.githubusercontent.com/acme/demo/release-x/board'
+    const { fetcher, urls } = createFetchDouble({
+        [metadataApiUrl]: JSON.stringify({ default_branch: 'release-x' }),
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'board.kicad_pro',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pro'
+            },
+            {
+                name: 'board.kicad_sch',
+                type: 'file',
+                download_url: baseUrl + '.kicad_sch'
+            },
+            {
+                name: 'board.kicad_pcb',
+                type: 'file',
+                download_url: baseUrl + '.kicad_pcb'
+            }
+        ]),
+        [baseUrl + '.kicad_pro']: '{}',
+        [baseUrl + '.kicad_sch']: '(kicad_sch)',
+        [baseUrl + '.kicad_pcb']: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl('https://github.com/acme/demo')
+
+    assert.deepEqual(urls, [
+        metadataApiUrl,
+        GITHUB_RATE_LIMIT_URL,
+        apiUrl,
+        baseUrl + '.kicad_pro',
+        baseUrl + '.kicad_sch',
+        baseUrl + '.kicad_pcb'
+    ])
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.kicad_pro', 'board.kicad_sch', 'board.kicad_pcb']
+    )
+})
+
+test('GitHubSourceLoader discovers an Altium project from a GitLab project root URL', async () => {
+    const metadataApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo'
+    const apiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/tree?ref=stable-y&per_page=100'
+    const baseUrl = 'https://gitlab.com/acme/hardware/demo/-/raw/stable-y/'
+    const projectUrl = baseUrl + 'board.PrjPCB'
+    const schematicUrl = baseUrl + 'schematics/main.SchDoc'
+    const boardUrl = baseUrl + 'pcb/main.PcbDoc'
+    const projectApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/files/board.PrjPCB/raw?ref=stable-y'
+    const schematicApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/files/schematics%2Fmain.SchDoc/raw?ref=stable-y'
+    const boardApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/files/pcb%2Fmain.PcbDoc/raw?ref=stable-y'
+    const bodiesApiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/tree?path=3D+Bodies&ref=stable-y&per_page=100'
+    const { fetcher, urls } = createFetchDouble({
+        [metadataApiUrl]: JSON.stringify({ default_branch: 'stable-y' }),
+        [apiUrl]: JSON.stringify([
+            { name: 'board.PrjPCB', type: 'blob', path: 'board.PrjPCB' }
+        ]),
+        [projectApiUrl]:
+            '[Document1]\n' +
+            'DocumentPath=schematics\\main.SchDoc\n' +
+            '[Document2]\n' +
+            'DocumentPath=pcb\\main.PcbDoc\n',
+        [bodiesApiUrl]: JSON.stringify([]),
+        [schematicApiUrl]: '|HEADER=Schematic Document',
+        [boardApiUrl]: '|HEADER=Protel for Windows - PCB'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    const result = await loader.loadUrl('https://gitlab.com/acme/hardware/demo')
+
+    assert.deepEqual(urls.slice(0, 2), [metadataApiUrl, apiUrl])
+    assert.equal(result.rawUrl, projectUrl)
+    assert.equal(result.boardUrl, boardUrl)
+    assert.deepEqual(
+        result.entries.map((entry) => entry.name),
+        ['board.PrjPCB', 'schematics/main.SchDoc', 'pcb/main.PcbDoc']
+    )
+})
+
+test('GitHubSourceLoader loads explicit GitHub root trees without fetching metadata', async () => {
+    const apiUrl =
+        'https://api.github.com/repos/acme/demo/contents?ref=release-x'
+    const rawUrl =
+        'https://raw.githubusercontent.com/acme/demo/release-x/board.kicad_pcb'
+    const { fetcher, urls } = createFetchDouble({
+        [GITHUB_RATE_LIMIT_URL]: JSON.stringify({
+            resources: { core: { remaining: 60 } }
+        }),
+        [apiUrl]: JSON.stringify([
+            {
+                name: 'board.kicad_pcb',
+                type: 'file',
+                download_url: rawUrl
+            }
+        ]),
+        [rawUrl]: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    await loader.loadUrl('https://github.com/acme/demo/tree/release-x')
+
+    assert.deepEqual(urls, [GITHUB_RATE_LIMIT_URL, apiUrl, rawUrl])
+    assert.ok(!urls.includes('https://api.github.com/repos/acme/demo'))
+})
+
+test('GitHubSourceLoader loads explicit GitLab root trees without fetching metadata', async () => {
+    const apiUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/tree?ref=stable-y&per_page=100'
+    const apiRawUrl =
+        'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo/repository/files/board.kicad_pcb/raw?ref=stable-y'
+    const { fetcher, urls } = createFetchDouble({
+        [apiUrl]: JSON.stringify([
+            { name: 'board.kicad_pcb', type: 'blob', path: 'board.kicad_pcb' }
+        ]),
+        [apiRawUrl]: '(kicad_pcb)'
+    })
+    const loader = new GitHubSourceLoader({ fetcher })
+
+    await loader.loadUrl(
+        'https://gitlab.com/acme/hardware/demo/-/tree/stable-y'
+    )
+
+    assert.deepEqual(urls, [apiUrl, apiRawUrl])
+    assert.ok(
+        !urls.includes(
+            'https://gitlab.com/api/v4/projects/acme%2Fhardware%2Fdemo'
+        )
+    )
+})
