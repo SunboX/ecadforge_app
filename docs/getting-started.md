@@ -64,7 +64,7 @@ npm test
 ## First Workflow
 
 1. Open the app in the browser.
-2. Open a bundled sample from `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, or `/?demo=altium`; paste a supported GitHub or GitLab raw/blob file URL or tree folder URL; or drop a standalone native Altium `.SchDoc`/`.PcbDoc` file, a KiCad `.kicad_pro` project with its `.kicad_sch`/`.kicad_pcb` files, a standalone KiCad schematic or PCB file, a KiCad project ZIP, Gerber/Excellon files, a Gerber ZIP archive, or a CircuitJSON `.json` file into the upload zone. KiCad project folders can also be opened from the header, and hosted project folders can include project-local STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF models for the `3D` view.
+2. Open a bundled sample from `/demo/kicad`, `/demo/altium`, `/?demo=kicad`, or `/?demo=altium`; paste a public GitHub or GitLab project homepage, blob/raw file URL, or tree folder URL; or drop a standalone native Altium `.SchDoc`/`.PcbDoc` file, a KiCad `.kicad_pro` project with its `.kicad_sch`/`.kicad_pcb` files, a standalone KiCad schematic or PCB file, a KiCad project ZIP, Gerber/Excellon files, a Gerber ZIP archive, or a CircuitJSON `.json` file into the upload zone. KiCad project folders can also be opened from the header, and hosted project folders can include project-local STEP/STP, WRL/VRML, GLB/GLTF, STL, OBJ, and 3MF models for the `3D` view.
 3. Wait for the worker-backed parser to finish.
 4. Switch between `Schematic`, `PCB`, `3D`, `BOM`, and `Diagnostics`.
 5. In the `PCB` view, use the view settings menu to toggle trace lengths, connectivity guides, manufacturing overlays, grouping overlays, and top/bottom components. Hidden component sides are also excluded from hover and bounds candidate previews.
