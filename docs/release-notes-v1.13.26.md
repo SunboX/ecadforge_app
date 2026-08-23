@@ -6,8 +6,8 @@ individual file.
 
 ## Hosted project loading
 
-- A public project homepage discovers its default branch before the app loads
-  the project root.
+- A public project homepage derives its default branch from GitHub or GitLab
+  project metadata before the app loads the project root.
 - An explicit root-tree URL is accepted alongside existing file and folder
   URLs, so a hosted project can be opened from its visible repository root.
 - Existing blob and raw file URLs continue to load their selected file.
