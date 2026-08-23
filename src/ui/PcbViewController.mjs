@@ -17,13 +17,13 @@ import { PcbTraceLengthToggleController } from './PcbTraceLengthToggleController
 import { PcbViewRenderer } from './PcbViewRenderer.mjs'
 import { PcbViewSideModel } from './PcbViewSideModel.mjs'
 import { PcbViewportToolbarController } from './PcbViewportToolbarController.mjs'
+import { PcbViewportPreservation } from './PcbViewportPreservation.mjs'
 import { PcbLayerShortcutController } from './PcbLayerShortcutController.mjs'
 import { SchematicViewportController } from './SchematicViewportController.mjs'
 import { SvgClientBoundsGuard } from './SvgClientBoundsGuard.mjs'
 import { PcbSvgPointResolver } from './PcbSvgPointResolver.mjs'
 import { TouchTapSelectionGuard } from './TouchTapSelectionGuard.mjs'
 import { ViewportInteractionGateController } from './ViewportInteractionGateController.mjs'
-const PRESERVED_VIEWPORT_KEY = '__ecadForgePreservedPcbViewport'
 /**
  * Handles board-side selection and pan/zoom wiring for the 2D PCB view.
  */
@@ -34,6 +34,7 @@ export class PcbViewController {
     #side
     #translate
     #hiddenLayers
+    #viewportBoundsKey
     #hiddenObjects
     #objectOpacities
     #selectedComponentKey
@@ -115,6 +116,10 @@ export class PcbViewController {
         this.#hiddenLayers = Array.isArray(options.hiddenLayers)
             ? options.hiddenLayers.map(String)
             : []
+        this.#viewportBoundsKey = PcbViewportPreservation.boundsKey(
+            this.#documentModel,
+            this.#hiddenLayers
+        )
         this.#hiddenObjects = Array.isArray(options.hiddenObjects)
             ? options.hiddenObjects.map(String)
             : []
@@ -253,7 +258,12 @@ export class PcbViewController {
      * @returns {void}
      */
     dispose() {
-        this.#preserveCurrentViewport()
+        PcbViewportPreservation.capture(this.#contentNode, {
+            documentModel: this.#documentModel,
+            side: this.#side,
+            selectedComponentKey: this.#selectedComponentKey,
+            boundsKey: this.#viewportBoundsKey
+        })
         this.#contentNode.removeEventListener('click', this.#handleClick)
         this.#contentNode.removeEventListener('change', this.#handleChange)
         this.#contentNode.removeEventListener(
@@ -794,7 +804,7 @@ export class PcbViewController {
     #renderSide(side, options = {}) {
         this.#side = PcbViewSideModel.normalize(side)
         const preservedViewBox = options.preserveViewport
-            ? this.#readCurrentViewBox()
+            ? PcbViewportPreservation.read(this.#contentNode)
             : ''
         const generation = this.#renderGeneration + 1
         this.#renderGeneration = generation
@@ -809,6 +819,7 @@ export class PcbViewController {
             this.#objectOpacities,
             this.#selectedNetName,
             {
+                documentId: this.#documentId,
                 gerberRenderMode: this.#gerberRenderMode,
                 gerberLayerId: this.#gerberLayerId,
                 gerberLayerIds: this.#gerberLayerIds,
@@ -824,10 +835,19 @@ export class PcbViewController {
             this.#selectedNetName,
             this.#hoveredNetName
         )
-        const renderedDefaultViewBox = this.#readCurrentViewBox()
-        const restoredViewport = this.#restorePreservedViewport()
+        const renderedDefaultViewBox = PcbViewportPreservation.read(
+            this.#contentNode
+        )
+        const restoredViewport = PcbViewportPreservation.restore(
+            this.#contentNode,
+            {
+                documentModel: this.#documentModel,
+                side: this.#side,
+                boundsKey: this.#viewportBoundsKey
+            }
+        )
         if (!restoredViewport.restored) {
-            this.#applyViewBox(preservedViewBox)
+            PcbViewportPreservation.apply(this.#contentNode, preservedViewBox)
         }
         this.#attachSvgViewportController(renderedDefaultViewBox)
         this.#interactionGate.sync()
@@ -938,56 +958,6 @@ export class PcbViewController {
             PcbDiagnosticFocusModel.viewportBounds(focus),
             { animate: true, paddingFactor: 4 }
         )
-    }
-    /**
-     * Stores the active PCB viewBox so an AppView remount can keep pan/zoom.
-     * @returns {void}
-     */
-    #preserveCurrentViewport() {
-        const viewBox = this.#readCurrentViewBox()
-        if (!viewBox) return
-
-        this.#contentNode[PRESERVED_VIEWPORT_KEY] = {
-            documentModel: this.#documentModel,
-            side: this.#side,
-            selectedComponentKey: this.#selectedComponentKey,
-            viewBox
-        }
-    }
-    /**
-     * Restores a previously stored viewBox when remounting the same PCB side.
-     * @returns {{ restored: boolean, selectedComponentKey: string }}
-     */
-    #restorePreservedViewport() {
-        const preserved = this.#contentNode[PRESERVED_VIEWPORT_KEY]
-        delete this.#contentNode[PRESERVED_VIEWPORT_KEY]
-        if (
-            !preserved ||
-            preserved.documentModel !== this.#documentModel ||
-            preserved.side !== this.#side
-        ) {
-            return { restored: false, selectedComponentKey: '' }
-        }
-
-        return {
-            restored: this.#applyViewBox(preserved.viewBox),
-            selectedComponentKey: String(preserved.selectedComponentKey || '')
-        }
-    }
-    /** Reads the active SVG viewBox. @returns {string} */
-    #readCurrentViewBox() {
-        const svgNode = this.#contentNode.querySelector('.pcb-svg')
-        return String(svgNode?.getAttribute?.('viewBox') || '')
-    }
-    /** Applies a viewBox to the active PCB SVG. @param {string} viewBox SVG viewBox value. @returns {boolean} */
-    #applyViewBox(viewBox) {
-        const value = String(viewBox || '').trim()
-        if (!value) return false
-        const svgNode = this.#contentNode.querySelector('.pcb-svg')
-        if (typeof svgNode?.setAttribute !== 'function') return false
-
-        svgNode.setAttribute('viewBox', value)
-        return true
     }
     /** Disposes the active SVG viewport controller. @returns {void} */
     #disposeSvgViewportController() {

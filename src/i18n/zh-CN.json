@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "PCB 板面",
     "pcbView.copyDiagnostic": "复制诊断消息",
     "pcbView.copyMeasurementBounds": "复制测量边界",
+    "pcbView.mechanicalDrawings": "机械图纸",
     "pcbView.traceLengths": "走线长度",
     "preview.aria": "ECAD Forge 输出预览",
     "preview.demoNoDiagnostics": "示例文件没有生成解析器诊断。",

@@ -288,6 +288,45 @@ test('AppController prefers KiCad source boards over Gerber archives in folder b
 })
 
 /**
+ * Verifies newly loaded PCB documents start with mechanical documentation
+ * hidden while ordinary electrical and overlay layers remain visible.
+ */
+test('AppController hides mechanical drawings for newly loaded PCBs', async () => {
+    const state = new AppState()
+    const view = new FakeView()
+    const documentModel = createPcbDocument('Project/board.PcbDoc', 'altium')
+    documentModel.pcb.layers = [{ name: 'Top Layer', layerId: 1 }]
+    documentModel.pcb.primitiveLayers = [
+        { name: 'TopOverlay', layerId: 33, role: 'overlay' },
+        { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
+        { name: 'Notes', layerId: 60, role: 'documentation' }
+    ]
+    documentModel.pcb.tracks = [
+        { x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 },
+        { x1: 0, y1: 1, x2: 1, y2: 1, width: 1, layerId: 60 }
+    ]
+    documentModel.pcb.pads = []
+    documentModel.pcb.vias = []
+    documentModel.pcb.regions = []
+    documentModel.pcb.texts = []
+    const controller = new AppController({
+        state,
+        view,
+        parser: new BatchParser({ documents: [documentModel], assets: [] }),
+        analytics: new NoopAnalytics()
+    })
+
+    await controller.init()
+    await view.chooseFiles([new FakeFile('board.PcbDoc')])
+
+    const snapshot = state.getSnapshot()
+    assert.deepEqual(snapshot.hiddenPcbLayers[snapshot.activeDocumentId], [
+        'Mechanical1',
+        'Notes'
+    ])
+})
+
+/**
  * Verifies standalone KiCad library files are parsed as local documents.
  */
 test('AppController opens standalone KiCad library files from local selection', async () => {

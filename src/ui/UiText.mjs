@@ -36,6 +36,7 @@ const FALLBACK_MESSAGES = {
     'pcbView.measureBounds': 'Measure bounds',
     'pcbView.measureClear': 'Clear measurement',
     'pcbView.measureDistance': 'Measure distance',
+    'pcbView.mechanicalDrawings': 'Mechanical drawings',
     'pcbView.resetView': 'Reset PCB view',
     'pcbView.selectMeasurementBounds': 'Select contents',
     'pcbView.traceLengths': 'Trace lengths',

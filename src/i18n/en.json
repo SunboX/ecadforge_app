@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "PCB board side",
     "pcbView.copyDiagnostic": "Copy diagnostic message",
     "pcbView.copyMeasurementBounds": "Copy measurement bounds",
+    "pcbView.mechanicalDrawings": "Mechanical drawings",
     "pcbView.traceLengths": "Trace lengths",
     "preview.aria": "ECAD Forge output preview",
     "preview.demoNoDiagnostics": "The demo file did not emit parser diagnostics.",

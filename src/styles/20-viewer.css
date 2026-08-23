@@ -410,6 +410,25 @@ body.is-viewer-mode.is-viewer-report .viewer-stage {
     align-items: center;
 }
 
+.pcb-view__mechanical-drawings {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid rgba(95, 112, 124, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.76);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 0.86rem;
+}
+
+.pcb-view__mechanical-drawings input {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
 .scene-3d__preset.pcb-view__measure-tool {
     display: inline-grid;
     min-width: 2.25rem;

@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "PCB-Boardseite",
     "pcbView.copyDiagnostic": "Diagnosemeldung kopieren",
     "pcbView.copyMeasurementBounds": "Messgrenzen kopieren",
+    "pcbView.mechanicalDrawings": "Mechanische Zeichnungen",
     "pcbView.traceLengths": "Leiterbahnlaengen",
     "preview.aria": "ECAD Forge Ausgabevorschau",
     "preview.demoNoDiagnostics": "Die Demodatei hat keine Parser-Diagnosen ausgegeben.",

@@ -37,6 +37,60 @@ function createPcbDocument(overrides = {}) {
 }
 
 /**
+ * Reads the root PCB SVG viewBox.
+ * @param {string} markup SVG markup.
+ * @returns {number[]}
+ */
+function readViewBox(markup) {
+    const match = markup.match(
+        /<svg class="[^"]*\bpcb-svg\b[^"]*" viewBox="([^"]+)"/u
+    )
+    assert.ok(match, 'PCB viewBox is present')
+    return match[1].split(/\s+/u).map(Number)
+}
+
+/**
+ * Verifies Altium hidden-layer options affect fitted bounds and cache identity
+ * while preserving the hidden drawing markup for reversible app-side CSS.
+ */
+test('Altium PCB renderer fits cached SVG bounds to visible layers', () => {
+    const documentModel = createPcbDocument({
+        primitiveLayers: [
+            { name: 'Top Layer', layerId: 1 },
+            { name: 'Mechanical1', layerId: 57, role: 'mechanical' }
+        ],
+        tracks: [
+            {
+                x1: 5000,
+                y1: 4000,
+                x2: 7000,
+                y2: 4000,
+                width: 10,
+                layerId: 57
+            }
+        ],
+        texts: [
+            {
+                text: 'FABRICATION NOTES',
+                x: 5200,
+                y: 4200,
+                height: 80,
+                layerId: 57
+            }
+        ]
+    })
+
+    const visibleMarkup = EcadRendererService.renderPcb(documentModel)
+    const hiddenMarkup = EcadRendererService.renderPcb(documentModel, {
+        hiddenLayers: ['Mechanical1']
+    })
+
+    assert.ok(readViewBox(visibleMarkup)[2] > 7000)
+    assert.deepEqual(readViewBox(hiddenMarkup), [-240, -240, 580, 580])
+    assert.match(hiddenMarkup, />FABRICATION NOTES</)
+})
+
+/**
  * Verifies component-owned pad geometry suppresses fallback bodies even when
  * the recovered component origin is outside the board outline.
  */

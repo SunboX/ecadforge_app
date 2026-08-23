@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "Lado da placa PCB",
     "pcbView.copyDiagnostic": "Copiar mensagem de diagnostico",
     "pcbView.copyMeasurementBounds": "Copiar limites da medicao",
+    "pcbView.mechanicalDrawings": "Desenhos mecânicos",
     "pcbView.traceLengths": "Comprimentos de trilha",
     "preview.aria": "Prévia de saída do ECAD Forge",
     "preview.demoNoDiagnostics": "O arquivo de demonstração não emitiu diagnósticos do parser.",

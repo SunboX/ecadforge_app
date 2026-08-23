@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "Face de la carte PCB",
     "pcbView.copyDiagnostic": "Copier le message de diagnostic",
     "pcbView.copyMeasurementBounds": "Copier les limites de mesure",
+    "pcbView.mechanicalDrawings": "Dessins mécaniques",
     "pcbView.traceLengths": "Longueurs des pistes",
     "preview.aria": "Aperçu de sortie ECAD Forge",
     "preview.demoNoDiagnostics": "Le fichier de démonstration n'a émis aucun diagnostic du parseur.",

@@ -3,6 +3,49 @@ import test from 'node:test'
 import { PcbLayerVisibilityModel } from '../../src/core/PcbLayerVisibilityModel.mjs'
 
 /**
+ * Verifies compact Altium names and semantic documentation roles form the
+ * mechanical-drawing aggregate without including overlay or board-edge layers.
+ */
+test('PcbLayerVisibilityModel resolves mechanical drawing layer keys', () => {
+    const documentModel = {
+        kind: 'pcb',
+        pcb: {
+            layers: [{ name: 'Top Layer', layerId: 1 }],
+            primitiveLayers: [
+                { name: 'TopOverlay', layerId: 33, role: 'overlay' },
+                { name: 'Mechanical1', layerId: 57, role: 'mechanical' },
+                { name: 'ASM TOP', layerId: 58, role: 'assembly' },
+                { name: 'Notes', layerId: 60, role: 'documentation' },
+                { name: 'Board Outline', layerId: 72, role: 'outline' }
+            ],
+            tracks: [
+                { x1: 0, y1: 0, x2: 1, y2: 0, width: 1, layerId: 57 },
+                { x1: 0, y1: 1, x2: 1, y2: 1, width: 1, layerId: 58 },
+                { x1: 0, y1: 2, x2: 1, y2: 2, width: 1, layerId: 60 }
+            ],
+            pads: [],
+            vias: [],
+            regions: [],
+            texts: [],
+            components: []
+        }
+    }
+
+    assert.deepEqual(
+        PcbLayerVisibilityModel.resolveMechanicalDrawingLayerKeys(
+            documentModel
+        ),
+        ['Mechanical1', 'ASM TOP', 'Notes']
+    )
+    assert.deepEqual(
+        PcbLayerVisibilityModel.withMechanicalDrawingsHiddenByDefault({}, [
+            { id: 'doc-1', documentModel }
+        ]),
+        { 'doc-1': ['Mechanical1', 'ASM TOP', 'Notes'] }
+    )
+})
+
+/**
  * Verifies app layer visibility metadata separates board layers from virtual
  * render controls.
  */

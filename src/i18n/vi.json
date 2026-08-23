@@ -63,6 +63,7 @@
     "pcbView.boardSideAria": "Mặt bảng PCB",
     "pcbView.copyDiagnostic": "Sao chep thong bao chan doan",
     "pcbView.copyMeasurementBounds": "Sao chep gioi han do",
+    "pcbView.mechanicalDrawings": "Bản vẽ cơ khí",
     "pcbView.traceLengths": "Do dai duong mach",
     "preview.aria": "Bản xem trước đầu ra ECAD Forge",
     "preview.demoNoDiagnostics": "Tệp demo không phát sinh chẩn đoán trình phân tích.",

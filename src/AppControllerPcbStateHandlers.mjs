@@ -9,6 +9,19 @@ import { PcbObjectVisibilityModel } from './core/PcbObjectVisibilityModel.mjs'
  */
 export class AppControllerPcbStateHandlers {
     /**
+     * Initializes drawing-layer visibility for newly appended PCB documents.
+     * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Current map.
+     * @param {{ id?: string, documentModel?: object }[]} documents New documents.
+     * @returns {{ [documentId: string]: string[] }}
+     */
+    static withDefaultMechanicalDrawings(hiddenPcbLayers, documents) {
+        return PcbLayerVisibilityModel.withMechanicalDrawingsHiddenByDefault(
+            hiddenPcbLayers,
+            documents
+        )
+    }
+
+    /**
      * Applies one PCB layer visibility change from the sidebar.
      * @param {import('./core/AppState.mjs').AppState} state App state.
      * @param {{ action?: string, documentId?: string, layerKey?: string, layerKeys?: string[], visible?: boolean }} change Layer visibility event.

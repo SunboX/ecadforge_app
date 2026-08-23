@@ -12,6 +12,7 @@ import { GitHubSourceLoader } from './GitHubSourceLoader.mjs'
 import { GitHubSourceModelLinker } from './GitHubSourceModelLinker.mjs'
 import { GitHubParsePlan } from './GitHubParsePlan.mjs'
 import { AppControllerPcbStateHandlers } from './AppControllerPcbStateHandlers.mjs'
+import { AppControllerPublicState } from './AppControllerPublicState.mjs'
 import { AppControllerSelectedPartExport } from './AppControllerSelectedPartExport.mjs'
 import { AppControllerPcbAssemblyExport } from './AppControllerPcbAssemblyExport.mjs'
 import { AppControllerSessionAssetHandler } from './AppControllerSessionAssetHandler.mjs'
@@ -906,6 +907,11 @@ export class AppController {
               )
         const patch = {
             documents: nextDocuments,
+            hiddenPcbLayers:
+                AppControllerPcbStateHandlers.withDefaultMechanicalDrawings(
+                    snapshot.hiddenPcbLayers,
+                    appendedDocuments
+                ),
             activeDocumentId: AppControllerDocumentSelection.resolveDocumentId(
                 nextDocuments,
                 nextActiveView,
@@ -955,14 +961,7 @@ export class AppController {
      * @returns {{ app: string, activeView: string, locale: string, parseStatus: string, activeFileName: string }}
      */
     getPublicState() {
-        const snapshot = this.#state.getSnapshot()
-        return {
-            app: 'ECAD Forge',
-            activeView: snapshot.activeView,
-            locale: snapshot.locale,
-            parseStatus: snapshot.parseStatus,
-            activeFileName: snapshot.activeFileName
-        }
+        return AppControllerPublicState.resolve(this.#state.getSnapshot())
     }
 
     /**

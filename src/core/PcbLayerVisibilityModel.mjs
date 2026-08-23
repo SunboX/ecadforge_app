@@ -496,6 +496,57 @@ export class PcbLayerVisibilityModel {
     }
 
     /**
+     * Resolves the physical layer keys represented by the mechanical-drawings
+     * aggregate control.
+     * @param {any} documentModel Active document model.
+     * @returns {string[]}
+     */
+    static resolveMechanicalDrawingLayerKeys(documentModel) {
+        return PcbLayerVisibilityModel.resolveLayers(documentModel)
+            .map((layer, index) => ({
+                layer,
+                key: PcbLayerVisibilityModel.resolveLayerKey(layer, index)
+            }))
+            .filter(({ layer, key }) =>
+                PcbLayerVisibilityModel.isMechanicalDrawingLayer(layer, key)
+            )
+            .map(({ key }) => key)
+    }
+
+    /**
+     * Returns true when one physical layer belongs to mechanical drawings.
+     * @param {any} layer Layer metadata.
+     * @param {string} layerKey Resolved layer key.
+     * @returns {boolean}
+     */
+    static isMechanicalDrawingLayer(layer, layerKey) {
+        return PcbLayerVisibilityModel.#isMechanicalDrawingLayer(
+            PcbLayerVisibilityModel.#layerSearchText(layer, layerKey)
+        )
+    }
+
+    /**
+     * Initializes newly added PCB documents with mechanical drawings hidden.
+     * Existing document state is never overwritten.
+     * @param {{ [documentId: string]: string[] }} hiddenPcbLayers Current map.
+     * @param {{ id?: string, documentModel?: any }[]} documents New documents.
+     * @returns {{ [documentId: string]: string[] }}
+     */
+    static withMechanicalDrawingsHiddenByDefault(hiddenPcbLayers, documents) {
+        const next = PcbLayerVisibilityModel.#cloneMap(hiddenPcbLayers)
+        for (const entry of documents || []) {
+            const documentId = String(entry?.id || '')
+            if (!documentId || Object.hasOwn(next, documentId)) continue
+            const layerKeys =
+                PcbLayerVisibilityModel.resolveMechanicalDrawingLayerKeys(
+                    entry?.documentModel
+                )
+            if (layerKeys.length) next[documentId] = layerKeys
+        }
+        return next
+    }
+
+    /**
      * Returns true when a layer belongs to the named visibility preset.
      * @param {any} layer Layer metadata.
      * @param {string} layerKey Resolved layer key.
@@ -720,6 +771,21 @@ export class PcbLayerVisibilityModel {
             /\b(fab|assembly|courtyard|crtyd)\b/.test(text) ||
             /\b(drill|drl)[-_\s]?map\b/.test(text) ||
             PcbLayerVisibilityModel.#isKicadDocumentationLayer(text)
+        )
+    }
+
+    /**
+     * Returns true for mechanical, assembly, and documentation artwork while
+     * excluding electrical overlays and the physical board outline.
+     * @param {string} text Search text.
+     * @returns {boolean}
+     */
+    static #isMechanicalDrawingLayer(text) {
+        return (
+            /mechanical\s*\d*|\bmech\b/.test(text) ||
+            /\b(assembly|asm|fabrication|fab|dimension|drawing|drawings|documentation|document|notes?|courtyard|crtyd)\b/.test(
+                text
+            )
         )
     }
 

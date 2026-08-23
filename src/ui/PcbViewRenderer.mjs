@@ -5,7 +5,9 @@ import { PcbLayerVisibilityModel } from '../core/PcbLayerVisibilityModel.mjs'
 import { PcbObjectOpacityCssRenderer } from '../core/PcbObjectOpacityCssRenderer.mjs'
 import { PcbComponentSideAttributeRenderer } from './PcbComponentSideAttributeRenderer.mjs'
 import { PcbComponentSelectionMarkerRenderer } from './PcbComponentSelectionMarkerRenderer.mjs'
+import { PcbBaseSvgCacheKey } from './PcbBaseSvgCacheKey.mjs'
 import { PcbDiagnosticFocusRenderer } from './PcbDiagnosticFocusRenderer.mjs'
+import { PcbMechanicalDrawingsToggleRenderer } from './PcbMechanicalDrawingsToggleRenderer.mjs'
 import { PcbMeasurementRenderer } from './PcbMeasurementRenderer.mjs'
 import { PcbNetHighlightCssRenderer } from './PcbNetHighlightCssRenderer.mjs'
 import { PcbViewGerberLayerSelection } from './PcbViewGerberLayerSelection.mjs'
@@ -34,7 +36,7 @@ export class PcbViewRenderer {
      * @param {string} [selectedComponentKey] Selected component key.
      * @param {{ [objectKey: string]: number }} [objectOpacities] Object opacity map.
      * @param {string} [selectedNetName] Selected net name.
-     * @param {{ gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], measurement?: object, hoveredNetName?: string, showTraceLengths?: boolean, hoverFocusEnabled?: boolean, focusedDiagnosticId?: string }} [viewerOptions] Format-specific PCB view options.
+     * @param {{ documentId?: string, gerberRenderMode?: string, gerberLayerId?: string, gerberLayerIds?: string[], measurement?: object, hoveredNetName?: string, showTraceLengths?: boolean, hoverFocusEnabled?: boolean, focusedDiagnosticId?: string }} [viewerOptions] Format-specific PCB view options.
      * @returns {string}
      */
     static render(
@@ -93,6 +95,12 @@ export class PcbViewRenderer {
             '">' +
             PcbViewRenderer.#renderSideButton('top', normalizedSide, t) +
             PcbViewRenderer.#renderSideButton('bottom', normalizedSide, t) +
+            PcbMechanicalDrawingsToggleRenderer.render(
+                documentModel,
+                hiddenLayers,
+                viewerOptions.documentId,
+                t
+            ) +
             PcbViewportToolbarRenderer.renderControls({
                 documentModel,
                 interactionModel: interaction?.model,
@@ -175,16 +183,17 @@ export class PcbViewRenderer {
             side,
             gerberOptions
         )
-        const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
-            documentModel,
-            renderSide,
-            gerberOptions,
-            interaction?.model ?? null
-        )
         const layerTargets = PcbViewRenderer.#resolveLayerVisibilityTargets(
             documentModel,
             hiddenLayers,
             renderSide
+        )
+        const componentMarkup = PcbViewRenderer.#renderBasePcbSvg(
+            documentModel,
+            renderSide,
+            gerberOptions,
+            interaction?.model ?? null,
+            layerTargets.viewportAliases
         )
         const layerMarkup = PcbViewRenderer.#injectLayerVisibilityStyle(
             componentMarkup,
@@ -244,20 +253,23 @@ export class PcbViewRenderer {
      * @param {'top' | 'bottom'} side Active board side.
      * @param {{ renderMode: string, layerId: string, layerIds: string[], side?: string }} gerberOptions Gerber render options.
      * @param {object | null} [interactionModel] Prepared interaction model.
+     * @param {string[]} [hiddenLayerAliases] Renderer layer aliases excluded from viewport bounds.
      * @returns {string}
      */
     static #renderBasePcbSvg(
         documentModel,
         side,
         gerberOptions,
-        interactionModel = null
+        interactionModel = null,
+        hiddenLayerAliases = []
     ) {
         if (!PcbViewRenderer.#canCacheDocument(documentModel)) {
             return PcbViewRenderer.#createBasePcbSvg(
                 documentModel,
                 side,
                 gerberOptions,
-                interactionModel
+                interactionModel,
+                hiddenLayerAliases
             )
         }
 
@@ -267,7 +279,11 @@ export class PcbViewRenderer {
             PcbViewRenderer.#sideSvgCache.set(documentModel, sideCache)
         }
 
-        const cacheKey = PcbViewRenderer.#baseSvgCacheKey(side, gerberOptions)
+        const cacheKey = PcbBaseSvgCacheKey.resolve(
+            side,
+            gerberOptions,
+            hiddenLayerAliases
+        )
         const cachedMarkup = sideCache.get(cacheKey)
         if (cachedMarkup !== undefined) return cachedMarkup
 
@@ -275,7 +291,8 @@ export class PcbViewRenderer {
             documentModel,
             side,
             gerberOptions,
-            interactionModel
+            interactionModel,
+            hiddenLayerAliases
         )
         sideCache.set(cacheKey, markup)
         return markup
@@ -287,19 +304,22 @@ export class PcbViewRenderer {
      * @param {'top' | 'bottom'} side Active board side.
      * @param {{ renderMode: string, layerId: string, layerIds?: string[], side?: string }} gerberOptions Gerber render options.
      * @param {object | null} [interactionModel] Prepared interaction model.
+     * @param {string[]} [hiddenLayerAliases] Renderer layer aliases excluded from viewport bounds.
      * @returns {string}
      */
     static #createBasePcbSvg(
         documentModel,
         side,
         gerberOptions,
-        interactionModel = null
+        interactionModel = null,
+        hiddenLayerAliases = []
     ) {
         const markup = EcadRendererService.renderPcb(documentModel, {
             side,
             renderMode: gerberOptions.renderMode,
             layerId: gerberOptions.layerId,
-            layerIds: gerberOptions.layerIds
+            layerIds: gerberOptions.layerIds,
+            hiddenLayers: hiddenLayerAliases
         })
         const netMarkup = PcbViewRenderer.#tagNetElements(markup)
         const components = EcadDocumentComponents.resolve(documentModel)
@@ -381,11 +401,16 @@ export class PcbViewRenderer {
      * @param {object} documentModel Document model.
      * @param {string[]} hiddenLayers Hidden layer keys.
      * @param {'top' | 'bottom'} side Active board side.
-     * @returns {{ aliases: string[], drillCarrierAliases: string[], selectors: string[] }}
+     * @returns {{ aliases: string[], drillCarrierAliases: string[], selectors: string[], viewportAliases: string[] }}
      */
     static #resolveLayerVisibilityTargets(documentModel, hiddenLayers, side) {
         if (!Array.isArray(hiddenLayers) || !hiddenLayers.length) {
-            return { aliases: [], drillCarrierAliases: [], selectors: [] }
+            return {
+                aliases: [],
+                drillCarrierAliases: [],
+                selectors: [],
+                viewportAliases: []
+            }
         }
 
         const aliases = PcbLayerVisibilityModel.resolveHiddenLayerAliases(
@@ -398,6 +423,7 @@ export class PcbViewRenderer {
             hidden
         )
         const drillCarrierAliases = new Set()
+        const viewportAliases = new Set()
         const selectors = []
         PcbLayerVisibilityModel.resolveLayers(documentModel).forEach(
             (layer, index) => {
@@ -420,6 +446,13 @@ export class PcbViewRenderer {
                         drillCarrierAliases.add(alias)
                     )
                 }
+                if (
+                    PcbLayerVisibilityModel.isMechanicalDrawingLayer(layer, key)
+                ) {
+                    PcbViewRenderer.#layerAliases(layer, key).forEach((alias) =>
+                        viewportAliases.add(alias)
+                    )
+                }
                 selectors.push(
                     ...PcbViewRenderer.#resolveRenderedLayerSelectors(
                         layer,
@@ -433,7 +466,8 @@ export class PcbViewRenderer {
         return {
             aliases,
             drillCarrierAliases: [...drillCarrierAliases],
-            selectors
+            selectors,
+            viewportAliases: [...viewportAliases]
         }
     }
 
@@ -920,21 +954,6 @@ export class PcbViewRenderer {
             PcbViewRenderer.#escapeHtml(label) +
             '</button>'
         )
-    }
-
-    /**
-     * Builds a cache key for base PCB SVG markup.
-     * @param {'top' | 'bottom'} side Active side.
-     * @param {{ renderMode: string, layerId: string, layerIds: string[] }} gerberOptions Gerber render options.
-     * @returns {string}
-     */
-    static #baseSvgCacheKey(side, gerberOptions) {
-        return [
-            side,
-            String(gerberOptions.renderMode || ''),
-            String(gerberOptions.layerId || ''),
-            (gerberOptions.layerIds || []).join(',')
-        ].join('|')
     }
 
     /**

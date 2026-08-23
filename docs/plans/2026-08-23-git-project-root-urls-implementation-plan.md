@@ -25,12 +25,14 @@
 ### Task 1: Project-root URL resolution and loading
 
 **Files:**
+
 - Create: `src/GitProjectRootSourceLoader.mjs`
 - Modify: `src/GitSourceUrlResolver.mjs`
 - Modify: `src/GitHubSourceLoader.mjs`
 - Test: `tests/github-source-loader.test.mjs`
 
 **Interfaces:**
+
 - Consumes: `GitSourceUrlResolver.normalizeTreeUrl(sourceUrl)` and the injected `(url: string) => Promise<Response>` fetcher already owned by `GitHubSourceLoader`.
 - Produces: `GitProjectRootSourceLoader.resolve(source, fetcher): Promise<object>` and `GitSourceUrlResolver.resolveProjectRootSource(source, defaultBranch): object`.
 
@@ -171,7 +173,9 @@ export class GitProjectRootSourceLoader {
 
         if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
             throw new Error(
-                'The ' + providerLabel + ' project metadata response is invalid.'
+                'The ' +
+                    providerLabel +
+                    ' project metadata response is invalid.'
             )
         }
 
@@ -219,6 +223,7 @@ git commit -m "fix: load Git project root URLs"
 ### Task 2: Documentation, version, and release artifacts
 
 **Files:**
+
 - Modify: `docs/getting-started.md`
 - Create: `docs/release-notes-v1.13.26.md`
 - Modify: `package.json`
@@ -226,6 +231,7 @@ git commit -m "fix: load Git project root URLs"
 - Modify: generated `src/*.html` files written by the structured-data synchronizer
 
 **Interfaces:**
+
 - Consumes: project-root URL behavior from Task 1.
 - Produces: deployed application metadata and release notes for version `1.13.26`.
 
@@ -279,10 +285,12 @@ git commit -m "chore: release ECAD Forge 1.13.26"
 ### Task 3: Publish and verify release 1.13.26
 
 **Files:**
+
 - No repository files are modified after the verified release commit.
 - Create temporary release notes: `/tmp/ecadforge-release-1.13.26.md`
 
 **Interfaces:**
+
 - Consumes: verified `main` commits and version `1.13.26` from Tasks 1 and 2.
 - Produces: pushed `origin/main`, GitHub release/tag `v1.13.26`, successful deployment workflow, and live version/behavior evidence.
 

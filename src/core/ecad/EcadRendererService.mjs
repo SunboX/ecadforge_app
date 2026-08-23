@@ -98,7 +98,7 @@ export class EcadRendererService {
     /**
      * Renders a PCB document.
      * @param {object} documentModel Document model.
-     * @param {{ side?: 'top' | 'bottom', renderMode?: string, layerId?: string, layerIds?: string[] }} [options] PCB render options.
+     * @param {{ side?: 'top' | 'bottom', renderMode?: string, layerId?: string, layerIds?: string[], hiddenLayers?: (string | number)[] }} [options] PCB render options.
      * @returns {string}
      */
     static renderPcb(documentModel, options = {}) {
@@ -131,7 +131,8 @@ export class EcadRendererService {
                 () =>
                     EcadRendererService.#renderAltiumPcb(
                         renderDocumentModel,
-                        side
+                        side,
+                        options
                     )
             )
         }
@@ -182,7 +183,8 @@ export class EcadRendererService {
                         )
                       : EcadRendererService.#renderAltiumPcb(
                             renderDocumentModel,
-                            side
+                            side,
+                            options
                         )
         )
     }
@@ -597,9 +599,15 @@ export class EcadRendererService {
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side PCB side.
      * @param {string} formatClass Format-specific SVG modifier class.
+     * @param {{ hiddenLayers?: (string | number)[] }} [options] Altium render options.
      * @returns {string}
      */
-    static #renderNormalizedPcb(documentModel, side, formatClass) {
+    static #renderNormalizedPcb(
+        documentModel,
+        side,
+        formatClass,
+        options = {}
+    ) {
         const sideResolvedModel = prepareAltiumPcbSideResolvedRenderModel(
             documentModel,
             {
@@ -612,7 +620,10 @@ export class EcadRendererService {
                 ? AltiumPcbBottomViewMirror.apply(sideResolvedModel)
                 : sideResolvedModel
         const markup = EcadRendererService.#withPcbSvgClasses(
-            AltiumPcbSvgRenderer.render(renderModel),
+            AltiumPcbSvgRenderer.render(renderModel, {
+                side,
+                hiddenLayers: options.hiddenLayers
+            }),
             'pcb-svg--app-palette',
             formatClass,
             side === 'bottom' ? 'pcb-svg--bottom' : 'pcb-svg--top'
@@ -630,19 +641,21 @@ export class EcadRendererService {
      * model adapter exported by the toolkit.
      * @param {object} documentModel Document model.
      * @param {'top' | 'bottom'} side PCB side.
+     * @param {{ hiddenLayers?: (string | number)[] }} [options] Altium render options.
      * @returns {string}
      */
-    static #renderAltiumPcb(documentModel, side) {
+    static #renderAltiumPcb(documentModel, side, options = {}) {
         return EcadRendererService.#renderNormalizedPcb(
             documentModel,
             side,
-            'pcb-svg--altium'
+            'pcb-svg--altium',
+            options
         )
     }
     /**
      * Renders Gerber PCB SVG through the fabrication renderer.
      * @param {object} documentModel Document model.
-     * @param {{ renderMode?: string, layerId?: string, layerIds?: string[] }} options Render options.
+     * @param {{ renderMode?: string, layerId?: string, layerIds?: string[], hiddenLayers?: (string | number)[] }} options Render options.
      * @param {'top' | 'bottom'} side PCB side.
      * @returns {string}
      */
@@ -764,6 +777,9 @@ export class EcadRendererService {
             String(options.renderMode || ''),
             String(options.layerId || ''),
             (Array.isArray(options.layerIds) ? options.layerIds : [])
+                .map(String)
+                .join(','),
+            (Array.isArray(options.hiddenLayers) ? options.hiddenLayers : [])
                 .map(String)
                 .join(',')
         ].join('|')
