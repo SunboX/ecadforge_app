@@ -290,3 +290,16 @@
 [data-theme='dark'] :is(.inline-field, .github-open__input-wrap):focus-within {
     outline-color: var(--focus-ring);
 }
+
+/* Static captures also follow manual overrides while live preview parsing waits. */
+.hero-proof__screen > .hero-proof__fallback--dark {
+    display: none;
+}
+
+[data-theme='dark'] .hero-proof__screen > .hero-proof__fallback--light {
+    display: none;
+}
+
+[data-theme='dark'] .hero-proof__screen > .hero-proof__fallback--dark {
+    display: block;
+}

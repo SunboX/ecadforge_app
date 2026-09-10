@@ -480,11 +480,16 @@ test('AppView shows selected landing preview loading state before demo documents
     const screen = fakeDocument.querySelector('#heroPreviewScreen')
     const chips = fakeDocument.querySelector('#heroViewChips')
 
-    screen.innerHTML = '<img src="/og/ecadforge-product-preview.png" alt="">'
+    screen.innerHTML =
+        '<img class="hero-proof__fallback--light" src="/light-preview.png" alt="">' +
+        '<img class="hero-proof__fallback--dark" src="/dark-preview.png" alt="">'
 
     chips.clickChip('diagnostics')
 
-    assert.doesNotMatch(screen.innerHTML, /ecadforge-product-preview\.png/)
+    assert.doesNotMatch(
+        screen.innerHTML,
+        /hero-proof__fallback--(?:light|dark)/
+    )
     assert.match(screen.innerHTML, /hero-proof__summary/)
     assert.match(screen.innerHTML, /Preparing preview/)
     assert.equal(

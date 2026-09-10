@@ -518,6 +518,9 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /id="heroPreviewScreen"/)
     assert.match(indexRaw, /class="hero-proof__screen"/)
     assert.match(indexRaw, /src="\/og\/ecadforge-product-preview\.png"/)
+    assert.match(indexRaw, /class="hero-proof__fallback--light"/)
+    assert.match(indexRaw, /class="hero-proof__fallback--dark"/)
+    assert.match(indexRaw, /src="\/og\/ecadforge-product-preview-dark\.png"/)
     assert.match(indexRaw, /Preview of supported views/)
     assert.match(indexRaw, /id="heroViewChips"/)
     assert.match(
@@ -596,6 +599,12 @@ test('marketing product preview uses the refreshed PCB render asset', async () =
         height: 430
     })
     assert.notEqual(digest, stalePreKiCadViewDigest)
+    const darkPreview = await readFile(
+        new URL('src/og/ecadforge-product-preview-dark.png', root)
+    )
+    assert.equal(darkPreview.subarray(1, 4).toString('ascii'), 'PNG')
+    assert.deepEqual(readPngDimensions(darkPreview), readPngDimensions(preview))
+    assert.notDeepEqual(darkPreview, preview)
 })
 
 /**
