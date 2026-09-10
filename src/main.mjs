@@ -87,9 +87,7 @@ async function bootstrap() {
     })
     await WebMcpRuntimeLoader.initialize()
     await webMcpAdapter.initialize()
-    if (!startupSource) {
-        HeroPreviewDemoLoader.schedule(view)
-    }
+    HeroPreviewDemoLoader.schedule(view, { state })
 
     await loadVersion(view, loadedVersion, i18n)
     startVersionRefreshLoop(view, loadedVersion, i18n)

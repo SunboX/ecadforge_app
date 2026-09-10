@@ -47,6 +47,10 @@ const browserDependencyAssets = [
         outputParts: ['node_modules', '@sunbox', 'occt-import-js', 'dist']
     },
     {
+        sourceParts: ['node_modules', 'earcut', 'src', 'earcut.js'],
+        outputParts: ['node_modules', 'earcut', 'src', 'earcut.js']
+    },
+    {
         sourceParts: ['node_modules', 'fflate', 'esm', 'browser.js'],
         outputParts: ['node_modules', 'fflate', 'esm', 'browser.js']
     },

@@ -160,6 +160,12 @@ export class AppViewRenderGraph {
      */
     static #isAtomicInput(_value, path) {
         const property = path.at(-1)
-        return property === 'documentModel' || property === 'documentScope'
+        // State replaces asset snapshots as a unit. Async controllers must retain
+        // their cloneable data, rather than proxies tied to a finished render.
+        return (
+            property === 'documentModel' ||
+            property === 'documentScope' ||
+            (path.length === 1 && property === 'sessionAssets')
+        )
     }
 }

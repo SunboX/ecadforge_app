@@ -124,6 +124,25 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/pcb-scene3d-viewer/src/PcbModelArchiveExporter.mjs'
     )
+    for (const moduleName of [
+        'PcbScene3dGeometryWorker',
+        'PcbScene3dGeometryWorkerClient',
+        'PcbScene3dGeneratedGeometryBuilder',
+        'PcbScene3dGeometryTransfer'
+    ]) {
+        const modulePath =
+            'node_modules/pcb-scene3d-viewer/src/' + moduleName + '.mjs'
+        const source = await readRequiredOutputFile(outputRoot, modulePath)
+        assertNotHtmlShell(source, modulePath)
+        if (moduleName === 'PcbScene3dGeometryWorkerClient') {
+            assert.ok(
+                source.includes(
+                    'PcbScene3dGeometryWorker.mjs?v=' + pkg.version
+                ),
+                'Generated geometry worker URL must follow the deployed version'
+            )
+        }
+    }
     const occtImporterPath =
         'node_modules/@sunbox/occt-import-js/dist/occt-import-js.js'
     const occtWorkerPath =
@@ -158,6 +177,12 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot,
         'node_modules/@mcp-b/global/dist/index.iife.js'
     )
+    const earcutSource = await readRequiredOutputFile(
+        outputRoot,
+        'node_modules/earcut/src/earcut.js'
+    )
+    assertNotHtmlShell(earcutSource, 'node_modules/earcut/src/earcut.js')
+    assert.match(earcutSource, /export default function earcut/)
     const fflateSource = await readRequiredOutputFile(
         outputRoot,
         'node_modules/fflate/esm/browser.js'

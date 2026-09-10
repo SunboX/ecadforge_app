@@ -51,9 +51,24 @@ PORT=3100 npm start
 - Some Altium constructs are still parsed through printable-record recovery only, unsupported advanced KiCad S-expression items are emitted as diagnostics where possible, and Gerber archives need matching fabrication layers to form a useful composite view.
 - Start by checking whether the file still yields component placements, layer stack data, fabrication layers, or text records.
 
+## Copper appears inside a mounting-hole clearance
+
+Altium numeric region kinds distinguish solid copper from polygon cutouts,
+outline regions, and cavities. The 3D scene builder must honor those kinds as
+well as explicit cutout flags. A polygon cutout is a pour clearance, not an
+additional copper fill or a hole through the substrate.
+
+Curved fill contours carry an explicit signed sweep across the angle boundary
+and preserve reversed traversal and major arcs. The mesh resolver samples
+segment boundaries rather than treating arc centers as polygon vertices.
+Regression tests cover both board faces with synthetic drilled copper and
+rounded contours. Verify close-up geometry after importing the original file
+again; an existing scene retains its earlier prepared data.
+
 ## Drag-and-drop does nothing
 
 - Confirm the file extension is `.SchDoc`, `.PcbDoc`, `.json`, `.kicad_pro`, `.kicad_sch`, `.kicad_pcb`, `.gbr`, `.gtl`, `.gbl`, `.gto`, `.gbo`, `.gts`, `.gbs`, `.drl`, `.xln`, or `.zip`.
+- A `Canonical extension data is too large` diagnostic means the shared toolkit rejected the parsed native model before rendering. Native records and derived indexes can be much larger than the source file. Keep the extension and worker document/project capacities aligned in `circuitjson-toolkit`; byte, depth, and metadata limits must still reject oversized input without dropping document data.
 - Try the explicit file picker in the header.
 - Check the browser console for worker or module-loading errors.
 
