@@ -4,6 +4,7 @@
     "action.tryKicad": "Essayer l'exemple KiCad",
     "app.activeFile": "Fichier actif",
     "app.brandAria": "Retourner à la page d'accueil ECAD Forge",
+    "app.darkMode": "Mode sombre",
     "app.diagnostics": "Diagnostics",
     "app.dropCopy": "Consultez les schémas, les routages PCB, les cartes 3D, les BOM et les diagnostics directement dans votre navigateur. Aucun téléversement, aucun compte, aucun prétraitement côté serveur.",
     "app.dropHint": "Privé · Local · Aucun téléversement",

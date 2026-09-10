@@ -423,7 +423,11 @@ body.is-viewer-mode.is-viewer-report .app-shell {
     }
 
     .footer-inline {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .footer-inline__responsible {
+        white-space: normal;
     }
 
     .footer-inline__main,
@@ -433,6 +437,7 @@ body.is-viewer-mode.is-viewer-report .app-shell {
     }
 
     .footer-inline__meta {
+        max-width: 100%;
         justify-content: flex-start;
     }
 

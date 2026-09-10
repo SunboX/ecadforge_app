@@ -149,8 +149,8 @@
 }
 
 .pcb-svg--kicad .pcb-drawing--silk {
-    fill: rgba(66, 93, 112, 0.1);
-    stroke: rgba(66, 93, 112, 0.72);
+    fill: var(--pcb-footprint-fill);
+    stroke: var(--pcb-footprint-track-color);
     opacity: 0.82;
 }
 

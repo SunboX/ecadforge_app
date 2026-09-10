@@ -4,6 +4,7 @@
     "action.tryKicad": "Experimentar exemplo do KiCad",
     "app.activeFile": "Arquivo ativo",
     "app.brandAria": "Voltar à página inicial do ECAD Forge",
+    "app.darkMode": "Modo escuro",
     "app.diagnostics": "Diagnósticos",
     "app.dropCopy": "Visualize esquemáticos, layouts de PCB, placas 3D, BOMs e diagnósticos diretamente no navegador. Sem upload, sem conta, sem pré-processamento no servidor.",
     "app.dropHint": "Privado · Local · Sem upload",

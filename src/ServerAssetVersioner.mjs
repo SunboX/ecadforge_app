@@ -189,10 +189,11 @@ export class ServerAssetVersioner {
                     '"'
             )
             .replace(
-                /src="\/main\.mjs(?:\?[^"]*)?"/g,
-                'src="' +
+                /src="(\/(?!\/)[^"]+\.(?:mjs|js)(?:\?[^"]*)?)"/g,
+                (_match, assetPath) =>
+                    'src="' +
                     ServerAssetVersioner.appendVersionQuery(
-                        '/main.mjs',
+                        assetPath,
                         versionKey
                     ) +
                     '"'

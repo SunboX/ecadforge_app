@@ -4,6 +4,7 @@
     "action.tryKicad": "试用 KiCad 示例",
     "app.activeFile": "当前文件",
     "app.brandAria": "返回 ECAD Forge 首页",
+    "app.darkMode": "深色模式",
     "app.diagnostics": "诊断",
     "app.dropCopy": "直接在浏览器中查看原理图、PCB 布局、3D 板、BOM 和诊断信息。无需上传、无需账号、无需服务器端预处理。",
     "app.dropHint": "私密 · 本地 · 无需上传",

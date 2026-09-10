@@ -164,3 +164,13 @@ test('rewriteJavaScriptModule versions earcut imports', () => {
         /from '\/node_modules\/earcut\/src\/earcut\.js\?v=1\.7\.69'/
     )
 })
+
+/** Keeps pre-paint scripts on the same deployment version as the app entry. */
+test('rewriteHtmlDocument versions local classic and module scripts without changing external scripts', () => {
+    const html =
+        '<script src="/preferences.mjs"></script><script src="/ui/start.js?v=old"></script><script src="https://example.org/a.js"></script><script src="//example.org/b.js"></script>'
+    assert.equal(
+        ServerAssetVersioner.rewriteHtmlDocument(html, '2.0.1'),
+        '<script src="/preferences.mjs?v=2.0.1"></script><script src="/ui/start.js?v=2.0.1"></script><script src="https://example.org/a.js"></script><script src="//example.org/b.js"></script>'
+    )
+})

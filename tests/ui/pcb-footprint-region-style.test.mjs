@@ -28,3 +28,16 @@ test('viewer stylesheet keeps footprint regions in the overlay color', async () 
     )
     assert.doesNotMatch(regionBlock, /fill:\s*var\(--pcb-footprint-fill\);/)
 })
+
+/** Ensures KiCad outlines follow the active palette just like silk text. */
+test('KiCad silkscreen drawings use the active footprint palette', async () => {
+    const css = await readFile(
+        new URL('../../src/styles/25-kicad-pcb.css', import.meta.url),
+        'utf8'
+    )
+    const rules =
+        css.match(/\.pcb-svg--kicad \.pcb-drawing--silk\s*\{([^}]+)\}/)?.[1] ||
+        ''
+    assert.match(rules, /fill:\s*var\(--pcb-footprint-fill\)/)
+    assert.match(rules, /stroke:\s*var\(--pcb-footprint-track-color\)/)
+})

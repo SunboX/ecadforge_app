@@ -4,6 +4,7 @@
     "action.tryKicad": "Thử mẫu KiCad",
     "app.activeFile": "Tệp đang mở",
     "app.brandAria": "Quay lại trang đầu ECAD Forge",
+    "app.darkMode": "Chế độ tối",
     "app.diagnostics": "Chẩn đoán",
     "app.dropCopy": "Xem sơ đồ nguyên lý, bố cục PCB, bảng 3D, BOM và chẩn đoán ngay trong trình duyệt. Không tải lên, không cần tài khoản, không xử lý trước phía máy chủ.",
     "app.dropHint": "Riêng tư · Cục bộ · Không tải lên",
