@@ -273,11 +273,14 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
         'query_xnet_by_pin_name'
     ])
 
+    for (const { tool } of fake.calls) {
+        assert.deepEqual(tool.annotations, {
+            readOnlyHint: true,
+            consequentialHint: false,
+            untrustedContentHint: true
+        })
+    }
     const listNets = fake.calls.find((call) => call.tool.name === 'list_nets')
-    assert.deepEqual(listNets.tool.annotations, {
-        readOnlyHint: true,
-        untrustedContentHint: true
-    })
     assert.deepEqual(await listNets.tool.execute({}), { nets: ['I2C_SDA'] })
 })
 

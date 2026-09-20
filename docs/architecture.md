@@ -193,7 +193,7 @@ This is still not full binary reconstruction. It is a browser-first recovery str
    and bottom PCB artwork as configurable board-face textures when the active
    document can render PCB views. The viewer's raw-model ZIP path preserves all
    source formats, including 3MF, without converting them.
-9. `WebMcpRuntimeLoader` loads `@mcp-b/global` with same-origin tab and iframe transport options, preserving native WebMCP when present and providing package runtime support when native support is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
+9. `WebMcpRuntimeLoader` preserves a usable native `document.modelContext` directly, importing `@mcp-b/global` with same-origin tab and iframe transports only when native registration is unavailable; `WebMcpAdapter` then registers read-only tools, awaits registration completion, and counts registration failures before startup continues; those tools query the current `AppState` snapshot, dispatch loaded documents to the matching toolkit query service, produce review/audit/search/diagnostic/cross-reference summaries, emit privacy-safe method-usage analytics, and never read local paths directly
 10. SPICE simulation callers use `SpiceSimulationWorkerClient`, which posts netlist text to `spice-simulation.worker.mjs`; the worker delegates compatibility preprocessing, compatibility diagnostics, requested-plot diagnostics, and CircuitJSON transient graph shaping to `circuitjson-toolkit`, then returns complete simulation CircuitJSON, graph-only elements, graph summaries, and diagnostics without network access
 11. Static-hosted 3D modules resolve browser `three` and `three/addons/` imports through the shell import map and the deployed `/node_modules/` asset tree
 
@@ -234,10 +234,13 @@ and expose the canonical runtime by identity for future editable input models.
 ## WebMCP
 
 The WebMCP layer is loaded by `src/main.mjs` after the controller is created.
-`WebMcpRuntimeLoader` configures `@mcp-b/global` before importing it so tab and
-iframe transports accept only the current page origin. The package runtime
-preserves native `document.modelContext` support when present and provides the
-runtime/polyfill path when native support is unavailable. If the package fails
+`WebMcpRuntimeLoader` first checks for a callable
+`document.modelContext.registerTool` and leaves that context untouched. Only
+when registration is unavailable does it configure and import `@mcp-b/global`,
+with tab and iframe transports restricted to the current page origin. Native
+browsers use native WebMCP clients; MCP-B transports are installed only on the
+fallback path. This prevents the packaged bridge from replacing newer browser
+schema, execution, annotation, and cancellation contracts. If the package fails
 to load, the viewer continues normally and WebMCP tool registration is skipped.
 
 The app shell provides the production WebMCP origin-trial token for
@@ -248,8 +251,9 @@ Chrome's document-scoped WebMCP and default same-origin tools policy.
 Registered tools operate only on loaded session documents. `design` arguments
 can target `active`, a loaded document id, an exact loaded file name, or an
 unambiguous loaded file base name. Current WebMCP browsers receive object-form
-tool descriptors with `execute` handlers and read-only/untrusted-content
-annotations. The adapter awaits registration promises returned by the
+tool descriptors with `execute` handlers, `readOnlyHint: true`,
+`consequentialHint: false`, and `untrustedContentHint: true` annotations.
+The adapter awaits registration promises returned by the
 browser/runtime so cross-document publication errors are reported through
 registration analytics. Older positional browser APIs remain supported with
 MCP-style JSON text results.

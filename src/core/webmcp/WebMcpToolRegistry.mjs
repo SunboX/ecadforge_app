@@ -321,6 +321,7 @@ export class WebMcpToolRegistry {
             },
             annotations: {
                 readOnlyHint: true,
+                consequentialHint: false,
                 untrustedContentHint: true
             },
             handler

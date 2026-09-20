@@ -152,9 +152,11 @@ Production deployment is available at [https://ecadforge.app/](https://ecadforge
 
 ## WebMCP
 
-ECAD Forge loads the `@mcp-b/global` WebMCP runtime with same-origin transport
-options, preserving native browser WebMCP when present and providing the
-package runtime when native support is unavailable. It then registers read-only
+ECAD Forge uses native `document.modelContext` registration directly when
+available, preserving browser schemas, execution options, and annotations.
+Otherwise it loads `@mcp-b/global` with same-origin transport options as a
+fallback. MCP-B tab and iframe transports are installed only on that fallback
+path. It then registers read-only
 tools for the designs already loaded in the current session. Agents can list
 loaded designs, components, nets, search metadata, review coverage, audit
 metadata/connectivity issues, cross-reference schematic nets against PCB pads,
@@ -175,6 +177,10 @@ Object-form WebMCP execution callbacks also forward the browser's optional
 `AbortSignal` separately from tool JSON. Pre-aborted app-owned and
 toolkit-backed queries stop before synchronous work begins without changing
 existing tool inputs or result shapes.
+
+All tools declare `consequentialHint: false` alongside their read-only and
+untrusted-content hints. See [WebMCP compatibility](docs/webmcp.md) for current
+Chrome API changes and fallback limitations.
 
 See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
 constraints, and unsupported browser-only operations.

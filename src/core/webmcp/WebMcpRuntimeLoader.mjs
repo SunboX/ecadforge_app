@@ -8,11 +8,11 @@ const runtimeSpecifier = '@mcp-b/global/iife'
 const importRuntime = () => import('@mcp-b/global/iife')
 
 /**
- * Loads the packaged WebMCP runtime before ECAD Forge registers app tools.
+ * Preserves native WebMCP or loads the fallback before registering app tools.
  */
 export class WebMcpRuntimeLoader {
     /**
-     * Configures and imports the browser WebMCP runtime.
+     * Uses a working document context directly; otherwise imports the fallback.
      * @param {object} [environment=globalThis] Browser-like environment.
      * @param {{ importer?: (specifier: string) => Promise<unknown>, specifier?: string }} [options] Loader options.
      * @returns {Promise<{ available: boolean, imported: boolean }>}
@@ -21,6 +21,12 @@ export class WebMcpRuntimeLoader {
         const browser = WebMcpRuntimeLoader.#resolveBrowser(environment)
         if (!browser) {
             return { available: false, imported: false }
+        }
+
+        // The bundled bridge replaces native contexts and can lag behind Chrome's
+        // descriptor and execution contracts. Native browsers own those contracts.
+        if (typeof browser.document.modelContext?.registerTool === 'function') {
+            return { available: true, imported: false }
         }
 
         WebMcpRuntimeLoader.configureOptions(browser.window)

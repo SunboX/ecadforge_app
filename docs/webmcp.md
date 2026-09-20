@@ -1,10 +1,12 @@
 # WebMCP
 
-ECAD Forge loads the `@mcp-b/global` WebMCP runtime and registers read-only
-WebMCP tools through `document.modelContext`. The runtime preserves native
-browser WebMCP when available and provides the package runtime when native
-support is unavailable. The tools query only designs that are already loaded in
-the current browser session.
+ECAD Forge registers read-only WebMCP tools directly through a working
+`document.modelContext`. When that registration API is available, the app does
+not import or configure `@mcp-b/global`, so native descriptors, tool discovery,
+execution arguments, and cancellation context stay under browser control.
+When it is unavailable, the app loads the packaged runtime as a fallback. Only
+that fallback installs MCP-B tab and iframe transports, configured for the
+current page origin. The tools query only designs already loaded in the session.
 
 The production app shell includes the Chrome WebMCP origin-trial token for
 `https://ecadforge.app/`. The local Express server and generated Apache deploy
@@ -35,10 +37,11 @@ traversal are delegated to the Altium and KiCad toolkit query APIs for the
 selected loaded document.
 
 Registered tool descriptors use the current object-form WebMCP API with an
-`execute` function. They include `readOnlyHint: true` and
-`untrustedContentHint: true` annotations because the tools do not mutate app
-state and may summarize user-loaded ECAD data. Runtime loading completes before
-tool registration, and registration awaits browser/package promises so failures
+`execute` function. They include `readOnlyHint: true`,
+`consequentialHint: false`, and `untrustedContentHint: true` annotations because
+the tools only inspect loaded ECAD data and do not perform consequential actions.
+Runtime selection completes before tool registration, and registration awaits
+browser/package promises so failures
 from cross-document tool publication are counted before startup continues.
 Older positional browser APIs remain supported when exposed through
 `document.modelContext` and receive MCP-style JSON text content.
@@ -50,6 +53,37 @@ already aborted stops both app-owned inspection and toolkit-backed queries
 before synchronous work starts. Existing callers without execution options and
 legacy positional registrations retain their prior behavior. Synchronous
 queries do not claim mid-loop interruption after execution has started.
+
+### September 2026 browser compatibility
+
+Chrome's preview notices announced object-valued `RegisteredTool.inputSchema`
+again in 155.0.8051.0, optional object arguments for `executeTool()` in
+155.0.8052.0, and `consequentialHint` in 154.0.8017.0. The corresponding upstream
+changes are [schema objects](https://github.com/webmachinelearning/webmcp/pull/241),
+[execution objects](https://github.com/webmachinelearning/webmcp/pull/246),
+[execution validation](https://github.com/webmachinelearning/webmcp/pull/251),
+and [consequential actions](https://github.com/webmachinelearning/webmcp/issues/176).
+
+The app is a tool provider: it supplies object schemas and receives parsed
+objects in `execute`; it does not call `getTools()` or `executeTool()` itself.
+Native clients should use their browser's discovery and invocation contract.
+The loader leaves an existing context untouched instead of replacing it with a
+bridge that can serialize inputs or discard newer annotations and callback options.
+
+`@mcp-b/global` remains at 4.0.0 for browsers without native registration.
+Its fallback API retains the older string-based discovery/invocation contract;
+it is not a Chrome 155 polyfill. Version 5.1.0 was reviewed, but still parses
+JSON-string execution inputs in its fallback, strips `consequentialHint` from
+native descriptors, and drops native callback cancellation context. Neither
+version should wrap the browser's current API. MCP-B transport clients are
+available on the fallback path only; native browsers use native WebMCP clients.
+The ECAD libraries do not own browser WebMCP registration or invocation.
+Loaded-project validation also identified a separate query-boundary issue:
+Altium Toolkit 1.4.18 and KiCad Toolkit 1.3.6 now resolve their explicitly
+retained native model before loaded-design queries. This restores design names,
+net lists, component pins, and traversal for the canonical envelopes produced
+by the app's parser options, without changing public query signatures or
+adding legacy properties to canonical documents.
 
 ## Analytics
 

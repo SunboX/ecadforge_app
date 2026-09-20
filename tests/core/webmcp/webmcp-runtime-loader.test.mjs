@@ -33,6 +33,51 @@ function clone(value) {
 }
 
 /**
+ * Verifies the fallback cannot replace native tool descriptors or callbacks.
+ */
+test('WebMcpRuntimeLoader leaves a usable document model context untouched', async () => {
+    const environment = createBrowserEnvironment()
+    const native = { registerTool() {} }
+    environment.document.modelContext = native
+    const existingOptions = { autoInitialize: false }
+    environment.window.__webModelContextOptions = existingOptions
+    let imports = 0
+
+    const result = await WebMcpRuntimeLoader.initialize(environment, {
+        importer: async () => {
+            imports += 1
+            environment.document.modelContext = { registerTool() {} }
+        }
+    })
+
+    assert.deepEqual(result, { available: true, imported: false })
+    assert.equal(imports, 0)
+    assert.equal(environment.document.modelContext, native)
+    assert.equal(environment.window.__webModelContextOptions, existingOptions)
+})
+
+/**
+ * Verifies a partial context does not suppress the package import attempt.
+ */
+test('WebMcpRuntimeLoader attempts the fallback for an unusable document context', async () => {
+    const environment = createBrowserEnvironment()
+    environment.document.modelContext = { registerTool: true }
+    const fallback = { registerTool() {} }
+    let imports = 0
+
+    const result = await WebMcpRuntimeLoader.initialize(environment, {
+        importer: async () => {
+            imports += 1
+            environment.document.modelContext = fallback
+        }
+    })
+
+    assert.deepEqual(result, { available: true, imported: true })
+    assert.equal(imports, 1)
+    assert.equal(environment.document.modelContext, fallback)
+})
+
+/**
  * Verifies the loader configures the package before importing it.
  */
 test('WebMcpRuntimeLoader configures same-origin runtime options before package import', async () => {
