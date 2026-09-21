@@ -304,7 +304,7 @@ test('WebMcpAdapter tracks WebMCP availability after registration', async () => 
         registered: 1,
         failed: 0
     })
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_available',
             properties: {
@@ -337,7 +337,7 @@ test('WebMcpAdapter awaits promise-based tool registration failures', async () =
         registered: 0,
         failed: 1
     })
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_registration_failed',
             properties: {
@@ -376,7 +376,7 @@ test('WebMcpAdapter tracks successful object-form tool calls', async () => {
     })
 
     assert.deepEqual(response, { component: 'fake' })
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_called',
             properties: {
@@ -445,7 +445,7 @@ test('WebMcpAdapter tracks failed object-form tool calls', async () => {
         /query failed/
     )
 
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_called',
             properties: {
@@ -582,7 +582,7 @@ test('WebMcpAdapter tracks successful legacy descriptor tool calls', async () =>
             }
         ]
     })
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_called',
             properties: {
@@ -611,7 +611,7 @@ test('WebMcpAdapter tracks successful legacy positional tool calls', async () =>
 
     await fake.calls[0].handler({})
 
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_called',
             properties: {
@@ -664,7 +664,7 @@ test('WebMcpAdapter tracks failed tool registrations', async () => {
         registered: 0,
         failed: 1
     })
-    assert.deepEqual(recorder.events, [
+    assertCoreAnalyticsEvents(recorder.events, [
         {
             name: 'webmcp_tool_registration_failed',
             properties: {
@@ -682,3 +682,17 @@ test('WebMcpAdapter tracks failed tool registrations', async () => {
         }
     ])
 })
+
+/** Verifies the original event contract alongside separately tested new dimensions. */
+function assertCoreAnalyticsEvents(actual, expected) {
+    const events = actual.filter(
+        (event) => event.name !== 'webmcp_tool_started'
+    )
+    assert.equal(events.length, expected.length)
+    events.forEach((event, index) => {
+        assert.equal(event.name, expected[index].name)
+        for (const [key, value] of Object.entries(expected[index].properties)) {
+            assert.deepEqual(event.properties[key], value)
+        }
+    })
+}

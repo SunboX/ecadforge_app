@@ -1,11 +1,12 @@
 import { WebMcpToolRegistry } from './WebMcpToolRegistry.mjs'
+import { WebMcpTelemetry } from './WebMcpTelemetry.mjs'
 
 /**
  * Registers loaded-session WebMCP tools with the native browser API.
  */
 export class WebMcpAdapter {
-    /** @type {{ track?: (eventName: string, properties?: object) => void } | null} */
-    #analytics
+    /** @type {WebMcpTelemetry} */
+    #telemetry
 
     /** @type {object | null} */
     #modelContext
@@ -16,11 +17,15 @@ export class WebMcpAdapter {
     /** @type {WebMcpToolRegistry} */
     #registry
 
+    /** @type {object | undefined} Optional explicit feedback tool provider. */
+    #feedback
+
     /**
-     * @param {{ getSnapshot: () => object, modelContext?: object | null, registry?: WebMcpToolRegistry, analytics?: { track?: (eventName: string, properties?: object) => void } | null }} dependencies Dependencies.
+     * @param {{ getSnapshot: () => object, modelContext?: object | null, registry?: WebMcpToolRegistry, analytics?: { track?: (eventName: string, properties?: object) => void } | null, feedback?: import('./WebMcpFeedback.mjs').WebMcpFeedback, appVersion?: string, now?: () => number, pageSessionId?: string }} dependencies Dependencies.
      */
-    constructor(dependencies) {
-        this.#analytics = dependencies?.analytics || null
+    constructor(dependencies = {}) {
+        this.#telemetry = new WebMcpTelemetry(dependencies)
+        this.#feedback = dependencies?.feedback
         this.#resolveModelContextOnInitialize =
             dependencies?.modelContext === undefined
         this.#modelContext =
@@ -36,22 +41,35 @@ export class WebMcpAdapter {
 
     /**
      * Registers tools when WebMCP runtime support is available.
+     * @param {{ available?: boolean, imported?: boolean }} [runtime] Loader result.
      * @returns {Promise<{ available: boolean, registered: number, failed: number }>}
      */
-    async initialize() {
+    async initialize(runtime = {}) {
+        this.#telemetry.setRuntime(runtime)
         this.#modelContext = this.#resolveModelContext()
 
         if (
             !this.#modelContext ||
             typeof this.#modelContext.registerTool !== 'function'
         ) {
+            this.#track('webmcp_unavailable', {
+                resultStatus: 'unavailable',
+                errorBucket: 'runtime_unavailable'
+            })
             return { available: false, registered: 0, failed: 0 }
         }
 
         let registered = 0
         let failed = 0
         const apiForm = this.#apiForm()
-        for (const tool of this.#registry.getTools()) {
+        const tools = this.#registry.getTools()
+        // The oldest positional API cannot carry consequential-action annotations.
+        if (this.#feedback && apiForm !== 'legacy_positional') {
+            tools.push(
+                this.#feedback.createTool(tools.map((tool) => tool.name))
+            )
+        }
+        for (const tool of tools) {
             try {
                 await this.#registerTool(tool, apiForm)
                 registered += 1
@@ -60,14 +78,17 @@ export class WebMcpAdapter {
                 this.#track('webmcp_tool_registration_failed', {
                     methodName: tool.name,
                     apiForm,
-                    resultStatus: 'error'
+                    resultStatus: 'error',
+                    errorBucket: 'registration_failed'
                 })
             }
         }
 
         this.#track('webmcp_available', {
             apiForm,
-            resultStatus: failed === 0 ? 'success' : 'error'
+            resultStatus: failed === 0 ? 'success' : 'error',
+            registeredCount: registered,
+            failedCount: failed
         })
 
         return { available: true, registered, failed }
@@ -119,7 +140,8 @@ export class WebMcpAdapter {
             tool.name,
             {
                 description: tool.description,
-                inputSchema: tool.inputSchema
+                inputSchema: tool.inputSchema,
+                annotations: tool.annotations
             },
             handler
         )
@@ -199,22 +221,7 @@ export class WebMcpAdapter {
      * @returns {Promise<unknown>}
      */
     async #trackToolCall(tool, apiForm, args, executionOptions = {}) {
-        try {
-            const result = await tool.handler(args, executionOptions)
-            this.#track('webmcp_tool_called', {
-                methodName: tool.name,
-                apiForm,
-                resultStatus: 'success'
-            })
-            return result
-        } catch (error) {
-            this.#track('webmcp_tool_called', {
-                methodName: tool.name,
-                apiForm,
-                resultStatus: 'error'
-            })
-            throw error
-        }
+        return this.#telemetry.execute(tool, apiForm, args, executionOptions)
     }
 
     /**
@@ -241,9 +248,7 @@ export class WebMcpAdapter {
      * @returns {void}
      */
     #track(eventName, properties) {
-        if (typeof this.#analytics?.track === 'function') {
-            this.#analytics.track(eventName, properties)
-        }
+        this.#telemetry.track(eventName, properties)
     }
 
     /**

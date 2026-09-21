@@ -132,3 +132,15 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 17. CircuitJSON parsing attaches element and variant-level schema support coverage, grouped BOM rows with source function/type/icon metadata, pick-and-place rows, routing exchange text, group/subcircuit indexes, CAD external-model scene coverage, and categorized diagnostics to the loaded document model. Schema drift checks compare known element types, ID exceptions, source component function types, PCB shape variants, simulation source/waveform variants, and solver-method variants so schema changes are reported before they silently become metadata-only.
 18. CircuitJSON schematic rendering covers explicit group bounds, text sizing and rotation, debug objects, geometric shapes, probes, table grid geometry from anchors, row/column sizes, padding, borders, spans, alignment, and font sizes, ports, and diagnostics without breaking basic schematic documents.
 19. The SPICE simulation worker accepts local netlist text, returns complete CircuitJSON simulation experiment output plus graph-only voltage/current elements, preserves probe, source endpoint, model/subcircuit mapping, and AC/DC source metadata when present, provides deterministic setup and graph summaries, and reports failures as diagnostics or worker errors.
+
+## WebMCP observability acceptance
+
+- Preserve all loaded-design tool results, thrown errors and native abort reasons.
+- Count semantic error responses as failures; distinguish cancellation.
+- Report callback starts/completions with page-lifetime correlation, timing and
+  bounded structural options only. Never transmit input values or result contents.
+- Retain at most 100 sanitized startup events; tracking failures cannot break tools.
+- Expose explicit, consequential agent feedback with strict schema validation,
+  local-origin exclusion, duplicate limits, a network timeout and real acknowledgement.
+- Dashboard telemetry is observational; unknown historical dimensions and missing
+  completions must not imply confirmed ChatGPT identity or a confirmed crash.

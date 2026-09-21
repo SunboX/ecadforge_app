@@ -6,6 +6,7 @@ import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
 import { AppState } from './core/AppState.mjs'
 import { EcadModelSearchPreference } from './core/ecad/EcadModelSearchPreference.mjs'
 import { EcadFormatRegistry } from './core/ecad/EcadFormatRegistry.mjs'
+import { WebMcpFeedback } from './core/webmcp/WebMcpFeedback.mjs'
 import { WebMcpAdapter } from './core/webmcp/WebMcpAdapter.mjs'
 import { WebMcpRuntimeLoader } from './core/webmcp/WebMcpRuntimeLoader.mjs'
 import { Scene3dControllerFactory } from './Scene3dControllerFactory.mjs'
@@ -63,7 +64,9 @@ async function bootstrap() {
     })
     const webMcpAdapter = new WebMcpAdapter({
         getSnapshot: () => state.getSnapshot(),
-        analytics
+        analytics,
+        appVersion: loadedVersion,
+        feedback: new WebMcpFeedback({ appVersion: loadedVersion })
     })
 
     await controller.init()
@@ -85,8 +88,8 @@ async function bootstrap() {
     AnalyticsTrackerLoader.loadBrowserTracker(document, window.location, {
         onLoad: () => analytics.syncContext()
     })
-    await WebMcpRuntimeLoader.initialize()
-    await webMcpAdapter.initialize()
+    const webMcpRuntime = await WebMcpRuntimeLoader.initialize()
+    await webMcpAdapter.initialize(webMcpRuntime)
     HeroPreviewDemoLoader.schedule(view, { state })
 
     await loadVersion(view, loadedVersion, i18n)

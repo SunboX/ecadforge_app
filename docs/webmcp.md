@@ -1,6 +1,6 @@
 # WebMCP
 
-ECAD Forge registers read-only WebMCP tools directly through a working
+ECAD Forge registers loaded-design inspection tools and an explicit feedback tool directly through a working
 `document.modelContext`. When that registration API is available, the app does
 not import or configure `@mcp-b/global`, so native descriptors, tool discovery,
 execution arguments, and cancellation context stay under browser control.
@@ -36,7 +36,7 @@ Netlist extraction, regex validation, component grouping, and connectivity
 traversal are delegated to the Altium and KiCad toolkit query APIs for the
 selected loaded document.
 
-Registered tool descriptors use the current object-form WebMCP API with an
+Inspection tool descriptors use the current object-form WebMCP API with an
 `execute` function. They include `readOnlyHint: true`,
 `consequentialHint: false`, and `untrustedContentHint: true` annotations because
 the tools only inspect loaded ECAD data and do not perform consequential actions.
@@ -87,21 +87,79 @@ adding legacy properties to canonical documents.
 
 ## Analytics
 
-When the production analytics tracker is available, ECAD Forge records
-privacy-safe WebMCP usage events:
+The production app records provider callback observations through the existing
+Analytics collector. A bounded in-memory queue retains at most 100 sanitized
+WebMCP events while the tracker loads, flushing in order once it is available.
+Local/private development origins do not load the production tracker. Blocking
+analytics or tracker failures never change a tool result or exception.
 
-- `webmcp_available`: WebMCP runtime support was detected and registration completed.
-- `webmcp_tool_registration_failed`: one tool registration failed.
-- `webmcp_tool_called`: one registered tool handler was called.
+- `webmcp_available` / `webmcp_unavailable`: runtime and registration outcome,
+  including native/fallback source and registered/failed counts.
+- `webmcp_tool_registration_failed`: failed method registration.
+- `webmcp_tool_started` / `webmcp_tool_called`: correlated invocation and
+  completion, including success, returned error, exception, or cancellation.
 
-Only coarse metadata is sent: `method_name`, `api_form`, and `result_status`.
-Tool arguments, tool results, loaded design names, file names, local paths, net
-names, component identifiers, and raw error details are not sent.
+Events contain method, API form, runtime source, app version, duration, coarse
+query options (compact/default, pagination, selector mode, filter/limit presence,
+DNS inclusion), document count, and immediate result-list count/shape. Error
+text is classified locally into bounded categories. A random page-lifetime UUID
+and invocation sequence correlate starts/completions and observed workflows;
+the UUID is never persisted in browser storage. No arguments, results, loaded
+design/file names, paths, URLs, net names, component identifiers or raw errors
+are included in automatic WebMCP properties. The shared tracker still collects
+its existing site/browser/device metadata.
+
+The Analytics **WebMCP** section follows the selected site and date range. It
+shows method usage/outcomes/latency, runtime and version breakdowns, query
+patterns, frequent failures, transitions, and feedback. A start without a
+completion is **uncompleted**, not proof of a crash. Calls rejected by browser
+schema validation before the provider callback, discovery attempts, blocked
+analytics, and agent-side failures are not visible. Timing measures the provider
+handler, not end-to-end model response time. Client events are observations, not
+a trusted audit trail.
+
+WebMCP does not supply authenticated agent identity to these callbacks; the
+report does not label calls as ChatGPT. Browser/crawler/referrer attribution is
+separate evidence. Historical rows lack the new dimensions, and releases before
+1.13.43 incorrectly counted returned `{ error }` responses as successes. Old
+error rates therefore cannot be corrected retrospectively.
+
+### Agent feature requests and problem reports
+
+`submit_agent_feedback` deliberately sends a supplied generic summary to
+`https://analytics.andrefiedler.de/v1/collect`. It is annotated
+`readOnlyHint: false` and `consequentialHint: true`, and is omitted on the oldest
+positional API because that API cannot carry those annotations. Inspection
+tools remain read-only. The summary is never generated or submitted automatically.
+
+Use `kind` (`feature_request` or `bug_report`), `area` (`discovery`, `search`,
+`connectivity`, `bom`, `pcb`, `performance`, `output`, `other`), a 10–500 character
+`summary`, and optionally a registered `related_tool`. Describe capabilities or
+reproducible behavior generically. Never include private design data, prompts,
+paths, names, personal data or secrets. Feedback text is deliberate outbound
+content, not automatically redacted design data.
+
+```json
+{
+    "kind": "feature_request",
+    "area": "output",
+    "summary": "Provide selectable columns in compact result tables.",
+    "related_tool": "list_components"
+}
+```
+
+The tool waits for actual collector acknowledgement, reports unavailable or
+rejected submissions, deduplicates successful identical requests in memory,
+and limits a page to ten submissions. Analytics validates fields and origin,
+limits submissions per site/IP/hour, and renders feedback as untrusted text.
+Submissions appear in the dashboard; they do not automatically create issues,
+change source code, or promise implementation.
 
 ## Supported Tools
 
 | Tool                            | Purpose                                                      |
 | ------------------------------- | ------------------------------------------------------------ |
+| `submit_agent_feedback` | Submit a generic feature need or problem report to Analytics. |
 | `list_designs`                  | List loaded browser-session documents.                       |
 | `list_components`               | List components by reference-designator prefix.              |
 | `list_nets`                     | List net names for one loaded design.                        |

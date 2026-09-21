@@ -1,3 +1,5 @@
+import { WebMcpAnalyticsProperties } from './core/webmcp/WebMcpAnalyticsProperties.mjs'
+
 /**
  * Privacy-safe event wrapper for the host analytics tracker.
  */
@@ -10,6 +12,12 @@ export class PrivacySafeAnalytics {
 
     /** @type {Record<string, string|number>} */
     #context
+
+    /** @type {object[]} Bounded, sanitized WebMCP startup events. */
+    #pending = []
+
+    /** @type {boolean} Prevents tracker callbacks from recursively flushing. */
+    #flushing = false
 
     /**
      * @param {{ tracker?: { trackEvent?: (eventName: string, properties?: object) => void, setContext?: (context: object) => void } | null, trackerProvider?: () => ({ trackEvent?: (eventName: string, properties?: object) => void, setContext?: (context: object) => void } | null) }} [dependencies]
@@ -37,17 +45,28 @@ export class PrivacySafeAnalytics {
             return
         }
 
-        this.setContext(properties)
-
-        const tracker = this.#resolveTracker()
-        if (typeof tracker?.trackEvent !== 'function') {
-            return
+        try {
+            this.setContext(properties)
+            const webMcp = eventName.startsWith('webmcp_')
+            const safeProperties = webMcp
+                ? WebMcpAnalyticsProperties.sanitize(properties)
+                : PrivacySafeAnalytics.#buildSafeProperties(properties)
+            const tracker = this.#resolveTracker()
+            if (typeof tracker?.trackEvent !== 'function') {
+                if (webMcp) {
+                    this.#pending.push({
+                        eventName,
+                        properties: safeProperties
+                    })
+                    if (this.#pending.length > 100) this.#pending.shift()
+                }
+                return
+            }
+            this.#flushPending(tracker)
+            tracker.trackEvent(eventName, safeProperties)?.catch?.(() => {})
+        } catch (_error) {
+            // Telemetry must never replace the result of a host operation.
         }
-
-        tracker.trackEvent(
-            eventName,
-            PrivacySafeAnalytics.#buildSafeProperties(properties)
-        )
     }
 
     /**
@@ -68,13 +87,31 @@ export class PrivacySafeAnalytics {
      * @returns {boolean} Whether context was delivered.
      */
     syncContext() {
-        const tracker = this.#resolveTracker()
-        if (typeof tracker?.setContext !== 'function') {
+        try {
+            const tracker = this.#resolveTracker()
+            const hasContext = typeof tracker?.setContext === 'function'
+            if (hasContext) tracker.setContext({ ...this.#context })
+            this.#flushPending(tracker)
+            return hasContext
+        } catch (_error) {
             return false
         }
+    }
 
-        tracker.setContext({ ...this.#context })
-        return true
+    /** Publishes queued metadata once without retaining any tool arguments. */
+    #flushPending(tracker) {
+        if (this.#flushing || typeof tracker?.trackEvent !== 'function') return
+        this.#flushing = true
+        try {
+            while (this.#pending.length) {
+                const event = this.#pending.shift()
+                tracker
+                    .trackEvent(event.eventName, event.properties)
+                    ?.catch?.(() => {})
+            }
+        } finally {
+            this.#flushing = false
+        }
     }
 
     /**
@@ -195,6 +232,8 @@ export class PrivacySafeAnalytics {
         'view_diagnostics_opened',
         'crosslink_pcb_styler_clicked',
         'webmcp_available',
+        'webmcp_unavailable',
+        'webmcp_tool_started',
         'webmcp_tool_registration_failed',
         'webmcp_tool_called'
     ])

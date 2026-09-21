@@ -870,7 +870,7 @@ test('browser entrypoint initializes WebMCP runtime before registering tools', a
     assert.match(mainRaw, /await WebMcpRuntimeLoader\.initialize\(\)/)
     assert.ok(
         mainRaw.indexOf('await WebMcpRuntimeLoader.initialize()') <
-            mainRaw.indexOf('await webMcpAdapter.initialize()')
+            mainRaw.indexOf('await webMcpAdapter.initialize(webMcpRuntime)')
     )
 })
 

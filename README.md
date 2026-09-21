@@ -99,7 +99,7 @@ LIVE: [https://ecadforge.app/](https://ecadforge.app/)
 - `src/ui/`: viewer shell and interaction controllers
 - `src/core/ecad/`: app-owned format registry plus parser, renderer, and scene facades
 - `src/core/simulation/`: app-owned simulation worker client and message handler
-- `src/core/webmcp/`: read-only loaded-session WebMCP adapter, tool registry, and toolkit-backed netlist query dispatcher
+- `src/core/webmcp/`: loaded-session WebMCP inspection, privacy-safe usage diagnostics, and explicit agent feedback
 - `src/demo/`: bundled demo project files plus source and license notices
 - `src/workers/ecad-parser.worker.mjs`: off-main-thread native parsing
 - `src/workers/spice-simulation.worker.mjs`: off-main-thread local SPICE transient simulation

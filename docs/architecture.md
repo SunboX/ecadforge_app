@@ -301,3 +301,14 @@ schematic connectivity is unavailable.
 ## Static Deployment
 
 The LIVE FTP workflow runs `npm run build:static` before uploading frontend files. That command copies `src/` into `.deploy-src/`, copies the required browser dependency modules into `.deploy-src/node_modules/`, including the bundled `@mcp-b/global` runtime and the installed `@sunbox/occt-import-js/dist/` tree, rewrites `index.html` to load `/style.css?v=<package version>` and `/main.mjs?v=<package version>`, rewrites local `.mjs` imports and known worker-safe package imports with the same version key, and emits a root `.htaccess` that applies no-store cache headers to browser assets on Apache/shared-hosting. Generated OCCT JavaScript, worker, and WASM assets are copied without rewriting. The generated `.htaccess` first serves extensionless `.html` landing pages when they exist, then rewrites app routes such as `/demo/kicad`, `/demo/altium`, `/pcb`, and `/diagnostics` to `index.html` so route-driven viewer links return the app shell. The workflow uploads `.deploy-src/` to the document root, `api/` to `/api/`, `docs/` to `/docs/`, and `package.json` to `/`; the processed browser module tree reaches `/node_modules/` only through the `.deploy-src/` artifact upload.
+
+### WebMCP observability and feedback
+
+`WebMcpTelemetry` observes provider starts/completions, classifies returned errors
+and cancellations, and derives bounded query/result metadata.
+`WebMcpAnalyticsProperties` enforces the automatic event field contract before
+`PrivacySafeAnalytics` queues startup events or calls the host tracker.
+`WebMcpFeedback` owns the separate explicit outbound submission tool and waits
+for collector acknowledgement. The native loader result is forwarded to the
+adapter for accurate native/fallback attribution. See [WebMCP](webmcp.md) for
+fields, privacy boundaries, dashboard interpretation and historical limitations.
