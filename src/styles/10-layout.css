@@ -126,6 +126,42 @@ body.is-viewer-mode.is-viewer-report .app-shell {
     gap: 0.55rem;
 }
 
+.support-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid var(--brand-strong);
+    border-radius: 0.48rem;
+    color: #fff;
+    background: var(--brand-strong);
+    font-weight: 800;
+    text-decoration: none;
+    text-align: center;
+}
+
+.support-button:hover {
+    background: var(--brand);
+}
+
+.support-button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.support-button .icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: 0 0 auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .file-pill,
 .inline-field {
     min-height: 2.55rem;

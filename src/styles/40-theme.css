@@ -168,6 +168,10 @@
     color: #fff;
 }
 
+[data-theme='dark'] .support-button {
+    color: #182026;
+}
+
 [data-theme='dark'] .file-pill--kicad {
     background: linear-gradient(180deg, #007f85, #00525b);
     border-color: #0ac4cd;

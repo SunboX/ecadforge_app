@@ -182,6 +182,10 @@ All tools declare `consequentialHint: false` alongside their read-only and
 untrusted-content hints. See [WebMCP compatibility](docs/webmcp.md) for current
 Chrome API changes and fallback limitations.
 
+Use the **Request support** header button for public GitHub support requests.
+AI agents can discover reporting instructions in [`/llms.txt`](src/llms.txt)
+or prepare a GitHub draft with the `prepare_issue_report` WebMCP tool.
+
 See [WebMCP](docs/webmcp.md) for tool names, arguments, examples, privacy
 constraints, and unsupported browser-only operations.
 

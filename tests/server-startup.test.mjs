@@ -218,6 +218,14 @@ test('server entrypoint starts listening on the configured port', async (t) => {
 
     const output = await waitForServerListening(childProcess, port)
     assert.match(output.stdout, new RegExp('localhost:' + String(port)))
+
+    const supportGuide = await fetch('http://127.0.0.1:' + port + '/llms.txt')
+    assert.equal(supportGuide.status, 200)
+    assert.match(supportGuide.headers.get('content-type'), /^text\/plain/)
+    assert.equal(
+        await supportGuide.text(),
+        await readFile(new URL('../src/llms.txt', import.meta.url), 'utf8')
+    )
 })
 
 /**

@@ -96,6 +96,10 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         'utf8'
     )
     const mainSource = await readFile(path.join(outputRoot, 'main.mjs'), 'utf8')
+    assert.equal(
+        await readRequiredOutputFile(outputRoot, 'llms.txt'),
+        await readFile(new URL('../src/llms.txt', import.meta.url), 'utf8')
+    )
     const webMcpLoaderSource = await readFile(
         path.join(outputRoot, 'core', 'webmcp', 'WebMcpRuntimeLoader.mjs'),
         'utf8'

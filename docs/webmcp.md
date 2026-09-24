@@ -126,6 +126,31 @@ error rates therefore cannot be corrected retrospectively.
 
 ### Agent feature requests and problem reports
 
+The persistent **Request support** header link opens the public
+[GitHub issue tracker](https://github.com/SunboX/ecadforge_app/issues).
+Agents can discover it by `rel="help"` or `#supportRequestLink`. The HTML head
+also advertises the issue tracker and `/llms.txt`, which documents the reporting
+workflow even when JavaScript, startup or WebMCP fails.
+
+`prepare_issue_report` creates a GitHub issue draft from a 10–120 character
+`title`, a 10–2000 character `description`, and `area` (`page`, `webmcp`, `other`).
+Include reproduction steps, expected/actual behavior or the requested feature,
+and relevant browser/tool details. The tool works without a loaded design, adds
+the loaded app version, and returns the repository, issue tracker, new-issue
+URL, title and body. It is read-only and does not submit, navigate, fetch, or
+attach design data, page URLs or logs. Report text is excluded from automatic
+tool telemetry.
+
+Search existing issues, then use an authenticated GitHub integration to create
+an issue in `SunboX/ecadforge_app`, or open `new_issue_url` and submit the form.
+For long encoded URLs, `prefilled: false` means the title/body must be pasted
+from the result. `submitted: false` always means this tool only prepared a
+draft; only GitHub's actual created issue is submission evidence. GitHub
+authentication and repository permission are required. Reports are public;
+keep private design data, file names, paths, prompts and secrets out of them.
+
+The existing Analytics feedback channel remains separate:
+
 `submit_agent_feedback` deliberately sends a supplied generic summary to
 `https://analytics.andrefiedler.de/v1/collect`. It is annotated
 `readOnlyHint: false` and `consequentialHint: true`, and is omitted on the oldest
@@ -159,6 +184,7 @@ change source code, or promise implementation.
 
 | Tool                            | Purpose                                                      |
 | ------------------------------- | ------------------------------------------------------------ |
+| `prepare_issue_report` | Prepare a public GitHub support, bug or feature report for submission. |
 | `submit_agent_feedback` | Submit a generic feature need or problem report to Analytics. |
 | `list_designs`                  | List loaded browser-session documents.                       |
 | `list_components`               | List components by reference-designator prefix.              |

@@ -34,6 +34,16 @@
             Browser
         </title>
         <link rel="canonical" href="https://ecadforge.app/" />
+        <link
+            rel="help"
+            href="https://github.com/SunboX/ecadforge_app/issues"
+        />
+        <link
+            rel="alternate"
+            type="text/plain"
+            href="/llms.txt"
+            title="ECAD Forge agent support and issue reporting"
+        />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <script type="application/ld+json">
             {
@@ -129,7 +139,7 @@
                             "price": 0,
                             "priceCurrency": "EUR"
                         },
-                        "softwareVersion": "1.13.43",
+                        "softwareVersion": "1.13.44",
                         "mainEntityOfPage": {
                             "@id": "https://ecadforge.app/#webpage"
                         }
@@ -270,6 +280,31 @@
                         multiple
                         webkitdirectory
                     />
+                    <a
+                        id="supportRequestLink"
+                        class="support-button"
+                        href="https://github.com/SunboX/ecadforge_app/issues"
+                        target="_blank"
+                        rel="help noopener noreferrer"
+                    >
+                        <svg
+                            class="icon"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5a9.5 9.5 0 0 1 19 0Z"
+                            />
+                            <path d="M8.5 9a3 3 0 0 1 5.8 1c0 2-2.8 2-2.8 4" />
+                            <path d="M11.5 17h.01" />
+                        </svg>
+                        <span data-i18n="app.requestSupport"
+                            >Request support</span
+                        >
+                        <span class="sr-only" data-i18n="app.supportNewTab">
+                            (GitHub Issues, opens in a new tab)
+                        </span>
+                    </a>
                     <label class="theme-switch">
                         <svg
                             class="theme-switch__icon"

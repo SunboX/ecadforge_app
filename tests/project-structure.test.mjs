@@ -501,6 +501,15 @@ test('app shell implements the marketing landingpage design shell', async () => 
     assert.match(indexRaw, /class="brand-lockup"/)
     assert.match(indexRaw, /<img src="\/favicon\.svg" alt="" \/>/)
     assert.match(indexRaw, /class="topbar__description"/)
+    const headerRaw = indexRaw.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0]
+    const supportLink = headerRaw?.match(
+        /<a\b[^>]*href="https:\/\/github\.com\/SunboX\/ecadforge_app\/issues"[^>]*>[\s\S]*?<\/a>/
+    )?.[0]
+    assert.ok(supportLink, 'The header exposes the support issue tracker')
+    assert.match(supportLink, /target="_blank"/)
+    assert.match(supportLink, /rel="help noopener noreferrer"/)
+    assert.match(supportLink, /data-i18n="app.requestSupport"/)
+    assert.match(supportLink, /data-i18n="app.supportNewTab"/)
     assert.match(
         indexRaw,
         /Private ECAD viewer for Altium, KiCad, Gerber &amp;\s+CircuitJSON/

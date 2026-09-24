@@ -59,6 +59,16 @@ Build a browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design f
 
 ## 3. Non-Functional Requirements
 
+The header exposes a prominent, localized Request support link to the public
+GitHub issue tracker in landing and loaded-viewer modes, in both themes and on
+narrow screens. It opens a new tab with opener/referrer isolation and a visible
+keyboard focus indicator. Agents can discover the same destination via HTML
+help links, `/llms.txt`, and a read-only `prepare_issue_report` WebMCP tool.
+Preparing a report needs no loaded design and returns a bounded public draft
+with the app version and GitHub submission instructions. It never claims to
+submit or automatically attaches private session contents. Static guidance
+remains accessible when JavaScript or WebMCP is unavailable.
+
 1. Use modern JavaScript ESM modules.
 2. Keep each source file below 1000 LOC.
 3. Use 4-space formatting with single quotes and no semicolons.

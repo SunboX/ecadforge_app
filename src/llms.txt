@@ -1,0 +1,58 @@
+# ECAD Forge
+
+> Local-first browser viewer for Altium, KiCad, Gerber and CircuitJSON designs.
+
+## Support, bug reports and feature requests
+
+- [Public issue tracker](https://github.com/SunboX/ecadforge_app/issues): support requests, page problems, missing features and WebMCP failures.
+- [Create an issue](https://github.com/SunboX/ecadforge_app/issues/new): requires GitHub authentication and repository permission.
+- [WebMCP documentation](https://github.com/SunboX/ecadforge_app/blob/main/docs/webmcp.md): tool contracts, compatibility and feedback channels.
+
+The page header contains a standard link with id `supportRequestLink` and
+`rel="help"`. Its visible label is "Request support" in English and is localized.
+The HTML head also provides a `rel="help"` link to the issue tracker.
+These links and this file work without JavaScript or WebMCP.
+
+## Reporting with WebMCP
+
+Discover `prepare_issue_report` on the page's WebMCP provider. It needs no loaded
+design and accepts:
+
+```json
+{
+    "title": "WebMCP tool discovery fails after page load",
+    "description": "Steps: open the viewer and discover tools. Expected: tool list. Actual: discovery fails. Include the exact generic error and browser version when known.",
+    "area": "webmcp"
+}
+```
+
+`title` is 10–120 characters; `description` is 10–2000 characters; `area` is
+`page`, `webmcp`, or `other`. Reports may describe bugs or feature requests.
+The tool returns `repository`, `issues_url`, `new_issue_url`, `title`, `body`,
+`prefilled`, and `submitted: false`. It adds the loaded app version. It does not
+send report text, navigate, or create an issue. Automatic tool telemetry contains
+coarse invocation metadata only, not the report title, description, or body.
+
+Search existing issues first. Submit the returned title/body to
+`SunboX/ecadforge_app` using your authenticated GitHub integration, or open
+`new_issue_url` and submit the GitHub form. If `prefilled` is false, paste the
+returned title/body into the form. Issue reports are public. Only report
+submission as successful after GitHub returns a created issue URL or number.
+
+## When WebMCP or the page fails
+
+Use the issue tracker directly; WebMCP is not required. Include reproducible
+steps, expected and actual behavior, browser version, the app version if known,
+and the affected tool name or feature. State what failed without guessing a
+cause. Use the same authenticated GitHub integration or new-issue form.
+
+Use generic examples. Do not include private design contents, file or project
+names, local paths, component/net identifiers, conversation prompts, personal
+data, access tokens, or URLs containing private query parameters. No design
+files, session snapshots, page URLs, or logs are attached automatically.
+
+## Separate feedback channel
+
+`submit_agent_feedback` sends a short generic report to the maintainer's
+Analytics service. It does not create a GitHub issue. For public, trackable
+support requests, use the GitHub issue workflow above.

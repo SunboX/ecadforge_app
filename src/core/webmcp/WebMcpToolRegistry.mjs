@@ -1,4 +1,5 @@
 import { LoadedDesignNetlistService } from './LoadedDesignNetlistService.mjs'
+import { WebMcpSupport } from './WebMcpSupport.mjs'
 
 /**
  * Defines loaded-session WebMCP tools and dispatches to the query service.
@@ -7,10 +8,14 @@ export class WebMcpToolRegistry {
     /** @type {LoadedDesignNetlistService} */
     #service
 
+    /** @type {string | undefined} */
+    #appVersion
+
     /**
-     * @param {{ getSnapshot: () => object, service?: LoadedDesignNetlistService }} dependencies Dependencies.
+     * @param {{ getSnapshot: () => object, service?: LoadedDesignNetlistService, appVersion?: string }} dependencies Dependencies.
      */
     constructor(dependencies) {
+        this.#appVersion = dependencies?.appVersion
         this.#service =
             dependencies?.service ||
             new LoadedDesignNetlistService({
@@ -298,7 +303,8 @@ export class WebMcpToolRegistry {
                 WebMcpToolRegistry.#xnetByPinSchema(),
                 (args, executionOptions) =>
                     this.#service.queryXnetByPinName(args, executionOptions)
-            )
+            ),
+            WebMcpSupport.createTool(this.#appVersion)
         ]
     }
 

@@ -35,7 +35,8 @@ export class WebMcpAdapter {
         this.#registry =
             dependencies?.registry ||
             new WebMcpToolRegistry({
-                getSnapshot: dependencies?.getSnapshot
+                getSnapshot: dependencies?.getSnapshot,
+                appVersion: dependencies?.appVersion
             })
     }
 

@@ -107,7 +107,7 @@ test('adapter adds the configured feedback tool with truthful annotations', asyn
         feedback: new WebMcpFeedback({ location: 'http://localhost:3000/' })
     })
     const result = await adapter.initialize()
-    assert.equal(result.registered, 29)
+    assert.equal(result.registered, 30)
     assert.equal(
         tools.find((tool) => tool.name === 'submit_agent_feedback').annotations
             .readOnlyHint,

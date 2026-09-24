@@ -20,6 +20,10 @@
 
 ## Network Behavior
 
+- The Request support link opens GitHub Issues only when activated. The
+  `prepare_issue_report` WebMCP tool prepares public report text and a GitHub
+  URL locally; submission uses the user's or agent's authenticated GitHub
+  session. No design files, page URLs, session data or logs are attached.
 - The viewer consumes embedded/document/session model bytes and companion GLTF
   BIN, OBJ MTL, and WRL texture assets locally. URL-backed models and resources
   are fetched only when the user enables missing-model search or an export/host
