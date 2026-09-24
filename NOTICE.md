@@ -29,13 +29,13 @@ in:
 - `node_modules/@sunbox/occt-import-js/dist/OCCT_LGPL_EXCEPTION.txt`.
 
 The deployed importer corresponds to
-`@sunbox/occt-import-js` tag `0.0.28` and commit
-`2b4fe0d9ff0b2ffffb361475a869f0de51547f10`:
-https://github.com/SunboX/occt-import-js/tree/0.0.28. That source tree pins its
+`@sunbox/occt-import-js` tag `0.0.29` and commit
+`ba1decadb3d19e4585d2c54deb2c4325f64b9ae9`:
+https://github.com/SunboX/occt-import-js/tree/0.0.29. That source tree pins its
 OCCT submodule to commit `d3056ef80c9668f395da40f5fd7be186cae4501f`:
 https://github.com/SunboX/OCCT/commit/d3056ef80c9668f395da40f5fd7be186cae4501f.
 The reproducible WASM rebuild instructions and release script are documented at
-https://github.com/SunboX/occt-import-js/blob/0.0.28/README.md#how-to-build-on-windows.
+https://github.com/SunboX/occt-import-js/blob/0.0.29/README.md#how-to-build-on-windows.
 The repository also preserves the OCCT exception at
 `LICENSES/LicenseRef-OCCT-exception-1.0.txt`.
 

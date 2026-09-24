@@ -178,15 +178,15 @@ test('installed OCCT importer notices preserve LGPL terms and source links', asy
         occtExceptionRaw,
         /provided by the Open CASCADE Technology software/
     )
-    assert.equal(pkg.dependencies['@sunbox/occt-import-js'], '^0.0.28')
+    assert.equal(pkg.dependencies['@sunbox/occt-import-js'], '^0.0.29')
     assert.equal(
         packageLock.packages['node_modules/@sunbox/occt-import-js'].version,
-        '0.0.28'
+        '0.0.29'
     )
     assert.match(noticeRaw, /github\.com\/SunboX\/occt-import-js/u)
     assert.match(noticeRaw, /github\.com\/SunboX\/OCCT/u)
-    assert.match(noticeRaw, /occt-import-js\/(?:tree|releases\/tag)\/0\.0\.28/u)
-    assert.match(noticeRaw, /2b4fe0d9ff0b2ffffb361475a869f0de51547f10/u)
+    assert.match(noticeRaw, /occt-import-js\/(?:tree|releases\/tag)\/0\.0\.29/u)
+    assert.match(noticeRaw, /ba1decadb3d19e4585d2c54deb2c4325f64b9ae9/u)
     assert.match(noticeRaw, /d3056ef80c9668f395da40f5fd7be186cae4501f/u)
     assert.match(noticeRaw, /rebuild instructions/iu)
     assert.match(noticeRaw, /LicenseRef-OCCT-exception-1\.0\.txt/u)
@@ -208,14 +208,14 @@ test('installed OCCT importer owns its module-compatible browser worker', async 
             readFile(new URL(packageRoot + 'dist/occt-import-js.wasm', root))
         ])
 
-    assert.equal(JSON.parse(packageRaw).version, '0.0.28')
+    assert.equal(JSON.parse(packageRaw).version, '0.0.29')
     assert.match(workerSource, /import\s*\(/u)
     assert.match(workerSource, /occt-import-js\.js/u)
     assert.match(workerSource, /occt-import-js\.wasm/u)
     assert.doesNotMatch(workerSource, /importScripts/u)
     assert.equal(importerSource.byteLength > 0, true)
     assert.equal(wasmSource.byteLength > 0, true)
-    assert.equal(await exists('occt-import-js-0.0.28.tgz'), false)
+    assert.equal(await exists('occt-import-js-0.0.29.tgz'), false)
     assert.equal(await exists('src/vendor/occt-import-js/dist'), false)
 })
 
