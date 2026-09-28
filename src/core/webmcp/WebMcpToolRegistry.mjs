@@ -55,7 +55,7 @@ export class WebMcpToolRegistry {
             ),
             this.#tool(
                 'list_nets',
-                'List net names for one loaded design.',
+                'List declared schematic or PCB net names for one loaded design; pin connectivity is not required.',
                 {
                     design: { type: 'string' },
                     limit: { type: 'number' },
@@ -245,7 +245,7 @@ export class WebMcpToolRegistry {
             ),
             this.#tool(
                 'search_nets',
-                'Search loaded design net names by regex.',
+                'Search declared schematic or PCB net names by regex; pin connectivity is not required.',
                 {
                     design: { type: 'string' },
                     pattern: { type: 'string' }

@@ -479,9 +479,17 @@ Extended-net tools traverse through two-pin series components with prefixes
 ground rails. DNS/DNP components are excluded by default and can be included
 with `include_dns: true`.
 
-PCB-only documents may not contain schematic connectivity. In that case,
-connectivity tools return an error explaining that no schematic connectivity is
-available for the loaded design.
+`list_nets` and `search_nets` read the selected Altium or KiCad document's
+declared schematic and PCB net tables. They include named nets without attached
+pins, remove duplicate/blank names, and do not switch to a different loaded
+document. `list_nets` applies pagination after collecting and sorting the names.
+Retained native models in canonical document envelopes follow the same path.
+
+Net-name availability does not imply schematic pin connectivity. `hasConnectivity`
+in `list_designs` describes the schematic pin graph. PCB-only documents can list
+and search their net names while schematic traversal tools still return a missing
+connectivity error. Use `query_pcb_net` to inspect physical PCB membership.
+Documents without declared names still return a missing-data error.
 
 `audit_design` reports parser diagnostics, duplicate reference designators,
 missing metadata (`mpn`, description, value, footprint), schematic documents

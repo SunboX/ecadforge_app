@@ -137,7 +137,7 @@ remains accessible when JavaScript or WebMCP is unavailable.
 12. Supported schematic hierarchy records, explicit junctions, bus entries, and embedded images render without breaking existing schematic content.
 13. Supported schematic files expose a normalized `nets` model and emit diagnostics for missing embedded image payloads, missing KiCad sheet files, conflicting explicit net names, and optional schematic net geometry checks for missing, ambiguous, suspiciously shaped, disconnected, cross-net overlapping, label-colliding, anchor-preflight, simplifiable, restricted-centerline, or obstacle-crossing wire geometry with staged debug metadata, focused repro metadata, compact stage snapshots, merged and semantic label obstacle groups, spatial index metadata, routing guideline overlays, candidate rejection telemetry, candidate decision timelines with selected, score, and collision-source metadata, stage health rows, per-advisor candidate budgets with final acceptance status, and non-mutating label, sampled and port-only label-relocation with stale-collision suppression, trace-detour, snip-and-reconnect trace-detour, merged-label detour, whole-island lane-shift with obstacle-aware offsets, segment-overlap-shift, alternate congested L-turn reroute with blocker-intersection telemetry, long-distance connection, section-boundary connection, anchor-aware supplemental-connection decision, supplemental-connection, guideline-snapped-elbow, collision-aware path-cleanup, sampled constrained label-orientation with connector collision statuses, power-label corner, symbol-fit decision telemetry, symbol-fit, and endpoint-preserving jog candidate overlays.
 14. The FTP workflow uploads the static build artifact rather than raw browser source.
-15. In browsers with native WebMCP support or the configured `@mcp-b/global` runtime, the registered tools answer from currently loaded documents only and return clear errors for missing designs, ambiguous selectors, broad regex searches, missing schematic/PCB cross-reference data, PCB-only connectivity, missing components, missing nets, and blocked power/ground traversal starts.
+15. In browsers with native WebMCP support or the configured `@mcp-b/global` runtime, the registered tools answer from currently loaded documents only and return clear errors for missing designs, ambiguous selectors, broad regex searches, missing schematic/PCB cross-reference data, PCB-only schematic traversal, missing components, missing nets, and blocked power/ground traversal starts.
 16. Share/startup URLs can restore the requested viewer tab, active loaded document, selected component, and selected net when `view=`, `document=`, `component=`, and `net=` query parameters are present.
 17. CircuitJSON parsing attaches element and variant-level schema support coverage, grouped BOM rows with source function/type/icon metadata, pick-and-place rows, routing exchange text, group/subcircuit indexes, CAD external-model scene coverage, and categorized diagnostics to the loaded document model. Schema drift checks compare known element types, ID exceptions, source component function types, PCB shape variants, simulation source/waveform variants, and solver-method variants so schema changes are reported before they silently become metadata-only.
 18. CircuitJSON schematic rendering covers explicit group bounds, text sizing and rotation, debug objects, geometric shapes, probes, table grid geometry from anchors, row/column sizes, padding, borders, spans, alignment, and font sizes, ports, and diagnostics without breaking basic schematic documents.
@@ -154,3 +154,14 @@ remains accessible when JavaScript or WebMCP is unavailable.
   local-origin exclusion, duplicate limits, a network timeout and real acknowledgement.
 - Dashboard telemetry is observational; unknown historical dimensions and missing
   completions must not imply confirmed ChatGPT identity or a confirmed crash.
+
+## Loaded net-name query acceptance
+
+- `list_nets` and `search_nets` enumerate declared net names from the selected
+  Altium or KiCad schematic or PCB, including retained native envelopes.
+- Names do not require attached component pins; duplicates and blank names are
+  omitted. Selecting a PCB must not substitute another loaded schematic.
+- Existing sorting, pagination, regex validation, cancellation, and privacy-safe
+  success/error telemetry remain intact.
+- Schematic traversal and `hasConnectivity` continue to require the schematic
+  pin graph. A list of PCB net names must not imply traversable schematic data.
