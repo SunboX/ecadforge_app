@@ -70,12 +70,10 @@ Native clients should use their browser's discovery and invocation contract.
 The loader leaves an existing context untouched instead of replacing it with a
 bridge that can serialize inputs or discard newer annotations and callback options.
 
-`@mcp-b/global` remains at 4.0.0 for browsers without native registration.
-Its fallback API retains the older string-based discovery/invocation contract;
-it is not a Chrome 155 polyfill. Version 5.1.0 was reviewed, but still parses
-JSON-string execution inputs in its fallback, strips `consequentialHint` from
-native descriptors, and drops native callback cancellation context. Neither
-version should wrap the browser's current API. MCP-B transport clients are
+`@mcp-b/global` 6.0.0 supplies the fallback runtime for browsers without native
+registration. It forwards genuine MCP request cancellation signals to provider
+callbacks and supports the current object invocation contract. The app still
+preserves a working native context. MCP-B transport clients are
 available on the fallback path only; native browsers use native WebMCP clients.
 The ECAD libraries do not own browser WebMCP registration or invocation.
 Loaded-project validation also identified a separate query-boundary issue:
@@ -182,38 +180,39 @@ change source code, or promise implementation.
 
 ## Supported Tools
 
-| Tool                            | Purpose                                                      |
-| ------------------------------- | ------------------------------------------------------------ |
-| `prepare_issue_report` | Prepare a public GitHub support, bug or feature report for submission. |
-| `submit_agent_feedback` | Submit a generic feature need or problem report to Analytics. |
-| `list_designs`                  | List loaded browser-session documents.                       |
-| `list_components`               | List components by reference-designator prefix.              |
-| `list_nets`                     | List net names for one loaded design.                        |
-| `review_design`                 | Summarize loaded design coverage, metadata, and diagnostics. |
-| `audit_design`                  | Report parser, metadata, and connectivity issues.            |
-| `crossref_net`                  | Compare one schematic net against matching PCB pads.         |
-| `compare_schematic_pcb`         | Compare all schematic nets against matching PCB pads.        |
-| `summarize_design`              | Return an agent-friendly loaded-design summary.              |
-| `find_components`               | Search common component metadata fields.                     |
-| `query_bom_item`                | Find BOM rows by refdes, MPN, or text pattern.               |
-| `list_pin_connections`          | List compact pin-to-net rows for one component.              |
-| `query_net`                     | Return direct pin membership for one schematic net.          |
-| `list_component_types`          | Count components by reference-designator prefix.             |
-| `list_diagnostics`              | Return parser diagnostics directly.                          |
-| `compare_bom_pcb`               | Compare BOM rows against PCB components.                     |
-| `list_single_pin_nets`          | List schematic nets with exactly one connected pin.          |
-| `query_pcb_component`           | Return PCB placement, pads, and model metadata.              |
-| `query_pcb_net`                 | Return physical PCB membership for one net.                  |
-| `summarize_pcb`                 | Summarize board, placement, routing, and stackup data.       |
-| `list_design_rules`             | List compact normalized PCB design rules.                    |
-| `review_fabrication_readiness`  | Review PCB fabrication-readiness signals.                    |
-| `search_nets`                   | Search loaded net names with a case-insensitive regex.       |
-| `search_components_by_refdes`   | Search components by reference designator.                   |
-| `search_components_by_mpn`      | Search components by part number metadata.                   |
-| `search_component_descriptions` | Search components by description metadata.                   |
-| `query_component`               | Return one component with known pin connections.             |
-| `query_xnet_by_net_name`        | Trace connectivity starting from a net.                      |
-| `query_xnet_by_pin_name`        | Trace connectivity starting from `REFDES.PIN`.               |
+| Tool                              | Purpose                                                                |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `prepare_issue_report`            | Prepare a public GitHub support, bug or feature report for submission. |
+| `submit_agent_feedback`           | Submit a generic feature need or problem report to Analytics.          |
+| `list_designs`                    | List loaded browser-session documents.                                 |
+| `list_components`                 | List components by reference-designator prefix.                        |
+| `list_nets`                       | List net names for one loaded design.                                  |
+| `review_design`                   | Summarize loaded design coverage, metadata, and diagnostics.           |
+| `audit_design`                    | Report parser, metadata, and connectivity issues.                      |
+| `crossref_net`                    | Compare one schematic net against matching PCB pads.                   |
+| `compare_schematic_pcb`           | Compare all schematic nets against matching PCB pads.                  |
+| `export_schematic_pcb_comparison` | Return a local JSON comparison artifact with explicit identifiers.     |
+| `summarize_design`                | Return an agent-friendly loaded-design summary.                        |
+| `find_components`                 | Search common component metadata fields.                               |
+| `query_bom_item`                  | Find BOM rows by refdes, MPN, or text pattern.                         |
+| `list_pin_connections`            | List compact pin-to-net rows for one component.                        |
+| `query_net`                       | Return direct pin membership for one schematic net.                    |
+| `list_component_types`            | Count components by reference-designator prefix.                       |
+| `list_diagnostics`                | Return parser diagnostics directly.                                    |
+| `compare_bom_pcb`                 | Compare BOM rows against PCB components.                               |
+| `list_single_pin_nets`            | List schematic nets with exactly one connected pin.                    |
+| `query_pcb_component`             | Return PCB placement, pads, and model metadata.                        |
+| `query_pcb_net`                   | Return physical PCB membership for one net.                            |
+| `summarize_pcb`                   | Summarize board, placement, routing, and stackup data.                 |
+| `list_design_rules`               | List compact normalized PCB design rules.                              |
+| `review_fabrication_readiness`    | Review PCB fabrication-readiness signals.                              |
+| `search_nets`                     | Search loaded net names with a case-insensitive regex.                 |
+| `search_components_by_refdes`     | Search components by reference designator.                             |
+| `search_components_by_mpn`        | Search components by part number metadata.                             |
+| `search_component_descriptions`   | Search components by description metadata.                             |
+| `query_component`                 | Return one component with known pin connections.                       |
+| `query_xnet_by_net_name`          | Trace connectivity starting from a net.                                |
+| `query_xnet_by_pin_name`          | Trace connectivity starting from `REFDES.PIN`.                         |
 
 Search tools reject patterns that match every candidate so an agent does not
 accidentally dump a large loaded design through a broad wildcard query.
@@ -507,6 +506,53 @@ falling back to another loaded PCB. `query_pcb_component`, `query_pcb_net`,
 `summarize_pcb`, `list_design_rules`, and `review_fabrication_readiness` expose
 compact normalized PCB facts only; they do not expose raw native rule streams,
 primitive records, or source file contents.
+
+## Local comparison artifact
+
+Call `export_schematic_pcb_comparison` with explicit loaded-document selectors:
+
+```json
+{
+    "design": "sheet-document-id",
+    "pcb_design": "board-document-id"
+}
+```
+
+The result has `file_name`, `mime_type: "application/json"`, and `content`.
+Save `content` directly to a local file named by `file_name`. No browser download,
+filesystem access, feedback submission, or network write occurs in the export
+handler. This tool also bypasses automatic invocation analytics. Normal page
+startup, runtime transport messages, and other tool calls retain their existing
+behavior. An external agent controls where it saves the artifact.
+
+The JSON body has `schema_version: 1`, `kind: "schematic_pcb_comparison"`,
+`identifier_scope: "loaded_session"`, explicit `designs.schematic` and
+`designs.pcb` identities, `components`, and the complete connectivity
+`comparison`. Components include reference designators and identifiers for each
+side; an absent component has a null identifier on that side. Logical identifiers
+are JSON-encoded tuples of loaded document IDs and reference designators, avoiding
+delimiter collisions. They remain stable for the same loaded documents across
+native and MCP-B calls, selector aliases, and repeated exports. Reloading a file
+can create new session IDs; these are not persistent CAD UUIDs or content hashes.
+
+Selection failures retain a human-readable `error` and add a machine-readable
+`code`: `no_design_loaded`, `design_not_found`, `ambiguous_design`,
+`missing_schematic_connectivity`, or `missing_pcb_pads`. The export uses the
+existing pairing policy when selectors are omitted; use explicit IDs for a
+bounded audit. An explicitly selected PCB must contain PCB pad data.
+
+Native callbacks return the application object directly. MCP-B transport results
+carry the same object in `structuredContent`, JSON text in `content`, and
+`isError: true` for returned application failures. Cancellation remains a rejected
+execution with the genuine signal's reason; it is not a successful comparison or
+an exported artifact. Synchronous comparisons check cancellation before reading
+the session and cannot be interrupted mid-loop.
+
+Regression coverage uses repository-owned fake ECAD data and the actual MCP-B
+server with an in-process transport. It checks artifact equality against native
+provider callbacks, structured errors, request cancellation, stable IDs, and the
+absence of export analytics or feedback. Native browser validation remains a
+separate integration check from these provider-level assertions.
 
 ## Unsupported In Browser WebMCP
 

@@ -20,6 +20,9 @@ export class WebMcpAdapter {
     /** @type {object | undefined} Optional explicit feedback tool provider. */
     #feedback
 
+    /** @type {boolean} Whether callbacks serve the MCP-B transport. */
+    #fallbackRuntime = false
+
     /**
      * @param {{ getSnapshot: () => object, modelContext?: object | null, registry?: WebMcpToolRegistry, analytics?: { track?: (eventName: string, properties?: object) => void } | null, feedback?: import('./WebMcpFeedback.mjs').WebMcpFeedback, appVersion?: string, now?: () => number, pageSessionId?: string }} dependencies Dependencies.
      */
@@ -46,6 +49,7 @@ export class WebMcpAdapter {
      * @returns {Promise<{ available: boolean, registered: number, failed: number }>}
      */
     async initialize(runtime = {}) {
+        this.#fallbackRuntime = runtime.imported === true
         this.#telemetry.setRuntime(runtime)
         this.#modelContext = this.#resolveModelContext()
 
@@ -184,13 +188,19 @@ export class WebMcpAdapter {
             description: tool.description,
             inputSchema: tool.inputSchema,
             annotations: tool.annotations,
-            execute: async (args = {}, callbackOptions = {}) =>
-                this.#trackToolCall(
+            execute: async (args = {}, callbackOptions = {}) => {
+                const result = await this.#trackToolCall(
                     tool,
                     apiForm,
                     args || {},
                     WebMcpAdapter.#executionOptions(callbackOptions)
                 )
+                // MCP-B wraps plain objects as successful MCP results. Supply an
+                // explicit envelope so application failures stay failures on the wire.
+                return this.#fallbackRuntime
+                    ? WebMcpAdapter.#formatResult(result, true)
+                    : result
+            }
         }
     }
 
@@ -222,6 +232,8 @@ export class WebMcpAdapter {
      * @returns {Promise<unknown>}
      */
     async #trackToolCall(tool, apiForm, args, executionOptions = {}) {
+        // Local artifact export deliberately bypasses automatic network analytics.
+        if (tool.localOnly) return await tool.handler(args, executionOptions)
         return this.#telemetry.execute(tool, apiForm, args, executionOptions)
     }
 
@@ -255,16 +267,24 @@ export class WebMcpAdapter {
     /**
      * Formats one result as MCP text content.
      * @param {unknown} result Tool result.
+     * @param {boolean} [mcpEnvelope] Include MCP transport status and structured data.
      * @returns {{ content: { type: 'text', text: string }[] }}
      */
-    static #formatResult(result) {
+    static #formatResult(result, mcpEnvelope = false) {
         return {
             content: [
                 {
                     type: 'text',
                     text: JSON.stringify(result, null, 2)
                 }
-            ]
+            ],
+            ...(mcpEnvelope &&
+            result &&
+            typeof result === 'object' &&
+            !Array.isArray(result)
+                ? { structuredContent: result }
+                : {}),
+            ...(mcpEnvelope ? { isError: Boolean(result?.error) } : {})
         }
     }
 }

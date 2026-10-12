@@ -241,7 +241,7 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
     const toolNames = fake.calls.map((call) => call.tool.name)
 
     assert.equal(result.available, true)
-    assert.equal(result.registered, 29)
+    assert.equal(result.registered, 30)
     assert.deepEqual(toolNames, [
         'list_designs',
         'list_components',
@@ -250,6 +250,7 @@ test('WebMcpAdapter registers tools with object-form native model context', asyn
         'audit_design',
         'crossref_net',
         'compare_schematic_pcb',
+        'export_schematic_pcb_comparison',
         'summarize_design',
         'find_components',
         'query_bom_item',
@@ -475,8 +476,8 @@ test('WebMcpAdapter prefers document model context over deprecated navigator con
         const adapter = new WebMcpAdapter({ getSnapshot: createSnapshot })
         const result = await adapter.initialize()
 
-        assert.equal(result.registered, 29)
-        assert.equal(documentContext.calls.length, 29)
+        assert.equal(result.registered, 30)
+        assert.equal(documentContext.calls.length, 30)
         assert.equal(navigatorContext.calls.length, 0)
     } finally {
         setGlobalProperty('document', originalDocument)
@@ -524,8 +525,8 @@ test('WebMcpAdapter resolves document model context during initialization', asyn
 
         const result = await adapter.initialize()
 
-        assert.equal(result.registered, 29)
-        assert.equal(documentContext.calls.length, 29)
+        assert.equal(result.registered, 30)
+        assert.equal(documentContext.calls.length, 30)
     } finally {
         setGlobalProperty('document', originalDocument)
     }
@@ -545,7 +546,7 @@ test('WebMcpAdapter supports legacy positional model context', async () => {
     const listNets = fake.calls.find((call) => call.name === 'list_nets')
     const response = await listNets.handler({})
 
-    assert.equal(result.registered, 29)
+    assert.equal(result.registered, 30)
     assert.deepEqual(response, {
         content: [
             {
@@ -637,7 +638,7 @@ test('WebMcpAdapter continues after one registration failure', async () => {
     const result = await adapter.initialize()
 
     assert.equal(result.available, true)
-    assert.equal(result.registered, 28)
+    assert.equal(result.registered, 29)
     assert.equal(result.failed, 1)
     assert.equal(
         fake.calls.some((call) => call.tool.name === 'query_component'),

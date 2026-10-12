@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.13.46",
+    "version": "1.13.47",
     "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
     "license": "AGPL-3.0-or-later",
@@ -16,7 +16,7 @@
         "check:format": "prettier --check ."
     },
     "dependencies": {
-        "@mcp-b/global": "^4.0.0",
+        "@mcp-b/global": "^6.0.0",
         "@sunbox/occt-import-js": "^0.0.29",
         "altium-toolkit": "^1.4.19",
         "circuitjson-toolkit": "^1.4.4",

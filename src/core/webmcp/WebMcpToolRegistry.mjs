@@ -104,6 +104,22 @@ export class WebMcpToolRegistry {
                 (args, executionOptions) =>
                     this.#service.compareSchematicPcb(args, executionOptions)
             ),
+            {
+                ...this.#tool(
+                    'export_schematic_pcb_comparison',
+                    'Return a local JSON comparison artifact with session-stable design and component identifiers. Save its content locally; no feedback submission or network write is required.',
+                    {
+                        design: { type: 'string' },
+                        pcb_design: { type: 'string' }
+                    },
+                    (args, executionOptions) =>
+                        this.#service.exportSchematicPcbComparison(
+                            args,
+                            executionOptions
+                        )
+                ),
+                localOnly: true
+            },
             this.#tool(
                 'summarize_design',
                 'Return an agent-friendly loaded-design summary.',

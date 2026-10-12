@@ -7,6 +7,7 @@ import { WebMcpDesignInspector } from './WebMcpDesignInspector.mjs'
 import { WebMcpExecution } from './WebMcpExecution.mjs'
 import { WebMcpFocusedInspector } from './WebMcpFocusedInspector.mjs'
 import { WebMcpPcbInspector } from './WebMcpPcbInspector.mjs'
+import { WebMcpComparisonArtifact } from './WebMcpComparisonArtifact.mjs'
 
 /**
  * Dispatches loaded-session WebMCP queries to toolkit-owned netlist services.
@@ -172,6 +173,26 @@ export class LoadedDesignNetlistService {
         return WebMcpDesignInspector.compareSchematicPcb(
             resolved.schematicEntry,
             resolved.pcbEntry
+        )
+    }
+
+    /**
+     * Returns a local JSON comparison artifact for the agent to save.
+     * @param {{ design?: string, pcb_design?: string }} [args] Loaded selectors.
+     * @param {{ signal?: AbortSignal | null }} [executionOptions] Cancellation context.
+     * @returns {object} Artifact or structured failure.
+     */
+    exportSchematicPcbComparison(args = {}, executionOptions = {}) {
+        WebMcpExecution.throwIfAborted(executionOptions)
+        const resolved = this.#resolveCrossrefEntries(args)
+        if (resolved.error) return resolved
+        return WebMcpComparisonArtifact.create(
+            resolved.schematicEntry,
+            resolved.pcbEntry,
+            WebMcpDesignInspector.compareSchematicPcb(
+                resolved.schematicEntry,
+                resolved.pcbEntry
+            )
         )
     }
 
@@ -577,6 +598,7 @@ export class LoadedDesignNetlistService {
               )
         if (!schematicEntry) {
             return {
+                code: 'missing_schematic_connectivity',
                 error: 'No loaded schematic connectivity is available for crossref_net.'
             }
         }
@@ -595,7 +617,14 @@ export class LoadedDesignNetlistService {
         if (pcbEntry.error) return pcbEntry
         if (!pcbEntry.entry) {
             return {
+                code: 'missing_pcb_pads',
                 error: 'No loaded PCB pad data is available for crossref_net.'
+            }
+        }
+        if (!WebMcpDesignAnalyzer.hasPcbPads(pcbEntry.entry.documentModel)) {
+            return {
+                code: 'missing_pcb_pads',
+                error: 'The selected PCB design has no loaded PCB pad data.'
             }
         }
 
@@ -722,7 +751,10 @@ export class LoadedDesignNetlistService {
     #resolveEntry(design) {
         const entries = this.#loadedEntries()
         if (!entries.length) {
-            return { error: 'No design is loaded in the current session.' }
+            return {
+                code: 'no_design_loaded',
+                error: 'No design is loaded in the current session.'
+            }
         }
 
         const selector = String(design || 'active').trim()
@@ -737,6 +769,7 @@ export class LoadedDesignNetlistService {
         )
         if (matches.length > 1) {
             return {
+                code: 'ambiguous_design',
                 error:
                     "Design selector '" +
                     selector +
@@ -745,6 +778,7 @@ export class LoadedDesignNetlistService {
         }
         if (!matches.length) {
             return {
+                code: 'design_not_found',
                 error:
                     "Design selector '" +
                     selector +
