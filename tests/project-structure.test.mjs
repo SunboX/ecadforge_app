@@ -233,7 +233,7 @@ test('package depends on intended ECAD toolkit registry releases', async () => {
         'kicad-toolkit',
         'pcb-scene3d-viewer'
     ]
-    const releaseRangePattern = /^\^\d+\.\d+\.\d+$/
+    const releaseRangePattern = /^\^?\d+\.\d+\.\d+$/
 
     for (const packageName of toolkitPackageNames) {
         const dependencyVersion = pkg.dependencies?.[packageName] ?? ''
@@ -653,7 +653,7 @@ test('ECAD libraries resolve through configured registry package sources', async
         'kicad-toolkit',
         'pcb-scene3d-viewer'
     ]
-    const releaseRangePattern = /^\^\d+\.\d+\.\d+$/
+    const releaseRangePattern = /^\^?\d+\.\d+\.\d+$/
 
     for (const packageName of toolkitPackageNames) {
         const packageDependency = pkg.dependencies[packageName]
