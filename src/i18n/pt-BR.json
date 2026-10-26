@@ -35,7 +35,7 @@
     "diagnostics.title": "Diagnósticos do parser",
     "empty.copy": "Compatível com .SchDoc, .PcbDoc, .PrjPcb, .json, arquivos Gerber/Excellon, ZIPs de fabricação, .kicad_pro e .kicad_pcb. Seus arquivos permanecem no seu dispositivo.",
     "empty.title": "Solte um arquivo de design aqui ou comece com um projeto de exemplo",
-    "footer.address": "André Fiedler, Rödelstraße 7, 08523 Plauen, Alemanha",
+    "footer.address": "André Fiedler, Rädelstraße 7, 08523 Plauen, Alemanha",
     "footer.contact": "Contato",
     "footer.germany": "Alemanha",
     "footer.githubAria": "Repositório GitHub",
@@ -50,7 +50,7 @@
     "github.openAria": "Abrir pelo GitHub ou GitLab",
     "link.localParsing": "Como a análise local funciona",
     "link.pcbStyler": "Precisa de imagens limpas de montagem? Experimente o PCB Styler",
-    "link.privacy": "Privacidade e segurança",
+    "link.privacy": "Política de privacidade",
     "link.supportedFormats": "Formatos compatíveis",
     "locale.de": "Deutsch",
     "locale.en": "English",
@@ -194,5 +194,14 @@
     "view.tabsAria": "Abas do visualizador",
     "view.threeD": "3D",
     "view.threeDBoard": "Placa 3D",
-    "viewStatus.ready": "Pronto para um arquivo local, pasta, exemplo ou URL Git"
+    "viewStatus.ready": "Pronto para um arquivo local, pasta, exemplo ou URL Git",
+    "legal.imprint": "Aviso legal",
+    "legal.terms": "Termos e condições",
+    "legal.refunds": "Reembolsos e cancelamento",
+    "legal.privacy": "Política de privacidade",
+    "analytics.settings": "Preferências de análise",
+    "analytics.title": "Análise opcional",
+    "analytics.description": "Permitir análise de uso e impressão digital do dispositivo para melhorar o ECAD Forge? O visualizador funciona sem isso. Altere sua escolha no rodapé.",
+    "analytics.decline": "Recusar análise",
+    "analytics.accept": "Permitir análise"
 }

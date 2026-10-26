@@ -11,7 +11,7 @@ export class AnalyticsTrackerLoader {
      * production-key analytics.
      * @param {Document} [documentObject] Browser document.
      * @param {Location | URL | string} [locationObject] Browser location.
-     * @param {{ onLoad?: () => void }} [options] Optional load callback.
+     * @param {{ consentGranted?: boolean, onLoad?: () => void }} [options] Explicit permission and load callback.
      * @returns {boolean}
      */
     static loadBrowserTracker(
@@ -20,6 +20,7 @@ export class AnalyticsTrackerLoader {
         options = {}
     ) {
         if (
+            options.consentGranted !== true ||
             !documentObject?.head ||
             typeof documentObject.createElement !== 'function' ||
             !AnalyticsTrackerLoader.shouldLoadForLocation(locationObject) ||

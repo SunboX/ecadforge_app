@@ -247,3 +247,6 @@ Package-manager dependencies retain their own licenses and notices. The
 installed OCCT importer preserves its LGPL notices and Open CASCADE exception
 under `node_modules/@sunbox/occt-import-js/dist/`; source links are recorded in
 `NOTICE.md`.
+
+Public legal pages, their source-of-truth seller profile, analytics consent and
+local review scope are documented in [Legal disclosures](docs/legal-disclosures.md).

@@ -91,6 +91,17 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
         outputRoot
     })
 
+    for (const slug of ['impressum', 'terms', 'refunds', 'privacy']) {
+        const legalHtml = await readRequiredOutputFile(
+            outputRoot,
+            `${slug}.html`
+        )
+        assert.match(legalHtml, /<address>/)
+        assert.doesNotMatch(legalHtml, /<script/)
+        assert.match(legalHtml, /href="\/styles\/50-legal\.css/)
+    }
+    await readRequiredOutputFile(outputRoot, 'styles/50-legal.css')
+
     const indexHtml = await readFile(
         path.join(outputRoot, 'index.html'),
         'utf8'

@@ -139,7 +139,7 @@
                             "price": 0,
                             "priceCurrency": "EUR"
                         },
-                        "softwareVersion": "1.13.48",
+                        "softwareVersion": "1.13.49",
                         "mainEntityOfPage": {
                             "@id": "https://ecadforge.app/#webpage"
                         }
@@ -753,9 +753,7 @@
                             data-i18n="link.localParsing"
                             >How local parsing works</a
                         >
-                        <a
-                            href="/ecad-viewer-no-upload"
-                            data-i18n="link.privacy"
+                        <a href="/privacy.html" data-i18n="link.privacy"
                             >Privacy & security</a
                         >
                         <a
@@ -926,6 +924,39 @@
                 </aside>
             </section>
 
+            <section
+                class="analytics-consent"
+                data-analytics-consent
+                hidden
+                aria-labelledby="analytics-title"
+            >
+                <h2 id="analytics-title" data-i18n="analytics.title">
+                    Optional analytics
+                </h2>
+                <p data-i18n="analytics.description">
+                    Allow usage analytics and device fingerprinting to help
+                    improve ECAD Forge? The viewer works without it. You can
+                    change your choice in the footer.
+                </p>
+                <a href="/privacy.html" data-i18n="legal.privacy"
+                    >Privacy policy</a
+                >
+                <div class="analytics-consent__actions">
+                    <button
+                        type="button"
+                        data-analytics-decline
+                        data-i18n="analytics.decline"
+                    >
+                        Decline analytics</button
+                    ><button
+                        type="button"
+                        data-analytics-accept
+                        data-i18n="analytics.accept"
+                    >
+                        Allow analytics
+                    </button>
+                </div>
+            </section>
             <footer class="page-footer footer-inline">
                 <span class="footer-inline__main">
                     <span data-i18n="footer.slogan"
@@ -968,7 +999,7 @@
                     >
                         <span data-i18n="footer.responsible">Responsible</span>:
                         <span data-i18n="footer.address"
-                            >André Fiedler, Rödelstraße 7, 08523 Plauen,
+                            >André Fiedler, Rädelstraße 7, 08523 Plauen,
                             Germany</span
                         >
                     </span>
@@ -1013,6 +1044,28 @@
                         </svg>
                     </a>
                 </span>
+                <nav class="legal-links" aria-label="Legal information">
+                    <a href="/impressum.html" data-i18n="legal.imprint"
+                        >Legal notice</a
+                    >
+                    <a href="/terms.html" data-i18n="legal.terms"
+                        >Terms and conditions</a
+                    >
+                    <a href="/refunds.html" data-i18n="legal.refunds"
+                        >Refunds and cancellation</a
+                    >
+                    <a href="/privacy.html" data-i18n="legal.privacy"
+                        >Privacy policy</a
+                    >
+                </nav>
+                <button
+                    type="button"
+                    class="analytics-settings"
+                    data-analytics-settings
+                    data-i18n="analytics.settings"
+                >
+                    Analytics settings
+                </button>
             </footer>
         </main>
 

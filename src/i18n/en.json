@@ -35,7 +35,7 @@
     "diagnostics.title": "Parser diagnostics",
     "empty.copy": "Supports .SchDoc, .PcbDoc, .PrjPcb, .json, Gerber/Excellon files, fabrication ZIPs, .kicad_pro and .kicad_pcb. Your files stay on your device.",
     "empty.title": "Drop a design file here or start with a sample project",
-    "footer.address": "André Fiedler, Rödelstraße 7, 08523 Plauen, Germany",
+    "footer.address": "André Fiedler, Rädelstraße 7, 08523 Plauen, Germany",
     "footer.contact": "Contact",
     "footer.germany": "Germany",
     "footer.githubAria": "GitHub repository",
@@ -50,7 +50,7 @@
     "github.openAria": "Open from GitHub or GitLab",
     "link.localParsing": "How local parsing works",
     "link.pcbStyler": "Need clean assembly images? Try PCB Styler",
-    "link.privacy": "Privacy & security",
+    "link.privacy": "Privacy policy",
     "link.supportedFormats": "Supported formats",
     "locale.de": "Deutsch",
     "locale.en": "English",
@@ -194,5 +194,14 @@
     "view.tabsAria": "Viewer tabs",
     "view.threeD": "3D",
     "view.threeDBoard": "3D board",
-    "viewStatus.ready": "Ready for a local file, folder, sample, or Git URL"
+    "viewStatus.ready": "Ready for a local file, folder, sample, or Git URL",
+    "legal.imprint": "Legal notice",
+    "legal.terms": "Terms and conditions",
+    "legal.refunds": "Refunds and cancellation",
+    "legal.privacy": "Privacy policy",
+    "analytics.settings": "Analytics settings",
+    "analytics.title": "Optional analytics",
+    "analytics.description": "Allow usage analytics and device fingerprinting to help improve ECAD Forge? The viewer works without it. You can change your choice in the footer.",
+    "analytics.decline": "Decline analytics",
+    "analytics.accept": "Allow analytics"
 }

@@ -35,7 +35,7 @@
     "diagnostics.title": "Chẩn đoán trình phân tích",
     "empty.copy": "Hỗ trợ .SchDoc, .PcbDoc, .PrjPcb, .json, tệp Gerber/Excellon, ZIP chế tạo, .kicad_pro và .kicad_pcb. Tệp của bạn luôn ở trên thiết bị của bạn.",
     "empty.title": "Thả tệp thiết kế vào đây hoặc bắt đầu bằng dự án mẫu",
-    "footer.address": "André Fiedler, Rödelstraße 7, 08523 Plauen, Đức",
+    "footer.address": "André Fiedler, Rädelstraße 7, 08523 Plauen, Đức",
     "footer.contact": "Liên hệ",
     "footer.germany": "Đức",
     "footer.githubAria": "Kho GitHub",
@@ -50,7 +50,7 @@
     "github.openAria": "Mở từ GitHub hoặc GitLab",
     "link.localParsing": "Cách phân tích cục bộ hoạt động",
     "link.pcbStyler": "Cần hình lắp ráp rõ nét? Thử PCB Styler",
-    "link.privacy": "Quyền riêng tư & bảo mật",
+    "link.privacy": "Chính sách quyền riêng tư",
     "link.supportedFormats": "Định dạng được hỗ trợ",
     "locale.de": "Deutsch",
     "locale.en": "English",
@@ -194,5 +194,14 @@
     "view.tabsAria": "Các thẻ trình xem",
     "view.threeD": "3D",
     "view.threeDBoard": "Bảng 3D",
-    "viewStatus.ready": "Sẵn sàng cho tệp cục bộ, thư mục, mẫu hoặc URL Git"
+    "viewStatus.ready": "Sẵn sàng cho tệp cục bộ, thư mục, mẫu hoặc URL Git",
+    "legal.imprint": "Thông tin pháp lý",
+    "legal.terms": "Điều khoản sử dụng",
+    "legal.refunds": "Hoàn tiền và hủy",
+    "legal.privacy": "Chính sách quyền riêng tư",
+    "analytics.settings": "Cài đặt phân tích",
+    "analytics.title": "Phân tích tùy chọn",
+    "analytics.description": "Cho phép phân tích sử dụng và dấu vân tay thiết bị để cải thiện ECAD Forge? Trình xem vẫn hoạt động khi từ chối. Bạn có thể đổi lựa chọn ở chân trang.",
+    "analytics.decline": "Từ chối phân tích",
+    "analytics.accept": "Cho phép phân tích"
 }

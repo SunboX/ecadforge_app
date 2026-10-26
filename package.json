@@ -1,6 +1,6 @@
 {
     "name": "ecadforge_app",
-    "version": "1.13.48",
+    "version": "1.13.49",
     "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
     "license": "AGPL-3.0-or-later",
@@ -13,7 +13,9 @@
         "sync:structured-data": "node scripts/sync-structured-data.mjs",
         "check:structured-data": "node scripts/check-structured-data.mjs",
         "format": "prettier --write .",
-        "check:format": "prettier --check ."
+        "check:format": "prettier --check .",
+        "sync:legal": "node scripts/sync-legal-pages.mjs",
+        "check:legal": "node scripts/sync-legal-pages.mjs --check"
     },
     "dependencies": {
         "@mcp-b/global": "^6.0.0",

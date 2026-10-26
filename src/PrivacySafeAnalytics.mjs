@@ -19,10 +19,14 @@ export class PrivacySafeAnalytics {
     /** @type {boolean} Prevents tracker callbacks from recursively flushing. */
     #flushing = false
 
+    /** @type {() => boolean} Explicit permission gate supplied by the browser host. */
+    #isEnabled
+
     /**
      * @param {{ tracker?: { trackEvent?: (eventName: string, properties?: object) => void, setContext?: (context: object) => void } | null, trackerProvider?: () => ({ trackEvent?: (eventName: string, properties?: object) => void, setContext?: (context: object) => void } | null) }} [dependencies]
      */
     constructor(dependencies = {}) {
+        this.#isEnabled = dependencies.isEnabled || (() => true)
         const hasStaticTracker = Object.hasOwn(dependencies, 'tracker')
         this.#tracker = hasStaticTracker ? dependencies.tracker : null
         this.#trackerProvider =
@@ -41,6 +45,10 @@ export class PrivacySafeAnalytics {
      * @returns {void}
      */
     track(eventName, properties = {}) {
+        if (!this.#isEnabled()) {
+            this.#pending = []
+            return
+        }
         if (!PrivacySafeAnalytics.#eventNames.has(eventName)) {
             return
         }
@@ -87,6 +95,10 @@ export class PrivacySafeAnalytics {
      * @returns {boolean} Whether context was delivered.
      */
     syncContext() {
+        if (!this.#isEnabled()) {
+            this.#pending = []
+            return false
+        }
         try {
             const tracker = this.#resolveTracker()
             const hasContext = typeof tracker?.setContext === 'function'

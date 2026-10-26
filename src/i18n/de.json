@@ -35,7 +35,7 @@
     "diagnostics.title": "Parser-Diagnosen",
     "empty.copy": "Unterstützt .SchDoc, .PcbDoc, .PrjPcb, .json, Gerber-/Excellon-Dateien, Fertigungs-ZIPs, .kicad_pro und .kicad_pcb. Deine Dateien bleiben auf deinem Gerät.",
     "empty.title": "Designdatei hier ablegen oder mit einem Beispielprojekt starten",
-    "footer.address": "André Fiedler, Rödelstraße 7, 08523 Plauen, Deutschland",
+    "footer.address": "André Fiedler, Rädelstraße 7, 08523 Plauen, Deutschland",
     "footer.contact": "Kontakt",
     "footer.germany": "Deutschland",
     "footer.githubAria": "GitHub-Repository",
@@ -50,7 +50,7 @@
     "github.openAria": "Von GitHub oder GitLab öffnen",
     "link.localParsing": "So funktioniert lokales Parsing",
     "link.pcbStyler": "Saubere Montagebilder nötig? PCB Styler testen",
-    "link.privacy": "Datenschutz & Sicherheit",
+    "link.privacy": "Datenschutzerklärung",
     "link.supportedFormats": "Unterstützte Formate",
     "locale.de": "Deutsch",
     "locale.en": "English",
@@ -194,5 +194,14 @@
     "view.tabsAria": "Viewer-Tabs",
     "view.threeD": "3D",
     "view.threeDBoard": "3D-Board",
-    "viewStatus.ready": "Bereit für lokale Datei, Ordner, Beispiel oder Git-URL"
+    "viewStatus.ready": "Bereit für lokale Datei, Ordner, Beispiel oder Git-URL",
+    "legal.imprint": "Impressum",
+    "legal.terms": "AGB",
+    "legal.refunds": "Widerruf, Erstattung und Kündigung",
+    "legal.privacy": "Datenschutzerklärung",
+    "analytics.settings": "Analyse-Einstellungen",
+    "analytics.title": "Optionale Nutzungsanalyse",
+    "analytics.description": "Nutzungsanalyse und Geräte-Fingerprinting zulassen, um ECAD Forge zu verbessern? Die Ansicht funktioniert auch ohne. Sie können Ihre Wahl in der Fußzeile ändern.",
+    "analytics.decline": "Analyse ablehnen",
+    "analytics.accept": "Analyse zulassen"
 }

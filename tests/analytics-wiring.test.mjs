@@ -24,7 +24,7 @@ test('browser entry loads analytics only after startup content is ready', async 
 
     assert.ok(
         main.indexOf('await controller.init()') <
-            main.indexOf('AnalyticsTrackerLoader.loadBrowserTracker'),
+            main.indexOf('consent.initialize()'),
         'analytics must not compete with startup source loading'
     )
 })
@@ -37,7 +37,7 @@ test('browser entry publishes bounded runtime and render graph context', async (
     assert.match(main, /view\.getRenderStatistics/)
     assert.match(main, /appVersion:\s*loadedVersion/)
     assert.match(main, /runtimePhase:\s*snapshot\.parseStatus/)
-    assert.match(main, /onLoad:\s*\(\)\s*=>\s*analytics\.syncContext\(\)/)
+    assert.match(main, /if\s*\(consent\.granted\)\s*analytics\.syncContext\(\)/)
     assert.doesNotMatch(main, /activeFileName/)
 })
 

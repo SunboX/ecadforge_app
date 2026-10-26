@@ -1,5 +1,6 @@
 import { AppController } from './AppController.mjs'
 import { AnalyticsTrackerLoader } from './AnalyticsTrackerLoader.mjs'
+import { AnalyticsConsent } from './AnalyticsConsent.mjs'
 import { HeroPreviewDemoLoader } from './HeroPreviewDemoLoader.mjs'
 import { AppMetaLoader } from './AppMetaLoader.mjs'
 import { AppRuntimeVersion } from './AppRuntimeVersion.mjs'
@@ -52,7 +53,31 @@ async function bootstrap() {
     })
     view.setVersion(loadedVersion)
     const startupSource = StartupSourceResolver.resolve(window.location.href)
-    const analytics = PrivacySafeAnalytics.fromWindow()
+    const consent = new AnalyticsConsent({
+        documentObject: document,
+        windowObject: window,
+        onGrant: () => {
+            if (window.AnalyticsTracker?.start) {
+                window.AnalyticsTracker.start()
+                analytics.syncContext()
+                return
+            }
+            AnalyticsTrackerLoader.loadBrowserTracker(
+                document,
+                window.location,
+                {
+                    consentGranted: true,
+                    onLoad: () => {
+                        if (consent.granted) analytics.syncContext()
+                        else window.AnalyticsTracker?.stop?.()
+                    }
+                }
+            )
+        }
+    })
+    const analytics = new PrivacySafeAnalytics({
+        isEnabled: () => consent.granted
+    })
     const controller = new AppController({
         state,
         view,
@@ -85,9 +110,7 @@ async function bootstrap() {
             traceReaderEdges: renderStatistics.readerEdges
         })
     })
-    AnalyticsTrackerLoader.loadBrowserTracker(document, window.location, {
-        onLoad: () => analytics.syncContext()
-    })
+    consent.initialize()
     const webMcpRuntime = await WebMcpRuntimeLoader.initialize()
     await webMcpAdapter.initialize(webMcpRuntime)
     HeroPreviewDemoLoader.schedule(view, { state })

@@ -83,7 +83,8 @@ test('AnalyticsTrackerLoader appends production tracker for deployed origins', (
 
     const didLoad = AnalyticsTrackerLoader.loadBrowserTracker(
         documentObject,
-        'https://ecadforge.app/?view=bom'
+        'https://ecadforge.app/?view=bom',
+        { consentGranted: true }
     )
 
     assert.equal(didLoad, true)
@@ -105,11 +106,13 @@ test('AnalyticsTrackerLoader does not append duplicate tracker scripts', () => {
 
     AnalyticsTrackerLoader.loadBrowserTracker(
         documentObject,
-        'https://ecadforge.app/'
+        'https://ecadforge.app/',
+        { consentGranted: true }
     )
     const didLoadAgain = AnalyticsTrackerLoader.loadBrowserTracker(
         documentObject,
-        'https://ecadforge.app/'
+        'https://ecadforge.app/',
+        { consentGranted: true }
     )
 
     assert.equal(didLoadAgain, false)
@@ -123,10 +126,25 @@ test('AnalyticsTrackerLoader invokes the optional tracker load callback', () => 
     const didLoad = AnalyticsTrackerLoader.loadBrowserTracker(
         documentObject,
         'https://ecadforge.app/',
-        { onLoad: () => (loadCount += 1) }
+        { consentGranted: true, onLoad: () => (loadCount += 1) }
     )
     documentObject.head.children[0].onload()
 
     assert.equal(didLoad, true)
     assert.equal(loadCount, 1)
+})
+
+test('AnalyticsTrackerLoader makes no script request without explicit consent', () => {
+    const documentObject = new FakeDocument()
+    for (const consentGranted of [undefined, false, 'true']) {
+        assert.equal(
+            AnalyticsTrackerLoader.loadBrowserTracker(
+                documentObject,
+                'https://viewer.example.test/',
+                { consentGranted }
+            ),
+            false
+        )
+    }
+    assert.deepEqual(documentObject.head.children, [])
 })

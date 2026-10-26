@@ -35,7 +35,7 @@
     "diagnostics.title": "解析器诊断",
     "empty.copy": "支持 .SchDoc、.PcbDoc、.PrjPcb、.json、Gerber/Excellon 文件、制造 ZIP、.kicad_pro 和 .kicad_pcb。你的文件会保留在你的设备上。",
     "empty.title": "将设计文件拖到这里，或从示例项目开始",
-    "footer.address": "André Fiedler，Rödelstraße 7，08523 Plauen，德国",
+    "footer.address": "André Fiedler，Rädelstraße 7，08523 Plauen，德国",
     "footer.contact": "联系",
     "footer.germany": "德国",
     "footer.githubAria": "GitHub 仓库",
@@ -50,7 +50,7 @@
     "github.openAria": "从 GitHub 或 GitLab 打开",
     "link.localParsing": "本地解析如何工作",
     "link.pcbStyler": "需要清晰的装配图？试用 PCB Styler",
-    "link.privacy": "隐私与安全",
+    "link.privacy": "隐私政策",
     "link.supportedFormats": "支持的格式",
     "locale.de": "Deutsch",
     "locale.en": "English",
@@ -194,5 +194,14 @@
     "view.tabsAria": "查看器标签页",
     "view.threeD": "3D",
     "view.threeDBoard": "3D 板",
-    "viewStatus.ready": "已准备好打开本地文件、文件夹、示例或 Git URL"
+    "viewStatus.ready": "已准备好打开本地文件、文件夹、示例或 Git URL",
+    "legal.imprint": "法律声明",
+    "legal.terms": "条款与条件",
+    "legal.refunds": "退款与取消",
+    "legal.privacy": "隐私政策",
+    "analytics.settings": "分析设置",
+    "analytics.title": "可选使用分析",
+    "analytics.description": "是否允许使用分析和设备指纹来改进 ECAD Forge？拒绝不影响查看器。您可以在页脚更改选择。",
+    "analytics.decline": "拒绝分析",
+    "analytics.accept": "允许分析"
 }

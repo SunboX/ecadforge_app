@@ -165,3 +165,16 @@ remains accessible when JavaScript or WebMCP is unavailable.
   success/error telemetry remain intact.
 - Schematic traversal and `hasConnectivity` continue to require the schematic
   pin graph. A list of PCB net names must not imply traversable schematic data.
+
+## Public legal information and optional analytics
+
+- Every public entry/landing page links to script-free German/English merchant,
+  terms, refund/withdrawal/cancellation and privacy pages.
+- Legal pages use the confirmed public seller profile, remain available without
+  authentication and are included in the static deployment artifact.
+- Automatic analytics requires explicit permission. Decline and accept have equal
+  presentation; settings remain accessible from the footer. Restricted storage
+  defaults off, pre-consent activity is discarded, withdrawal stops current and
+  pending tracker transmissions, and later consent starts a fresh activity period.
+- Main remains the account-free viewer; these disclosures do not enable purchases
+  or import parked account/billing features.

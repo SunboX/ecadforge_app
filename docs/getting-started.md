@@ -45,7 +45,7 @@ pages are crawlable.
 
 ## Analytics
 
-- The browser entrypoint loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js` only on deployed HTTP(S) origins. Localhost, file URLs, and private-network dev origins do not load the production tracker.
+- The browser entrypoint loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js` only after explicit permission on deployed HTTP(S) origins. Localhost, file URLs, and private-network dev origins do not load the production tracker.
 - The public site key is `ecadforge_app`.
 - Register each deployed browser origin in the Analytics `analytics_sites` table or dashboard before expecting events. The production row should use the deployed app origin and public key `ecadforge_app`.
 - Activation events are privacy-safe and only send coarse properties such as source type, format family, active view, and error bucket.
@@ -91,3 +91,14 @@ expectations change.
 The public bundled demos in `src/demo/` are separate from parser test fixtures.
 They retain upstream license/source notices and are used only for product
 activation and manual exploration.
+
+### Optional analytics consent
+
+ECAD Forge loads the production tracker only after explicit consent in the
+optional analytics panel. Declining leaves the viewer available. Reopen the
+choice with **Analytics settings** in the footer. The necessary preference is
+`ecadforge.analytics-consent.v1`; restricted storage uses a tab-only choice.
+Local/private development origins still never load the production tracker.
+The Analytics 1.3.11 companion provides synchronous `stop()`/`start()` controls;
+publish that tracker before the app when deployment is authorized. See
+[Legal disclosures](legal-disclosures.md) for the public policy and review scope.

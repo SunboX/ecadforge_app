@@ -1,0 +1,29 @@
+ENTWURF — NICHT GESENDET
+Erst nach Prüfung und tatsächlicher Veröffentlichung der Seiten verwenden.
+
+An: service@mollie.com
+Betreff: Re: Erforderliche Maßnahme: Offenlegungspflichten auf der Website
+
+Sehr geehrtes Mollie-Team,
+
+vielen Dank für Ihren Hinweis. Die angeforderten Informationen wurden auf
+https://ecadforge.app ergänzt und sind über die Fußzeile erreichbar:
+
+- AGB mit vollständigem Namen und Anschrift des Anbieters:
+  https://ecadforge.app/terms.html
+- Widerruf, Erstattungen, Rückgaben und Kündigung:
+  https://ecadforge.app/refunds.html
+- Datenschutzerklärung:
+  https://ecadforge.app/privacy.html
+- Impressum und Kontakt:
+  https://ecadforge.app/impressum.html
+
+Die aktuelle öffentliche Anwendung ist ein kostenloser Browser-Viewer ohne
+Bestellvorgang. Falls kostenpflichtige Funktionen angeboten werden, werden die
+rechtlichen Hinweise zusätzlich im zugehörigen Bestellablauf zugänglich gemacht.
+
+Bitte teilen Sie mir mit, falls Sie weitere Angaben benötigen.
+
+Mit freundlichen Grüßen
+André Fiedler
+Andrés Werkstatt
