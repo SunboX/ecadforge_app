@@ -64,6 +64,24 @@
     cursor: pointer;
     font: inherit;
 }
+.analytics-consent__actions [data-analytics-accept] {
+    color: #fff;
+    background: #15803d;
+    border-color: #15803d;
+}
+.analytics-consent__actions [data-analytics-accept]:hover {
+    background: #166534;
+    border-color: #166534;
+}
+.analytics-consent__actions [data-analytics-decline] {
+    color: #fff;
+    background: #c2410c;
+    border-color: #c2410c;
+}
+.analytics-consent__actions [data-analytics-decline]:hover {
+    background: #9a3412;
+    border-color: #9a3412;
+}
 .analytics-consent button:focus-visible,
 .analytics-settings:focus-visible,
 .legal-links a:focus-visible {

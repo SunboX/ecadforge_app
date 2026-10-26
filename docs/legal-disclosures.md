@@ -1,8 +1,9 @@
-# Public legal disclosures — local review, 26 October 2026
+# Public legal disclosures
 
 The changes belong to `main`. They do not enable registration, billing, a paid
-checkout or any code from `user-abo`. No publication or Mollie confirmation is
-implied. The current main application is the free, account-free viewer.
+checkout or any code from `user-abo`. The current main application is the free,
+account-free viewer. Publication is verified through the release deployment
+workflow; a successful deployment does not send a confirmation email to Mollie.
 
 ## What Mollie requested
 
@@ -64,12 +65,14 @@ The companion change is on **Analytics `main`**, version 1.3.11. Its public trac
 adds `stop()` and `start()`, checks a consent-generation boundary after asynchronous
 fingerprinting, discards prior interaction state and suppresses lifecycle events
 while stopped. Existing hosts retain their current behavior until they use these
-controls. ECAD Forge is version 1.13.50.
+controls. ECAD Forge 1.13.51 also gives the accept button a green background and
+the decline button an orange background, with white text and equal button sizing.
 
-When publication is later authorized, publish the Analytics companion first and
+For publication, deploy the Analytics companion first and
 verify the served tracker exposes `stop`/`start`, then publish the app. Do not
 publish only the app against an older tracker: that older code cannot stop its
-own automatic events on withdrawal. No deployment was performed for this task.
+own automatic events on withdrawal. Verify both deployment workflows and the
+served tracker before reporting a successful release.
 
 ## Review decisions that remain with the operator
 
@@ -105,7 +108,7 @@ not been sent or entered into Gmail.
 
 The app's full `npm test` suite passed (1,061 passed, one skipped), together
 with `check:legal`, `check:structured-data` and `build:static`. Analytics' full
-`npm test` passed (66 PHP and 77 JavaScript tests), as did PHP syntax checks.
+`npm test` passed (66 PHP and 78 JavaScript tests), as did PHP syntax checks.
 Tests include fresh/denied/granted consent, restricted storage, revocation across
 tabs, no pre-consent replay, blocked in-flight sends and clean regranting. Browser
 checks exercised footer navigation, English anchors, consent controls and direct
