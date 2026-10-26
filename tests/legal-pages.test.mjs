@@ -6,7 +6,7 @@ import { LegalDocuments } from '../src/legal/LegalDocuments.mjs'
 
 const root = new URL('../', import.meta.url)
 
-test('public disclosures are current, bilingual, readable without scripts and mutually linked', async () => {
+test('public disclosures are current, bilingual, readable without JavaScript and mutually linked', async () => {
     await LegalPageSync.run({ check: true })
     for (const document of LegalDocuments.all()) {
         const html = await readFile(
@@ -16,7 +16,9 @@ test('public disclosures are current, bilingual, readable without scripts and mu
         assert.match(html, /lang="de"/)
         assert.match(html, /lang="en"/)
         assert.match(html, /<address>/)
-        assert.doesNotMatch(html, /<script|onclick=|{{seller}}/)
+        assert.doesNotMatch(html, /onclick=|{{seller}}/)
+        assert.match(html, /src="\/legal\/main\.mjs"/)
+        assert.doesNotMatch(html, /AnalyticsTracker|src="\/main\.mjs"/)
         for (const destination of LegalDocuments.all())
             assert.ok(html.includes(`href="/${destination.slug}.html"`))
     }
@@ -32,6 +34,8 @@ test('every public entry page offers terms, refunds, privacy and seller contact'
     for (const file of await readdir(new URL('src/', root))) {
         if (!file.endsWith('.html')) continue
         const html = await readFile(new URL(`src/${file}`, root), 'utf8')
+        assert.match(html, /data-legal-document/)
+        assert.match(html, /src="\/legal\/main\.mjs"/)
         for (const document of LegalDocuments.all()) {
             assert.ok(
                 html.includes(`href="/${document.slug}.html"`),

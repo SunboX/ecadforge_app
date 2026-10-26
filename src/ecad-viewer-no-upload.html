@@ -88,7 +88,7 @@
                             "price": 0,
                             "priceCurrency": "EUR"
                         },
-                        "softwareVersion": "1.13.49"
+                        "softwareVersion": "1.13.50"
                     },
                     {
                         "@type": "WebPage",
@@ -205,19 +205,32 @@
         </main>
         <footer class="page-footer">
             <nav class="legal-links" aria-label="Legal information">
-                <a href="/impressum.html" data-i18n="legal.imprint"
+                <a
+                    data-legal-document
+                    href="/impressum.html"
+                    data-i18n="legal.imprint"
                     >Legal notice</a
                 >
-                <a href="/terms.html" data-i18n="legal.terms"
+                <a
+                    data-legal-document
+                    href="/terms.html"
+                    data-i18n="legal.terms"
                     >Terms and conditions</a
                 >
-                <a href="/refunds.html" data-i18n="legal.refunds"
+                <a
+                    data-legal-document
+                    href="/refunds.html"
+                    data-i18n="legal.refunds"
                     >Refunds and cancellation</a
                 >
-                <a href="/privacy.html" data-i18n="legal.privacy"
+                <a
+                    data-legal-document
+                    href="/privacy.html"
+                    data-i18n="legal.privacy"
                     >Privacy policy</a
                 >
             </nav>
         </footer>
+        <script type="module" src="/legal/main.mjs"></script>
     </body>
 </html>

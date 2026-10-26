@@ -168,8 +168,15 @@ remains accessible when JavaScript or WebMCP is unavailable.
 
 ## Public legal information and optional analytics
 
-- Every public entry/landing page links to script-free German/English merchant,
+- Every public entry/landing page links to German/English merchant,
   terms, refund/withdrawal/cancellation and privacy pages.
+- Legal links open in a native modal without navigating the app or reloading its
+  design session. Document cross-links reuse the same modal. Escape, backdrop and
+  the centered close control restore focus; privacy-settings links return to the
+  existing viewer's consent control.
+- German/English toggle buttons show exactly one language and preserve that choice
+  through document cross-links. Documents remain readable without JavaScript.
+- The original floating analytics popup remains available with equal consent choices.
 - Legal pages use the confirmed public seller profile, remain available without
   authentication and are included in the static deployment artifact.
 - Automatic analytics requires explicit permission. Decline and accept have equal

@@ -171,3 +171,69 @@ pre {
         break-after: avoid;
     }
 }
+
+/* Embedded legal documents follow the viewer's explicitly selected theme. */
+:root[data-theme='dark'] {
+    color-scheme: dark;
+    color: #e1eaf0;
+    background: #111c25;
+}
+[data-theme='dark'] :is(main, .skip-link) {
+    background: #172630;
+}
+[data-theme='dark'] :is(main, pre, .legal-language-title) {
+    border-color: #496271;
+}
+[data-theme='dark'] address {
+    background: #111c25;
+    border-color: #70c5ec;
+}
+[data-theme='dark'] a {
+    color: #8ed4f3;
+}
+[data-theme='dark'] .legal-date {
+    color: #b3c4d0;
+}
+:root[data-theme='light'] {
+    color-scheme: light;
+    color: #172a3a;
+    background: #f2f6f8;
+}
+[data-theme='light'] :is(main, .skip-link) {
+    background: #fff;
+}
+[data-theme='light'] :is(main, pre, .legal-language-title) {
+    border-color: #d4e0e7;
+}
+[data-theme='light'] address {
+    background: #f2f6f8;
+    border-color: #005b87;
+}
+[data-theme='light'] a {
+    color: #005b87;
+}
+[data-theme='light'] .legal-date {
+    color: #536574;
+}
+
+[data-legal-language-copy][hidden],
+.legal-language-controls[hidden] {
+    display: none;
+}
+.legal-language-controls {
+    display: flex;
+    gap: 0.35rem;
+}
+.legal-language-controls button {
+    padding: 0.3rem 0.85rem;
+}
+.legal-language-controls [aria-pressed='true'] {
+    background: #005b87;
+    color: #fff;
+    border-color: #005b87;
+}
+[data-theme='dark'] .legal-language-controls [aria-pressed='true'] {
+    background: #8ed4f3;
+    border-color: #8ed4f3;
+    color: #172a3a;
+}

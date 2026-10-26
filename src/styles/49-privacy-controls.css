@@ -90,3 +90,9 @@
     grid-column: 1 / -1;
     justify-self: center;
 }
+
+@media (min-width: 721px) {
+    .footer-inline {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+}

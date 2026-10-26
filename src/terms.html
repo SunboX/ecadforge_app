@@ -11,23 +11,54 @@
         <link rel="canonical" href="https://ecadforge.app/terms.html" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/styles/50-legal.css" />
+        <link rel="stylesheet" href="/styles/51-legal-dialog.css" />
         <title>AGB / Terms and conditions | ECAD Forge</title>
     </head>
     <body class="legal-page">
         <a class="skip-link" href="#content">Zum Inhalt / Skip to content</a>
         <header>
             <a class="legal-brand" href="/">ECAD Forge</a>
-            <nav aria-label="Sprache / Language">
-                <a href="#de" lang="de">Deutsch</a
-                ><a href="#en" lang="en">English</a>
-            </nav>
+            <div
+                class="legal-language-controls"
+                data-legal-language-controls
+                role="group"
+                aria-label="Sprache / Language"
+                hidden
+            >
+                <button
+                    type="button"
+                    data-legal-language="de"
+                    aria-pressed="true"
+                    lang="de"
+                >
+                    Deutsch</button
+                ><button
+                    type="button"
+                    data-legal-language="en"
+                    aria-pressed="false"
+                    lang="en"
+                >
+                    English
+                </button>
+            </div>
         </header>
         <main id="content">
-            <h1>AGB / Terms and conditions</h1>
+            <h1
+                data-legal-title
+                data-title-de="AGB"
+                data-title-en="Terms and conditions"
+            >
+                AGB / Terms and conditions
+            </h1>
             <p class="legal-date">
                 Stand / Updated: <time datetime="2026-10-26">26.10.2026</time>
             </p>
-            <section id="de" lang="de" aria-label="Deutsch">
+            <section
+                id="de"
+                lang="de"
+                aria-label="Deutsch"
+                data-legal-language-copy="de"
+            >
                 <h2>1. Vertragspartner und Geltungsbereich</h2>
                 <address>
                     <strong>André Fiedler – Andrés Werkstatt</strong
@@ -109,7 +140,7 @@
                 <h2>6. Widerruf, Erstattung und Rückgabe</h2>
                 <p>
                     Die vollständige
-                    <a href="/refunds.html"
+                    <a data-legal-document href="/refunds.html"
                         >Widerrufsbelehrung mit Musterformular sowie Regeln zu
                         Erstattungen, Rückgaben und Stornierungen</a
                     >
@@ -148,19 +179,25 @@
                 <h2>9. Datenschutz und Schlussbestimmungen</h2>
                 <p>
                     Die
-                    <a href="/privacy.html">Datenschutzerklärung</a> erläutert
-                    die Verarbeitung personenbezogener Daten. Es gilt deutsches
-                    Recht; zwingender Schutz des gewöhnlichen Aufenthaltsstaats
-                    von Verbrauchern bleibt erhalten. Für Verbraucher wird kein
-                    ausschließlicher Gerichtsstand vereinbart. Die deutsche und
-                    englische Fassung dienen der Information; zwingende Rechte
-                    hängen nicht von der gewählten Sprache ab. Änderungen dieser
-                    Seite ändern bereits geschlossene Verträge nicht
-                    automatisch.
+                    <a data-legal-document href="/privacy.html"
+                        >Datenschutzerklärung</a
+                    >
+                    erläutert die Verarbeitung personenbezogener Daten. Es gilt
+                    deutsches Recht; zwingender Schutz des gewöhnlichen
+                    Aufenthaltsstaats von Verbrauchern bleibt erhalten. Für
+                    Verbraucher wird kein ausschließlicher Gerichtsstand
+                    vereinbart. Die deutsche und englische Fassung dienen der
+                    Information; zwingende Rechte hängen nicht von der gewählten
+                    Sprache ab. Änderungen dieser Seite ändern bereits
+                    geschlossene Verträge nicht automatisch.
                 </p>
             </section>
-            <section id="en" lang="en" aria-label="English">
-                <h2 class="legal-language-title">English</h2>
+            <section
+                id="en"
+                lang="en"
+                aria-label="English"
+                data-legal-language-copy="en"
+            >
                 <h2>1. Contracting party and scope</h2>
                 <address>
                     <strong>André Fiedler – Andrés Werkstatt</strong
@@ -227,7 +264,7 @@
                 <h2>6. Withdrawal, refunds and returns</h2>
                 <p>
                     The complete
-                    <a href="/refunds.html#en"
+                    <a data-legal-document href="/refunds.html#en"
                         >withdrawal instructions, model form and refund, return
                         and cancellation policy</a
                     >
@@ -260,31 +297,49 @@
                 </p>
                 <h2>9. Privacy and final provisions</h2>
                 <p>
-                    Our <a href="/privacy.html#en">privacy policy</a> explains
-                    personal-data processing. German law applies without
-                    removing mandatory protection in a consumer’s country of
-                    habitual residence. No exclusive court jurisdiction is
-                    imposed on consumers. German and English versions provide
-                    information; mandatory rights do not depend on language
-                    choice. Updating this page does not automatically change
-                    existing contracts.
+                    Our
+                    <a data-legal-document href="/privacy.html#en"
+                        >privacy policy</a
+                    >
+                    explains personal-data processing. German law applies
+                    without removing mandatory protection in a consumer’s
+                    country of habitual residence. No exclusive court
+                    jurisdiction is imposed on consumers. German and English
+                    versions provide information; mandatory rights do not depend
+                    on language choice. Updating this page does not
+                    automatically change existing contracts.
                 </p>
             </section>
         </main>
         <footer>
             <nav aria-label="Rechtliche Informationen / Legal information">
-                <a href="/impressum.html">Impressum / Legal notice</a>
-                <a href="/terms.html" aria-current="page"
-                    >AGB / Terms and conditions</a
+                <a data-legal-document href="/impressum.html"
+                    ><span data-legal-language-copy="de">Impressum</span
+                    ><span data-legal-language-copy="en">Legal notice</span></a
                 >
-                <a href="/refunds.html"
-                    >Widerruf, Erstattung und Kündigung / Refunds and
-                    cancellation</a
+                <a data-legal-document href="/terms.html" aria-current="page"
+                    ><span data-legal-language-copy="de">AGB</span
+                    ><span data-legal-language-copy="en"
+                        >Terms and conditions</span
+                    ></a
                 >
-                <a href="/privacy.html">Datenschutzerklärung / Privacy policy</a
+                <a data-legal-document href="/refunds.html"
+                    ><span data-legal-language-copy="de"
+                        >Widerruf, Erstattung und Kündigung</span
+                    ><span data-legal-language-copy="en"
+                        >Refunds and cancellation</span
+                    ></a
+                >
+                <a data-legal-document href="/privacy.html"
+                    ><span data-legal-language-copy="de"
+                        >Datenschutzerklärung</span
+                    ><span data-legal-language-copy="en"
+                        >Privacy policy</span
+                    ></a
                 ><a href="/">Zur Anwendung / Back to viewer</a>
             </nav>
             <p>André Fiedler – Andrés Werkstatt</p>
         </footer>
+        <script type="module" src="/legal/main.mjs"></script>
     </body>
 </html>

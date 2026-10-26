@@ -12,7 +12,7 @@ links in the footer and, where applicable, at checkout.
 
 The public routes are `/impressum.html`, `/terms.html`, `/refunds.html` and
 `/privacy.html`. Every public app/landing page links to all four. The app's former
-“Privacy & security” resource link now opens the privacy policy. Each document is
+“Privacy & security” resource link opens the privacy overlay. Each document is
 available in German and English without JavaScript, sign-in or analytics and can
 be saved/printed through the browser.
 
@@ -24,6 +24,20 @@ profile. The correct street is **Rädelstraße 7**, replacing the older footer t
 `src/legal/LegalDocuments.mjs` owns the authored prose. `npm run sync:legal`
 generates the four HTML pages and `npm run check:legal` detects stale output.
 The withdrawal form uses the same seller source as the contact blocks.
+
+With JavaScript enabled, legal links on the app and landing pages open a native
+modal containing the corresponding same-origin document. The current viewer URL
+and loaded session remain in place. Close, backdrop click and Escape restore the
+opener's focus and scroll state. Links between legal documents reuse the same
+modal. The close mark is drawn with two centered strokes rather than a text glyph.
+Direct URLs remain readable without JavaScript as a fallback.
+
+German and English toggle buttons show one language at a time, update accessible
+selection state and carry the chosen language through document cross-links.
+Overlays initially follow the viewer language unless a document link explicitly
+selects German or English. Without JavaScript both authored texts remain readable.
+The original floating analytics popup is retained, with the same explicit consent
+choices; opening its privacy link now keeps the viewer behind an overlay.
 
 Terms describe the free viewer and, conditionally where offered, the established
 Basic calendar-month offer: EUR 3 for the initial remainder month, then EUR 10 per
@@ -50,7 +64,7 @@ The companion change is on **Analytics `main`**, version 1.3.11. Its public trac
 adds `stop()` and `start()`, checks a consent-generation boundary after asynchronous
 fingerprinting, discards prior interaction state and suppresses lifecycle events
 while stopped. Existing hosts retain their current behavior until they use these
-controls. ECAD Forge is version 1.13.49.
+controls. ECAD Forge is version 1.13.50.
 
 When publication is later authorized, publish the Analytics companion first and
 verify the served tracker exposes `stop`/`start`, then publish the app. Do not
@@ -89,7 +103,7 @@ not been sent or entered into Gmail.
 
 ## Validation
 
-The app's full `npm test` suite passed (1,051 passed, one skipped), together
+The app's full `npm test` suite passed (1,061 passed, one skipped), together
 with `check:legal`, `check:structured-data` and `build:static`. Analytics' full
 `npm test` passed (66 PHP and 77 JavaScript tests), as did PHP syntax checks.
 Tests include fresh/denied/granted consent, restricted storage, revocation across

@@ -1,0 +1,96 @@
+.legal-dialog {
+    width: min(64rem, calc(100vw - 3rem));
+    height: min(54rem, calc(100dvh - 3rem));
+    max-width: none;
+    max-height: none;
+    padding: 0;
+    border: 1px solid #98afbc;
+    border-radius: 0.9rem;
+    color: #172a3a;
+    background: #f2f6f8;
+    overflow: hidden;
+    box-shadow: 0 1rem 4rem #0005;
+}
+.legal-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+.legal-dialog::backdrop {
+    background: #08131b99;
+}
+.legal-dialog__header {
+    margin: 0;
+    max-width: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 auto;
+    gap: 1rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #c3d3df;
+}
+.legal-dialog__header h2 {
+    font:
+        600 1rem/1.4 system-ui,
+        sans-serif;
+    margin: 0;
+}
+.legal-dialog__close {
+    position: relative;
+    flex: 0 0 auto;
+    width: 2.3rem;
+    height: 2.3rem;
+    padding: 0;
+    border: 1px solid #98afbc;
+    border-radius: 0.4rem;
+    color: inherit;
+    background: transparent;
+    font:
+        1.5rem/1 system-ui,
+        sans-serif;
+    cursor: pointer;
+}
+.legal-dialog__close::before,
+.legal-dialog__close::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1rem;
+    height: 2px;
+    border-radius: 1px;
+    background: currentColor;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+.legal-dialog__close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+.legal-dialog__close:focus-visible {
+    outline: 3px solid #b65b00;
+    outline-offset: 2px;
+}
+.legal-dialog__frame {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    border: 0;
+    background: inherit;
+}
+[data-theme='dark'] .legal-dialog {
+    color: #e1eaf0;
+    background: #172630;
+    border-color: #496271;
+}
+[data-theme='dark'] .legal-dialog__header {
+    border-color: #496271;
+}
+@media (max-width: 600px) {
+    .legal-dialog {
+        width: calc(100vw - 1rem);
+        height: calc(100dvh - 1rem);
+        border-radius: 0.5rem;
+    }
+    .legal-dialog__header {
+        padding: 0.5rem 0.75rem;
+    }
+}

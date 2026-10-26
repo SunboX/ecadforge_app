@@ -11,6 +11,7 @@
         <link rel="canonical" href="https://ecadforge.app/refunds.html" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/styles/50-legal.css" />
+        <link rel="stylesheet" href="/styles/51-legal-dialog.css" />
         <title>
             Widerruf, Erstattung und Kündigung / Refunds and cancellation | ECAD
             Forge
@@ -20,19 +21,47 @@
         <a class="skip-link" href="#content">Zum Inhalt / Skip to content</a>
         <header>
             <a class="legal-brand" href="/">ECAD Forge</a>
-            <nav aria-label="Sprache / Language">
-                <a href="#de" lang="de">Deutsch</a
-                ><a href="#en" lang="en">English</a>
-            </nav>
+            <div
+                class="legal-language-controls"
+                data-legal-language-controls
+                role="group"
+                aria-label="Sprache / Language"
+                hidden
+            >
+                <button
+                    type="button"
+                    data-legal-language="de"
+                    aria-pressed="true"
+                    lang="de"
+                >
+                    Deutsch</button
+                ><button
+                    type="button"
+                    data-legal-language="en"
+                    aria-pressed="false"
+                    lang="en"
+                >
+                    English
+                </button>
+            </div>
         </header>
         <main id="content">
-            <h1>
+            <h1
+                data-legal-title
+                data-title-de="Widerruf, Erstattung und Kündigung"
+                data-title-en="Refunds and cancellation"
+            >
                 Widerruf, Erstattung und Kündigung / Refunds and cancellation
             </h1>
             <p class="legal-date">
                 Stand / Updated: <time datetime="2026-10-26">26.10.2026</time>
             </p>
-            <section id="de" lang="de" aria-label="Deutsch">
+            <section
+                id="de"
+                lang="de"
+                aria-label="Deutsch"
+                data-legal-language-copy="de"
+            >
                 <h2>Widerrufsbelehrung für Verbraucher</h2>
                 <p>
                     Sie haben das Recht, einen entgeltlichen Fernabsatzvertrag
@@ -122,8 +151,12 @@ Unterschrift (nur bei Erklärung auf Papier):</pre
                     Minderung oder Vertragsbeendigung bleiben erhalten.
                 </p>
             </section>
-            <section id="en" lang="en" aria-label="English">
-                <h2 class="legal-language-title">English</h2>
+            <section
+                id="en"
+                lang="en"
+                aria-label="English"
+                data-legal-language-copy="en"
+            >
                 <h2>Consumer withdrawal instructions</h2>
                 <p>
                     You may withdraw from a paid distance contract for our
@@ -206,16 +239,33 @@ Signature (only for a notice on paper):</pre
         </main>
         <footer>
             <nav aria-label="Rechtliche Informationen / Legal information">
-                <a href="/impressum.html">Impressum / Legal notice</a>
-                <a href="/terms.html">AGB / Terms and conditions</a>
-                <a href="/refunds.html" aria-current="page"
-                    >Widerruf, Erstattung und Kündigung / Refunds and
-                    cancellation</a
+                <a data-legal-document href="/impressum.html"
+                    ><span data-legal-language-copy="de">Impressum</span
+                    ><span data-legal-language-copy="en">Legal notice</span></a
                 >
-                <a href="/privacy.html">Datenschutzerklärung / Privacy policy</a
+                <a data-legal-document href="/terms.html"
+                    ><span data-legal-language-copy="de">AGB</span
+                    ><span data-legal-language-copy="en"
+                        >Terms and conditions</span
+                    ></a
+                >
+                <a data-legal-document href="/refunds.html" aria-current="page"
+                    ><span data-legal-language-copy="de"
+                        >Widerruf, Erstattung und Kündigung</span
+                    ><span data-legal-language-copy="en"
+                        >Refunds and cancellation</span
+                    ></a
+                >
+                <a data-legal-document href="/privacy.html"
+                    ><span data-legal-language-copy="de"
+                        >Datenschutzerklärung</span
+                    ><span data-legal-language-copy="en"
+                        >Privacy policy</span
+                    ></a
                 ><a href="/">Zur Anwendung / Back to viewer</a>
             </nav>
             <p>André Fiedler – Andrés Werkstatt</p>
         </footer>
+        <script type="module" src="/legal/main.mjs"></script>
     </body>
 </html>

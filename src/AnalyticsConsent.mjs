@@ -36,6 +36,9 @@ export class AnalyticsConsent {
         this.#document
             .querySelector('[data-analytics-settings]')
             ?.addEventListener('click', () => this.show())
+        this.#window.addEventListener('ecadforge:analytics-settings', () =>
+            this.show()
+        )
         this.#window.addEventListener('storage', (event) => {
             if (
                 event.key !== null &&
@@ -79,7 +82,9 @@ export class AnalyticsConsent {
     /** Reopen the settings from the persistent footer control. */
     show() {
         this.#setVisible(true)
-        this.#document.querySelector('[data-analytics-decline]')?.focus?.()
+        this.#document
+            .querySelector('[data-analytics-decline]')
+            ?.focus?.({ preventScroll: true })
     }
 
     /** Stop the central tracker's current and in-flight transmissions after withdrawal. */

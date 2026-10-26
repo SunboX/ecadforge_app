@@ -97,7 +97,8 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
             `${slug}.html`
         )
         assert.match(legalHtml, /<address>/)
-        assert.doesNotMatch(legalHtml, /<script/)
+        assert.match(legalHtml, /src="\/legal\/main\.mjs/)
+        assert.doesNotMatch(legalHtml, /src="\/main\.mjs/)
         assert.match(legalHtml, /href="\/styles\/50-legal\.css/)
     }
     await readRequiredOutputFile(outputRoot, 'styles/50-legal.css')
