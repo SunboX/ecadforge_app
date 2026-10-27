@@ -1,6 +1,6 @@
 # Server statistics and consent boundaries
 
-The basic page-load counter remains independent of consent. Additional statistics reduce ordinary HTTP request metadata on the ECAD Forge PHP server; no browser script or extra request asks the device for information.
+The basic page-load counter remains independent of consent. Expanded collection activates only when the root package manifest has `serverStatisticsEnabled: true`. The FTP workflow uploads that manifest after the revised frontend and privacy pages; an absent, old or invalid manifest leaves expanded collection disabled. Additional statistics reduce ordinary HTTP request metadata on the ECAD Forge PHP server; no browser script or extra request asks the device for information.
 
 ## Recorded categories
 

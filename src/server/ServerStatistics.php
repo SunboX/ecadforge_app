@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ServerRequestMetrics.php';
+require_once __DIR__ . '/ServerStatisticsConfig.php';
 
 /** Keeps independent daily histograms locally and sends only batched, thresholded reports. */
 final class ServerStatistics
 {
     /** Expose only operational readiness, never counters or visitor attributes, for deployment checks. */
-    public static function readiness(array $server, ?string $directory = null): string
+    public static function readiness(array $server, ?string $directory = null, ?string $manifest = null): string
     {
-        if (($server['REQUEST_METHOD'] ?? '') !== 'GET' || ($server['SERVER_NAME'] ?? '') !== 'ecadforge.app'
+        if (!ServerStatisticsConfig::enabled($manifest) || ($server['REQUEST_METHOD'] ?? '') !== 'GET' || ($server['SERVER_NAME'] ?? '') !== 'ecadforge.app'
             || ($server['HTTP_DNT'] ?? '') === '1' || ($server['HTTP_SEC_GPC'] ?? '') === '1') {
             return 'disabled';
         }
@@ -20,9 +21,9 @@ final class ServerStatistics
     }
 
     /** Count a delivery without retaining a request record, IP, raw headers or a feature tuple. */
-    public static function record(array $server, array $delivery = [], ?string $directory = null, ?callable $transport = null, ?int $now = null): void
+    public static function record(array $server, array $delivery = [], ?string $directory = null, ?callable $transport = null, ?int $now = null, ?string $manifest = null): void
     {
-        if (($server['REQUEST_METHOD'] ?? '') !== 'GET' || ($server['SERVER_NAME'] ?? '') !== 'ecadforge.app') {
+        if (!ServerStatisticsConfig::enabled($manifest) || ($server['REQUEST_METHOD'] ?? '') !== 'GET' || ($server['SERVER_NAME'] ?? '') !== 'ecadforge.app') {
             return;
         }
         $metrics = ServerRequestMetrics::fromRequest($server, $delivery);
@@ -75,8 +76,8 @@ final class ServerStatistics
                 $data['metrics'][$dimension][$bucket] = (int) ($data['metrics'][$dimension][$bucket] ?? 0) + 1;
             }
             $hour = intdiv($now, 3600);
-            $hasPreviousDays = count(glob($directory . '/*.json') ?: []) > 1;
-            $due = $hour > (int) ($data['report_hour'] ?? -1) && ($data['samples'] >= 5 || $hasPreviousDays);
+            $hasOtherDays = count(glob($directory . '/????-??-??.json') ?: []) > 1;
+            $due = $hour > (int) ($data['report_hour'] ?? -1) && ($data['samples'] >= 5 || $hasOtherDays);
             if ($due) {
                 $data['report_hour'] = $hour;
             }

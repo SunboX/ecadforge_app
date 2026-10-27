@@ -90,6 +90,8 @@ test(
             const sent = probe(
                 `
             require 'src/server/ServerStatistics.php';
+            $manifest = $argv[1] . '/manifest.json';
+            file_put_contents($manifest, '{"serverStatisticsEnabled":true}');
             $sent = [];
             $send = function ($data) use (&$sent) { $sent[] = $data; };
             $server = ['REQUEST_METHOD' => 'GET', 'SERVER_NAME' => 'ecadforge.app',
@@ -98,10 +100,10 @@ test(
             $now = strtotime('2026-10-27 12:00:00 UTC');
             for ($i = 0; $i < 6; $i++) {
                 $server['HTTP_ACCEPT_LANGUAGE'] = $i === 0 ? 'de-DE' : 'en-US';
-                ServerStatistics::record($server, ['bytes' => 55000, 'duration_ms' => 3], $argv[1], $send, $now + $i);
+                ServerStatistics::record($server, ['bytes' => 55000, 'duration_ms' => 3], $argv[1], $send, $now + $i, $manifest);
             }
-            ServerStatistics::record($server, ['bytes' => 55000, 'duration_ms' => 3], $argv[1], $send, $now + 3600);
-            ServerStatistics::record($server, [], $argv[1], $send, $now + 3601);
+            ServerStatistics::record($server, ['bytes' => 55000, 'duration_ms' => 3], $argv[1], $send, $now + 3600, $manifest);
+            ServerStatistics::record($server, [], $argv[1], $send, $now + 3601, $manifest);
             echo json_encode($sent);
         `,
                 directory
@@ -147,15 +149,17 @@ test(
             const result = probe(
                 `
             require 'src/server/ServerStatistics.php';
+            $manifest = $argv[1] . '/manifest.json';
+            file_put_contents($manifest, '{"serverStatisticsEnabled":true}');
             $server = ['REQUEST_METHOD' => 'GET', 'SERVER_NAME' => 'ecadforge.app'];
             $now = strtotime('2026-10-27 12:00:00 UTC');
             $noop = function () { throw new Exception('offline'); };
-            ServerStatistics::record($server + ['HTTP_DNT' => '1'], [], $argv[1], $noop, $now);
-            ServerStatistics::record(['REQUEST_METHOD' => 'GET', 'SERVER_NAME' => 'localhost'], [], $argv[1], $noop, $now);
-            $readiness = ServerStatistics::readiness($server + ['HTTP_SEC_GPC' => '1'], $argv[1]);
-            $before = glob($argv[1] . '/*.json');
+            ServerStatistics::record($server + ['HTTP_DNT' => '1'], [], $argv[1], $noop, $now, $manifest);
+            ServerStatistics::record(['REQUEST_METHOD' => 'GET', 'SERVER_NAME' => 'localhost'], [], $argv[1], $noop, $now, $manifest);
+            $readiness = ServerStatistics::readiness($server + ['HTTP_SEC_GPC' => '1'], $argv[1], $manifest);
+            $before = glob($argv[1] . '/20*.json');
             file_put_contents($argv[1] . '/2026-10-01.json', '{}');
-            ServerStatistics::record($server, [], $argv[1], $noop, $now);
+            ServerStatistics::record($server, [], $argv[1], $noop, $now, $manifest);
             echo json_encode(['readiness' => $readiness, 'before' => count($before), 'old_exists' => file_exists($argv[1] . '/2026-10-01.json')]);
         `,
                 directory
@@ -192,3 +196,31 @@ test('static packaging excludes runtime histogram files and Apache denies direct
         await rm(directory, { recursive: true, force: true })
     }
 })
+
+test(
+    'deployment activation defaults off until an explicit manifest flag is present',
+    { skip: !phpAvailable },
+    async () => {
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'statistics-manifest-')
+        )
+        try {
+            const result = probe(
+                `
+            require 'src/server/ServerStatisticsConfig.php';
+            $file = $argv[1] . '/package.json';
+            $states = [ServerStatisticsConfig::enabled($file)];
+            foreach (['{}', '{"serverStatisticsEnabled":"true"}', '{"serverStatisticsEnabled":false}', '{"serverStatisticsEnabled":true}', 'invalid'] as $json) {
+                file_put_contents($file, $json);
+                $states[] = ServerStatisticsConfig::enabled($file);
+            }
+            echo json_encode($states);
+        `,
+                directory
+            )
+            assert.deepEqual(result, [false, false, false, false, true, false])
+        } finally {
+            await rm(directory, { recursive: true, force: true })
+        }
+    }
+)

@@ -3,6 +3,7 @@
     "version": "1.13.53",
     "description": "Browser-based viewer for Altium, KiCad, Gerber, and CircuitJSON design files",
     "private": true,
+    "serverStatisticsEnabled": true,
     "license": "AGPL-3.0-or-later",
     "type": "module",
     "scripts": {
