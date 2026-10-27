@@ -54,7 +54,7 @@ signals instead of calling cookieless tracking anonymous.
 
 ## Consent behavior and Analytics companion change
 
-Automatic analytics is disabled until explicit permission. Accept and decline
+Detailed browser analytics is disabled until explicit permission. Accept and decline
 have equal presentation. A persistent footer control and `/?privacy=analytics`
 reopen the choice. Only `granted` authorizes the loader; storage failures leave
 permission in memory for the current tab. Withdrawal and cross-tab revocation
@@ -115,3 +115,13 @@ checks exercised footer navigation, English anchors, consent controls and direct
 legal routes. Chrome's captured warning/error log was empty. Firefox checked
 1280px and 500px layouts without horizontal overflow (its requested 390px native
 window was clamped to 500px). Screenshots are kept outside the source repository.
+
+## Minimal server counts (1.13.52)
+
+Production viewer document requests (`/`, `/index.html`, and viewer SPA routes) pass through `index.php`. GET deliveries send only `{"site_key":"ecadforge_app"}` from the web server to Analytics `/v1/aggregate`. The browser sends no analytics request before consent. No visitor headers, cookies, IP, URL/query, referrer, device attributes or identifiers are forwarded. HEAD, unsupported methods and local development do not count. Legal overlays and static assets do not increment viewer counts.
+
+Analytics stores one atomic count per site/UTC day, retaining at most 400 days. It does not create sessions, detailed events or visitor hashes. The dashboard exposes `server_page_loads` separately: counts include reloads and bots, are not unique visitors, and must not be added to consented pageviews. Whole UTC days overlap the selected dashboard period. Delivery is best effort (500 ms maximum outbound timeout, no retry/replay); outages may undercount. The server response is finished before reporting where FastCGI supports it.
+
+Pending, denied and granted consent all receive this same baseline. Granting starts detailed analytics from that point; withdrawal stops detailed tracking. Anonymous totals are never retroactively linked to a visitor. Hosting/security logs remain separate and are described in the privacy policy. The stated legitimate interest is minimal demand measurement and capacity planning; active device fingerprinting remains consent-only.
+
+Design basis: [LfDI BW tracking FAQ, server-side counting example](https://www.baden-wuerttemberg.datenschutz.de/faq-zu-cookies-und-tracking-2/) and [DSK 2024 guidance on digital services](https://www.datenschutz-berlin.de/fileadmin/user_upload/pdf/publikationen/DSK/2024/2024_DSK-OH_Digitale-Dienste.pdf). Cookieless tracking is not inherently exempt: this design avoids device access and does not forward visitor data. New dimensions, identifiers or client-side probes require a fresh assessment.

@@ -201,7 +201,7 @@
     "legal.privacy": "Politique de confidentialité",
     "analytics.settings": "Paramètres d’analyse",
     "analytics.title": "Analyse facultative",
-    "analytics.description": "Autoriser l’analyse d’utilisation et l’empreinte de l’appareil pour améliorer ECAD Forge ? Le visualiseur fonctionne sans. Modifiez votre choix en bas de page.",
+    "analytics.description": "Autoriser l’analyse détaillée et l’empreinte de l’appareil pour améliorer ECAD Forge ? Le visualiseur fonctionne sans. Un compteur quotidien anonyme côté serveur fonctionne quel que soit votre choix. Modifiez votre choix en bas de page.",
     "analytics.decline": "Refuser l’analyse",
     "analytics.accept": "Autoriser l’analyse"
 }

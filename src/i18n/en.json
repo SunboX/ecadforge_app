@@ -201,7 +201,7 @@
     "legal.privacy": "Privacy policy",
     "analytics.settings": "Analytics settings",
     "analytics.title": "Optional analytics",
-    "analytics.description": "Allow usage analytics and device fingerprinting to help improve ECAD Forge? The viewer works without it. You can change your choice in the footer.",
+    "analytics.description": "Allow detailed usage analytics and device fingerprinting to improve ECAD Forge? The viewer works without it. An anonymous server-side daily page-load count runs regardless of your choice. You can change your choice in the footer.",
     "analytics.decline": "Decline analytics",
     "analytics.accept": "Allow analytics"
 }

@@ -45,6 +45,8 @@ pages are crawlable.
 
 ## Analytics
 
+Production Apache deployments count viewer document GET deliveries on the server independently of the optional browser tracker. Only daily app totals are stored, without visitor attributes or identifiers. See [minimal server counts](legal-disclosures.md#minimal-server-counts-11352) for coverage and deployment requirements. Local development sends neither baseline counts nor production tracker events.
+
 - The browser entrypoint loads the centralized cookieless tracker from `https://analytics.andrefiedler.de/tracker.js` only after explicit permission on deployed HTTP(S) origins. Localhost, file URLs, and private-network dev origins do not load the production tracker.
 - The public site key is `ecadforge_app`.
 - Register each deployed browser origin in the Analytics `analytics_sites` table or dashboard before expecting events. The production row should use the deployed app origin and public key `ecadforge_app`.

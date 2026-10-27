@@ -179,7 +179,7 @@ remains accessible when JavaScript or WebMCP is unavailable.
 - The original floating analytics popup remains available with equal consent choices.
 - Legal pages use the confirmed public seller profile, remain available without
   authentication and are included in the static deployment artifact.
-- Automatic analytics requires explicit permission. Decline and accept have equal
+- Detailed browser analytics requires explicit permission. Decline and accept have equal
   presentation; settings remain accessible from the footer. Restricted storage
   defaults off, pre-consent activity is discarded, withdrawal stops current and
   pending tracker transmissions, and later consent starts a fresh activity period.

@@ -387,7 +387,7 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
     )
     assert.match(htaccessSource, /RewriteEngine On/)
     assert.match(htaccessSource, /RewriteRule \^\(\.\+\)\$ \$1\.html \[L\]/)
-    assert.match(htaccessSource, /RewriteRule \^ index\.html \[L\]/)
+    assert.match(htaccessSource, /RewriteRule \^ index\.php \[L\]/)
     assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-f/)
     assert.match(htaccessSource, /RewriteCond %\{REQUEST_FILENAME\} !-d/)
     assert.match(
@@ -406,7 +406,7 @@ test('Apache fallback serves app routes that match asset directories', async () 
     const extensionlessFallback = [
         '    RewriteCond %{REQUEST_FILENAME} !-f',
         '    RewriteCond %{REQUEST_URI} !\\.[^/]+$',
-        '    RewriteRule ^ index.html [L]'
+        '    RewriteRule ^ index.php [L]'
     ].join('\n')
 
     assert.ok(

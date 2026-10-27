@@ -201,7 +201,7 @@
     "legal.privacy": "Política de privacidad",
     "analytics.settings": "Ajustes de análisis",
     "analytics.title": "Análisis opcional",
-    "analytics.description": "¿Permitir análisis de uso y huellas del dispositivo para mejorar ECAD Forge? El visor funciona sin ello. Puede cambiar su elección al pie de página.",
+    "analytics.description": "¿Permitir análisis detallados y huellas del dispositivo para mejorar ECAD Forge? El visor funciona sin ello. Un contador diario anónimo del servidor funciona independientemente de su elección. Puede cambiarla al pie de página.",
     "analytics.decline": "Rechazar análisis",
     "analytics.accept": "Permitir análisis"
 }
