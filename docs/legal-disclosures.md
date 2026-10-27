@@ -125,3 +125,7 @@ Analytics stores one atomic count per site/UTC day, retaining at most 400 days. 
 Pending, denied and granted consent all receive this same baseline. Granting starts detailed analytics from that point; withdrawal stops detailed tracking. Anonymous totals are never retroactively linked to a visitor. Hosting/security logs remain separate and are described in the privacy policy. The stated legitimate interest is minimal demand measurement and capacity planning; active device fingerprinting remains consent-only.
 
 Design basis: [LfDI BW tracking FAQ, server-side counting example](https://www.baden-wuerttemberg.datenschutz.de/faq-zu-cookies-und-tracking-2/) and [DSK 2024 guidance on digital services](https://www.datenschutz-berlin.de/fileadmin/user_upload/pdf/publikationen/DSK/2024/2024_DSK-OH_Digitale-Dienste.pdf). Cookieless tracking is not inherently exempt: this design avoids device access and does not forward visitor data. New dimensions, identifiers or client-side probes require a fresh assessment.
+
+## Expanded server categories (1.13.53)
+
+The basic counter above remains unchanged. Additional coarse HTTP/delivery statistics now use local reduction and separate daily marginals, thresholded and batched before transmission. The privacy text and all popup translations describe the independent server statistics and objection routes. [Exact categories and processing assessment](server-statistics.md). The optional device fingerprint tracker remains consent-only.

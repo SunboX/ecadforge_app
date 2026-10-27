@@ -106,25 +106,65 @@
                     wählen Sie keine externen Abrufe für vertrauliche
                     Informationen.
                 </p>
-                <h2>4. Basismessung und freiwillige Nutzungsanalyse</h2>
+                <h2>4. Serverstatistik und freiwillige Detailanalyse</h2>
                 <p>
-                    Bei jeder erfolgreichen Auslieferung der Viewer-Seite erhöht
-                    unser Webserver unabhängig von Ihrer Analyse-Wahl einen
-                    Tageszähler. Er sendet ausschließlich den festen
-                    App-Schlüssel an unseren Analyseserver; keine Besucher-IP,
-                    Browserkennung, Seitenadresse, Verweisquelle, Cookie- oder
-                    Geräteinformationen werden weitergeleitet. Gespeichert
-                    werden nur App, UTC-Kalendertag und Anzahl für höchstens 400
-                    Tage. Es entstehen keine Besucherprofile oder Sitzungen;
-                    auch Neuladen und automatisierte Abrufe werden mitgezählt.
-                    Diese Zählung wird nicht mit der freiwilligen Analyse
-                    verknüpft. Sie dient der sparsamen Messung der
-                    Gesamtnachfrage und Kapazitätsplanung; soweit beim Webserver
-                    personenbezogene Verbindungsdaten verarbeitet werden,
-                    stützen wir dies auf Art. 6 Abs. 1 lit. f DSGVO. Für die
-                    Zählung werden weder Informationen auf Ihrem Gerät
-                    gespeichert noch Geräteinformationen ausgelesen. Technische
-                    Hosting-Protokolle sind davon getrennt (Abschnitt 2).
+                    Unabhängig von Ihrer Wahl zur freiwilligen Detailanalyse
+                    zählt unser Webserver erfolgreiche GET-Auslieferungen der
+                    Viewer-Seite pro App und UTC-Tag. Neuladen und
+                    automatisierte Abrufe zählen mit; dies sind keine
+                    eindeutigen Besucherzahlen.
+                </p>
+                <p>
+                    Zusätzlich ordnet der Webserver ohnehin empfangene
+                    HTTP-Angaben unmittelbar groben Kategorien zu:
+                    Browserfamilie und Hauptversionsgruppen in Zehnerschritten,
+                    Betriebssystemfamilie, aus der Browserkennung abgeleitete
+                    Geräteklasse, primäre Sprache, Verweisquelle nur als
+                    keine/eigene/externe Seite, erkennbar deklarierte Bots sowie
+                    HTTP-/HTTPS-Nutzung und die bei PHP sichtbare HTTP-Version.
+                    Ein Land wird nur berücksichtigt, wenn das Hosting bereits
+                    einen Ländercode bereitstellt; es erfolgt keine externe
+                    IP-Abfrage. Aus der Auslieferung selbst entstehen
+                    Größenklassen der unkomprimierten HTML-Datei und grobe
+                    PHP-Auslieferungszeiten. Diese Angaben sind ungenaue
+                    technische Kategorien, keine verifizierten
+                    Geräteeigenschaften.
+                </p>
+                <p>
+                    IP-Adressen, vollständige Browserkennungen und
+                    Verweisadressen, Seitenpfade, Suchparameter, Cookies,
+                    Zugangsdaten und genaue Abrufzeitpunkte werden von dieser
+                    Statistik weder gespeichert noch weitergeleitet. Es gibt
+                    keine einzelnen Abrufdatensätze, Besucherkennungen,
+                    Fingerprints, Sitzungen oder Kombinationen der Kategorien.
+                    Stattdessen erhöht jede Kategorie einen eigenen Tageszähler
+                    auf unserem Webserver. Die lokalen Zähler umfassen ein
+                    Sieben-Tage-Fenster; ältere Dateien werden beim nächsten
+                    Statistikversuch entfernt. Höchstens stündlich, ausgelöst
+                    durch einen Seitenabruf, gehen gesammelte Tagesstatistiken
+                    an unseren Analyseserver; Kategorien mit weniger als fünf
+                    Beobachtungen pro Tag werden nicht übertragen. Dort
+                    speichern wir nur App, UTC-Tag, Kategorie und Anzahl für ein
+                    rollendes 400-Tage-Fenster; ältere Einträge werden beim
+                    Eingang neuer Statistikberichte entfernt. Technische Fehler
+                    oder geringe Nutzung können die Statistik unvollständig
+                    machen. Die Serverstatistik wird nicht mit der freiwilligen
+                    Detailanalyse verknüpft.
+                </p>
+                <p>
+                    Zwecke sind Kapazitätsplanung, kompatible und sichere
+                    Auslieferung sowie deren technische Wartung. Soweit dafür
+                    zunächst personenbezogene HTTP-Verbindungsdaten verarbeitet
+                    werden, stützen wir die unmittelbare Reduktion zu
+                    Statistiken auf Art. 6 Abs. 1 lit. f DSGVO. Es erfolgen
+                    keine zusätzlichen Geräteabfragen, Cookies oder
+                    Wiedererkennung für diese Statistik. Gegen die Verarbeitung
+                    können Sie nach Art. 21 DSGVO widersprechen (Kontakt oben).
+                    Auch die Browser-Signale Do Not Track (DNT: 1) oder Global
+                    Privacy Control (Sec-GPC: 1) werden als Widerspruch
+                    berücksichtigt: Dann bleibt nur der einfache Aufrufzähler
+                    ohne Kategorien bestehen. Technische Hosting-Protokolle sind
+                    davon getrennt (Abschnitt 2).
                 </p>
                 <h3>Freiwillige Detailanalyse</h3>
                 <p>
@@ -313,21 +353,54 @@
                     policies and may process outside the EEA. Avoid external
                     lookups for confidential information.
                 </p>
-                <h2>4. Server counts and optional analytics</h2>
+                <h2>4. Server statistics and optional detailed analytics</h2>
                 <p>
-                    Whenever the viewer page is successfully delivered, our web
-                    server increments a daily counter regardless of your
-                    analytics choice. It sends only the fixed app key to our
-                    analytics server; no visitor IP, browser identifier, page
-                    URL, referrer, cookie or device information is forwarded.
-                    Only app, UTC calendar day and count are stored, for at most
-                    400 days. No visitor profiles or sessions are created;
-                    reloads and automated requests also count. These totals are
-                    not linked to optional analytics. The purpose is minimal
-                    measurement of overall demand and capacity planning; insofar
-                    as the web server processes personal connection data, we
-                    rely on GDPR Article 6(1)(f). Counting neither stores
-                    information on your device nor reads device information.
+                    Regardless of your choice about optional detailed analytics,
+                    our web server counts successful GET deliveries of the
+                    viewer page by app and UTC day. Reloads and automated
+                    requests count too; these are not unique visitor numbers.
+                </p>
+                <p>
+                    The web server also immediately reduces ordinary HTTP
+                    request information to coarse categories: browser family and
+                    major versions grouped by decade, OS family, device class
+                    inferred from the User-Agent, primary language, referrer
+                    only as none/same-site/external, declared automation,
+                    HTTP/HTTPS and the HTTP version visible to PHP. Country is
+                    used only if hosting already supplies a country code; there
+                    is no external IP lookup. Delivery itself supplies size
+                    bands for uncompressed HTML and coarse PHP delivery-time
+                    bands. These are approximate technical categories, not
+                    verified device properties.
+                </p>
+                <p>
+                    This statistics feature neither retains nor forwards IP
+                    addresses, full User-Agent or referrer strings, page paths,
+                    query parameters, cookies, credentials or exact request
+                    timestamps. There are no individual request records, visitor
+                    identifiers, fingerprints, sessions or combinations of
+                    categories. Each category instead increments its own daily
+                    counter on our web server, kept in a seven-day local window;
+                    older files are removed on the next statistics attempt. At
+                    most hourly, triggered by a page request, batches of daily
+                    statistics are sent to our analytics server; buckets with
+                    fewer than five observations per day are omitted. That
+                    server keeps only app, UTC day, category and count in a
+                    rolling 400-day window; older entries are removed when new
+                    statistics reports arrive. Failures and low traffic can make
+                    statistics incomplete. Server statistics are never linked to
+                    optional detailed analytics.
+                </p>
+                <p>
+                    The purposes are capacity planning, compatible and secure
+                    delivery, and technical maintenance. Insofar as personal
+                    HTTP connection data is initially processed, we rely on GDPR
+                    Article 6(1)(f) for immediate reduction to statistics. No
+                    additional device queries, cookies or recognition are used
+                    for this feature. You may object under Article 21 using the
+                    contact above. We also honour Do Not Track (DNT: 1) and
+                    Global Privacy Control (Sec-GPC: 1) as objections: only the
+                    basic page-load counter without categories remains.
                     Technical hosting logs are separate (section 2).
                 </p>
                 <h3>Optional detailed analytics</h3>

@@ -10,3 +10,5 @@ superpowers/
 .superpowers/
 /output
 .worktrees/
+
+src/.usage-data/

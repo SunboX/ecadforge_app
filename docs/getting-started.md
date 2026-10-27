@@ -104,3 +104,7 @@ Local/private development origins still never load the production tracker.
 The Analytics 1.3.11 companion provides synchronous `stop()`/`start()` controls;
 publish that tracker before the app when deployment is authorized. See
 [Legal disclosures](legal-disclosures.md) for the public policy and review scope.
+
+### Expanded server statistics (1.13.53)
+
+Production PHP also derives coarse statistical categories from ordinary request metadata. The app server stores separate daily counters in protected local storage and sends thresholded, hourly batches to Analytics 1.3.14. No visitor identifiers or raw request logs are sent. The dashboard's **Aggregated server statistics** section and JSON export show these independent marginals separately from detailed analytics. [Scope, retention, objections and deployment requirements](server-statistics.md).

@@ -201,7 +201,7 @@
     "legal.privacy": "Datenschutzerklärung",
     "analytics.settings": "Analyse-Einstellungen",
     "analytics.title": "Optionale Nutzungsanalyse",
-    "analytics.description": "Detaillierte Nutzungsanalyse und Geräte-Fingerprinting zulassen, um ECAD Forge zu verbessern? Die Ansicht funktioniert auch ohne. Ein anonymer serverseitiger Tageszähler für Seitenaufrufe läuft unabhängig von Ihrer Wahl. Sie können Ihre Wahl in der Fußzeile ändern.",
+    "analytics.description": "Detaillierte Nutzungsanalyse und Geräte-Fingerprinting zulassen, um ECAD Forge zu verbessern? Die Ansicht funktioniert auch ohne. Aggregierte Serverstatistiken laufen unabhängig von Ihrer Wahl; Details und Widerspruchsmöglichkeiten stehen in der Datenschutzerklärung. Sie können Ihre Wahl in der Fußzeile ändern.",
     "analytics.decline": "Analyse ablehnen",
     "analytics.accept": "Analyse zulassen"
 }

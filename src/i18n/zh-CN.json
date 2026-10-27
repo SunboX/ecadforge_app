@@ -201,7 +201,7 @@
     "legal.privacy": "隐私政策",
     "analytics.settings": "分析设置",
     "analytics.title": "可选使用分析",
-    "analytics.description": "是否允许详细使用分析和设备指纹来改进 ECAD Forge？拒绝不影响查看器。无论您如何选择，服务器都会进行匿名的每日页面加载计数。您可以在页脚更改选择。",
+    "analytics.description": "是否允许详细使用分析和设备指纹来改进 ECAD Forge？拒绝不影响查看器。无论您如何选择，服务器都会进行汇总统计；隐私政策说明了统计内容和反对方式。您可以在页脚更改选择。",
     "analytics.decline": "拒绝分析",
     "analytics.accept": "允许分析"
 }

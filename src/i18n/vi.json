@@ -201,7 +201,7 @@
     "legal.privacy": "Chính sách quyền riêng tư",
     "analytics.settings": "Cài đặt phân tích",
     "analytics.title": "Phân tích tùy chọn",
-    "analytics.description": "Cho phép phân tích chi tiết và dấu vân tay thiết bị để cải thiện ECAD Forge? Trình xem vẫn hoạt động khi từ chối. Bộ đếm lượt tải trang hằng ngày ẩn danh trên máy chủ luôn hoạt động bất kể lựa chọn. Bạn có thể đổi lựa chọn ở chân trang.",
+    "analytics.description": "Cho phép phân tích chi tiết và dấu vân tay thiết bị để cải thiện ECAD Forge? Trình xem vẫn hoạt động khi từ chối. Thống kê tổng hợp trên máy chủ hoạt động bất kể lựa chọn; chính sách quyền riêng tư giải thích cách phản đối. Bạn có thể đổi lựa chọn ở chân trang.",
     "analytics.decline": "Từ chối phân tích",
     "analytics.accept": "Cho phép phân tích"
 }

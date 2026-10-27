@@ -201,7 +201,7 @@
     "legal.privacy": "Política de privacidade",
     "analytics.settings": "Preferências de análise",
     "analytics.title": "Análise opcional",
-    "analytics.description": "Permitir análise detalhada e impressão digital do dispositivo para melhorar o ECAD Forge? O visualizador funciona sem isso. Uma contagem diária anônima no servidor funciona independentemente da escolha. Altere sua escolha no rodapé.",
+    "analytics.description": "Permitir análise detalhada e impressão digital do dispositivo para melhorar o ECAD Forge? O visualizador funciona sem isso. Estatísticas agregadas do servidor funcionam independentemente da escolha; a política de privacidade explica como se opor. Altere sua escolha no rodapé.",
     "analytics.decline": "Recusar análise",
     "analytics.accept": "Permitir análise"
 }
