@@ -479,3 +479,32 @@ function createBoardRecord() {
         }
     }
 }
+
+/**
+ * Verifies the installed toolkit renders all dense-board tracks through the app
+ * service and preserves its normal render cache and bottom-side behavior.
+ */
+test('Altium PCB renderer fits dense boards without call stack overflow', () => {
+    const documentModel = createPcbDocument({
+        tracks: Array.from({ length: 75000 }, (_, index) => ({
+            x1: -index,
+            y1: index,
+            x2: index + 1,
+            y2: -index - 1,
+            width: 1,
+            layerId: 1,
+            layerCode: 1
+        }))
+    })
+
+    const markup = EcadRendererService.renderPcb(documentModel)
+    assert.deepEqual(readViewBox(markup), [-75239, -75240, 150479, 150479])
+    assert.equal((markup.match(/class="pcb-track /g) || []).length, 75000)
+    assert.equal(EcadRendererService.renderPcb(documentModel), markup)
+
+    const bottomMarkup = EcadRendererService.renderPcb(documentModel, {
+        side: 'bottom'
+    })
+    assert.ok(readViewBox(bottomMarkup).every(Number.isFinite))
+    assert.equal((bottomMarkup.match(/class="pcb-track /g) || []).length, 75000)
+})
