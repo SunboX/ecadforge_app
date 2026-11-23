@@ -100,8 +100,6 @@ test('WebMcpRuntimeLoader configures same-origin runtime options before package 
             specifier: '@mcp-b/global/iife',
             options: {
                 autoInitialize: true,
-                nativeModelContextBehavior: 'preserve',
-                installTestingShim: 'if-missing',
                 transport: {
                     tabServer: {
                         allowedOrigins: ['https://ecadforge.app']
@@ -117,6 +115,18 @@ test('WebMcpRuntimeLoader configures same-origin runtime options before package 
         available: true,
         imported: true
     })
+})
+
+/** Verifies that a successful import can still leave registration unavailable. */
+test('WebMcpRuntimeLoader reports an unusable context after fallback import', async () => {
+    const environment = createBrowserEnvironment()
+    environment.document.modelContext = {}
+
+    const result = await WebMcpRuntimeLoader.initialize(environment, {
+        importer: async () => {}
+    })
+
+    assert.deepEqual(result, { available: false, imported: true })
 })
 
 /**

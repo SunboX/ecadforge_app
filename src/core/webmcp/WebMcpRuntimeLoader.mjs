@@ -43,7 +43,9 @@ export class WebMcpRuntimeLoader {
         }
 
         return {
-            available: Boolean(browser.document.modelContext),
+            available:
+                typeof browser.document.modelContext?.registerTool ===
+                'function',
             imported: true
         }
     }
@@ -115,9 +117,6 @@ export class WebMcpRuntimeLoader {
         return {
             ...existingOptions,
             autoInitialize: true,
-            nativeModelContextBehavior: 'preserve',
-            installTestingShim:
-                existingOptions.installTestingShim || 'if-missing',
             transport: {
                 ...transport,
                 tabServer: WebMcpRuntimeLoader.#sameOriginTransportOptions(

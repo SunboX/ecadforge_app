@@ -178,15 +178,21 @@ export class WebMcpAdapter {
 
     /**
      * Converts one registry tool to the current object-form WebMCP API.
-     * @param {{ name: string, description: string, inputSchema: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
+     * @param {{ name: string, description: string, inputSchema: object, outputSchema?: object, annotations?: object, handler: (args: object) => unknown }} tool Tool definition.
      * @param {string} apiForm Browser API form.
-     * @returns {{ name: string, description: string, inputSchema: object, annotations?: object, execute: (args?: object, callbackOptions?: object) => Promise<unknown> }}
+     * @returns {{ name: string, description: string, inputSchema: object, outputSchema?: object, annotations?: object, execute: (args?: object, callbackOptions?: object) => Promise<unknown> }}
      */
     #toNativeTool(tool, apiForm) {
         return {
             name: tool.name,
             description: tool.description,
             inputSchema: tool.inputSchema,
+            // MCP structured content requires an object root. A bare array
+            // continues to travel as JSON text on that transport.
+            ...(tool.outputSchema &&
+            (!this.#fallbackRuntime || tool.outputSchema.type === 'object')
+                ? { outputSchema: tool.outputSchema }
+                : {}),
             annotations: tool.annotations,
             execute: async (args = {}, callbackOptions = {}) => {
                 const result = await this.#trackToolCall(

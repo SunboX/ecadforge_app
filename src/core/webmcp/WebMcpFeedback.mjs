@@ -54,6 +54,27 @@ export class WebMcpFeedback {
                     related_tool: { type: 'string', enum: toolNames }
                 }
             },
+            outputSchema: {
+                type: 'object',
+                required: ['submitted', 'status'],
+                properties: {
+                    submitted: { type: 'boolean' },
+                    status: {
+                        enum: [
+                            'received',
+                            'invalid_input',
+                            'unavailable',
+                            'duplicate',
+                            'pending',
+                            'rate_limited',
+                            'rejected'
+                        ]
+                    },
+                    event_id: { type: 'integer' },
+                    message: { type: 'string' },
+                    error: { type: 'string' }
+                }
+            },
             handler: (args, options = {}) =>
                 this.#submit(args, options, toolNames)
         }

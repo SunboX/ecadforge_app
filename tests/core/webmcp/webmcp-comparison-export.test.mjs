@@ -87,13 +87,22 @@ class LocalTransport {
     }
     /** Calls a registered tool through its MCP transport boundary. */
     async call(name, args = {}) {
-        const { response } = this.begin(name, args)
-        const message = await response
+        const message = await this.begin(name, args).response
         assert.equal(message.error, undefined)
         return message.result
     }
+    /** Reads the schemas exposed to clients over the actual MCP wire. */
+    async list() {
+        const message = await this.#request('tools/list', {}).response
+        assert.equal(message.error, undefined)
+        return message.result.tools
+    }
     /** Starts an MCP request so cancellation can be sent while it is pending. */
     begin(name, args = {}) {
+        return this.#request('tools/call', { name, arguments: args })
+    }
+    /** Sends a JSON-RPC request and tracks its response. */
+    #request(method, params) {
         const id = ++this.#sequence
         const response = new Promise((resolve) =>
             this.#pending.set(id, resolve)
@@ -101,8 +110,8 @@ class LocalTransport {
         this.onmessage({
             jsonrpc: '2.0',
             id,
-            method: 'tools/call',
-            params: { name, arguments: args }
+            method,
+            params
         })
         return { id, response }
     }
@@ -140,6 +149,39 @@ async function providers(getSnapshot = snapshot, dependencies = {}) {
     }).initialize({ available: true, imported: true })
     return { native, fallback, transport }
 }
+
+test('native WebMCP and MCP discovery advertise schemas matching their result formats', async () => {
+    const { native, fallback, transport } = await providers()
+    try {
+        const tools = new Map(
+            (await transport.list()).map((tool) => [tool.name, tool])
+        )
+        assert.deepEqual(
+            [...tools.keys()].sort(),
+            [...native.tools.keys()].sort()
+        )
+        for (const [name, tool] of native.tools) {
+            if (tool.outputSchema.type === 'object') {
+                assert.equal(tools.get(name).outputSchema.type, 'object')
+            }
+        }
+
+        const artifact = tools.get('export_schematic_pcb_comparison')
+        assert.equal(artifact.outputSchema.properties.content.type, 'string')
+        assert.equal(artifact.outputSchema.properties.error.type, 'string')
+
+        const listDesigns = native.tools.get('list_designs')
+        assert.equal(listDesigns.outputSchema.type, 'array')
+        assert.equal(tools.get(listDesigns.name).outputSchema, undefined)
+        const result = await transport.call(listDesigns.name)
+        assert.deepEqual(
+            JSON.parse(result.content[0].text),
+            await listDesigns.execute({})
+        )
+    } finally {
+        await fallback.close()
+    }
+})
 
 test('comparison export has identical stable identifiers through native and MCP-B', async () => {
     const { native, fallback, transport } = await providers()

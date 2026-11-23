@@ -70,11 +70,27 @@ Native clients should use their browser's discovery and invocation contract.
 The loader leaves an existing context untouched instead of replacing it with a
 bridge that can serialize inputs or discard newer annotations and callback options.
 
-`@mcp-b/global` 6.0.0 supplies the fallback runtime for browsers without native
-registration. It forwards genuine MCP request cancellation signals to provider
-callbacks and supports the current object invocation contract. The app still
-preserves a working native context. MCP-B transport clients are
-available on the fallback path only; native browsers use native WebMCP clients.
+### November 2026 browser compatibility
+
+The app supplies [output schemas](https://github.com/webmachinelearning/webmcp/pull/254)
+to native registration in Chrome 159 and later. The schemas describe the
+existing successful results and returned errors. Agents can validate the
+parsed JSON returned by `executeTool()` when a schema is available.
+
+Chrome 160 [returns `Tool` objects](https://github.com/webmachinelearning/webmcp/pull/348)
+from `getTools()`. Keep the actual discovered object for `executeTool()` and
+read its metadata explicitly. Use `tool.source ?? tool.window` if the client
+also supports earlier preview builds. Treat missing schemas or annotations as
+nullish, and do not spread, clone, or serialize the discovered object.
+
+`@mcp-b/global` 6.2 supplies the fallback runtime for browsers without native
+registration. It uses the packaged W3C polyfill and keeps same-origin MCP tab
+and iframe transports, including MCP request cancellation. On this path,
+object result schemas are published through MCP `tools/list`. The bridge's
+browser-style `getTools()` mirror does not expose those output schemas. The
+native `list_designs` result is an array, which the MCP bridge sends as JSON
+text because MCP structured results require an object.
+
 The ECAD libraries do not own browser WebMCP registration or invocation.
 Loaded-project validation also identified a separate query-boundary issue:
 Altium Toolkit 1.4.18 and KiCad Toolkit 1.3.6 now resolve their explicitly

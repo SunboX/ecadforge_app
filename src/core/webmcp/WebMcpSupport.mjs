@@ -1,4 +1,5 @@
 import { WebMcpExecution } from './WebMcpExecution.mjs'
+import { WebMcpOutputSchema } from './WebMcpOutputSchema.mjs'
 
 /** Prepares public support reports without sending report text or design data. */
 export class WebMcpSupport {
@@ -36,6 +37,17 @@ export class WebMcpSupport {
                     area: { type: 'string', enum: WebMcpSupport.#areas }
                 }
             },
+            outputSchema: WebMcpOutputSchema.query({
+                submitted: { const: false },
+                status: { enum: ['prepared', 'invalid_input'] },
+                repository: { type: 'string' },
+                issues_url: { type: 'string' },
+                new_issue_url: { type: 'string' },
+                prefilled: { type: 'boolean' },
+                title: { type: 'string' },
+                body: { type: 'string' },
+                next_step: { type: 'string' }
+            }),
             handler: (args, options = {}) => {
                 WebMcpExecution.throwIfAborted(options)
                 return WebMcpSupport.#prepare(args, appVersion)
