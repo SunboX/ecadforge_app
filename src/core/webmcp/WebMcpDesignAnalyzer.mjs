@@ -546,10 +546,19 @@ export class WebMcpDesignAnalyzer {
         if (!requested) return ''
 
         return (
+            EcadDocumentConnectivity.findNet(
+                EcadDocumentConnectivity.resolve(schematicModel).nets,
+                netName
+            )?.name ||
+            EcadDocumentConnectivity.findNet(
+                EcadDocumentConnectivity.resolve(pcbModel).nets,
+                netName
+            )?.name ||
             [
                 ...WebMcpDesignAnalyzer.#schematicNetNames(schematicModel),
                 ...WebMcpDesignAnalyzer.#pcbNetNames(pcbModel)
-            ].find((candidate) => candidate.toLowerCase() === requested) || ''
+            ].find((candidate) => candidate.toLowerCase() === requested) ||
+            ''
         )
     }
 
@@ -561,10 +570,9 @@ export class WebMcpDesignAnalyzer {
      */
     static #schematicPinsForNet(documentModel, netName) {
         const pins = new Set()
-        const net = EcadDocumentConnectivity.resolve(documentModel).nets.find(
-            (candidate) =>
-                String(candidate?.name || '').toLowerCase() ===
-                String(netName || '').toLowerCase()
+        const net = EcadDocumentConnectivity.findNet(
+            EcadDocumentConnectivity.resolve(documentModel).nets,
+            netName
         )
 
         for (const pin of net?.pins || []) {

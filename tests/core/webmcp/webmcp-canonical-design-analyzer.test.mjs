@@ -4,6 +4,7 @@ import { Parser } from 'circuitjson-toolkit/parser'
 import { WebMcpDesignAnalyzer } from '../../../src/core/webmcp/WebMcpDesignAnalyzer.mjs'
 import { WebMcpDesignInspector } from '../../../src/core/webmcp/WebMcpDesignInspector.mjs'
 import { WebMcpFocusedInspector } from '../../../src/core/webmcp/WebMcpFocusedInspector.mjs'
+import { WebMcpPcbInspector } from '../../../src/core/webmcp/WebMcpPcbInspector.mjs'
 
 test('WebMcpDesignAnalyzer reviews canonical connectivity directly', () => {
     const documentModel = Parser.parse({
@@ -34,6 +35,7 @@ test('WebMcpDesignAnalyzer reviews canonical connectivity directly', () => {
                 type: 'source_net',
                 source_net_id: 'source_net_signal',
                 name: 'SIGNAL',
+                raw_name: '~{SIGNAL}',
                 member_source_group_ids: []
             },
             {
@@ -60,7 +62,7 @@ test('WebMcpDesignAnalyzer reviews canonical connectivity directly', () => {
     assert.equal(review.designs[0].kind, 'schematic')
 
     const queried = WebMcpFocusedInspector.queryNet(entry, {
-        net_name: 'signal'
+        net_name: '~{signal}'
     })
     const singlePin = WebMcpFocusedInspector.listSinglePinNets([entry])
     assert.equal(queried.net, 'SIGNAL')
@@ -75,4 +77,30 @@ test('WebMcpDesignAnalyzer reviews canonical connectivity directly', () => {
     assert.deepEqual(pinConnections.pins, [
         { pin: '1', name: 'IN', net: 'SIGNAL' }
     ])
+})
+
+test('PCB WebMCP net queries accept a declared source label and its canonical name', () => {
+    const documentModel = Parser.parse({
+        fileName: 'board.json',
+        data: JSON.stringify([
+            {
+                type: 'source_net',
+                source_net_id: 'net_1',
+                name: 'CIRCUIT_READY',
+                raw_name: '/~{CIRCUIT_READY}',
+                member_source_group_ids: []
+            }
+        ])
+    })
+    const entry = { documentModel, sourceFormat: 'circuitjson' }
+    const canonical = WebMcpPcbInspector.queryPcbNet(entry, {
+        net_name: 'CIRCUIT_READY'
+    })
+    assert.equal(canonical.net, 'CIRCUIT_READY')
+    assert.deepEqual(
+        WebMcpPcbInspector.queryPcbNet(entry, {
+            net_name: '/~{CIRCUIT_READY}'
+        }),
+        canonical
+    )
 })

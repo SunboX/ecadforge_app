@@ -1,4 +1,5 @@
 import { ComponentGrouping } from 'altium-toolkit/extensions'
+import { EcadDocumentConnectivity } from '../ecad/EcadDocumentConnectivity.mjs'
 import { EcadPcbInspectionModel } from '../ecad/EcadPcbInspectionModel.mjs'
 import { WebMcpDesignAnalyzer } from './WebMcpDesignAnalyzer.mjs'
 import { WebMcpPcbFabricationInspector } from './WebMcpPcbFabricationInspector.mjs'
@@ -253,7 +254,7 @@ export class WebMcpPcbInspector {
     }
 
     /**
-     * Resolves a PCB net name case-insensitively.
+     * Resolves a PCB net name from declared labels or PCB primitives.
      * @param {object} pcb PCB model.
      * @param {string | undefined} requestedNet Requested net.
      * @returns {string}
@@ -265,9 +266,14 @@ export class WebMcpPcbInspector {
         if (!normalized) return ''
 
         return (
+            EcadDocumentConnectivity.findNet(
+                WebMcpPcbInspector.#array(pcb.nets),
+                requestedNet
+            )?.name ||
             WebMcpPcbInspector.#netNameCandidates(pcb).find(
                 (candidate) => candidate.toLowerCase() === normalized
-            ) || ''
+            ) ||
+            ''
         )
     }
 

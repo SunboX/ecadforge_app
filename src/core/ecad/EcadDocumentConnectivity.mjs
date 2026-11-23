@@ -7,6 +7,30 @@ import { EcadFormatRegistry } from './EcadFormatRegistry.mjs'
  */
 export class EcadDocumentConnectivity {
     /**
+     * Resolves a declared net by its source label or its canonical name.
+     * @param {object[]} nets Declared net records.
+     * @param {unknown} requestedName Source label or canonical name.
+     * @returns {object | undefined} The matching net, if unambiguous.
+     */
+    static findNet(nets, requestedName) {
+        const name = String(requestedName ?? '').trim()
+        if (!name) return undefined
+
+        const exact =
+            nets.find((net) => net?.rawName === name) ||
+            nets.find((net) => net?.name === name)
+        if (exact) return exact
+
+        const folded = name.toLowerCase()
+        const matches = nets.filter(
+            (net) =>
+                net?.rawName?.toLowerCase() === folded ||
+                net?.name?.toLowerCase() === folded
+        )
+        return matches.length === 1 ? matches[0] : undefined
+    }
+
+    /**
      * Returns cached connectivity for a canonical or native document.
      * @param {unknown} documentModel Loaded document.
      * @returns {{ schema: string, components: object[], nets: object[], traces: object[], diagnostics: object[], statistics: object }} Connectivity projection.

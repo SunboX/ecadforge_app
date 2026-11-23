@@ -21,11 +21,9 @@ export class WebMcpFocusedInspector {
             .toLowerCase()
         if (!requested) return { error: 'net_name is required.' }
 
-        const net = EcadDocumentConnectivity.resolve(
-            entry.documentModel
-        ).nets.find(
-            (candidate) =>
-                String(candidate?.name || '').toLowerCase() === requested
+        const net = EcadDocumentConnectivity.findNet(
+            EcadDocumentConnectivity.resolve(entry.documentModel).nets,
+            args.net_name
         )
         if (!net) {
             return {

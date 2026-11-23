@@ -250,8 +250,17 @@ test('static deploy builder writes versioned Apache assets', async (t) => {
 
     assert.match(indexHtml, new RegExp('/style\\.css\\?v=' + pkg.version))
     assert.match(indexHtml, new RegExp('/main\\.mjs\\?v=' + pkg.version))
-    assert.match(indexHtml, /http-equiv="origin-trial"/)
-    assert.match(indexHtml, /content="AnJTFnSlAlC65FIT2VeQQPPLzX97dfpvn/)
+    const originTrial =
+        /http-equiv="origin-trial"\s+content="([A-Za-z0-9+/=]+)"/
+    const configuredHtml = await readFile(
+        new URL('../src/index.html', import.meta.url),
+        'utf8'
+    )
+    assert.match(indexHtml, originTrial)
+    assert.equal(
+        indexHtml.match(originTrial)[1],
+        configuredHtml.match(originTrial)?.[1]
+    )
     assert.match(
         mainSource,
         new RegExp('\\./AppController\\.mjs\\?v=' + pkg.version)

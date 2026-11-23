@@ -9,7 +9,8 @@ that fallback installs MCP-B tab and iframe transports, configured for the
 current page origin. The tools query only designs already loaded in the session.
 
 The production app shell includes the Chrome WebMCP origin-trial token for
-`https://ecadforge.app/`. The local Express server and generated Apache deploy
+`https://ecadforge.app/`, valid through March 30, 2027, subject to Chrome's
+trial milestone limit. The local Express server and generated Apache deploy
 artifact set `Origin-Agent-Cluster: ?1` and `Permissions-Policy: tools=(self)`
 so same-origin documents can register tools while cross-origin iframes remain
 blocked unless a trusted host explicitly delegates `allow="tools"`.
@@ -92,6 +93,9 @@ native `list_designs` result is an array, which the MCP bridge sends as JSON
 text because MCP structured results require an object.
 
 The ECAD libraries do not own browser WebMCP registration or invocation.
+The loaded-design lookups accept declared net labels alongside their canonical
+CircuitJSON names. Altium's CircuitJSON conversion retains native schematic
+pin owners and net memberships for the app's connectivity and comparison tools.
 Loaded-project validation also identified a separate query-boundary issue:
 Altium Toolkit 1.4.18 and KiCad Toolkit 1.3.6 now resolve their explicitly
 retained native model before loaded-design queries. This restores design names,

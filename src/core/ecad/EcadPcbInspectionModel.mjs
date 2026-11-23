@@ -93,6 +93,7 @@ export class EcadPcbInspectionModel {
             pads,
             nets: connectivity.nets.map((net) => ({
                 name: net.name || net.id,
+                rawName: net.rawName,
                 pads: (net.pins || []).map((pin) => ({
                     refdes: pin.refdes || '',
                     designator: String(pin.pinNumber ?? pin.name ?? ''),
